@@ -43,21 +43,20 @@
 </script>
 <script>
 
+    window.addEventListener('load', (event) => {
+        // alert('Page fully loaded');
+        // Your function here
+        // yourFunction();
 
+        getCurrentLocation();
+
+        });
 
 
     // Declare global variables
-    globaltown = '';
-    globalstate = '';
-    globalcounty = '';
-
-
-
-    window.addEventListener('load', (event) => {
-        // alert('Page fully loaded');
-        getCurrentLocation();
-        });
-
+    let globaltown = '';
+    let globalstate = '';
+    let globalcounty = '';
 
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -69,8 +68,8 @@
             // const town = townInput.value;
             // const state = stateInput.value;
             const town = globaltown;
-            const state = globalstate;
-            const wikiPage = await getWikipediaPage(town, state);
+            const thestate = globalstate;
+            const wikiPage = await getWikipediaPage(town, thestate);
 
             if (wikiPage) {
                 window.location.href = `https://en.wikipedia.org/wiki/${wikiPage}`;
@@ -86,10 +85,11 @@
             const state = globalstate;
             // alert("here we are")
 
+
             thestate=fixupStatsPage(state);
             thetown=fixupStatsTown(town);
 
-            alert ("global town ,global state, local town local state:",globaltown,globalstate,thetown,thestate);
+            alert ("the town state",globaltown,globalstate,thetown,thestate);
 
             // const wikiPage = await getStatsPage(town, thestate);
             const wikiPage = await getStatsPage(thetown, thestate);
@@ -165,14 +165,13 @@
             return null;
         }
     };
+    // });
 
     function processLocation() {
         const location = document.getElementById('locationInput').value.split(',');
         if (location.length === 2) {
             const [lat, long] = location;
             getAddressComponents(parseFloat(lat), parseFloat(long));
-            alert ("processLocationAddress 2 > global town ,global state:",globaltown,globalstate);
-
         } else {
             document.getElementById('output').innerText = "Invalid format";
         }
@@ -234,9 +233,6 @@
         const { lat, lon } = latlon;
 
         getAddressComponents(lat, lon);
-
-        alert ("processLocationAddress 1 > global town ,global state:",globaltown,globalstate);
-
     }
 
     function fixupStatsPage(page) {
@@ -254,8 +250,7 @@
 
 
     function fixupStatsTown(page) {
-        return page.replace(/%20/g, '-');
-        return page.replace(/ /g, '-');
+            return page.replace(/%20/g, '-');
     }
 
 
@@ -321,7 +316,6 @@
                 const lat = position.coords.latitude;
                 const long = position.coords.longitude;
                 getAddressComponents(lat, long);
-                alert ("processLocationAddress 2 > global town ,global state:",globaltown,globalstate);
                 setClipboard(lat +"," + long);
             }, () => {
                 document.getElementById('output').innerText = "Error getting location.";
@@ -344,11 +338,9 @@
                     globaltown   = locality;
                     globalstate = state;
                     globalcounty = county;
-                    alert("global: " + globaltown+ " " +globalstate + " " +globalcounty);
-                    const geopolitical = globaltown + " " + globalstate + " " + globalcounty ;
-                    // const [latLong, geopolitical] = document.getElementById('output').innerText.split(': ');
-                    // document.getElementById('output').innerText = `${latLong} (${lat}, ${long})\n${address}\n${geopolitical}`;
-                    document.getElementById('output').innerText = `(${lat}, ${long})\n${address}\n${geopolitical}`;
+                    // alert("global: " + globaltown+ " " +globalstate);
+                    const [latLong, geopolitical] = document.getElementById('output').innerText.split(': ');
+                    document.getElementById('output').innerText = `${latLong} (${lat}, ${long})\n${address}\n${geopolitical}`;
                     initMap(lat, long);
                 } else {
                     document.getElementById('output').innerText = "Error getting address.";
