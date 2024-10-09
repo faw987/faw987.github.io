@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Improved Calculator with Operator Fix</title>
+  <style>
+    #calculator {
+      width: 220px;
+    }
+    button {
+      width: 50px;
+      height: 50px;
+      font-size: 1.2em;
+    }
+    .display {
+      margin-bottom: 10px;
+      height: 40px;
+      text-align: right;
+      font-size: 1.5em;
+    }
+  </style>
+</head>
+<body>
+
+<div id="calculator">
+  <div>Accumulator: <span id="accumulatorDisplay">0</span></div>
+  <div>Input: <span id="inputDisplay">0</span></div>
+
+  <button onclick="pressDigit(7)">7</button>
+  <button onclick="pressDigit(8)">8</button>
+  <button onclick="pressDigit(9)">9</button>
+  <button onclick="operate('+')">+</button><br>
+
+  <button onclick="pressDigit(4)">4</button>
+  <button onclick="pressDigit(5)">5</button>
+  <button onclick="pressDigit(6)">6"></button>
+  <button onclick="operate('-')">-</button><br>
+
+  <button onclick="pressDigit(1)">1</button>
+  <button onclick="pressDigit(2)">2</button>
+  <button onclick="pressDigit(3)">3</button>
+  <button onclick="operate('*')">*</button><br>
+
+  <button onclick="pressDigit(0)">0</button>
+  <button onclick="clearInput()">ClrInput</button>
+  <button onclick="clearAcc()">ClrAcc</button>
+  <button onclick="operate('/')">/</button><br>
+  <button onclick="calculate()">=</button>
+</div>
+
+<script>
+  let input = 0;  // current input
+  let accumulator = 0;  // running total
+  let operator = null;  // currently selected operator
+  let operatorPressed = false;  // to handle operator chain presses
+
+  function pressDigit(digit) {
+    if (operatorPressed) {
+      input = 0;  // Clear input if an operator was just pressed
+      operatorPressed = false;  // Reset flag
+    }
+    input = input * 10 + digit;  // Shift input by 10 and add new digit
+    updateDisplay();
+  }
+
+  function operate(op) {
+    if (operator && !operatorPressed) {
+      calculate();  // Calculate if a previous operator is waiting and new digit is entered
+    } else if (!operatorPressed) {
+      accumulator = input;  // Set accumulator to input if it's the first operation
+    }
+    operator = op;  // Store the operator
+    operatorPressed = true;  // Set flag to indicate operator was pressed
+    updateDisplay();
+  }
+
+  function calculate() {
+    if (operator === '+') {
+      accumulator += input;
+    } else if (operator === '-') {
+      accumulator -= input;
+    } else if (operator === '*') {
+      accumulator *= input;
+    } else if (operator === '/') {
+      if (input === 0) {
+        alert("Error: Division by zero!");
+        return;
+      }
+      accumulator /= input;
+    }
+    operator = null;  // Clear operator after calculation
+    input = accumulator;  // Set input to the result to allow chaining
+    operatorPressed = false;  // Reset flag
+    updateDisplay();
+  }
+
+  function clearAcc() {
+    input = 0;
+    accumulator = 0;
+    operator = null;
+    operatorPressed = false;
+    updateDisplay();
+  }
+
+  function clearInput() {
+    input = 0;  // Reset only the input, leave accumulator unchanged
+    updateDisplay();
+  }
+
+  function updateDisplay() {
+    document.getElementById('inputDisplay').textContent = input;
+    document.getElementById('accumulatorDisplay').textContent = accumulator;
+  }
+</script>
+
+</body>
+</html>
