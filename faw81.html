@@ -1,0 +1,52 @@
+Simple One 1
+Simple One 1
+============
+
+
+Name: <input type="text" id="name">
+
+<button onclick="acceptInput()">Accept Input</button>
+<br>
+<button onclick="resetForm()">Reset</button>
+<br>
+<button onclick="tellMeJoke()">Tell Me a Joke</button>
+<br>
+<button onclick="showTime()">Time</button>
+
+
+<p id="result"></p>
+
+<script>
+    function acceptInput() {
+        const name = document.getElementById("name").value;
+        const result = `Hello, ${name}!`;
+        document.getElementById("result").innerHTML = result;
+    }
+
+    function resetForm() {
+        const nameInput = document.getElementById("name");
+        nameInput.value = "";
+        const resultElement = document.getElementById("result");
+        resultElement.innerHTML = "";
+    }
+    function tellMeJoke() {
+        const jokes = [
+            "What's the difference between a potato and a peach?",
+            "Why don't scientists trust atoms?",
+            "Why did the tomato turn red? Because it saw the salad dressing.",
+        ];
+        const randomIndex = Math.floor(Math.random() * jokes.length);
+        const result = jokes[randomIndex];
+        document.getElementById("result").innerHTML = result;
+    }
+
+    function showTime() {
+        const now = new Date();
+        const hour = now.getHours();
+        const minute = now.getMinutes();
+        const second = now.getSeconds();
+        const timeString = `${hour}:${minute}:${second}`;
+        document.getElementById("result").innerHTML += `<br>${timeString}`;
+    }
+
+</script>

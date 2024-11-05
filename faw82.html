@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ollama Chat Interface</title>
+</head>
+<body>
+<h1>Ollama Chat Interface</h1>
+<textarea id="prompt" rows="4" cols="50" placeholder="Enter your prompt here..."></textarea><br>
+<button onclick="sendPrompt()">Send</button>
+
+<h2>Response:</h2>
+<pre id="response"></pre>
+
+<script>
+  function sendPrompt() {
+    const prompt = document.getElementById('prompt').value;
+
+
+   // fetch('http://localhost:8080/http://localhost:11434/api/generate', { ... });
+
+  //  fetch('http://localhost:11434/api/generate', {
+    fetch('http://0.0.0.0:8080/http://localhost:11434/api/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        "model": "phi:latest",
+        "prompt": prompt
+      })
+    })
+            .then(response => response.json())
+            .then(data => {
+              document.getElementById('response').textContent = data.response;
+            })
+            .catch(error => console.error('Error:', error));
+  }
+</script>
+</body>
+</html>
