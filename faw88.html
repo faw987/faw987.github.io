@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>15 Puzzle with Image</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        #puzzle-container {
+            display: grid;
+            grid-template-columns: repeat(4, 100px);
+            grid-gap: 5px;
+            justify-content: center;
+            margin: 0 auto;
+        }
+        .tile {
+            width: 100px;
+            height: 100px;
+            background-size: 400px 400px;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        .tile.empty {
+            background-color: #fff;
+            cursor: default;
+        }
+    </style>
+</head>
+<body>
+<h1>15 Puzzle with Image</h1>
+<button onclick="shuffle()">Shuffle</button>
+<div id="puzzle-container"></div>
+<script>
+
+    const container = document.getElementById('puzzle-container');
+    const imagePath = 'images/chippy_1.jpeg';
+    let tiles = [];
+    let emptyTileIndex = 15;
+    const tileSize = 100; // Each tile is 100x100px
+    const gridSize = 4; // 4x4 grid
+
+    // Initialize the puzzle
+    function initPuzzle() {
+        const image = new Image();
+        image.src = imagePath;
+
+        image.onload = () => {
+            tiles = Array.from({ length: 15 }, (_, i) => createTileImage(image, i)).concat(null);
+            renderPuzzle();
+        };
+    }
+
+    // Create a smaller image (tile) from the original image
+    function createTileImage(image, index) {
+        const canvas = document.createElement('canvas');
+        canvas.width = tileSize;
+        canvas.height = tileSize;
+        const ctx = canvas.getContext('2d');
+
+        const x = (index % gridSize) * tileSize;
+        const y = Math.floor(index / gridSize) * tileSize;
+
+        ctx.drawImage(image, x, y, tileSize, tileSize, 0, 0, tileSize, tileSize);
+        return canvas.toDataURL();
+    }
+
+    // Render the puzzle tiles
+    function renderPuzzle() {
+        container.innerHTML = '';
+        tiles.forEach((tile, index) => {
+            const tileElement = document.createElement('div');
+            tileElement.classList.add('tile');
+            if (tile === null) {
+                tileElement.classList.add('empty');
+            } else {
+                tileElement.style.backgroundImage = `url(${tile})`;
+            }
+            tileElement.onclick = () => moveTile(index);
+            container.appendChild(tileElement);
+        });
+    }
+
+    // Shuffle the puzzle tiles
+    function shuffle() {
+        do {
+            tiles = tiles.sort(() => Math.random() - 0.5);
+            emptyTileIndex = tiles.indexOf(null);
+        } while (!isSolvable());
+        renderPuzzle();
+    }
+
+    // Check if the puzzle is solvable
+    function isSolvable() {
+        const inversionCount = tiles
+            .filter((tile) => tile !== null)
+            .reduce((count, tile, i, arr) => {
+                return count + arr.slice(i + 1).filter((t) => t < tile).length;
+            }, 0);
+        return inversionCount % 2 === 0;
+    }
+
+    // Move a tile
+    function moveTile(index) {
+        const row = Math.floor(index / gridSize);
+        const col = index % gridSize;
+        const emptyRow = Math.floor(emptyTileIndex / gridSize);
+        const emptyCol = emptyTileIndex % gridSize;
+
+        if (
+            (Math.abs(row - emptyRow) === 1 && col === emptyCol) ||
+            (Math.abs(col - emptyCol) === 1 && row === emptyRow)
+        ) {
+            [tiles[emptyTileIndex], tiles[index]] = [tiles[index], tiles[emptyTileIndex]];
+            emptyTileIndex = index;
+            renderPuzzle();
+        }
+    }
+
+    // Initialize the puzzle on page load
+    initPuzzle();
+
+
+</script>
+</body>
+</html>

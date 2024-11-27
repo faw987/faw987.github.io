@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>15 Puzzle</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        #puzzle-container {
+            display: grid;
+            grid-template-columns: repeat(4, 100px);
+            grid-gap: 5px;
+            justify-content: center;
+            margin: 0 auto;
+        }
+        .tile {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .tile.empty {
+            background-color: #fff;
+            cursor: default;
+        }
+    </style>
+</head>
+<body>
+<h1>15 Puzzle</h1>
+<button onclick="shuffle()">Shuffle</button>
+<div id="puzzle-container"></div>
+<script>
+
+    const container = document.getElementById('puzzle-container');
+    let tiles = [];
+    let emptyTileIndex = 15;
+
+    // Initialize the puzzle
+    function initPuzzle() {
+        tiles = Array.from({ length: 15 }, (_, i) => i + 1).concat(null); // 1-15 + empty tile
+        renderPuzzle();
+    }
+
+    // Render the puzzle tiles
+    function renderPuzzle() {
+        container.innerHTML = '';
+        tiles.forEach((tile, index) => {
+            const tileElement = document.createElement('div');
+            tileElement.classList.add('tile');
+            if (tile === null) {
+                tileElement.classList.add('empty');
+            } else {
+                tileElement.textContent = tile;
+                tileElement.onclick = () => moveTile(index);
+            }
+            container.appendChild(tileElement);
+        });
+    }
+
+    // Shuffle the puzzle tiles
+    function shuffle() {
+        do {
+            tiles = tiles.sort(() => Math.random() - 0.5);
+            emptyTileIndex = tiles.indexOf(null);
+        } while (!isSolvable());
+        renderPuzzle();
+    }
+
+    // Check if the puzzle is solvable
+    function isSolvable() {
+        const inversionCount = tiles
+            .filter((tile) => tile !== null)
+            .reduce((count, tile, i, arr) => {
+                return count + arr.slice(i + 1).filter((t) => t < tile).length;
+            }, 0);
+        return inversionCount % 2 === 0;
+    }
+
+    // Move a tile
+    function moveTile(index) {
+        const row = Math.floor(index / 4);
+        const col = index % 4;
+        const emptyRow = Math.floor(emptyTileIndex / 4);
+        const emptyCol = emptyTileIndex % 4;
+
+        if (
+            (Math.abs(row - emptyRow) === 1 && col === emptyCol) ||
+            (Math.abs(col - emptyCol) === 1 && row === emptyRow)
+        ) {
+            [tiles[emptyTileIndex], tiles[index]] = [tiles[index], tiles[emptyTileIndex]];
+            emptyTileIndex = index;
+            renderPuzzle();
+        }
+    }
+
+    // Initialize the puzzle on page load
+    initPuzzle();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>15-Puzzle Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<h1>15-Puzzle Game</h1>
+<div id="puzzle-container"></div>
+<button onclick="shuffle()">Shuffle</button>
+<script src="script.js"></script>
+</body>
+</html>
+<style>
+
+body {
+font-family: Arial, sans-serif;
+display: flex;
+flex-direction: column;
+align-items: center;
+}
+
+#puzzle-container {
+display: grid;
+grid-template-columns: repeat(4, 100px);
+gap: 5px;
+margin-top: 20px;
+}
+
+.tile {
+width: 100px;
+height: 100px;
+background-color: #fff;
+border: 1px solid #ccc;
+display: flex;
+align-items: center;
+justify-content: center;
+font-size: 24px;
+cursor: pointer;
+}
+
+.tile.empty {
+background-color: #ddd;
+}
+</style>
+
+<script>
+    const puzzleContainer = document.getElementById('puzzle-container');
+    let tiles = [];
+    let emptyTileIndex;
+
+    function createPuzzle() {
+        for (let i = 0; i < 16; i++) {
+            const tile = document.createElement('div');
+            tile.classList.add('tile');
+            if (i !== 15) {
+                tile.textContent = i + 1;
+                tile.addEventListener('click', () => moveTile(i));
+            } else {
+                tile.classList.add('empty');
+            }
+            puzzleContainer.appendChild(tile);
+            tiles.push(tile);
+        }
+        shuffle();
+    }
+
+    function shuffle() {
+        for (let i = tiles.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+        }
+        updateTilePositions();
+        emptyTileIndex = tiles.findIndex(tile => tile.classList.contains('empty'));
+    }
+
+    function moveTile(index) {
+        if (isAdjacent(index, emptyTileIndex)) {
+            swapTiles(index, emptyTileIndex);
+            checkWin();
+        }
+    }
+
+    function isAdjacent(index1, index2) {
+        return (
+            Math.abs(index1 - index2) === 1 ||
+            (index1 >= 4 && index2 < 4 && Math.abs((index1 % 4) - (index2 % 4)) === 3) ||
+            (index2 >= 4 && index1 < 4 && Math.abs((index2 % 4) - (index1 % 4)) === 3)
+        );
+    }
+
+    function swapTiles(index1, index2) {
+        [tiles[index1], tiles[index2]] = [tiles[index2], tiles[index1]];
+        updateTilePositions();
+        emptyTileIndex = index1;
+    }
+
+    function updateTilePositions() {
+        tiles.forEach((tile, index) => {
+            puzzleContainer.appendChild(tile);
+        });
+    }
+
+    function checkWin() {
+        for (let i = 0; i < 15; i++) {
+            if (tiles[i].textContent !== (i + 1).toString()) return;
+        }
+        alert('Congratulations! You won!');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        createPuzzle();
+    });
+</script>

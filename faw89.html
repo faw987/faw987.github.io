@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>15 Puzzle with Image</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 20px;
+        }
+        #puzzle-container {
+            display: grid;
+            grid-template-columns: repeat(4, 100px);
+            grid-gap: 5px;
+        }
+        .tile {
+            width: 100px;
+            height: 100px;
+            background-size: 400px 400px;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        .tile.empty {
+            background-color: #fff;
+            cursor: default;
+        }
+        #scaled-image-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #scaled-image {
+            border: 1px solid #ccc;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<h1>15 Puzzle with Image</h1>
+<div class="controls">
+    <button onclick="shuffle()">Shuffle</button>
+    <label for="shuffle-steps">Steps: </label>
+    <input type="number" id="shuffle-steps" value="30" min="1">
+</div>
+<div class="container">
+    <div id="puzzle-container"></div>
+<!--    <div id="debug-info">-->
+<!--        <h3>Tile Details</h3>-->
+<!--        <div id="tile-details"></div>-->
+<!--    </div>-->
+    <div id="scaled-image-container">
+<!--        <h2>Scaled Image</h2>-->
+        <canvas id="scaled-image" width="400" height="400"></canvas>
+    </div>
+</div>
+
+
+<script>
+
+
+    // const imagePath = 'images/ugly_turkey.jpg';
+    // const imagePath = 'images/chippy_3.jpeg';
+
+
+
+    const container = document.getElementById('puzzle-container');
+    const shuffleStepsInput = document.getElementById('shuffle-steps');
+    const scaledImageCanvas = document.getElementById('scaled-image');
+    const scaledImageCtx = scaledImageCanvas.getContext('2d');
+    const imagePath = 'images/chippy_3.jpeg';
+    // const imagePath = 'images/test03.jpeg';
+    let tiles = [];
+    let emptyTileIndex = 15;
+    const tileSize = 100; // Each tile is 100x100px
+    const gridSize = 4; // 4x4 grid
+
+    // Initialize the puzzle
+    function initPuzzle() {
+        const image = new Image();
+        image.src = imagePath;
+
+        image.onload = () => {
+            const scaledImage = scaleImageToGrid(image);
+            drawScaledImageDebug(scaledImage); // Display scaled image in debug area
+            tiles = Array.from({ length: 15 }, (_, i) => createTileImage(scaledImage, i)).concat(null);
+            renderPuzzle(true); // Render the complete image initially
+        };
+
+        image.onerror = () => {
+            console.error("Image failed to load. Please check the file path.");
+        };
+    }
+
+    function scaleImageToGrid(image) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = gridSize * tileSize; // 400 pixels
+        canvas.height = gridSize * tileSize; // 400 pixels
+
+        const scale = Math.max(canvas.width / image.width, canvas.height / image.height);
+        const scaledWidth = image.width * scale;
+        const scaledHeight = image.height * scale;
+
+        const offsetX = (canvas.width - scaledWidth) / 2;
+        const offsetY = (canvas.height - scaledHeight) / 2;
+
+        ctx.drawImage(image, offsetX, offsetY, scaledWidth, scaledHeight);
+
+        // Draw grid lines for debugging
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 2;
+        for (let i = 1; i < gridSize; i++) {
+            // Vertical lines
+            ctx.beginPath();
+            ctx.moveTo(i * tileSize, 0);
+            ctx.lineTo(i * tileSize, canvas.height);
+            ctx.stroke();
+
+            // Horizontal lines
+            ctx.beginPath();
+            ctx.moveTo(0, i * tileSize);
+            ctx.lineTo(canvas.width, i * tileSize);
+            ctx.stroke();
+        }
+
+        console.log(`Scaled image dimensions: ${canvas.width}x${canvas.height}`);
+        return canvas;
+    }
+
+    // Display the scaled image for debugging
+    function drawScaledImageDebug(scaledImage) {
+        scaledImageCtx.clearRect(0, 0, scaledImageCanvas.width, scaledImageCanvas.height);
+        scaledImageCtx.drawImage(scaledImage, 0, 0);
+    }
+
+
+    function createTileImage(scaledImage, index) {
+        const canvas = document.createElement('canvas');
+
+        // Explicitly set the canvas size (both CSS and internal resolution)
+        canvas.width = tileSize; // 100px
+        canvas.height = tileSize;
+
+        const ctx = canvas.getContext('2d');
+
+        // Calculate the correct coordinates of the tile in the scaled image
+        const col = index % gridSize; // Column index
+        const row = Math.floor(index / gridSize); // Row index
+        const x = col * tileSize; // Source x in the scaled image
+        const y = row * tileSize; // Source y in the scaled image
+
+        // Draw the exact portion of the scaled image onto the tile canvas
+        ctx.imageSmoothingEnabled = false; // Prevent interpolation artifacts
+        ctx.drawImage(
+            scaledImage,   // Source: the scaled image
+            x,             // Source x in the scaled image
+            y,             // Source y in the scaled image
+            tileSize,      // Width of the tile to extract (100px)
+            tileSize,      // Height of the tile to extract (100px)
+            0,             // Destination x in the tile canvas
+            0,             // Destination y in the tile canvas
+            tileSize,      // Destination width (100px)
+            tileSize       // Destination height (100px)
+        );
+
+        // Draw debugging grid and tile index
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, tileSize, tileSize);
+
+        ctx.fillStyle = "blue";
+        ctx.font = "20px Arial";
+        ctx.fillText(index, 10, 30);
+
+        // Populate debug info for this tile
+        // non ono
+        //
+        // displayTileDebugInfo(index, x, y, canvas.toDataURL());
+
+        // Return the tile as a base64-encoded data URL
+        return canvas.toDataURL();
+    }
+
+    // Display tile details in the debug info area
+    function displayTileDebugInfo(index, x, y, dataUrl) {
+        const debugArea = document.getElementById('tile-details');
+
+        // Create a container for this tile's info
+        const tileInfo = document.createElement('div');
+        tileInfo.style.display = 'flex';
+        tileInfo.style.alignItems = 'center';
+        tileInfo.style.marginBottom = '10px';
+
+        // Add a small preview of the tile
+        const tilePreview = document.createElement('img');
+        tilePreview.src = dataUrl;
+        tilePreview.style.width = '50px';
+        tilePreview.style.height = '50px';
+        tilePreview.style.marginRight = '10px';
+
+        // Add the text details
+        const tileText = document.createElement('div');
+        tileText.innerHTML = `
+        <strong>Tile ${index}</strong><br>
+        Source X: ${x}, Y: ${y}<br>
+        Data URL: ${dataUrl.substring(0, 50)}...`;
+
+        // Append the preview and text to the container
+        tileInfo.appendChild(tilePreview);
+        tileInfo.appendChild(tileText);
+
+        // Add this tile's info to the debug area
+        debugArea.appendChild(tileInfo);
+    }
+
+
+    // Render the puzzle tiles
+    // function renderPuzzle(showComplete = false) {
+    //     container.innerHTML = '';
+    //     tiles.forEach((tile, index) => {
+    //         const tileElement = document.createElement('div');
+    //         tileElement.classList.add('tile');
+    //         if (tile === null) {
+    //             tileElement.classList.add('empty');
+    //             if (showComplete) {
+    //                 tileElement.style.backgroundImage = `url(${tiles[15]})`;
+    //                 tileElement.style.backgroundPosition = `${-tileSize * (index % gridSize)}px ${-tileSize * Math.floor(index / gridSize)}px`;
+    //             }
+    //         } else {
+    //             tileElement.style.backgroundImage = `url(${tile})`;
+    //         }
+    //         tileElement.onclick = () => {
+    //             if (!showComplete) moveTile(index);
+    //         };
+    //         container.appendChild(tileElement);
+    //     });
+    // }
+
+    function renderPuzzle(showComplete = false) {
+        container.innerHTML = ''; // Clear the container
+        tiles.forEach((tile, index) => {
+            const tileElement = document.createElement('div');
+            tileElement.classList.add('tile');
+
+            if (tile === null) {
+                // Empty tile (use a blank space for the empty tile)
+                tileElement.classList.add('empty');
+            } else {
+                // Apply the tile image as a background
+                tileElement.style.backgroundImage = `url(${tile})`;
+
+                // FIX: Ensure the image fits properly into the grid tile
+                tileElement.style.backgroundSize = '100% 100%'; // Fit the image perfectly
+                tileElement.style.backgroundRepeat = 'no-repeat'; // Avoid repetition
+                tileElement.style.backgroundPosition = 'center'; // Center the image
+            }
+
+            // Add an onClick handler to move tiles (if the puzzle is not solved)
+            tileElement.onclick = () => {
+                if (!showComplete) moveTile(index);
+            };
+
+            // Append the tile to the grid container
+            container.appendChild(tileElement);
+        });
+    }
+
+    // Shuffle the puzzle tiles
+    function shuffle() {
+        const steps = parseInt(shuffleStepsInput.value, 10) || 30;
+
+        // Randomly move tiles a specified number of times
+        for (let i = 0; i < steps; i++) {
+            const neighbors = getNeighbors(emptyTileIndex);
+            const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+            [tiles[emptyTileIndex], tiles[randomNeighbor]] = [tiles[randomNeighbor], tiles[emptyTileIndex]];
+            emptyTileIndex = randomNeighbor;
+        }
+
+        renderPuzzle(false); // Render the shuffled puzzle
+    }
+
+    // Get valid neighboring indices for the empty tile
+    function getNeighbors(index) {
+        const row = Math.floor(index / gridSize);
+        const col = index % gridSize;
+
+        const neighbors = [];
+        if (row > 0) neighbors.push(index - gridSize); // Above
+        if (row < gridSize - 1) neighbors.push(index + gridSize); // Below
+        if (col > 0) neighbors.push(index - 1); // Left
+        if (col < gridSize - 1) neighbors.push(index + 1); // Right
+
+        return neighbors;
+    }
+
+    // Move a tile
+    function moveTile(index) {
+        const row = Math.floor(index / gridSize);
+        const col = index % gridSize;
+        const emptyRow = Math.floor(emptyTileIndex / gridSize);
+        const emptyCol = emptyTileIndex % gridSize;
+
+        if (
+            (Math.abs(row - emptyRow) === 1 && col === emptyCol) ||
+            (Math.abs(col - emptyCol) === 1 && row === emptyRow)
+        ) {
+            [tiles[emptyTileIndex], tiles[index]] = [tiles[index], tiles[emptyTileIndex]];
+            emptyTileIndex = index;
+            renderPuzzle(false);
+        }
+    }
+
+    // Initialize the puzzle on page load
+    initPuzzle();
+
+</script>
+</body>
+</html>
