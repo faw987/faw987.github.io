@@ -62,9 +62,51 @@
         <canvas id="scaled-image" width="400" height="400"></canvas>
     </div>
 </div>
-
+<div id="status-message" style="margin-top: 20px; font-size: 20px; font-weight: bold;">Greetings.</div>
 
 <script>
+
+
+    // function isSolved() {
+    //     for (let i = 0; i < tiles.length - 1; i++) {
+    //         if (tiles[i] !== i) {
+    //             return false;
+    //         }
+    //     }
+    //     return tiles[tiles.length - 1] === null; // Check the last tile is empty
+    // }
+
+    // function isSolved() {
+    //     return tiles.every((tile, index) => tile === solvedState[index]);
+    // }
+
+    function isSolved() {
+        // Compare the current state with the solved state
+        console.log(`tiles.length: ${tiles.length} `);
+
+        for (let i = 0; i < tiles.length; i++) {
+            // console.log(`Using: ${tiles[i]} ${solvedState[i]}`);
+            console.log(`Using: ${i} `);
+            if (tiles[i] !== solvedState[i]) {
+                return false; // If any tile is out of place, return false
+            }
+        }
+        return true; // All tiles are in place
+    }
+
+
+    function updateStatusMessage() {
+        const statusMessage = document.getElementById('status-message');
+        console.log("Is solved:", isSolved());
+        if (isSolved()) {
+            statusMessage.textContent = "Solved! 🎉";
+            statusMessage.style.color = "green"; // Optional: Make it stand out
+        } else {
+            statusMessage.textContent = "Keep moving, please.";
+            statusMessage.style.color = "red"; // Optional: Indicate it's not solved
+        }
+    }
+
 
 
     function getUrlParameter(param, defaultValue) {
@@ -92,6 +134,9 @@
 
         // Perform the shuffle with the specified steps
         shuffle(steps);
+        console.log("After shuffle, tiles:", tiles);
+        console.log("After shuffle, solvedState:", solvedState);
+
     };
 
 
@@ -109,6 +154,9 @@
     let emptyTileIndex = 15;
     const tileSize = 100; // Each tile is 100x100px
     const gridSize = 4; // 4x4 grid
+
+
+
 
     const defaultImagePath = 'images/chippy_1.jpeg'; // Default image path
     // const imagePath = getUrlParameter('IMAGE', defaultImagePath); // Get IMAGE parameter or default
@@ -203,6 +251,17 @@
             const scaledImage = scaleImageToGrid(image);
             drawScaledImageDebug(scaledImage);
             tiles = Array.from({ length: 15 }, (_, i) => createTileImage(scaledImage, i)).concat(null);
+            console.log("Initial tiles:", tiles);
+
+
+
+            // solvedState = tiles;
+
+            solvedState = [...tiles]; // Creates a shallow copy of the array
+
+            console.log("Solved state:", solvedState);
+
+
             renderPuzzle(true);
 
             // Perform initial shuffle if SHUFFLE parameter is present
@@ -233,7 +292,7 @@
     //     renderPuzzle(false); // Render the shuffled puzzle
     // }
 
-    function shuffle(steps = 10) { // Default to 10 steps if none are provided
+    function shuffle(steps = 10) {
         console.log(`Shuffling with ${steps} steps`);
         for (let i = 0; i < steps; i++) {
             const neighbors = getNeighbors(emptyTileIndex);
@@ -242,7 +301,8 @@
             emptyTileIndex = randomNeighbor;
         }
 
-        renderPuzzle(false); // Render the shuffled puzzle
+        renderPuzzle(false); // Re-render the puzzle after shuffling
+        updateStatusMessage(); // Update the status after shuffling
     }
 
 
@@ -511,12 +571,13 @@
         const emptyCol = emptyTileIndex % gridSize;
 
         if (
-            (Math.abs(row - emptyRow) === 1 && col === emptyCol) ||
-            (Math.abs(col - emptyCol) === 1 && row === emptyRow)
+            (Math.abs(row - emptyRow) === 1 && col === emptyCol) || // Adjacent vertically
+            (Math.abs(col - emptyCol) === 1 && row === emptyRow)   // Adjacent horizontally
         ) {
             [tiles[emptyTileIndex], tiles[index]] = [tiles[index], tiles[emptyTileIndex]];
             emptyTileIndex = index;
             renderPuzzle(false);
+            updateStatusMessage(); // Check if the puzzle is solved after the move
         }
     }
 
