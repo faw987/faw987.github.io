@@ -46,9 +46,10 @@
 <body>
 <h1>15 Puzzle with Image</h1>
 <div class="controls">
-    <button onclick="shuffle()">Shuffle</button>
+<!--    <button onclick="shuffle()">Shuffle</button>-->
+    <button id="shuffle-button">Shuffle</button>
     <label for="shuffle-steps">Steps: </label>
-    <input type="number" id="shuffle-steps" value="30" min="1">
+    <input type="number" id="shuffle-steps" value="1" min="1">
 </div>
 <div class="container">
     <div id="puzzle-container"></div>
@@ -74,6 +75,9 @@
     // const imagePath = 'images/ugly_turkey.jpg';
     // const imagePath = 'images/chippy_3.jpeg';
 
+    document.getElementById('shuffle-button').onclick = () => {
+        shuffle(10); // Perform a small shuffle when the button is clicked
+    };
 
 
     const container = document.getElementById('puzzle-container');
@@ -111,23 +115,52 @@
     // }
 
 
+    // function resolveImagePath(imageParam) {
+    //     if (!imageParam) return 'images/chippy_1.jpeg'; // Default to chippy
+    //
+    //     switch (imageParam.toLowerCase()) {
+    //         case 'chippy':
+    //             return 'images/chippy_1.jpeg';
+    //         case 'witch':
+    //             return 'images/witch.png';
+    //         case 'turkey':
+    //             return 'images/cute_turkey.svg';
+    //         default:
+    //             if (imageParam.startsWith('http://') || imageParam.startsWith('https://')) {
+    //                 return imageParam; // Use full URL
+    //             }
+    //             console.warn(`Unknown IMAGE parameter value: ${imageParam}, defaulting to chippy.`);
+    //             return 'images/chippy_1.jpeg'; // Fallback to default
+    //     }
+    // }
+
+
     function resolveImagePath(imageParam) {
         if (!imageParam) return 'images/chippy_1.jpeg'; // Default to chippy
 
+        let resolvedPath;
         switch (imageParam.toLowerCase()) {
             case 'chippy':
-                return 'images/chippy_1.jpeg';
+                resolvedPath = 'images/chippy_1.jpeg';
+                break;
             case 'witch':
-                return 'images/witch.png';
+                resolvedPath = 'images/witch.png';
+                break;
             case 'turkey':
-                return 'images/cute_turkey.svg';
+                resolvedPath = 'images/cute_turkey.svg';
+                break;
             default:
                 if (imageParam.startsWith('http://') || imageParam.startsWith('https://')) {
-                    return imageParam; // Use full URL
+                    resolvedPath = imageParam; // Use full URL
+                } else {
+                    console.warn(`Unknown IMAGE parameter value: ${imageParam}, defaulting to chippy.`);
+                    resolvedPath = 'images/chippy_1.jpeg'; // Fallback to default
                 }
-                console.warn(`Unknown IMAGE parameter value: ${imageParam}, defaulting to chippy.`);
-                return 'images/chippy_1.jpeg'; // Fallback to default
+                break;
         }
+
+        console.log(`Resolved image path: ${resolvedPath}`); // Debugging output
+        return resolvedPath;
     }
 
 
@@ -172,7 +205,19 @@
     }
 
     // Updated shuffle function to accept a number of steps
-    function shuffle(steps) {
+    // function shuffle(steps) {
+    //     console.log(`Shuffling with ${steps} steps`);
+    //     for (let i = 0; i < steps; i++) {
+    //         const neighbors = getNeighbors(emptyTileIndex);
+    //         const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+    //         [tiles[emptyTileIndex], tiles[randomNeighbor]] = [tiles[randomNeighbor], tiles[emptyTileIndex]];
+    //         emptyTileIndex = randomNeighbor;
+    //     }
+    //
+    //     renderPuzzle(false); // Render the shuffled puzzle
+    // }
+
+    function shuffle(steps = 10) { // Default to 10 steps if none are provided
         console.log(`Shuffling with ${steps} steps`);
         for (let i = 0; i < steps; i++) {
             const neighbors = getNeighbors(emptyTileIndex);
