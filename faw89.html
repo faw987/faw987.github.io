@@ -82,11 +82,8 @@
 
     function isSolved() {
         // Compare the current state with the solved state
-        console.log(`tiles.length: ${tiles.length} `);
 
         for (let i = 0; i < tiles.length; i++) {
-            // console.log(`Using: ${tiles[i]} ${solvedState[i]}`);
-            console.log(`Using: ${i} `);
             if (tiles[i] !== solvedState[i]) {
                 return false; // If any tile is out of place, return false
             }
@@ -97,7 +94,6 @@
 
     function updateStatusMessage() {
         const statusMessage = document.getElementById('status-message');
-        console.log("Is solved:", isSolved());
         if (isSolved()) {
             statusMessage.textContent = "Solved! 🎉";
             statusMessage.style.color = "green"; // Optional: Make it stand out
@@ -134,8 +130,6 @@
 
         // Perform the shuffle with the specified steps
         shuffle(steps);
-        console.log("After shuffle, tiles:", tiles);
-        console.log("After shuffle, solvedState:", solvedState);
 
     };
 
@@ -155,49 +149,7 @@
     const tileSize = 100; // Each tile is 100x100px
     const gridSize = 4; // 4x4 grid
 
-
-
-
     const defaultImagePath = 'images/chippy_1.jpeg'; // Default image path
-    // const imagePath = getUrlParameter('IMAGE', defaultImagePath); // Get IMAGE parameter or default
-    //
-    // function initPuzzle() {
-    //     const image = new Image();
-    //     image.src = imagePath; // Use the image path from the URL or default
-    //
-    //     image.onload = () => {
-    //         const scaledImage = scaleImageToGrid(image);
-    //         drawScaledImageDebug(scaledImage); // Display scaled image in debug area
-    //         tiles = Array.from({ length: 15 }, (_, i) => createTileImage(scaledImage, i)).concat(null);
-    //         renderPuzzle(true); // Render the complete image initially
-    //     };
-    //
-    //     image.onerror = () => {
-    //         console.error("Image failed to load. Please check the file path.");
-    //         alert("Failed to load the image. Please check the IMAGE URL parameter.");
-    //     };
-    // }
-
-
-    // function resolveImagePath(imageParam) {
-    //     if (!imageParam) return 'images/chippy_1.jpeg'; // Default to chippy
-    //
-    //     switch (imageParam.toLowerCase()) {
-    //         case 'chippy':
-    //             return 'images/chippy_1.jpeg';
-    //         case 'witch':
-    //             return 'images/witch.png';
-    //         case 'turkey':
-    //             return 'images/cute_turkey.svg';
-    //         default:
-    //             if (imageParam.startsWith('http://') || imageParam.startsWith('https://')) {
-    //                 return imageParam; // Use full URL
-    //             }
-    //             console.warn(`Unknown IMAGE parameter value: ${imageParam}, defaulting to chippy.`);
-    //             return 'images/chippy_1.jpeg'; // Fallback to default
-    //     }
-    // }
-
 
     function resolveImagePath(imageParam) {
         if (!imageParam) return 'images/chippy_1.jpeg'; // Default to chippy
@@ -251,16 +203,8 @@
             const scaledImage = scaleImageToGrid(image);
             drawScaledImageDebug(scaledImage);
             tiles = Array.from({ length: 15 }, (_, i) => createTileImage(scaledImage, i)).concat(null);
-            console.log("Initial tiles:", tiles);
-
-
-
-            // solvedState = tiles;
 
             solvedState = [...tiles]; // Creates a shallow copy of the array
-
-            console.log("Solved state:", solvedState);
-
 
             renderPuzzle(true);
 
@@ -279,19 +223,6 @@
         };
     }
 
-    // Updated shuffle function to accept a number of steps
-    // function shuffle(steps) {
-    //     console.log(`Shuffling with ${steps} steps`);
-    //     for (let i = 0; i < steps; i++) {
-    //         const neighbors = getNeighbors(emptyTileIndex);
-    //         const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
-    //         [tiles[emptyTileIndex], tiles[randomNeighbor]] = [tiles[randomNeighbor], tiles[emptyTileIndex]];
-    //         emptyTileIndex = randomNeighbor;
-    //     }
-    //
-    //     renderPuzzle(false); // Render the shuffled puzzle
-    // }
-
     function shuffle(steps = 10) {
         console.log(`Shuffling with ${steps} steps`);
         for (let i = 0; i < steps; i++) {
@@ -304,25 +235,6 @@
         renderPuzzle(false); // Re-render the puzzle after shuffling
         updateStatusMessage(); // Update the status after shuffling
     }
-
-
-
-    // Initialize the puzzle
-    // function initPuzzle() {
-    //     const image = new Image();
-    //     image.src = imagePath;
-    //
-    //     image.onload = () => {
-    //         const scaledImage = scaleImageToGrid(image);
-    //         drawScaledImageDebug(scaledImage); // Display scaled image in debug area
-    //         tiles = Array.from({ length: 15 }, (_, i) => createTileImage(scaledImage, i)).concat(null);
-    //         renderPuzzle(true); // Render the complete image initially
-    //     };
-    //
-    //     image.onerror = () => {
-    //         console.error("Image failed to load. Please check the file path.");
-    //     };
-    // }
 
     function scaleImageToGrid(image) {
         const canvas = document.createElement('canvas');
@@ -365,54 +277,6 @@
         scaledImageCtx.clearRect(0, 0, scaledImageCanvas.width, scaledImageCanvas.height);
         scaledImageCtx.drawImage(scaledImage, 0, 0);
     }
-
-
-    // function createTileImage(scaledImage, index) {
-    //     const canvas = document.createElement('canvas');
-    //
-    //     // Explicitly set the canvas size (both CSS and internal resolution)
-    //     canvas.width = tileSize; // 100px
-    //     canvas.height = tileSize;
-    //
-    //     const ctx = canvas.getContext('2d');
-    //
-    //     // Calculate the correct coordinates of the tile in the scaled image
-    //     const col = index % gridSize; // Column index
-    //     const row = Math.floor(index / gridSize); // Row index
-    //     const x = col * tileSize; // Source x in the scaled image
-    //     const y = row * tileSize; // Source y in the scaled image
-    //
-    //     // Draw the exact portion of the scaled image onto the tile canvas
-    //     ctx.imageSmoothingEnabled = false; // Prevent interpolation artifacts
-    //     ctx.drawImage(
-    //         scaledImage,   // Source: the scaled image
-    //         x,             // Source x in the scaled image
-    //         y,             // Source y in the scaled image
-    //         tileSize,      // Width of the tile to extract (100px)
-    //         tileSize,      // Height of the tile to extract (100px)
-    //         0,             // Destination x in the tile canvas
-    //         0,             // Destination y in the tile canvas
-    //         tileSize,      // Destination width (100px)
-    //         tileSize       // Destination height (100px)
-    //     );
-    //
-    //     // Draw debugging grid and tile index
-    //     ctx.strokeStyle = "red";
-    //     ctx.lineWidth = 2;
-    //     ctx.strokeRect(0, 0, tileSize, tileSize);
-    //
-    //     ctx.fillStyle = "blue";
-    //     ctx.font = "20px Arial";
-    //     ctx.fillText(index, 10, 30);
-    //
-    //     // Populate debug info for this tile
-    //     // non ono
-    //     //
-    //     // displayTileDebugInfo(index, x, y, canvas.toDataURL());
-    //
-    //     // Return the tile as a base64-encoded data URL
-    //     return canvas.toDataURL();
-    // }
 
     function createTileImage(scaledImage, index) {
         const canvas = document.createElement('canvas');
@@ -482,29 +346,6 @@
         debugArea.appendChild(tileInfo);
     }
 
-
-    // Render the puzzle tiles
-    // function renderPuzzle(showComplete = false) {
-    //     container.innerHTML = '';
-    //     tiles.forEach((tile, index) => {
-    //         const tileElement = document.createElement('div');
-    //         tileElement.classList.add('tile');
-    //         if (tile === null) {
-    //             tileElement.classList.add('empty');
-    //             if (showComplete) {
-    //                 tileElement.style.backgroundImage = `url(${tiles[15]})`;
-    //                 tileElement.style.backgroundPosition = `${-tileSize * (index % gridSize)}px ${-tileSize * Math.floor(index / gridSize)}px`;
-    //             }
-    //         } else {
-    //             tileElement.style.backgroundImage = `url(${tile})`;
-    //         }
-    //         tileElement.onclick = () => {
-    //             if (!showComplete) moveTile(index);
-    //         };
-    //         container.appendChild(tileElement);
-    //     });
-    // }
-
     function renderPuzzle(showComplete = false) {
         container.innerHTML = ''; // Clear the container
         tiles.forEach((tile, index) => {
@@ -533,21 +374,6 @@
             container.appendChild(tileElement);
         });
     }
-    //                                                      old
-    // // Shuffle the puzzle tiles
-    // function shuffle() {
-    //     const steps = parseInt(shuffleStepsInput.value, 10) || 30;
-    //
-    //     // Randomly move tiles a specified number of times
-    //     for (let i = 0; i < steps; i++) {
-    //         const neighbors = getNeighbors(emptyTileIndex);
-    //         const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
-    //         [tiles[emptyTileIndex], tiles[randomNeighbor]] = [tiles[randomNeighbor], tiles[emptyTileIndex]];
-    //         emptyTileIndex = randomNeighbor;
-    //     }
-    //
-    //     renderPuzzle(false); // Render the shuffled puzzle
-    // }
 
     // Get valid neighboring indices for the empty tile
     function getNeighbors(index) {
