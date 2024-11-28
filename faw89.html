@@ -20,6 +20,7 @@
             display: grid;
             grid-template-columns: repeat(4, 100px);
             grid-gap: 5px;
+            margin-top: 5px; /* Moves the puzzle container down by 5px */
         }
         .tile {
             width: 100px;
@@ -94,12 +95,20 @@
 
     function updateStatusMessage() {
         const statusMessage = document.getElementById('status-message');
+        const puzzleContainer = document.getElementById('puzzle-container');
+
         if (isSolved()) {
             statusMessage.textContent = "Solved! 🎉";
-            statusMessage.style.color = "green"; // Optional: Make it stand out
+            statusMessage.style.color = "green";
+
+            // Remove the gap when the puzzle is solved
+            puzzleContainer.style.gridGap = "0px";
         } else {
             statusMessage.textContent = "Keep moving, please.";
-            statusMessage.style.color = "red"; // Optional: Indicate it's not solved
+            statusMessage.style.color = "red";
+
+            // Restore the gap when the puzzle is not solved
+            puzzleContainer.style.gridGap = "5px";
         }
     }
 
@@ -252,21 +261,21 @@
         ctx.drawImage(image, offsetX, offsetY, scaledWidth, scaledHeight);
 
         // Draw grid lines for debugging
-        ctx.strokeStyle = 'red';
-        ctx.lineWidth = 2;
-        for (let i = 1; i < gridSize; i++) {
-            // Vertical lines
-            ctx.beginPath();
-            ctx.moveTo(i * tileSize, 0);
-            ctx.lineTo(i * tileSize, canvas.height);
-            ctx.stroke();
-
-            // Horizontal lines
-            ctx.beginPath();
-            ctx.moveTo(0, i * tileSize);
-            ctx.lineTo(canvas.width, i * tileSize);
-            ctx.stroke();
-        }
+        // ctx.strokeStyle = 'red';
+        // ctx.lineWidth = 2;
+        // for (let i = 1; i < gridSize; i++) {
+        //     // Vertical lines
+        //     ctx.beginPath();
+        //     ctx.moveTo(i * tileSize, 0);
+        //     ctx.lineTo(i * tileSize, canvas.height);
+        //     ctx.stroke();
+        //
+        //     // Horizontal lines
+        //     ctx.beginPath();
+        //     ctx.moveTo(0, i * tileSize);
+        //     ctx.lineTo(canvas.width, i * tileSize);
+        //     ctx.stroke();
+        // }
 
         console.log(`Scaled image dimensions: ${canvas.width}x${canvas.height}`);
         return canvas;
