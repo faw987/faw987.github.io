@@ -75,9 +75,25 @@
     // const imagePath = 'images/ugly_turkey.jpg';
     // const imagePath = 'images/chippy_3.jpeg';
 
+    // document.getElementById('shuffle-button').onclick = () => {
+    //     shuffle(10); // Perform a small shuffle when the button is clicked
+    // };
+
     document.getElementById('shuffle-button').onclick = () => {
-        shuffle(10); // Perform a small shuffle when the button is clicked
+        // Get the value from the input field
+        const shuffleStepsInput = document.getElementById('shuffle-steps').value;
+        const steps = parseInt(shuffleStepsInput, 10);
+
+        // Validate the input (use default if invalid)
+        if (isNaN(steps) || steps < 1) {
+            alert("Please enter a valid number of shuffle steps (1 or more).");
+            return;
+        }
+
+        // Perform the shuffle with the specified steps
+        shuffle(steps);
     };
+
 
 
     const container = document.getElementById('puzzle-container');
