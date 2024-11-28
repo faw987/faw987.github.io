@@ -66,6 +66,11 @@
 <script>
 
 
+    function getUrlParameter(param, defaultValue) {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(param) || defaultValue;
+    }
+
     // const imagePath = 'images/ugly_turkey.jpg';
     // const imagePath = 'images/chippy_3.jpeg';
 
@@ -75,29 +80,128 @@
     const shuffleStepsInput = document.getElementById('shuffle-steps');
     const scaledImageCanvas = document.getElementById('scaled-image');
     const scaledImageCtx = scaledImageCanvas.getContext('2d');
-    const imagePath = 'images/chippy_3.jpeg';
+    // const imagePath = 'images/witch.png';
+    // const imagePath = 'images/cute_turkey.svg';
+    // const imagePath = 'images/small_ugly_turkey.jpg';
+    // const imagePath = 'images/chippy_3.jpeg';
     // const imagePath = 'images/test03.jpeg';
     let tiles = [];
     let emptyTileIndex = 15;
     const tileSize = 100; // Each tile is 100x100px
     const gridSize = 4; // 4x4 grid
 
-    // Initialize the puzzle
+    const defaultImagePath = 'images/chippy_1.jpeg'; // Default image path
+    // const imagePath = getUrlParameter('IMAGE', defaultImagePath); // Get IMAGE parameter or default
+    //
+    // function initPuzzle() {
+    //     const image = new Image();
+    //     image.src = imagePath; // Use the image path from the URL or default
+    //
+    //     image.onload = () => {
+    //         const scaledImage = scaleImageToGrid(image);
+    //         drawScaledImageDebug(scaledImage); // Display scaled image in debug area
+    //         tiles = Array.from({ length: 15 }, (_, i) => createTileImage(scaledImage, i)).concat(null);
+    //         renderPuzzle(true); // Render the complete image initially
+    //     };
+    //
+    //     image.onerror = () => {
+    //         console.error("Image failed to load. Please check the file path.");
+    //         alert("Failed to load the image. Please check the IMAGE URL parameter.");
+    //     };
+    // }
+
+
+    function resolveImagePath(imageParam) {
+        if (!imageParam) return 'images/chippy_1.jpeg'; // Default to chippy
+
+        switch (imageParam.toLowerCase()) {
+            case 'chippy':
+                return 'images/chippy_1.jpeg';
+            case 'witch':
+                return 'images/witch.png';
+            case 'turkey':
+                return 'images/cute_turkey.svg';
+            default:
+                if (imageParam.startsWith('http://') || imageParam.startsWith('https://')) {
+                    return imageParam; // Use full URL
+                }
+                console.warn(`Unknown IMAGE parameter value: ${imageParam}, defaulting to chippy.`);
+                return 'images/chippy_1.jpeg'; // Fallback to default
+        }
+    }
+
+
+    // Resolve parameters
+    const imageParam = getUrlParameter('IMAGE', 'chippy');
+    const imagePath = resolveImagePath(imageParam);
+
+    const showNumbersParam = getUrlParameter('SHOWNUMBERS', 'true').toLowerCase();
+    const showNumbers = showNumbersParam !== 'false'; // Default to true unless explicitly set to 'false'
+
+    const shuffleParam = parseInt(getUrlParameter('SHUFFLE', '0'), 10); // Default to 0 (no shuffle)
+    const shuffleSteps = isNaN(shuffleParam) || shuffleParam < 0 ? 0 : shuffleParam; // Ensure valid shuffle value
+
+    // Debugging
+    console.log(`Using image: ${imagePath}`);
+    console.log(`Show numbers: ${showNumbers}`);
+    console.log(`Shuffle steps: ${shuffleSteps}`);
+
     function initPuzzle() {
         const image = new Image();
         image.src = imagePath;
 
         image.onload = () => {
             const scaledImage = scaleImageToGrid(image);
-            drawScaledImageDebug(scaledImage); // Display scaled image in debug area
+            drawScaledImageDebug(scaledImage);
             tiles = Array.from({ length: 15 }, (_, i) => createTileImage(scaledImage, i)).concat(null);
-            renderPuzzle(true); // Render the complete image initially
+            renderPuzzle(true);
+
+            // Perform initial shuffle if SHUFFLE parameter is present
+            if (shuffleSteps > 0) {
+                console.log(`Shuffling ${shuffleSteps} times...`);
+                shuffle(shuffleSteps);
+            }
+
+            console.log(`Puzzle initialized with image: ${imagePath}`);
         };
 
         image.onerror = () => {
             console.error("Image failed to load. Please check the file path.");
+            alert("Failed to load the image. Please check the IMAGE URL parameter.");
         };
     }
+
+    // Updated shuffle function to accept a number of steps
+    function shuffle(steps) {
+        console.log(`Shuffling with ${steps} steps`);
+        for (let i = 0; i < steps; i++) {
+            const neighbors = getNeighbors(emptyTileIndex);
+            const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+            [tiles[emptyTileIndex], tiles[randomNeighbor]] = [tiles[randomNeighbor], tiles[emptyTileIndex]];
+            emptyTileIndex = randomNeighbor;
+        }
+
+        renderPuzzle(false); // Render the shuffled puzzle
+    }
+
+
+
+    // Initialize the puzzle
+    // function initPuzzle() {
+    //     const image = new Image();
+    //     image.src = imagePath;
+    //
+    //     image.onload = () => {
+    //         const scaledImage = scaleImageToGrid(image);
+    //         drawScaledImageDebug(scaledImage); // Display scaled image in debug area
+    //         tiles = Array.from({ length: 15 }, (_, i) => createTileImage(scaledImage, i)).concat(null);
+    //         renderPuzzle(true); // Render the complete image initially
+    //     };
+    //
+    //     image.onerror = () => {
+    //         console.error("Image failed to load. Please check the file path.");
+    //     };
+    // }
 
     function scaleImageToGrid(image) {
         const canvas = document.createElement('canvas');
@@ -142,50 +246,86 @@
     }
 
 
+    // function createTileImage(scaledImage, index) {
+    //     const canvas = document.createElement('canvas');
+    //
+    //     // Explicitly set the canvas size (both CSS and internal resolution)
+    //     canvas.width = tileSize; // 100px
+    //     canvas.height = tileSize;
+    //
+    //     const ctx = canvas.getContext('2d');
+    //
+    //     // Calculate the correct coordinates of the tile in the scaled image
+    //     const col = index % gridSize; // Column index
+    //     const row = Math.floor(index / gridSize); // Row index
+    //     const x = col * tileSize; // Source x in the scaled image
+    //     const y = row * tileSize; // Source y in the scaled image
+    //
+    //     // Draw the exact portion of the scaled image onto the tile canvas
+    //     ctx.imageSmoothingEnabled = false; // Prevent interpolation artifacts
+    //     ctx.drawImage(
+    //         scaledImage,   // Source: the scaled image
+    //         x,             // Source x in the scaled image
+    //         y,             // Source y in the scaled image
+    //         tileSize,      // Width of the tile to extract (100px)
+    //         tileSize,      // Height of the tile to extract (100px)
+    //         0,             // Destination x in the tile canvas
+    //         0,             // Destination y in the tile canvas
+    //         tileSize,      // Destination width (100px)
+    //         tileSize       // Destination height (100px)
+    //     );
+    //
+    //     // Draw debugging grid and tile index
+    //     ctx.strokeStyle = "red";
+    //     ctx.lineWidth = 2;
+    //     ctx.strokeRect(0, 0, tileSize, tileSize);
+    //
+    //     ctx.fillStyle = "blue";
+    //     ctx.font = "20px Arial";
+    //     ctx.fillText(index, 10, 30);
+    //
+    //     // Populate debug info for this tile
+    //     // non ono
+    //     //
+    //     // displayTileDebugInfo(index, x, y, canvas.toDataURL());
+    //
+    //     // Return the tile as a base64-encoded data URL
+    //     return canvas.toDataURL();
+    // }
+
     function createTileImage(scaledImage, index) {
         const canvas = document.createElement('canvas');
 
-        // Explicitly set the canvas size (both CSS and internal resolution)
-        canvas.width = tileSize; // 100px
+        // Explicitly set the canvas size
+        canvas.width = tileSize;
         canvas.height = tileSize;
 
         const ctx = canvas.getContext('2d');
 
-        // Calculate the correct coordinates of the tile in the scaled image
+        // Calculate tile position
         const col = index % gridSize; // Column index
         const row = Math.floor(index / gridSize); // Row index
         const x = col * tileSize; // Source x in the scaled image
         const y = row * tileSize; // Source y in the scaled image
 
-        // Draw the exact portion of the scaled image onto the tile canvas
-        ctx.imageSmoothingEnabled = false; // Prevent interpolation artifacts
+        // Debugging: Log the showNumbers state
+        console.log(`Tile ${index}: Show numbers = ${showNumbers}`);
+
+        // Draw the tile from the scaled image
+        ctx.imageSmoothingEnabled = false;
         ctx.drawImage(
-            scaledImage,   // Source: the scaled image
-            x,             // Source x in the scaled image
-            y,             // Source y in the scaled image
-            tileSize,      // Width of the tile to extract (100px)
-            tileSize,      // Height of the tile to extract (100px)
-            0,             // Destination x in the tile canvas
-            0,             // Destination y in the tile canvas
-            tileSize,      // Destination width (100px)
-            tileSize       // Destination height (100px)
+            scaledImage,
+            x, y, tileSize, tileSize, // Source position and size
+            0, 0, tileSize, tileSize  // Destination position and size
         );
 
-        // Draw debugging grid and tile index
-        ctx.strokeStyle = "red";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(0, 0, tileSize, tileSize);
+        // Only draw numbers if showNumbers is true
+        if (showNumbers) {
+            ctx.fillStyle = "blue";
+            ctx.font = "20px Arial";
+            ctx.fillText(index, 10, 30); // Draw tile number
+        }
 
-        ctx.fillStyle = "blue";
-        ctx.font = "20px Arial";
-        ctx.fillText(index, 10, 30);
-
-        // Populate debug info for this tile
-        // non ono
-        //
-        // displayTileDebugInfo(index, x, y, canvas.toDataURL());
-
-        // Return the tile as a base64-encoded data URL
         return canvas.toDataURL();
     }
 
@@ -272,21 +412,21 @@
             container.appendChild(tileElement);
         });
     }
-
-    // Shuffle the puzzle tiles
-    function shuffle() {
-        const steps = parseInt(shuffleStepsInput.value, 10) || 30;
-
-        // Randomly move tiles a specified number of times
-        for (let i = 0; i < steps; i++) {
-            const neighbors = getNeighbors(emptyTileIndex);
-            const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
-            [tiles[emptyTileIndex], tiles[randomNeighbor]] = [tiles[randomNeighbor], tiles[emptyTileIndex]];
-            emptyTileIndex = randomNeighbor;
-        }
-
-        renderPuzzle(false); // Render the shuffled puzzle
-    }
+    //                                                      old
+    // // Shuffle the puzzle tiles
+    // function shuffle() {
+    //     const steps = parseInt(shuffleStepsInput.value, 10) || 30;
+    //
+    //     // Randomly move tiles a specified number of times
+    //     for (let i = 0; i < steps; i++) {
+    //         const neighbors = getNeighbors(emptyTileIndex);
+    //         const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+    //         [tiles[emptyTileIndex], tiles[randomNeighbor]] = [tiles[randomNeighbor], tiles[emptyTileIndex]];
+    //         emptyTileIndex = randomNeighbor;
+    //     }
+    //
+    //     renderPuzzle(false); // Render the shuffled puzzle
+    // }
 
     // Get valid neighboring indices for the empty tile
     function getNeighbors(index) {
