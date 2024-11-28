@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<script>
+  prompt = "big dog";
+  const response =  fetch("https://ver1-d4kfn0aml-frank-wallaces-projects.vercel.app/api/generate-image", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ prompt: prompt }),
+  });
+  alert(response);
+</script>
+<body>
+
+</body>
+</html>

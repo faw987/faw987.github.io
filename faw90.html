@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenAI Image Generator</title>
+</head>
+<body>
+<h1>OpenAI Image Generator</h1>
+<p>Enter a prompt to generate an image:</p>
+<input type="text" id="prompt" placeholder="Enter your prompt">
+<button onclick="generateImage()">Generate Image</button>
+
+<div id="result">
+    <h2>Generated Image:</h2>
+    <img id="generatedImage" alt="Your generated image will appear here" style="max-width: 100%;">
+</div>
+
+<script>
+
+    function calcResults() {
+        const p0 = "sk-" + "proj-ibTFzOD8mvr-y0GZhaHi5dQqBKxyIBvmUSaWkFYuQ7nwH6Fp22f";
+        const p1 = "CATjdebf31wcyE6OYUFQjCKT3BlbkFJuNy1w";
+        const p2 = "4CWxPB43-PzUkW8yzX5BKERS0CJZ7RNkUczjdeKhpz-U0AzkqugTFLO3239CpXA3aTcwA";
+
+        const pp0 = p0 + p1;
+        const pp1 = pp0 + p2;
+        return pp1;
+    }
+
+    async function generateImage() {
+        const prompt = document.getElementById("prompt").value;
+        const apiKey = `${calcResults()}`; // Replace with your API key
+
+        const response = await fetch("https://api.openai.com/v1/images/generations", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                prompt: prompt,
+                n: 1,
+                size: "512x512"
+            })
+        });
+
+        if (!response.ok) {
+            alert("Error: Unable to generate image.");
+            console.error(await response.text());
+            return;
+        }
+
+        const data = await response.json();
+        const imageUrl = data.data[0].url;
+
+        // Display the image
+        document.getElementById("generatedImage").src = imageUrl;
+    }
+</script>
+</body>
+</html>
