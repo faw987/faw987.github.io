@@ -64,6 +64,7 @@
     </div>
 </div>
 <div id="status-message" style="margin-top: 20px; font-size: 20px; font-weight: bold;">Greetings.</div>
+<audio id="success-sound" src="sounds/Tada-sound.mp3" preload="auto"></audio>
 
 <script>
 
@@ -103,9 +104,56 @@
     }
 
 
+    // function updateStatusMessage() {
+    //     const statusMessage = document.getElementById('status-message');
+    //     const puzzleContainer = document.getElementById('puzzle-container');
+    //
+    //     if (isSolved()) {
+    //         statusMessage.textContent = "Solved! 🎉";
+    //         statusMessage.style.color = "green";
+    //
+    //         // Remove the gap when the puzzle is solved
+    //         puzzleContainer.style.gridGap = "0px";
+    //     } else {
+    //         statusMessage.textContent = "Keep moving, please.";
+    //         statusMessage.style.color = "red";
+    //
+    //         // Restore the gap when the puzzle is not solved
+    //         puzzleContainer.style.gridGap = "5px";
+    //     }
+    // }
+
+    // function updateStatusMessage() {
+    //     const statusMessage = document.getElementById('status-message');
+    //     const puzzleContainer = document.getElementById('puzzle-container');
+    //     const successSound = document.getElementById('success-sound');
+    //
+    //     if (isSolved()) {
+    //         statusMessage.textContent = "Solved! 🎉";
+    //         statusMessage.style.color = "green";
+    //
+    //         // Remove the gap when the puzzle is solved
+    //         puzzleContainer.style.gridGap = "0px";
+    //
+    //         // Play the success sound
+    //         // Set the volume to 10% and play the success sound
+    //         successSound.volume = 0.02; // Set volume to 10%
+    //         successSound.play().catch((error) => {
+    //             console.error("Error playing success sound:", error);
+    //         });
+    //     } else {
+    //         statusMessage.textContent = "Keep moving, please.";
+    //         statusMessage.style.color = "red";
+    //
+    //         // Restore the gap when the puzzle is not solved
+    //         puzzleContainer.style.gridGap = "5px";
+    //     }
+    // }
+
     function updateStatusMessage() {
         const statusMessage = document.getElementById('status-message');
         const puzzleContainer = document.getElementById('puzzle-container');
+        const successSound = document.getElementById('success-sound');
 
         if (isSolved()) {
             statusMessage.textContent = "Solved! 🎉";
@@ -113,6 +161,14 @@
 
             // Remove the gap when the puzzle is solved
             puzzleContainer.style.gridGap = "0px";
+
+            // Play the success sound if sound=true
+            if (playSound) {
+                successSound.volume = soundVolume; // Set volume from vol parameter
+                successSound.play().catch((error) => {
+                    console.error("Error playing success sound:", error);
+                });
+            }
         } else {
             statusMessage.textContent = "Keep moving, please.";
             statusMessage.style.color = "red";
@@ -121,6 +177,8 @@
             puzzleContainer.style.gridGap = "5px";
         }
     }
+
+
 
 
 
@@ -208,6 +266,15 @@
 
     const shuffleParam = parseInt(getUrlParameter('SHUFFLE', '0'), 10); // Default to 0 (no shuffle)
     const shuffleSteps = isNaN(shuffleParam) || shuffleParam < 0 ? 0 : shuffleParam; // Ensure valid shuffle value
+
+    // Retrieve and parse the sound parameter
+    const soundParam = getUrlParameter('sound', 'true').toLowerCase();
+    const playSound = soundParam === 'true'; // Only play sound if set to 'true'
+
+    // Retrieve and parse the vol parameter
+    const volParam = parseFloat(getUrlParameter('vol', '0.05')); // Default to 0.05
+    const soundVolume = isNaN(volParam) || volParam < 0 || volParam > 1 ? 0.05 : volParam; // Ensure valid range
+
 
     // Debugging
     console.log(`Using image: ${imagePath}`);
