@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Double Pendulum Simulation</title>
+    <style>
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background: #111;
+        }
+        #controls {
+            text-align: center;
+            margin: 20px;
+        }
+        button {
+            font-size: 16px;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<h1 style="text-align: center; color: white;">Double Pendulum Simulation</h1>
+<div id="controls">
+    <button id="stepButton">Step</button>
+    <button id="startButton">Start Animation</button>
+    <button id="stopButton">Stop Animation</button>
+</div>
+<canvas id="doublePendulumCanvas"></canvas>
+<script>
+    // Select the canvas and set its dimensions
+    const canvas = document.getElementById('doublePendulumCanvas');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext('2d');
+
+    // Physical constants
+    const g = 9.81; // Gravity (m/s²)
+    const dt = 0.005; // Time step (seconds)
+
+    // Pendulum parameters
+    let m1 = 1; // Mass of first pendulum
+    let m2 = 1; // Mass of second pendulum
+    let l1 = 200; // Length of first rod (px)
+    let l2 = 200; // Length of second rod (px)
+    let theta1 = Math.PI / 2; // Initial angle of first pendulum
+    let theta2 = Math.PI / 4; // Initial angle of second pendulum
+    let p1 = 0; // Angular momentum of first pendulum
+    let p2 = 0; // Angular momentum of second pendulum
+
+    // Origin position
+    const originX = canvas.width / 2;
+    const originY = 200;
+
+    // Damping factor (optional)
+    const damping = 0.99; // Reduce energy slightly each frame
+
+    let animationRunning = false;
+    let animationFrameId;
+
+    // Helper function for Lagrangian dynamics
+    function lagrangianDynamics() {
+        const cos12 = Math.cos(theta1 - theta2);
+        const sin12 = Math.sin(theta1 - theta2);
+
+        // Calculate derivatives
+        const theta1Dot = (l2 * p1 - l1 * p2 * cos12) / (l1 ** 2 * l2 * (m1 + m2 * sin12 ** 2));
+        const theta2Dot = (l1 * (m1 + m2) * p2 - l2 * m2 * p1 * cos12) / (l1 * l2 ** 2 * m2 * (m1 + m2 * sin12 ** 2));
+
+        const p1Dot = -(m1 + m2) * g * l1 * Math.sin(theta1) - sin12 * (p1 * p2 * cos12 - l2 * m2 * theta2Dot ** 2 - l1 * theta1Dot ** 2);
+        const p2Dot = -m2 * g * l2 * Math.sin(theta2) + sin12 * (p1 * p2 * cos12 + l2 * m2 * theta2Dot ** 2 + l1 * theta1Dot ** 2);
+
+        return { theta1Dot, theta2Dot, p1Dot, p2Dot };
+    }
+
+    // Update the pendulum's state
+    function update() {
+        const { theta1Dot, theta2Dot, p1Dot, p2Dot } = lagrangianDynamics();
+
+        // Update angular momentum
+        p1 += p1Dot * dt;
+        p2 += p2Dot * dt;
+
+        // Apply damping to reduce energy over time
+        p1 *= damping;
+        p2 *= damping;
+
+        // Update angles
+        theta1 += theta1Dot * dt;
+        theta2 += theta2Dot * dt;
+    }
+
+    // Draw the pendulum
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Calculate positions
+        const x1 = originX + l1 * Math.sin(theta1);
+        const y1 = originY + l1 * Math.cos(theta1);
+
+        const x2 = x1 + l2 * Math.sin(theta2);
+        const y2 = y1 + l2 * Math.cos(theta2);
+
+        // Draw the first pendulum
+        ctx.beginPath();
+        ctx.moveTo(originX, originY);
+        ctx.lineTo(x1, y1);
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw the second pendulum
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw the masses
+        ctx.beginPath();
+        ctx.arc(x1, y1, 10, 0, 2 * Math.PI);
+        ctx.fillStyle = 'red';
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(x2, y2, 10, 0, 2 * Math.PI);
+        ctx.fillStyle = 'blue';
+        ctx.fill();
+    }
+
+    // Animation loop
+    function animate() {
+        update();
+        draw();
+        if (animationRunning) {
+            animationFrameId = requestAnimationFrame(animate);
+        }
+    }
+
+    // Start/Stop and Step Button Handlers
+    document.getElementById('stepButton').addEventListener('click', () => {
+        update();
+        draw();
+    });
+
+    document.getElementById('startButton').addEventListener('click', () => {
+        if (!animationRunning) {
+            animationRunning = true;
+            animate();
+        }
+    });
+
+    document.getElementById('stopButton').addEventListener('click', () => {
+        animationRunning = false;
+        cancelAnimationFrame(animationFrameId);
+    });
+</script>
+</body>
+</html>

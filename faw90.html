@@ -15,18 +15,11 @@
     <h2>Generated Image:</h2>
     <img id="generatedImage" alt="Your generated image will appear here" style="max-width: 100%;">
 </div>
+<audio id="success-sound" src="sounds/Tada-sound.mp3" preload="auto"></audio>
+
+<script src="js/util1.js"></script>
 
 <script>
-
-    function calcResults() {
-        const p0 = "sk-" + "proj-ibTFzOD8mvr-y0GZhaHi5dQqBKxyIBvmUSaWkFYuQ7nwH6Fp22f";
-        const p1 = "CATjdebf31wcyE6OYUFQjCKT3BlbkFJuNy1w";
-        const p2 = "4CWxPB43-PzUkW8yzX5BKERS0CJZ7RNkUczjdeKhpz-U0AzkqugTFLO3239CpXA3aTcwA";
-
-        const pp0 = p0 + p1;
-        const pp1 = pp0 + p2;
-        return pp1;
-    }
 
     async function generateImage() {
         const prompt = document.getElementById("prompt").value;

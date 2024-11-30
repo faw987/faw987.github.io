@@ -79,6 +79,7 @@
     // https://faw987.github.io/faw89.html?SHOWNUMBERS=true&SHUFFLE=1&IMAGE=https://faw987.github.io/images/chippy_2.jpeg
 
     // https://faw987.github.io/faw89.html?SHOWNUMBERS=false&SHUFFLE=1&IMAGE=witch
+    // https://faw987.github.io/faw89.html?IMAGE=pk
 
     //  https://faw987.github.io/faw89.html?sound=true&vol=0.01
 
@@ -282,6 +283,10 @@
     const volParam = parseFloat(getUrlParameter('vol', '0.05')); // Default to 0.05
     const soundVolume = isNaN(volParam) || volParam < 0 || volParam > 1 ? 0.05 : volParam; // Ensure valid range
 
+    // Retrieve and parse the showhint parameter
+    const showHintParam = getUrlParameter('showhint', 'true').toLowerCase();
+    const showHint = showHintParam === 'true'; // Only show hint if set to 'true'
+
 
     // Debugging
     console.log(`Using image: ${imagePath}`);
@@ -294,7 +299,19 @@
 
         image.onload = () => {
             const scaledImage = scaleImageToGrid(image);
-            drawScaledImageDebug(scaledImage);
+            // drawScaledImageDebug(scaledImage);
+
+
+            // Conditionally show or hide the scaled image
+            const scaledImageElement = document.getElementById('scaled-image');
+            if (showHint) {
+                scaledImageElement.style.display = 'block'; // Show the scaled image
+                drawScaledImageDebug(scaledImage); // Display scaled image in debug area
+            } else {
+                scaledImageElement.style.display = 'none'; // Hide the scaled image
+            }
+
+
             tiles = Array.from({ length: 15 }, (_, i) => createTileImage(scaledImage, i)).concat(null);
 
             solvedState = [...tiles]; // Creates a shallow copy of the array
