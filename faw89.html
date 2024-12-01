@@ -240,13 +240,18 @@
 
 
     function loadImageForPuzzle(imageSrc) {
-        const image = new Image();
+        // const image = new Image();
+        image = new Image();
         image.src = imageSrc;
 
         image.onload = () => {
             const scaledImage = scaleImageToGrid(image);
             drawScaledImageDebug(scaledImage); // Display scaled image in debug area
             tiles = Array.from({ length: 15 }, (_, i) => createTileImage(scaledImage, i)).concat(null);
+
+            solvedState = [...tiles]; // Creates a shallow copy of the array    HACK
+
+
             renderPuzzle(true); // Render the puzzle with the new image
             console.log('Puzzle updated with dropped image.');
         };
@@ -346,6 +351,7 @@
             reader.onload = (e) => {
                 const imageSrc = e.target.result;
                 loadImageForPuzzle(imageSrc); // Load the dropped image for the puzzle
+
             };
             reader.readAsDataURL(file);
         } else {
@@ -359,7 +365,10 @@
     console.log(`Shuffle steps: ${shuffleSteps}`);
 
     function initPuzzle() {
-        const image = new Image();
+        // const image = new Image();
+
+        image = new Image();
+
         image.src = imagePath;
 
         image.onload = () => {
