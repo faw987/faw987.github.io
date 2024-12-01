@@ -69,7 +69,9 @@
 </div>
 <div id="status-message" style="margin-top: 20px; font-size: 20px; font-weight: bold;">Greetings.</div>
 <audio id="success-sound" src="sounds/Tada-sound.mp3" preload="auto"></audio>
-
+<div id="drop-area" style="display: none; border: 2px dashed gray; padding: 20px; text-align: center;">
+    <p>Drag and drop an image file here to use for the puzzle.</p>
+</div>
 <script>
 
 
@@ -234,6 +236,27 @@
 
     const defaultImagePath = 'images/chippy_1.jpeg'; // Default image path
 
+
+
+
+    function loadImageForPuzzle(imageSrc) {
+        const image = new Image();
+        image.src = imageSrc;
+
+        image.onload = () => {
+            const scaledImage = scaleImageToGrid(image);
+            drawScaledImageDebug(scaledImage); // Display scaled image in debug area
+            tiles = Array.from({ length: 15 }, (_, i) => createTileImage(scaledImage, i)).concat(null);
+            renderPuzzle(true); // Render the puzzle with the new image
+            console.log('Puzzle updated with dropped image.');
+        };
+
+        image.onerror = () => {
+            alert('Failed to load the dropped image.');
+        };
+    }
+
+
     function resolveImagePath(imageParam) {
         if (!imageParam) return 'images/chippy_1.jpeg'; // Default to chippy
 
@@ -288,6 +311,47 @@
     const showHintParam = getUrlParameter('showhint', 'true').toLowerCase();
     const showHint = showHintParam === 'true'; // Only show hint if set to 'true'
 
+    // Retrieve and parse the showdrop parameter
+    const showDropParam = getUrlParameter('showdrop', 'false').toLowerCase();
+    const showDrop = showDropParam === 'true'; // Only show the drop area if set to 'true'
+
+    // Show or hide the drop area
+    const dropArea = document.getElementById('drop-area');
+    if (showDrop) {
+        dropArea.style.display = 'block'; // Show the drop area
+    } else {
+        dropArea.style.display = 'none'; // Hide the drop area
+    }
+
+
+
+    // Add event listeners for drag and drop
+    dropArea.addEventListener('dragover', (event) => {
+        event.preventDefault(); // Prevent default behavior
+        dropArea.style.borderColor = 'blue'; // Highlight the drop area
+    });
+
+    dropArea.addEventListener('dragleave', () => {
+        dropArea.style.borderColor = 'gray'; // Reset the drop area border color
+    });
+
+    dropArea.addEventListener('drop', (event) => {
+        event.preventDefault(); // Prevent default behavior
+        dropArea.style.borderColor = 'gray'; // Reset the drop area border color
+
+        // Retrieve the dropped file
+        const file = event.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const imageSrc = e.target.result;
+                loadImageForPuzzle(imageSrc); // Load the dropped image for the puzzle
+            };
+            reader.readAsDataURL(file);
+        } else {
+            alert('Please drop a valid image file.');
+        }
+    });
 
     // Debugging
     console.log(`Using image: ${imagePath}`);
