@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Double Pendulum Simulation</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+            display: block;
+            margin: 0 auto;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px;
+        }
+        .controls label, .controls input {
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+<h1 style="text-align: center;">Double Pendulum Simulation</h1>
+<div class="controls">
+    <label for="g">Gravity (g):</label>
+    <input type="number" id="g" value="9.81" step="0.01">
+    <label for="l1">Length 1 (l1):</label>
+    <input type="number" id="l1" value="1.0" step="0.1">
+    <label for="l2">Length 2 (l2):</label>
+    <input type="number" id="l2" value="1.0" step="0.1">
+    <label for="m1">Mass 1 (m1):</label>
+    <input type="number" id="m1" value="1.0" step="0.1">
+    <label for="m2">Mass 2 (m2):</label>
+    <input type="number" id="m2" value="1.0" step="0.1">
+    <label for="trace">Show Trace:</label>
+    <input type="checkbox" id="trace">
+    <button onclick="startSimulation()">Start Simulation</button>
+</div>
+<canvas id="canvas" width="600" height="600"></canvas>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const dt = 0.01;
+    let animationFrame;
+    let traceX = [];
+    let traceY = [];
+
+    function startSimulation() {
+        // Clear any ongoing animations and reset trace
+        cancelAnimationFrame(animationFrame);
+        traceX = [];
+        traceY = [];
+
+        // Get parameters from input fields
+        const g = parseFloat(document.getElementById('g').value);
+        const l1 = parseFloat(document.getElementById('l1').value);
+        const l2 = parseFloat(document.getElementById('l2').value);
+        const m1 = parseFloat(document.getElementById('m1').value);
+        const m2 = parseFloat(document.getElementById('m2').value);
+        const showTrace = document.getElementById('trace').checked;
+
+        // Initial conditions
+        let theta1 = Math.PI / 2;
+        let theta2 = Math.PI / 2;
+        let omega1 = 0;
+        let omega2 = 0;
+
+        // Function to compute derivatives
+        function computeDerivatives(theta1, omega1, theta2, omega2) {
+            const deltaTheta = theta2 - theta1;
+            const den1 = (m1 + m2) * l1 - m2 * l1 * Math.cos(deltaTheta) ** 2;
+            const den2 = (l2 / l1) * den1;
+
+            const domega1 = (m2 * l1 * omega1 ** 2 * Math.sin(deltaTheta) * Math.cos(deltaTheta) +
+                m2 * g * Math.sin(theta2) * Math.cos(deltaTheta) +
+                m2 * l2 * omega2 ** 2 * Math.sin(deltaTheta) -
+                (m1 + m2) * g * Math.sin(theta1)) / den1;
+
+            const domega2 = (-m2 * l2 * omega2 ** 2 * Math.sin(deltaTheta) * Math.cos(deltaTheta) +
+                (m1 + m2) * (g * Math.sin(theta1) * Math.cos(deltaTheta) -
+                    l1 * omega1 ** 2 * Math.sin(deltaTheta) - g * Math.sin(theta2))) / den2;
+
+            return [omega1, domega1, omega2, domega2];
+        }
+
+        // Convert to Cartesian coordinates
+        function computeCoordinates(theta1, theta2) {
+            const x1 = l1 * Math.sin(theta1);
+            const y1 = -l1 * Math.cos(theta1);
+            const x2 = x1 + l2 * Math.sin(theta2);
+            const y2 = y1 - l2 * Math.cos(theta2);
+            return { x1, y1, x2, y2 };
+        }
+
+        function drawPendulum({ x1, y1, x2, y2 }) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw the trace if enabled
+            if (showTrace) {
+                ctx.beginPath();
+                for (let i = 0; i < traceX.length; i++) {
+                    ctx.lineTo(canvas.width / 2 + traceX[i] * 100, canvas.height / 2 + traceY[i] * 100);
+                }
+                ctx.strokeStyle = 'red';
+                ctx.stroke();
+            }
+
+            // Draw the pendulum
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, canvas.height / 2);
+            ctx.lineTo(canvas.width / 2 + x1 * 100, canvas.height / 2 + y1 * 100);
+            ctx.lineTo(canvas.width / 2 + x2 * 100, canvas.height / 2 + y2 * 100);
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw masses
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2 + x1 * 100, canvas.height / 2 + y1 * 100, 5, 0, Math.PI * 2);
+            ctx.fillStyle = 'blue';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(canvas.width / 2 + x2 * 100, canvas.height / 2 + y2 * 100, 5, 0, Math.PI * 2);
+            ctx.fillStyle = 'blue';
+            ctx.fill();
+        }
+
+        function step() {
+            const [dtheta1, domega1, dtheta2, domega2] = computeDerivatives(theta1, omega1, theta2, omega2);
+
+            // Update state variables
+            theta1 += dtheta1 * dt;
+            omega1 += domega1 * dt;
+            theta2 += dtheta2 * dt;
+            omega2 += domega2 * dt;
+
+            // Compute coordinates and update trace
+            const coords = computeCoordinates(theta1, theta2);
+            traceX.push(coords.x2);
+            traceY.push(coords.y2);
+
+            // Limit trace length for performance
+            if (traceX.length > 1000) {
+                traceX.shift();
+                traceY.shift();
+            }
+
+            // Draw pendulum and trace
+            drawPendulum(coords);
+
+            animationFrame = requestAnimationFrame(step);
+        }
+
+        step();
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Double Pendulum Simulation</title>
+  <style>
+    canvas { border: 1px solid black; }
+  </style>
+</head>
+<body>
+<h2>Double Pendulum Parameters:</h2>
+<label for="g">Gravity (g):</label>
+<input type="number" id="g" value="9.81"><br><br>
+
+<label for="l1">Length of pendulum 1 (l1):</label>
+<input type="number" id="l1" value="1.0"><br><br>
+
+<label for="l2">Length of pendulum 2 (l2):</label>
+<input type="number" id="l2" value="1.0"><br><br>
+
+<label for="m1">Mass of pendulum 1 (m1):</label>
+<input type="number" id="m1" value="1.0"><br><br>
+
+<label for="m2">Mass of pendulum 2 (m2):</label>
+<input type="number" id="m2" value="1.0"><br><br>
+
+<label for="theta1_0">Initial angle for pendulum 1 (θ1₀):</label>
+<input type="number" id="theta1_0" value="90"><br><br>
+
+<label for="theta2_0">Initial angle for pendulum 2 (θ2₀):</label>
+<input type="number" id="theta2_0" value="90"><br><br>
+
+<button onclick="runSimulation()">Run Simulation</button>
+
+<canvas id="animationCanvas"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/numeric@latest/numeric.min.js"></script>
+<!--<script src="app.js"></script>-->
+
+<script>
+function runSimulation() {
+// Get parameters from input fields
+const g = parseFloat(document.getElementById('g').value);
+const l1 = parseFloat(document.getElementById('l1').value);
+const l2 = parseFloat(document.getElementById('l2').value);
+const m1 = parseFloat(document.getElementById('m1').value);
+const m2 = parseFloat(document.getElementById('m2').value);
+const theta1_0 = Math.PI * parseFloat(document.getElementById('theta1_0').value) / 180;
+const theta2_0 = Math.PI * parseFloat(document.getElementById('theta2_0').value) / 180;
+
+// Time array
+const t_max = 20; // Duration of the simulation (seconds)
+const dt = 0.01; // Time step
+const t = numeric.linspace(0, t_max, Math.floor(t_max / dt));
+
+// Equations of motion
+function equations(y, t) {
+const theta1 = y[0];
+const omega1 = y[1];
+const theta2 = y[2];
+const omega2 = y[3];
+
+const delta_theta = theta2 - theta1;
+const den1 = (m1 + m2) * l1 - m2 * l1 * Math.cos(delta_theta) * Math.cos(delta_theta);
+const den2 = (l2 / l1) * den1;
+
+const dtheta1_dt = omega1;
+const domega1_dt = (m2 * l1 * omega1 * omega1 * Math.sin(delta_theta) * Math.cos(delta_theta) +
+m2 * g * Math.sin(theta2) * Math.cos(delta_theta) +
+m2 * l2 * omega2 * omega2 * Math.sin(delta_theta) -
+(m1 + m2) * g * Math.sin(theta1)) / den1;
+
+const dtheta2_dt = omega2;
+const domega2_dt = (-m2 * l1 * omega1 * omega1 * Math.sin(delta_theta) * Math.cos(delta_theta) +
+m2 * (l1 * omega1 * omega1 + g * Math.sin(theta1)) * Math.sin(delta_theta) -
+(m1 + m2) * g * Math.sin(theta2)) / den2;
+
+return [dtheta1_dt, domega1_dt, dtheta2_dt, domega2_dt];
+}
+
+// Initial conditions
+const y0 = [theta1_0, 0, theta2_0, 0];
+
+// Solve ODEs
+const sol = numeric.odeint(equations, y0, t);
+
+// Animation parameters
+const canvas = document.getElementById('animationCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+function drawPendulum(theta1, theta2, l1, l2) {
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+// Pendulum 1
+const x1 = canvas.width / 2 + (l1 * Math.sin(theta1));
+const y1 = canvas.height / 2 - (l1 * Math.cos(theta1));
+
+// Pendulum 2
+const x2 = x1 + (l2 * Math.sin(theta2));
+const y2 = y1 - (l2 * Math.cos(theta2));
+
+// Draw pendulums
+ctx.beginPath();
+ctx.moveTo(canvas.width / 2, canvas.height / 2);
+ctx.lineTo(x1, y1);
+ctx.stroke();
+
+ctx.beginPath();
+ctx.moveTo(x1, y1);
+ctx.lineTo(x2, y2);
+ctx.stroke();
+
+// Draw circles at the ends
+ctx.beginPath();
+ctx.arc(canvas.width / 2, canvas.height / 2, 5, 0, Math.PI * 2);
+ctx.fillStyle = 'blue';
+ctx.fill();
+ctx.closePath();
+
+ctx.beginPath();
+ctx.arc(x1, y1, 5, 0, Math.PI * 2);
+ctx.fillStyle = 'red';
+ctx.fill();
+ctx.closePath();
+
+ctx.beginPath();
+ctx.arc(x2, y2, 5, 0, Math.PI * 2);
+ctx.fillStyle = 'green';
+ctx.fill();
+ctx.closePath();
+}
+
+let frameIndex = 0;
+function animate() {
+if (frameIndex < sol.length) {
+drawPendulum(sol[frameIndex][0], sol[frameIndex][2], l1, l2);
+frameIndex++;
+requestAnimationFrame(animate);
+}
+}
+
+// Start animation
+animate();
+}
+</script>
+</body>
+</html>

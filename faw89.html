@@ -100,6 +100,12 @@
     //     return tiles.every((tile, index) => tile === solvedState[index]);
     // }
 
+
+    function showMoveHistory() {
+        console.log("Move History:", moveHistory);
+    }
+
+
     function isSolved() {
         // Compare the current state with the solved state
 
@@ -176,6 +182,9 @@
                 successSound.play().catch((error) => {
                     console.error("Error playing success sound:", error);
                 });
+                if (isSolved()) {
+                    showMoveHistory();
+                }
             }
         } else {
             statusMessage.textContent = "Keep moving, please.";
@@ -236,7 +245,7 @@
 
     const defaultImagePath = 'images/chippy_1.jpeg'; // Default image path
 
-
+    const moveHistory = []; // Array to store move details
 
 
     function loadImageForPuzzle(imageSrc) {
@@ -407,11 +416,33 @@
         };
     }
 
+    // function shuffle(steps = 10) {
+    //     console.log(`Shuffling with ${steps} steps`);
+    //     for (let i = 0; i < steps; i++) {
+    //         const neighbors = getNeighbors(emptyTileIndex);
+    //         const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+    //         [tiles[emptyTileIndex], tiles[randomNeighbor]] = [tiles[randomNeighbor], tiles[emptyTileIndex]];
+    //         emptyTileIndex = randomNeighbor;
+    //     }
+    //
+    //     renderPuzzle(false); // Re-render the puzzle after shuffling
+    //     updateStatusMessage(); // Update the status after shuffling
+    // }
+
     function shuffle(steps = 10) {
-        console.log(`Shuffling with ${steps} steps`);
         for (let i = 0; i < steps; i++) {
             const neighbors = getNeighbors(emptyTileIndex);
             const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+
+            // Record the shuffle move
+            moveHistory.push({
+                type: "shuffle",
+                // tile: tiles[randomNeighbor],
+                from: emptyTileIndex, // Previous empty position
+                to: randomNeighbor,   // New empty position
+            });
+
+            // Perform the shuffle move
             [tiles[emptyTileIndex], tiles[randomNeighbor]] = [tiles[randomNeighbor], tiles[emptyTileIndex]];
             emptyTileIndex = randomNeighbor;
         }
@@ -574,6 +605,23 @@
     }
 
     // Move a tile
+    // function moveTile(index) {
+    //     const row = Math.floor(index / gridSize);
+    //     const col = index % gridSize;
+    //     const emptyRow = Math.floor(emptyTileIndex / gridSize);
+    //     const emptyCol = emptyTileIndex % gridSize;
+    //
+    //     if (
+    //         (Math.abs(row - emptyRow) === 1 && col === emptyCol) || // Adjacent vertically
+    //         (Math.abs(col - emptyCol) === 1 && row === emptyRow)   // Adjacent horizontally
+    //     ) {
+    //         [tiles[emptyTileIndex], tiles[index]] = [tiles[index], tiles[emptyTileIndex]];
+    //         emptyTileIndex = index;
+    //         renderPuzzle(false);
+    //         updateStatusMessage(); // Check if the puzzle is solved after the move
+    //     }
+    // }
+
     function moveTile(index) {
         const row = Math.floor(index / gridSize);
         const col = index % gridSize;
@@ -584,12 +632,23 @@
             (Math.abs(row - emptyRow) === 1 && col === emptyCol) || // Adjacent vertically
             (Math.abs(col - emptyCol) === 1 && row === emptyRow)   // Adjacent horizontally
         ) {
+            // Record the move details
+            moveHistory.push({
+                type: "player",
+                // tile: tiles[index],
+                from: emptyTileIndex, // Previous empty position
+                to: index,            // New empty position
+            });
+
+            // Perform the tile move
             [tiles[emptyTileIndex], tiles[index]] = [tiles[index], tiles[emptyTileIndex]];
             emptyTileIndex = index;
-            renderPuzzle(false);
-            updateStatusMessage(); // Check if the puzzle is solved after the move
+
+            renderPuzzle(false); // Re-render the puzzle
+            updateStatusMessage(); // Check and update the status
         }
     }
+
 
     // Initialize the puzzle on page load
     initPuzzle();
