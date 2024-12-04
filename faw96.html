@@ -12,10 +12,10 @@
         }
         #taxi-text {
             position: absolute;
-            top: 70px; /* Adjusted for better visibility */
-            left: 5px; /* Adjusted for better positioning */
+            top: 100px; /* Adjusted for better visibility */
+            left: 0px; /* Adjusted for better positioning */
             font-family: Arial, sans-serif;
-            font-size: 100px;
+            font-size: 200px;
             font-weight: bold;
             color: red;
             transform: rotate(-90deg);
@@ -34,7 +34,7 @@
     setInterval(() => {
         taxiText.style.color = colors[colorIndex];
         colorIndex = (colorIndex + 1) % colors.length;
-    }, 250); // Change color every 1/4 second
+    }, 500); // Change color every 1/4 second
 </script>
 </body>
 </html>
