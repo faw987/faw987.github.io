@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotated Taxi Display</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+        #taxi-text {
+            position: absolute;
+            top: 70px; /* Adjusted for better visibility */
+            left: 5px; /* Adjusted for better positioning */
+            font-family: Arial, sans-serif;
+            font-size: 100px;
+            font-weight: bold;
+            color: red;
+            transform: rotate(-90deg);
+            text-shadow: 2px 2px 5px rgba(255, 255, 255, 0.8);
+        }
+    </style>
+</head>
+<body>
+<div id="taxi-text">TAXI</div>
+<script>
+    // JavaScript to change color
+    const taxiText = document.getElementById('taxi-text');
+    const colors = ['red', 'green', 'blue'];
+    let colorIndex = 0;
+
+    setInterval(() => {
+        taxiText.style.color = colors[colorIndex];
+        colorIndex = (colorIndex + 1) % colors.length;
+    }, 250); // Change color every 1/4 second
+</script>
+</body>
+</html>

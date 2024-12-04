@@ -73,6 +73,16 @@
 <div id="drop-area" style="display: none; border: 2px dashed gray; padding: 20px; text-align: center;">
     <p>Drag and drop an image file here to use for the puzzle.</p>
 </div>
+<div id="ai-container" style="display: none; margin-top: 20px;">
+    <label for="ai-prompt">Enter a prompt for the AI to create an image:</label>
+    <input type="text" id="ai-prompt" placeholder="E.g., A cat in a space suit" style="width: 300px;">
+    <button id="generate-ai-image">Generate Image</button>
+    <p id="ai-status" style="margin-top: 10px;"></p>
+</div>
+
+<script src="js/util1.js"></script>
+
+
 <script>
 
 
@@ -249,25 +259,42 @@
     const moveHistory = []; // Array to store move details
 
 
+    // function loadImageForPuzzle(imageSrc) {
+    //     // const image = new Image();
+    //     image = new Image();
+    //     image.src = imageSrc;
+    //
+    //     image.onload = () => {
+    //         const scaledImage = scaleImageToGrid(image);
+    //         drawScaledImageDebug(scaledImage); // Display scaled image in debug area
+    //         tiles = Array.from({ length: 15 }, (_, i) => createTileImage(scaledImage, i)).concat(null);
+    //
+    //         solvedState = [...tiles]; // Creates a shallow copy of the array    HACK
+    //
+    //
+    //         renderPuzzle(true); // Render the puzzle with the new image
+    //         console.log('Puzzle updated with dropped image.');
+    //     };
+    //
+    //     image.onerror = () => {
+    //         alert('Failed to load the dropped image.');
+    //     };
+    // }
+
     function loadImageForPuzzle(imageSrc) {
-        // const image = new Image();
-        image = new Image();
+        const image = new Image();
         image.src = imageSrc;
 
         image.onload = () => {
             const scaledImage = scaleImageToGrid(image);
             drawScaledImageDebug(scaledImage); // Display scaled image in debug area
             tiles = Array.from({ length: 15 }, (_, i) => createTileImage(scaledImage, i)).concat(null);
-
-            solvedState = [...tiles]; // Creates a shallow copy of the array    HACK
-
-
             renderPuzzle(true); // Render the puzzle with the new image
-            console.log('Puzzle updated with dropped image.');
+            console.log('Puzzle updated with generated AI image.');
         };
 
         image.onerror = () => {
-            alert('Failed to load the dropped image.');
+            alert('Failed to load the generated AI image.');
         };
     }
 
@@ -338,7 +365,17 @@
         dropArea.style.display = 'none'; // Hide the drop area
     }
 
+    // Retrieve and parse the showai parameter
+    const showAIParam = getUrlParameter('showai', 'false').toLowerCase();
+    const showAI = showAIParam === 'true'; // Only show AI input if set to 'true'
 
+    // Show or hide the AI container
+    const aiContainer = document.getElementById('ai-container');
+    if (showAI) {
+        aiContainer.style.display = 'block'; // Show the AI input section
+    } else {
+        aiContainer.style.display = 'none'; // Hide the AI input section
+    }
 
     // Add event listeners for drag and drop
     dropArea.addEventListener('dragover', (event) => {
@@ -368,6 +405,70 @@
             alert('Please drop a valid image file.');
         }
     });
+
+    document.getElementById('generate-ai-image').addEventListener('click', async () => {
+        const prompt = document.getElementById('ai-prompt').value.trim();
+        const aiStatus = document.getElementById('ai-status');
+
+        if (!prompt) {
+            aiStatus.textContent = "Please enter a prompt.";
+            aiStatus.style.color = "red";
+            return;
+        }
+
+        aiStatus.textContent = "Generating image, please wait...";
+        aiStatus.style.color = "blue";
+
+        try {
+            // Call the OpenAI API to generate an image
+            // const response = await fetch("https://api.openai.com/v1/images/generations", {
+            //     method: "POST",
+            //     headers: {
+            //         "Content-Type": "application/json",
+            //         "Authorization": `Bearer YOUR_API_KEY` // Replace with your OpenAI API key
+            //     },
+            //     body: JSON.stringify({
+            //         prompt: prompt,
+            //         n: 1,
+            //         size: "512x512"
+            //     })
+            // });
+
+            const apiKey = `${calcResults()}`; // Replace with your API key
+
+            const response = await fetch("https://api.openai.com/v1/images/generations", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    n: 1,
+                    size: "512x512"
+                })
+            });
+
+
+            const data = await response.json();
+
+            if (data.data && data.data.length > 0) {
+                const imageUrl = data.data[0].url;
+
+                // Load the generated image into the puzzle
+                loadImageForPuzzle(imageUrl);
+                aiStatus.textContent = "Image successfully generated and loaded into the puzzle!";
+                aiStatus.style.color = "green";
+            } else {
+                throw new Error("No image generated. Please try again.");
+            }
+        } catch (error) {
+            console.error("Error generating AI image:", error);
+            aiStatus.textContent = "Failed to generate image. Please try again.";
+            aiStatus.style.color = "red";
+        }
+    });
+
 
     // Debugging
     console.log(`Using image: ${imagePath}`);
