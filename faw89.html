@@ -307,6 +307,7 @@
             const scaledImage = scaleImageToGrid(image);
             drawScaledImageDebug(scaledImage); // Display scaled image in debug area
             tiles = Array.from({ length: 15 }, (_, i) => createTileImage(scaledImage, i)).concat(null);
+            solvedState = [...tiles]; // Creates a shallow copy of the array    HACK
             renderPuzzle(true); // Render the puzzle with the new image
             console.log('Puzzle updated with generated AI image.');
         };
