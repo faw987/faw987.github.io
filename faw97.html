@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Receipt Extractor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #drop-zone {
+            width: 100%;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+        #drop-zone.dragover {
+            background-color: #f0f0f0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+<h1>PDF Receipt Extractor</h1>
+<div id="drop-zone">Drag and drop a PDF file here</div>
+<table id="results-table">
+    <thead>
+    <tr>
+        <th>Transaction Date</th>
+        <th>Description</th>
+        <th>Amount</th>
+        <th>Payment Method</th>
+        <th>Next Payment Due</th>
+        <th>Billing Cycle</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- Results will appear here -->
+    </tbody>
+</table>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const resultsTable = document.getElementById('results-table').querySelector('tbody');
+
+    dropZone.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', async (event) => {
+        event.preventDefault();
+        dropZone.classList.remove('dragover');
+        const file = event.dataTransfer.files[0];
+        if (file && file.type === 'application/pdf') {
+            const fileReader = new FileReader();
+            fileReader.onload = async () => {
+                const pdfData = new Uint8Array(fileReader.result);
+                const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+                let extractedText = '';
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map((item) => item.str).join(' ');
+                    extractedText += pageText + '\n';
+                }
+
+                processText(extractedText);
+            };
+            fileReader.readAsArrayBuffer(file);
+        } else {
+            alert('Please drop a valid PDF file.');
+        }
+    });
+
+    // function processText(text) {
+    //     // Simulate extracting receipts
+    //     console.log(text);
+    //     const receipts = [
+    //         {
+    //             "Transaction Date": "December 8, 2024",
+    //             "Description": "Automatic payment to Wikimedia Foundation, Inc.",
+    //             "Amount": "$4.50 USD",
+    //             "Payment Method": "American Express x-6000",
+    //             "Next Payment Due": "January 8, 2025",
+    //             "Billing Cycle": "Monthly",
+    //         },
+    //         {
+    //             "Transaction Date": "December 7, 2024",
+    //             "Description": "Hulu Subscription Payment",
+    //             "Amount": "$7.99 USD",
+    //             "Payment Method": "Visa x-4002",
+    //             "Next Payment Due": "January 6, 2025",
+    //             "Billing Cycle": "Monthly",
+    //         },
+    //         {
+    //             "Transaction Date": "December 5, 2024",
+    //             "Description": "Khan Academy Donation",
+    //             "Amount": "$20.00 USD",
+    //             "Payment Method": "Mastercard x-3019",
+    //             "Next Payment Due": "N/A",
+    //             "Billing Cycle": "One-Time",
+    //         },
+    //     ];
+    //
+    //     resultsTable.innerHTML = '';
+    //     receipts.forEach(receipt => {
+    //         const row = document.createElement('tr');
+    //         for (const key in receipt) {
+    //             const cell = document.createElement('td');
+    //             cell.textContent = receipt[key];
+    //             row.appendChild(cell);
+    //         }
+    //         resultsTable.appendChild(row);
+    //     });
+
+
+    // }
+
+    async function processText(text) {
+        // Regex patterns for identifying receipt-like data
+        const datePattern = /\b(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}\b/;
+        const amountPattern = /\$\d+(?:\.\d{2})?\b/;
+        const paymentMethodPattern = /(Visa|Mastercard|American Express|PayPal|Discover|x-\d{4})/;
+        const nextPaymentDuePattern = /\b(?:Next payment due:?\s*)(January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}/i;
+        const billingCyclePattern = /\b(Billing cycle:?\s*)(Monthly|One-Time|Annual|Until cancellation)/i;
+
+        // Split the text into lines
+        const lines = text.split("\n");
+
+        // Initialize an array to hold parsed receipts
+        const receipts = [];
+
+        // Iterate through the text to extract receipt details
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+
+            // Extract potential fields
+            const dateMatch = line.match(datePattern);
+            const amountMatch = line.match(amountPattern);
+            const paymentMethodMatch = line.match(paymentMethodPattern);
+            const nextPaymentDueMatch = line.match(nextPaymentDuePattern);
+            const billingCycleMatch = line.match(billingCyclePattern);
+
+            // Use the above matches to construct a receipt record
+            if (dateMatch && amountMatch) {
+                const receipt = {
+                    "Transaction Date": dateMatch[0],
+                    "Description": lines[i - 1]?.trim() || "Unknown", // Previous line as description
+                    "Amount": amountMatch[0],
+                    "Payment Method": paymentMethodMatch ? paymentMethodMatch[0] : "Unknown",
+                    "Next Payment Due": nextPaymentDueMatch ? nextPaymentDueMatch[0].replace("Next payment due: ", "") : "N/A",
+                    "Billing Cycle": billingCycleMatch ? billingCycleMatch[0].replace("Billing cycle: ", "") : "N/A",
+                };
+
+                receipts.push(receipt);
+            }
+        }
+
+        // Clear previous table content
+        resultsTable.innerHTML = '';
+
+        // Populate the table with the parsed receipts
+        receipts.forEach(receipt => {
+            const row = document.createElement('tr');
+            for (const key in receipt) {
+                const cell = document.createElement('td');
+                cell.textContent = receipt[key];
+                row.appendChild(cell);
+            }
+            resultsTable.appendChild(row);
+        });
+
+        if (receipts.length === 0) {
+            alert("No receipts were found in the uploaded PDF.");
+        }
+    }
+
+</script>
+</body>
+</html>
