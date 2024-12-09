@@ -14,6 +14,7 @@
       padding: 10px;
       border: 1px solid #ccc;
       background-color: #f9f9f9;
+      white-space: pre-wrap; /* Preserves \n and wraps long text */
     }
   </style>
 </head>
@@ -26,7 +27,8 @@
 </form>
 <div id="response">
   <h2>Response:</h2>
-  <p id="responseText">No response yet.</p>
+<!--  <p id="responseText">No response yet.</p>-->
+  <pre id="responseText">No response yet.</pre>
 </div>
 
 <script src="js/util1.js"></script>
