@@ -52,19 +52,13 @@
 <link rel="icon" type="image/x-icon" href="images/favicon.ico">
 <h1>15 Puzzle with Image</h1>
 <div class="controls">
-<!--    <button onclick="shuffle()">Shuffle</button>-->
     <button id="shuffle-button">Shuffle</button>
     <label for="shuffle-steps">Steps: </label>
     <input type="number" id="shuffle-steps" value="1" min="1">
 </div>
 <div class="container">
     <div id="puzzle-container"></div>
-<!--    <div id="debug-info">-->
-<!--        <h3>Tile Details</h3>-->
-<!--        <div id="tile-details"></div>-->
-<!--    </div>-->
     <div id="scaled-image-container">
-<!--        <h2>Scaled Image</h2>-->
         <canvas id="scaled-image" width="400" height="400"></canvas>
     </div>
 </div>
@@ -98,20 +92,6 @@
     // https://faw987.github.io/faw89.html?SHOWNUMBERS=false&SHUFFLE=1&IMAGE=witch&showhint=false
 
 
-    // function isSolved() {
-    //     for (let i = 0; i < tiles.length - 1; i++) {
-    //         if (tiles[i] !== i) {
-    //             return false;
-    //         }
-    //     }
-    //     return tiles[tiles.length - 1] === null; // Check the last tile is empty
-    // }
-
-    // function isSolved() {
-    //     return tiles.every((tile, index) => tile === solvedState[index]);
-    // }
-
-
     function showMoveHistory() {
         console.log("Move History:", moveHistory);
     }
@@ -128,52 +108,6 @@
         return true; // All tiles are in place
     }
 
-
-    // function updateStatusMessage() {
-    //     const statusMessage = document.getElementById('status-message');
-    //     const puzzleContainer = document.getElementById('puzzle-container');
-    //
-    //     if (isSolved()) {
-    //         statusMessage.textContent = "Solved! 🎉";
-    //         statusMessage.style.color = "green";
-    //
-    //         // Remove the gap when the puzzle is solved
-    //         puzzleContainer.style.gridGap = "0px";
-    //     } else {
-    //         statusMessage.textContent = "Keep moving, please.";
-    //         statusMessage.style.color = "red";
-    //
-    //         // Restore the gap when the puzzle is not solved
-    //         puzzleContainer.style.gridGap = "5px";
-    //     }
-    // }
-
-    // function updateStatusMessage() {
-    //     const statusMessage = document.getElementById('status-message');
-    //     const puzzleContainer = document.getElementById('puzzle-container');
-    //     const successSound = document.getElementById('success-sound');
-    //
-    //     if (isSolved()) {
-    //         statusMessage.textContent = "Solved! 🎉";
-    //         statusMessage.style.color = "green";
-    //
-    //         // Remove the gap when the puzzle is solved
-    //         puzzleContainer.style.gridGap = "0px";
-    //
-    //         // Play the success sound
-    //         // Set the volume to 10% and play the success sound
-    //         successSound.volume = 0.02; // Set volume to 10%
-    //         successSound.play().catch((error) => {
-    //             console.error("Error playing success sound:", error);
-    //         });
-    //     } else {
-    //         statusMessage.textContent = "Keep moving, please.";
-    //         statusMessage.style.color = "red";
-    //
-    //         // Restore the gap when the puzzle is not solved
-    //         puzzleContainer.style.gridGap = "5px";
-    //     }
-    // }
 
     function updateStatusMessage() {
         const statusMessage = document.getElementById('status-message');
@@ -215,12 +149,6 @@
         return urlParams.get(param) || defaultValue;
     }
 
-    // const imagePath = 'images/ugly_turkey.jpg';
-    // const imagePath = 'images/chippy_3.jpeg';
-
-    // document.getElementById('shuffle-button').onclick = () => {
-    //     shuffle(10); // Perform a small shuffle when the button is clicked
-    // };
 
     document.getElementById('shuffle-button').onclick = () => {
         // Get the value from the input field

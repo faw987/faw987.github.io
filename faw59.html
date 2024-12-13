@@ -59,7 +59,7 @@
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.3s, bottom 0.3s;
-        white-space: nowrap;
+        white-space: nowrap;57
         z-index: 10; /* Ensure the tooltip appears above other elements */
     }
 
@@ -67,9 +67,29 @@
         opacity: 1;
         bottom: 110%; /* Slightly move the tooltip up when visible */
     }
+
+
+    /*.centered-heading {*/
+    /*    text-align: center;  !* Centers the text horizontally *!*/
+    /*    margin: 0 auto;      !* Ensures horizontal centering in parent *!*/
+    /*    font-size: 2rem;     !* Custom font size *!*/
+    /*    color: #4CAF50;      !* Custom color *!*/
+    /*    font-family: Arial, sans-serif; !* Custom font *!*/
+    /*}*/
+
+    .centered-heading {
+        text-align: center;  /* Centers text horizontally */
+        display: block;      /* Ensures it occupies a full line */
+        font-size: 2rem;     /* Custom font size */
+        color: #4CAF50;      /* Custom color */
+        margin-top: 20px;    /* Add spacing above the heading */
+    }
+
+
 </style>
 <body>
 <div class="grid-container">
+    <h3 class="centered-heading">Mon Dec 9, 2024      12:57</h3>
     <a href="f53.html" class="grid-item" data-hover="Tooltip for Link 1">360 degrees experiment (new)</a>
     <a href="f57.html" class="grid-item" data-hover="Tooltip for Link 2">360 degrees experiment (look in)</a>
     <a href="f58.html" class="grid-item" data-hover="Tooltip for Link 2">360 degrees experiment (satellite)</a>
@@ -89,6 +109,11 @@
     <a href="faw96.html" class="grid-item" data-hover="Tooltip for faw96">faw96 - taxi</a>
     <a href="faw97.html" class="grid-item" data-hover="Tooltip for faw97">faw97 - email print pdf</a>
     <a href="faw98.html" class="grid-item" data-hover="Tooltip for faw98">faw98 - chatGPT</a>
+
+    <a href="faw99.html" class="grid-item" data-hover="Tooltip for faw99">faw99 - better chat</a>
+    <a href="faw100.html" class="grid-item" data-hover="Tooltip for faw100">faw100</a>
+    <a href="faw101.html" class="grid-item" data-hover="Tooltip for faw101">faw101</a>
+
     <!-- Add more link buttons as needed -->
 </div>
 <script src="scripts.js"></script>
