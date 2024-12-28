@@ -195,9 +195,7 @@
     const params = new URLSearchParams(window.location.search);
     const textParam = params.get('text');
     const modelParam = params.get('model');
-
-    alert(textParam)
-    alert(modelParam)
+    const submitParam = params.get('submit');
 
     if (textParam) {
       document.getElementById('userInput').value = decodeURIComponent(textParam);
@@ -219,7 +217,7 @@
 
       if (isValidOption) {
         modelSelect.value = modelParam; // Set the value of the dropdown
-        alert(modelSelect.value)
+        alert(`modelSelect.value ${modelSelect.value}`);
       } else {
         console.warn(`Model "${modelParam}" not found in the options.`);
       }
