@@ -1,3 +1,66 @@
+<!--<!DOCTYPE html>-->
+<!--<html lang="en">-->
+<!--<head>-->
+<!--  <meta charset="UTF-8">-->
+<!--  <meta name="viewport" content="width=device-width, initial-scale=1.0">-->
+<!--  <title>GPT-4 Interaction</title>-->
+<!--  <style>-->
+<!--    body {-->
+<!--      font-family: Arial, sans-serif;-->
+<!--      margin: 20px;-->
+<!--    }-->
+<!--    /*#response {*/-->
+<!--    /*  margin-top: 20px;*/-->
+<!--    /*  padding: 10px;*/-->
+<!--    /*  border: 1px solid #ccc;*/-->
+<!--    /*  background-color: #f9f9f9;*/-->
+<!--    /*  white-space: pre-wrap; !* Preserves \n and wraps long text *!*/-->
+<!--    /*}*/-->
+
+<!--    #responseText {-->
+<!--      white-space: pre-wrap; /* Preserve \n and wrap long text */-->
+<!--      overflow-y: auto;     /* Enable vertical scrolling */-->
+<!--      max-height: 300px;    /* Set a maximum height for the container */-->
+<!--      border: 1px solid #ccc; /* Optional: Add a border */-->
+<!--      padding: 10px;        /* Optional: Add some padding */-->
+<!--      background-color: #f9f9f9; /* Optional: Background for readability */-->
+<!--    }-->
+
+<!--  </style>-->
+<!--</head>-->
+<!--<body>-->
+<!--<h1>GPT-4 Interaction</h1>-->
+<!--&lt;!&ndash;<form id="inputForm">&ndash;&gt;-->
+<!--&lt;!&ndash;  <label for="userInput">Enter your text:</label><br>&ndash;&gt;-->
+<!--&lt;!&ndash;  <textarea id="userInput" rows="4" cols="50" placeholder="Type something..."></textarea><br><br>&ndash;&gt;-->
+<!--&lt;!&ndash;  <button type="submit">Submit</button>&ndash;&gt;-->
+<!--&lt;!&ndash;</form>&ndash;&gt;-->
+<!--&lt;!&ndash;<div id="response">&ndash;&gt;-->
+<!--&lt;!&ndash;  <h2>Response:</h2>&ndash;&gt;-->
+<!--&lt;!&ndash;&lt;!&ndash;  <p id="responseText">No response yet.</p>&ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;  <pre id="responseText">No response yet.</pre>&ndash;&gt;-->
+<!--&lt;!&ndash;</div>&ndash;&gt;-->
+<!--<form id="inputForm">-->
+<!--  <label for="userInput">Enter your text:</label><br>-->
+<!--  <textarea id="userInput" rows="4" cols="50" placeholder="Type something..."></textarea><br><br>-->
+
+<!--  <label for="modelSelect">Choose a model:</label><br>-->
+<!--  <select id="modelSelect">-->
+<!--    <option value="gpt-4">GPT-4</option>-->
+<!--    <option value="gpt-3.5-turbo">GPT-3.5-Turbo</option>-->
+<!--    <option value="gpt-4o">GPT-4o</option>-->
+<!--    <option value="gpt-4o-mini">GPT-4o-mini</option>-->
+<!--    <option value="o1-preview">o1-preview</option>-->
+<!--    <option value="o1-mini">o1-mini</option>-->
+<!--  </select><br><br>-->
+
+<!--  <button type="submit">Submit</button>-->
+<!--</form>-->
+<!--<div id="response">-->
+<!--  <h2>Response:</h2>-->
+<!--  <pre id="responseText">No response yet.</pre>-->
+<!--</div>-->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,37 +72,18 @@
       font-family: Arial, sans-serif;
       margin: 20px;
     }
-    /*#response {*/
-    /*  margin-top: 20px;*/
-    /*  padding: 10px;*/
-    /*  border: 1px solid #ccc;*/
-    /*  background-color: #f9f9f9;*/
-    /*  white-space: pre-wrap; !* Preserves \n and wraps long text *!*/
-    /*}*/
-
     #responseText {
-      white-space: pre-wrap; /* Preserve \n and wrap long text */
-      overflow-y: auto;     /* Enable vertical scrolling */
-      max-height: 300px;    /* Set a maximum height for the container */
-      border: 1px solid #ccc; /* Optional: Add a border */
-      padding: 10px;        /* Optional: Add some padding */
-      background-color: #f9f9f9; /* Optional: Background for readability */
+      white-space: pre-wrap;
+      overflow-y: auto;
+      max-height: 300px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background-color: #f9f9f9;
     }
-
   </style>
 </head>
 <body>
 <h1>GPT-4 Interaction</h1>
-<!--<form id="inputForm">-->
-<!--  <label for="userInput">Enter your text:</label><br>-->
-<!--  <textarea id="userInput" rows="4" cols="50" placeholder="Type something..."></textarea><br><br>-->
-<!--  <button type="submit">Submit</button>-->
-<!--</form>-->
-<!--<div id="response">-->
-<!--  <h2>Response:</h2>-->
-<!--&lt;!&ndash;  <p id="responseText">No response yet.</p>&ndash;&gt;-->
-<!--  <pre id="responseText">No response yet.</pre>-->
-<!--</div>-->
 <form id="inputForm">
   <label for="userInput">Enter your text:</label><br>
   <textarea id="userInput" rows="4" cols="50" placeholder="Type something..."></textarea><br><br>
@@ -61,50 +105,135 @@
   <pre id="responseText">No response yet.</pre>
 </div>
 
-
 <script src="js/util1.js"></script>
 
+<!--<script>-->
+<!--  const form = document.getElementById('inputForm');-->
+<!--  const responseText = document.getElementById('responseText');-->
+
+<!--  const apiKey = `${calcResults()}`; // Replace with your API key-->
+
+<!--  // form.addEventListener('submit', async (event) => {-->
+<!--  //   event.preventDefault();-->
+<!--  //   const userInput = document.getElementById('userInput').value;-->
+<!--  //-->
+<!--  //   if (!userInput.trim()) {-->
+<!--  //     responseText.textContent = "Please enter some text!";-->
+<!--  //     return;-->
+<!--  //   }-->
+<!--  //-->
+<!--  //   responseText.textContent = "Loading...";-->
+<!--  //-->
+<!--  //   try {-->
+<!--  //     const response = await fetch('https://api.openai.com/v1/chat/completions', {-->
+<!--  //       method: 'POST',-->
+<!--  //       headers: {-->
+<!--  //         'Content-Type': 'application/json',-->
+<!--  //         "Authorization": `Bearer ${apiKey}`-->
+<!--  //       },-->
+<!--  //       body: JSON.stringify({-->
+<!--  //         model: 'gpt-4',-->
+<!--  //         messages: [{ role: 'user', content: userInput }]-->
+<!--  //       })-->
+<!--  //     });-->
+<!--  //-->
+<!--  //     if (!response.ok) {-->
+<!--  //       throw new Error(`API Error: ${response.statusText}`);-->
+<!--  //     }-->
+<!--  //-->
+<!--  //     const data = await response.json();-->
+<!--  //     const gptResponse = data.choices[0].message.content;-->
+<!--  //     responseText.textContent = gptResponse;-->
+<!--  //   } catch (error) {-->
+<!--  //     responseText.textContent = `Error: ${error.message}`;-->
+<!--  //   }-->
+<!--  // });-->
+
+<!--  form.addEventListener('submit', async (event) => {-->
+<!--    event.preventDefault();-->
+<!--    const userInput = document.getElementById('userInput').value;-->
+<!--    const selectedModel = document.getElementById('modelSelect').value;-->
+
+<!--    if (!userInput.trim()) {-->
+<!--      responseText.textContent = "Please enter some text!";-->
+<!--      return;-->
+<!--    }-->
+
+<!--    responseText.textContent = "Loading...";-->
+
+<!--    try {-->
+<!--      const response = await fetch('https://api.openai.com/v1/chat/completions', {-->
+<!--        method: 'POST',-->
+<!--        headers: {-->
+<!--          'Content-Type': 'application/json',-->
+<!--          "Authorization": `Bearer ${apiKey}`-->
+<!--        },-->
+<!--        body: JSON.stringify({-->
+<!--          model: selectedModel, // Use the selected model-->
+<!--          messages: [{ role: 'user', content: userInput }]-->
+<!--        })-->
+<!--      });-->
+
+<!--      if (!response.ok) {-->
+<!--        alert(response)-->
+<!--        throw new Error(`API Error: ${response.statusText}`);-->
+<!--      }-->
+
+<!--      const data = await response.json();-->
+<!--      const gptResponse = data.choices[0].message.content;-->
+<!--      responseText.textContent = gptResponse;-->
+<!--    } catch (error) {-->
+<!--      responseText.textContent = `Error: ${error.message}`;-->
+<!--    }-->
+<!--  });-->
+
+<!--</script>-->
+
 <script>
+  // Function to get URL parameters
+  function populateFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const textParam = params.get('text');
+    const modelParam = params.get('model');
+
+    alert(textParam)
+    alert(modelParam)
+
+    if (textParam) {
+      document.getElementById('userInput').value = decodeURIComponent(textParam);
+    }
+    // if (modelParam) {
+    //   const modelSelect = document.getElementById('modelSelect');
+    //   if (Array.from(modelSelect.options).some(option => option.value === modelParam)) {
+    //     modelSelect.value = modelParam;
+    //   }
+    // }
+
+    // Populate the select dropdown with the 'model' parameter
+    if (modelParam) {
+      const modelSelect = document.getElementById('modelSelect');
+      const options = Array.from(modelSelect.options);
+
+      // Check if the parameter value exists in the dropdown options
+      const isValidOption = options.some(option => option.value === modelParam);
+
+      if (isValidOption) {
+        modelSelect.value = modelParam; // Set the value of the dropdown
+        alert(modelSelect.value)
+      } else {
+        console.warn(`Model "${modelParam}" not found in the options.`);
+      }
+    }
+
+  }
+
+  // Populate fields on page load
+  populateFromUrl();
+
   const form = document.getElementById('inputForm');
   const responseText = document.getElementById('responseText');
 
   const apiKey = `${calcResults()}`; // Replace with your API key
-
-  // form.addEventListener('submit', async (event) => {
-  //   event.preventDefault();
-  //   const userInput = document.getElementById('userInput').value;
-  //
-  //   if (!userInput.trim()) {
-  //     responseText.textContent = "Please enter some text!";
-  //     return;
-  //   }
-  //
-  //   responseText.textContent = "Loading...";
-  //
-  //   try {
-  //     const response = await fetch('https://api.openai.com/v1/chat/completions', {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //         "Authorization": `Bearer ${apiKey}`
-  //       },
-  //       body: JSON.stringify({
-  //         model: 'gpt-4',
-  //         messages: [{ role: 'user', content: userInput }]
-  //       })
-  //     });
-  //
-  //     if (!response.ok) {
-  //       throw new Error(`API Error: ${response.statusText}`);
-  //     }
-  //
-  //     const data = await response.json();
-  //     const gptResponse = data.choices[0].message.content;
-  //     responseText.textContent = gptResponse;
-  //   } catch (error) {
-  //     responseText.textContent = `Error: ${error.message}`;
-  //   }
-  // });
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -126,13 +255,12 @@
           "Authorization": `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: selectedModel, // Use the selected model
+          model: selectedModel,
           messages: [{ role: 'user', content: userInput }]
         })
       });
 
       if (!response.ok) {
-        alert(response)
         throw new Error(`API Error: ${response.statusText}`);
       }
 
@@ -143,7 +271,7 @@
       responseText.textContent = `Error: ${error.message}`;
     }
   });
-
 </script>
+
 </body>
 </html>
