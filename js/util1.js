@@ -2,7 +2,6 @@
 // //
 // //
 //
-//"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"
 
 
 function calcResults() {
