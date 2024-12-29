@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPT-4 and Ollama Interaction</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #responseText {
+            white-space: pre-wrap;
+            overflow-y: auto;
+            max-height: 300px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+<h1>GPT-4 and Ollama Interaction</h1>
+<form id="inputForm">
+    <label for="backendSelect">Choose Backend:</label><br>
+    <input type="radio" id="backendOpenAI" name="backend" value="openai" checked>
+    <label for="backendOpenAI">OpenAI Cloud</label><br>
+    <input type="radio" id="backendOllama" name="backend" value="ollama">
+    <label for="backendOllama">Ollama Local</label><br><br>
+
+    <label for="modelSelect">Choose Model:</label><br>
+    <select id="modelSelect">
+        <option value="gpt-4">GPT-4 (OpenAI)</option>
+        <option value="gpt-3.5-turbo">GPT-3.5-Turbo (OpenAI)</option>
+        <option value="qwen2">qwen2</option>
+        <option value="ollama-model-1">Ollama Model 1 (Local)</option>
+        <option value="ollama-model-2">Ollama Model 2 (Local)</option>
+    </select><br><br>
+
+    <label for="userInput">Enter your text:</label><br>
+    <textarea id="userInput" rows="4" cols="50" placeholder="Type something..."></textarea><br><br>
+
+    <button type="submit">Submit</button>
+</form>
+
+<div id="response">
+    <h2>Response:</h2>
+    <!-- Increased max-height for more visible lines -->
+<!--    <pre id="responseText" style="white-space: pre-wrap; overflow-y: auto; max-height: 400px; border: 1px solid #ccc; padding: 10px; background-color: #f9f9f9;"></pre>-->
+    <pre id="responseText" style="white-space: pre-wrap; overflow-y: auto; max-height: 400px; border: 1px solid #ccc; padding: 10px; background-color: #f9f9f9;"></pre>
+</div>
+
+
+<script src="js/util1.js"></script>
+
+
+<script>
+    // Handle form submission
+    async function handleSubmit(event) {
+        event.preventDefault();
+
+        // Get form values
+        const backend = document.querySelector('input[name="backend"]:checked').value;
+        const selectedModel = document.getElementById('modelSelect').value;
+        const userInput = document.getElementById('userInput').value;
+        const responseText = document.getElementById('responseText');
+
+        if (!userInput.trim()) {
+            responseText.textContent = "Please enter some text!";
+            return;
+        }
+
+        // Build the modified prompt
+        let modifiedPrompt = userInput;
+
+        responseText.textContent = "Loading...";
+
+        try {
+            let response;
+            if (backend === "openai") {
+                // OpenAI Cloud API call
+                response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        "Authorization": `Bearer ${calcResults()}` // Replace with your OpenAI API key
+                    },
+                    body: JSON.stringify({
+                        model: selectedModel,
+                        messages: [{ role: 'user', content: modifiedPrompt }]
+                    })
+                });
+            } else if (backend === "ollama") {
+                try {
+                    const response = await fetch(`http://localhost:11434/api/generate`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            model: selectedModel.replace("ollama-", ""), // Ensure model matches
+                            prompt: modifiedPrompt
+                        })
+                    });
+
+                    // Check if the response object is valid and ok
+                    if (!response || !response.ok) {
+                        const errorText = response ? await response.text() : "No response received";
+                        throw new Error(`Ollama API Error: ${response?.status || "Unknown"} - ${errorText}`);
+                    }
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder("utf-8");
+                    responseText.textContent = ""; // Clear the field before appending new content
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        // Decode and parse the JSON chunk
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split("\n").filter(line => line.trim() !== ""); // Handle multiple lines in a chunk
+                        for (const line of lines) {
+                            try {
+                                const jsonChunk = JSON.parse(line);
+                                if (jsonChunk.response) {
+                                    // Append new text
+                                    responseText.textContent += jsonChunk.response;
+                                }
+                                if (jsonChunk.done) {
+                                    break; // Stop processing when done
+                                }
+                            } catch (parseError) {
+                                console.error("Error parsing JSON chunk:", parseError, "Chunk:", line);
+                            }
+                        }
+                    }
+
+                    // Final log for debugging
+                    console.log("Streaming completed successfully.");
+                } catch (error) {
+                    // Log the error for debugging
+                    console.error("Error during streaming or fetch:", error);
+                    // responseText.textContent = `Error: ${error.message}`;
+                }
+            }
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            // Log raw text response for debugging
+            // const rawText = await response.text();
+            console.log("data Raw Response:", data);
+
+
+
+            const gptResponse = backend === "openai"
+                ? data.choices[0].message.content
+                : data.content; // Assuming Ollama's response has a 'content' field
+
+            responseText.textContent = gptResponse;
+        } catch (error) {
+            responseText.textContent = `xxxError: ${error.message}`;
+        }
+    }
+
+    // Attach the form submit handler
+    document.getElementById('inputForm').addEventListener('submit', handleSubmit);
+</script>
+</body>
+</html>
