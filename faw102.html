@@ -1,0 +1,172 @@
+<!--<!DOCTYPE html>-->
+<!--<html lang="en">-->
+<!--<head>-->
+<!--    <meta charset="UTF-8">-->
+<!--    <meta name="viewport" content="width=device-width, initial-scale=1.0">-->
+<!--    <title>Tabulator Demo</title>-->
+<!--    <link href="https://unpkg.com/tabulator-tables/dist/css/tabulator.min.css" rel="stylesheet">-->
+<!--    <script src="https://unpkg.com/tabulator-tables/dist/js/tabulator.min.js"></script>-->
+<!--    <style>-->
+<!--        body {-->
+<!--            font-family: Arial, sans-serif;-->
+<!--            margin: 20px;-->
+<!--        }-->
+<!--        #movieTable {-->
+<!--            margin-top: 20px;-->
+<!--            height: 400px;-->
+<!--            border: 1px solid #ccc;-->
+<!--        }-->
+<!--        button {-->
+<!--            margin-right: 10px;-->
+<!--            padding: 5px 10px;-->
+<!--            font-size: 14px;-->
+<!--        }-->
+<!--    </style>-->
+<!--</head>-->
+<!--<body>-->
+<!--<h1>Tabulator Demo</h1>-->
+<!--<button id="addRow">Add Random Movie</button>-->
+<!--<button id="clearTable">Clear Table</button>-->
+<!--<button id="getSelected">Show Selected Movies</button>-->
+<!--<div id="movieTable"></div>-->
+
+<!--<script>-->
+<!--    // Sample data-->
+<!--    const movies = [-->
+<!--        { id: 1, title: "The Matrix", year: 1999, genre: "Sci-Fi" },-->
+<!--        { id: 2, title: "Inception", year: 2010, genre: "Action" },-->
+<!--        { id: 3, title: "The Godfather", year: 1972, genre: "Crime" },-->
+<!--    ];-->
+
+<!--    // Tabulator setup-->
+<!--    // const table = new Tabulator("#movieTable", {-->
+<!--    //     data: movies, // Initial data-->
+<!--    //     layout: "fitColumns", // Fit columns to width of the table-->
+<!--    //     selectable: true, // Allow row selection-->
+<!--    //     columns: [-->
+<!--    //         { title: "ID", field: "id", sorter: "number", width: 50 },-->
+<!--    //         { title: "Title", field: "title", sorter: "string", headerFilter: true },-->
+<!--    //         { title: "Year", field: "year", sorter: "number", align: "center", headerFilter: "input" },-->
+<!--    //         { title: "Genre", field: "genre", sorter: "string", headerFilter: true },-->
+<!--    //     ],-->
+<!--    // });-->
+
+<!--    const table = new Tabulator("#movieTable", {-->
+<!--        data: movies,-->
+<!--        layout: "fitColumns",-->
+<!--        selectable: true, // Enable row selection-->
+<!--        columns: [-->
+<!--            { title: "ID", field: "id", sorter: "number", width: 50 },-->
+<!--            { title: "Title", field: "title", sorter: "string", headerFilter: true },-->
+<!--            { title: "Year", field: "year", sorter: "number", hozAlign: "center", headerFilter: "input" }, // Fix alignment-->
+<!--            { title: "Genre", field: "genre", sorter: "string", headerFilter: true },-->
+<!--        ],-->
+<!--    });-->
+
+
+
+<!--    table.on("rowSelected", (row) => {-->
+<!--        console.log("Row Selected:", row.getData());-->
+<!--    });-->
+
+
+
+<!--    // Add a random movie-->
+<!--    document.getElementById("addRow").addEventListener("click", () => {-->
+<!--        const randomMovies = [-->
+<!--            { id: 4, title: "Pulp Fiction", year: 1994, genre: "Crime" },-->
+<!--            { id: 5, title: "Interstellar", year: 2014, genre: "Sci-Fi" },-->
+<!--            { id: 6, title: "The Dark Knight", year: 2008, genre: "Action" },-->
+<!--        ];-->
+<!--        const randomMovie = randomMovies[Math.floor(Math.random() * randomMovies.length)];-->
+<!--        table.addRow(randomMovie);-->
+<!--    });-->
+
+<!--    // Clear all rows-->
+<!--    document.getElementById("clearTable").addEventListener("click", () => {-->
+<!--        table.clearData();-->
+<!--    });-->
+
+<!--    // Show selected rows-->
+<!--    document.getElementById("getSelected").addEventListener("click", () => {-->
+<!--        const selectedData = table.getSelectedData();-->
+<!--        console.log("Selected Rows:", selectedData);-->
+<!--        alert("Selected Movies:\n" + JSON.stringify(selectedData, null, 2));-->
+<!--    });-->
+<!--</script>-->
+<!--</body>-->
+<!--</html>-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabulator Demo</title>
+    <link href="https://unpkg.com/tabulator-tables/dist/css/tabulator.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/tabulator-tables/dist/js/tabulator.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #movieTable {
+            margin-top: 20px;
+            height: 400px;
+            border: 1px solid #ccc;
+        }
+        button {
+            margin-right: 10px;
+            padding: 5px 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+<h1>Tabulator Demo</h1>
+<p>Select a row by clicking on it. Hold <b>Ctrl</b> (Windows/Linux) or <b>Cmd</b> (macOS) to select multiple rows.</p>
+<button id="addRow">Add Random Movie</button>
+<button id="clearTable">Clear Table</button>
+<button id="getSelected">Show Selected Movies</button>
+<div id="movieTable"></div>
+
+<script>
+    // Sample data
+    const movies = [
+        { id: 1, title: "The Matrix", year: 1999, genre: "Sci-Fi" },
+        { id: 2, title: "Inception", year: 2010, genre: "Action" },
+        { id: 3, title: "The Godfather", year: 1972, genre: "Crime" },
+    ];
+
+    // Tabulator setup
+    const table = new Tabulator("#movieTable", {
+        data: movies,
+        layout: "fitColumns",
+        selectable: true, // Enable row selection
+        columns: [
+            { title: "ID", field: "id", sorter: "number", width: 50 },
+            { title: "Title", field: "title", sorter: "string", headerFilter: true },
+            { title: "Year", field: "year", sorter: "number", hozAlign: "center", headerFilter: "input" },
+            { title: "Genre", field: "genre", sorter: "string", headerFilter: true },
+        ],
+    });
+
+    // Debugging: Log row selection
+    table.on("rowSelected", (row) => {
+        console.log("Row Selected:", row.getData());
+    });
+
+    // Show selected movies
+    document.getElementById("getSelected").addEventListener("click", () => {
+        const selectedData = table.getSelectedData(); // Get selected rows
+        console.log("Selected Data:", selectedData); // Log the data to the console
+
+        if (selectedData.length === 0) {
+            alert("No rows selected! Please click on a row to select it.");
+        } else {
+            alert("Selected Movies:\n" + JSON.stringify(selectedData, null, 2));
+        }
+    });
+</script>
+</body>
+</html>

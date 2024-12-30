@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Grid.js Row Selection</title>
+    <!-- Grid.js CSS -->
+    <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+    <!-- Grid.js JS (UMD) -->
+    <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .gridjs-wrapper {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+        }
+        button {
+            margin-right: 10px;
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+<h1>Grid.js Row Selection</h1>
+<p>Select one or more rows using checkboxes and click "Show Selected Rows".</p>
+
+<button id="addRow">Add Random Movie</button>
+<button id="clearTable">Clear Table</button>
+<button id="showSelected">Show Selected Rows</button>
+<div id="movieTable"></div>
+
+<script>
+    // Our initial data: each row is [title, year, genre]
+    let movies = [
+        [0,"The Matrix", 1999, "Sci-Fi"],
+        [0,"Inception", 2010, "Action"],
+        [0,"The Godfather", 1972, "Crime"],
+    ];
+
+    // Create a Grid.js instance
+    const grid = new gridjs.Grid({
+        // columns: [
+        //     {
+        //         name: "Select",
+        //         // This is our FIRST column => row.cells[0]
+        //         sort: false,
+        //         width: "80px",
+        //         formatter: (cell, row) => {
+        //             // Because "Select" is the first column,
+        //             // row.cells[1] = Title
+        //             // row.cells[2] = Year
+        //             // row.cells[3] = Genre
+        //             const rowData = [
+        //                 row.cells[1].data,
+        //                 row.cells[2].data,
+        //                 row.cells[3].data
+        //             ];
+        //             return gridjs.html(`
+        //       <input
+        //         type="checkbox"
+        //         class="row-select"
+        //         data-row='${JSON.stringify(rowData)}'
+        //       />
+        //     `);
+        //         }
+        //     },
+        //     {
+        //         // SECOND column => row.cells[1]
+        //         name: "Title"
+        //     },
+        //     {
+        //         // THIRD column => row.cells[2]
+        //         name: "Year"
+        //     },
+        //     {
+        //         // FOURTH column => row.cells[3]
+        //         name: "Genre"
+        //     },
+        columns: [
+            {
+                name: "Select",
+                sort: false,
+                width: "60px",
+                formatter: (cell, row) => {
+                    // row.cells[1] = ID
+                    // row.cells[2] = Title
+                    // row.cells[3] = Year
+                    // row.cells[4] = Genre
+
+                    const rowData = {
+                        id: row.cells[1].data,
+                        title: row.cells[2].data,
+                        year: row.cells[3].data,
+                        genre: row.cells[4].data
+                    };
+                    return gridjs.html(`
+        <input
+          type="checkbox"
+          class="row-select"
+          data-row='${JSON.stringify(rowData)}'
+        />
+      `);
+                }
+            },
+            {
+                name: "ID"
+            },
+            {
+                name: "Title"
+            },
+            {
+                name: "Year"
+            },
+            {
+                name: "Genre"
+            }
+
+        ],
+        data: movies,     // The array-of-arrays data
+        search: true,
+        sort: true,
+        pagination: {
+            enabled: true,
+            limit: 5,
+        },
+    }).render(document.getElementById("movieTable"));
+
+    // Add a random movie
+    document.getElementById("addRow").addEventListener("click", () => {
+        const randomMovies = [
+            ["Pulp Fiction", 1994, "Crime"],
+            ["Interstellar", 2014, "Sci-Fi"],
+            ["The Dark Knight", 2008, "Action"],
+        ];
+        const randomMovie = randomMovies[Math.floor(Math.random() * randomMovies.length)];
+        movies.push(randomMovie);
+
+        // Re-render with updated data
+        grid.updateConfig({ data: movies }).forceRender();
+    });
+
+    // Clear all rows
+    document.getElementById("clearTable").addEventListener("click", () => {
+        movies = [];
+        grid.updateConfig({ data: movies }).forceRender();
+    });
+
+    // Show selected rows
+    document.getElementById("showSelected").addEventListener("click", () => {
+        const selectedRows = [];
+
+        document.querySelectorAll(".row-select:checked").forEach((checkbox) => {
+            // Each "row-select" checkbox has data-row='["Title",Year,"Genre"]'
+            const rowData = JSON.parse(checkbox.dataset.row);
+            selectedRows.push(rowData);
+        });
+
+        if (selectedRows.length === 0) {
+            alert("No rows selected!");
+        } else {
+            alert("Selected Rows:\n" + JSON.stringify(selectedRows, null, 2));
+        }
+    });
+</script>
+</body>
+</html>
