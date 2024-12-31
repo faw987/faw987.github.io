@@ -59,7 +59,7 @@
                         "Authorization": `Bearer ${calcResults()}` // Replace with your API key
                     },
                     body: JSON.stringify({
-                        model: selectedModel,
+                        model: 'gpt-4o',
                         messages: [{role: 'user', content: prompt}]
                     })
                 })
