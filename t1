@@ -1,0 +1,37 @@
+import pandas as pd
+
+# Creating a DataFrame with the detailed timeline information based on the provided document
+timeline_data = {
+    "Year": [
+        1902, 1921, 1923, 1923, 1924, 1926, 1927, 1927, 1929, 1930, 1931, 1932, 1932, 1933, 1934, 1935, 1936, 1938, 1939
+    ],
+    "Event": [
+        "Margaret Hamilton is born in Cleveland, Ohio on December 9.",
+        "Hamilton graduates from Hathaway Brown School and plays Sir Peter Antrobus in the senior play Pomander Walk.",
+        "Graduates from Wheelock Kindergarten Training School and starts teaching at Hough Elementary School.",
+        "Opens her own nursery school at Cleveland Heights Presbyterian Church.",
+        "Leaves teaching at Hough Elementary, opens own nursery school.",
+        "Accepts kindergarten teaching job at Rye Country Day School in Rye, New York.",
+        "Returns to Cleveland to help her widowed father, joins the Cleveland Play House Apprenticeship Program.",
+        "Joins Cleveland Play House, appears in multiple productions including Everyman.",
+        "Performs in Junior League Players' productions including 'The Wizard of Oz' play.",
+        "Concludes three-year apprenticeship at Cleveland Play House, performs at Chautauqua Institution.",
+        "Marries Paul Boynton Meserve on June 13, and refocuses on summer stock theatre.",
+        "Appears in the Broadway play 'Hallam Wives', which later becomes 'Another Language'.",
+        "Performs her vaudeville show at Booth Theatre, continues successful Broadway run.",
+        "Broadway debut leads to Hollywood film adaptation of 'Another Language'.",
+        "Appears in 'The Farmer Takes a Wife' on Broadway, followed by Hollywood adaptation.",
+        "Moves to California, continues film career, signs with RKO Studios.",
+        "Gives birth to son Hamilton (Ham) Wadsworth Meserve on June 12.",
+        "Divorces Paul Meserve, continues acting career in Hollywood.",
+        "Stars as the Wicked Witch of the West in 'The Wizard of Oz'."
+    ]
+}
+
+# Creating the DataFrame
+timeline_df = pd.DataFrame(timeline_data)
+
+# Displaying the DataFrame to the user
+import ace_tools as tools; tools.display_dataframe_to_user(name="Margaret Hamilton Timeline (Chapters 1-5)", dataframe=timeline_df)
+
+timeline_df
