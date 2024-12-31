@@ -1,4 +1,13 @@
 <!DOCTYPE html>
+<!--WhatIsThis:
+
+    gridjs experiment
+
+    html/js code to experiment with grid.js
+
+    faw103 and faw104 are expirements... resulting in faw105
+
+    -->
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
@@ -15,7 +24,7 @@
         }
         .gridjs-wrapper {
             margin-top: 20px;
-            border: 1px solid #ccc;
+            border: 2px solid #ccc;
         }
         button {
             margin-right: 10px;
@@ -36,50 +45,13 @@
 <script>
     // Our initial data: each row is [title, year, genre]
     let movies = [
-        [0,"The Matrix", 1999, "Sci-Fi"],
-        [0,"Inception", 2010, "Action"],
-        [0,"The Godfather", 1972, "Crime"],
+        [1,"The Matrix", 1999, "Sci-Fi"],
+        [2,"Inception", 2010, "Action"],
+        [3,"The Godfather", 1972, "Crime"],
     ];
 
     // Create a Grid.js instance
     const grid = new gridjs.Grid({
-        // columns: [
-        //     {
-        //         name: "Select",
-        //         // This is our FIRST column => row.cells[0]
-        //         sort: false,
-        //         width: "80px",
-        //         formatter: (cell, row) => {
-        //             // Because "Select" is the first column,
-        //             // row.cells[1] = Title
-        //             // row.cells[2] = Year
-        //             // row.cells[3] = Genre
-        //             const rowData = [
-        //                 row.cells[1].data,
-        //                 row.cells[2].data,
-        //                 row.cells[3].data
-        //             ];
-        //             return gridjs.html(`
-        //       <input
-        //         type="checkbox"
-        //         class="row-select"
-        //         data-row='${JSON.stringify(rowData)}'
-        //       />
-        //     `);
-        //         }
-        //     },
-        //     {
-        //         // SECOND column => row.cells[1]
-        //         name: "Title"
-        //     },
-        //     {
-        //         // THIRD column => row.cells[2]
-        //         name: "Year"
-        //     },
-        //     {
-        //         // FOURTH column => row.cells[3]
-        //         name: "Genre"
-        //     },
         columns: [
             {
                 name: "Select",
@@ -132,12 +104,15 @@
     // Add a random movie
     document.getElementById("addRow").addEventListener("click", () => {
         const randomMovies = [
-            ["Pulp Fiction", 1994, "Crime"],
-            ["Interstellar", 2014, "Sci-Fi"],
-            ["The Dark Knight", 2008, "Action"],
+            [4,"Pulp Fiction", 1994, "Crime"],
+            [5,"Interstellar", 2014, "Sci-Fi"],
+            [6,"The Dark Knight", 2008, "Action"],
         ];
+
+        // alert(movies);
         const randomMovie = randomMovies[Math.floor(Math.random() * randomMovies.length)];
         movies.push(randomMovie);
+        // alert(movies);
 
         // Re-render with updated data
         grid.updateConfig({ data: movies }).forceRender();

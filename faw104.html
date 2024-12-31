@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<!--WhatIsThis:
+
+    gridjs experiment
+
+    html/js code to experiment with grid.js
+
+    faw103 and faw104 are expirements... resulting in faw105
+
+    -->
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Grid.js With Utility Function</title>
+    <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+    <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .gridjs-wrapper {
+            margin-top: 20px;
+            border: 2px solid #ccc;
+        }
+        button {
+            margin-right: 10px;
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+        .clickable-title {
+            color: blue;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+<h1>Grid.js With Utility Function</h1>
+<p>Select rows using checkboxes, click titles for alerts, and use the buttons for actions.</p>
+
+<button id="addRow">Add Random Movie</button>
+<button id="selectAll">Select All</button>
+<button id="deselectAll">Deselect All</button>
+<button id="showSelected">Show Selected Rows</button>
+<div id="movieTable"></div>
+
+<script>
+    // Original data: [ID, Title, Year, Genre]
+    let movies = [
+        [1, "The Matrix", 1999, "Sci-Fi"],
+        [2, "Inception", 2010, "Action"],
+        [3, "The Godfather", 1972, "Crime"],
+    ];
+
+    // Transform movies to include placeholder for Select column
+    function transformMovies(movies) {
+        return movies.map(row => [null, ...row]);
+    }
+
+    const transformedMovies = transformMovies(movies);
+
+    // Create a Grid.js instance
+    const grid = new gridjs.Grid({
+        columns: [
+            {
+                name: "Select",
+                sort: false,
+                width: "60px",
+                formatter: (_, row) => {
+                    const rowData = {
+                        id: row.cells[1].data, // Skip Select column (index 0)
+                        title: row.cells[2].data, // Title (index 1 in data)
+                        year: row.cells[3].data, // Year (index 2 in data)
+                        genre: row.cells[4].data, // Genre (index 3 in data)
+                    };
+                    return gridjs.html(`
+                        <input
+                            type="checkbox"
+                            class="row-select"
+                            data-row='${JSON.stringify(rowData)}'
+                        />
+                    `);
+                },
+            },
+            { name: "ID", width: "50px" },
+            {
+                name: "Title",
+                formatter: (cell) => gridjs.html(`<span class="clickable-title">${cell}</span>`),
+            },
+            { name: "Year", width: "80px" },
+            { name: "Genre" },
+        ],
+        data: transformedMovies,
+        search: true,
+        sort: true,
+        pagination: {
+            enabled: true,
+            limit: 5,
+        },
+    }).render(document.getElementById("movieTable"));
+
+    // Add a random movie
+    document.getElementById("addRow").addEventListener("click", () => {
+        const randomMovies = [
+            [4, "Pulp Fiction", 1994, "Crime"],
+            [5, "Interstellar", 2014, "Sci-Fi"],
+            [6, "The Dark Knight", 2008, "Action"],
+        ];
+
+        const randomMovie = randomMovies[Math.floor(Math.random() * randomMovies.length)];
+        movies.push(randomMovie);
+
+        // Update transformed data
+        const updatedMovies = transformMovies(movies);
+
+        // Re-render with updated data
+        grid.updateConfig({ data: updatedMovies }).forceRender();
+    });
+
+    // Select all rows
+    document.getElementById("selectAll").addEventListener("click", () => {
+        document.querySelectorAll(".row-select").forEach((checkbox) => {
+            checkbox.checked = true;
+        });
+    });
+
+    // Deselect all rows
+    document.getElementById("deselectAll").addEventListener("click", () => {
+        document.querySelectorAll(".row-select").forEach((checkbox) => {
+            checkbox.checked = false;
+        });
+    });
+
+    // Show selected rows
+    document.getElementById("showSelected").addEventListener("click", () => {
+        const selectedRows = [];
+        document.querySelectorAll(".row-select:checked").forEach((checkbox) => {
+            const rowData = JSON.parse(checkbox.dataset.row);
+            selectedRows.push(rowData);
+        });
+
+        if (selectedRows.length === 0) {
+            alert("No rows selected!");
+        } else {
+            alert("Selected Rows:\n" + JSON.stringify(selectedRows, null, 2));
+        }
+    });
+
+    // Handle clickable titles
+    document.getElementById("movieTable").addEventListener("click", (event) => {
+        if (event.target.classList.contains("clickable-title")) {
+            const title = event.target.textContent;
+
+            // Traverse up the DOM to find the corresponding row
+            const rowElement = event.target.closest("tr");
+
+            if (rowElement) {
+                // Extract row data by traversing cells
+                const cells = Array.from(rowElement.querySelectorAll("td"));
+                const rowData = cells.map(cell => cell.textContent.trim());
+
+                alert(`You clicked on: ${title}\nFull Row: ${JSON.stringify(rowData)}`);
+            }
+        }
+    });
+</script>
+</body>
+</html>
