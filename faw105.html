@@ -82,7 +82,8 @@
         // async function findMovieTitles(inputText, apiKey) {
         const apiKey2 = `${calcResults()}`; // Replace with your API key
         console.log(`apiKey2: ${apiKey2}`)
-        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        // const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        const response = fetch("https://api.openai.com/v1/chat/completions", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
