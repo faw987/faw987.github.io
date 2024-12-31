@@ -207,6 +207,17 @@
         if (selectedRows.length === 0) {
             alert("No rows selected!");
         } else {
+
+            // Example of iterating over the selectedRows array
+            selectedRows.forEach((row, index) => {
+                console.log(`Row ${index + 1}:`, row);
+                // Perform any specific action with each row here
+                // Example: Show data in the console
+            });
+
+            // Alert the user with the summary of selected rows
+
+
             alert("Selected Rows:\n" + JSON.stringify(selectedRows, null, 2));
         }
     });
