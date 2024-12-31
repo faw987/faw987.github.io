@@ -77,13 +77,45 @@
         });
     };
 
+    // http://localhost:63342/faw987.github.io/faw105.html?_ijt=ptg30b3u5eir978i8n4tblt263?movietitlelist=dune,1984,wicked
 
-        // Original data: [ID, Title, Year, Genre]
-    let movies = [
-        [1, "The Matrix", 1999, "Sci-Fi"],
-        [2, "Inception", 2010, "Action"],
-        [3, "The Godfather", 1972, "Crime"],
-    ];
+    const params = new URLSearchParams(window.location.search);
+    alert(params);
+
+    // Set text area
+    const movieTitleList = params.get('movietitlelist');
+    alert(movieTitleList);
+    // if (movieTitleList) {
+    //     document.getElementById('userInput').value = decodeURIComponent(textParam);
+    // }
+
+    //     // Original data: [ID, Title, Year, Genre]
+    // let movies = [
+    //     [1, "The Matrix", 1999, "Sci-Fi"],
+    //     [2, "Inception", 2010, "Action"],
+    //     [3, "The Godfather", 1972, "Crime"],
+    // ];
+
+    function convertToMoviesStructure(commaSeparatedTitles) {
+        // Split the input string into an array of titles
+        const titles = commaSeparatedTitles.split(",").map(title => title.trim());
+
+        // Map titles to the desired structure
+        const movies = titles.map((title, index) => [
+            index + 1,   // Sequential ID
+            title,       // Movie title
+            1999,        // Default year
+            "Other"      // Default genre
+        ]);
+
+        return movies;
+    }
+
+    // Example usage
+    // const input = "The Matrix, Inception, The Godfather";
+    const movies = convertToMoviesStructure(movieTitleList);
+
+    console.log(movies);
 
     // Transform movies to include placeholder for Select column
     function transformMovies(movies) {
