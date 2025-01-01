@@ -190,6 +190,7 @@
             },
             { name: "Year", width: "80px" },
             { name: "Genre" },
+            { name: "Info1" },
         ],
         data: transformedMovies,
         search: true,
@@ -252,6 +253,19 @@
                 console.log(`res:`, res);
                 // Perform any specific action with each row here
                 // Example: Show data in the console
+
+                // selectedRows.forEach((rowIndex) => {
+                //     movies[rowIndex][3] = "Updated Genre"; // Update the Genre column (index 3)
+                // });
+
+                selectedRows.forEach((row, rowIndex) => {
+                    row[rowIndex][3] = "Updated Genre"; // Update the Genre column (index 3)
+                });
+
+                // Re-render the table with updated data
+                grid.updateConfig({ data: movies }).forceRender();
+
+
             });
 
             // Alert the user with the summary of selected rows
