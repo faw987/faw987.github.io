@@ -49,7 +49,10 @@
 
 <script>
 
-    async function invokeModel(prompt) {
+    // model: 'gpt-4o',
+
+
+        async function invokeModel(prompt) {
         // try {
                 // const response = await fetch('https://api.openai.com/v1/chat/completions', {
                 const response =  await fetch('https://api.openai.com/v1/chat/completions', {
@@ -59,7 +62,7 @@
                         "Authorization": `Bearer ${calcResults()}` // Replace with your API key
                     },
                     body: JSON.stringify({
-                        model: 'gpt-4o',
+                        model: 'o1-mini',
                         messages: [{role: 'user', content: prompt}]
                     })
                 })
