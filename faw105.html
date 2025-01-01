@@ -315,7 +315,7 @@
                     grid.updateConfig({ data: transformedMovies }).forceRender();
                 });
 
-                invokeModel(`consider this movie: "${row.title}". What is its Rotten Tomatoes percentage rating.`).then( resp => {
+                invokeModel(`consider this movie: "${row.title}. What is its Rotten Tomatoes percentage rating. Report the critics percentage as a two digit number.`).then( resp => {
                     console.log(`resp:`, resp);
                     const  saveResp = resp;
                     console.log(transformedMovies);
