@@ -264,6 +264,12 @@
                 invokeModel(`tell about this movie: ${row.title}`).then( resp => {
                     console.log(`resp:`, resp);
                     const  saveResp = resp;
+                    console.log(transformedMovies);
+                    transformedMovies[2][4]=saveResp;
+                    console.log(transformedMovies);
+
+                    // Re-render the table with updated data
+                    grid.updateConfig({ data: transformedMovies }).forceRender();
                 });
 
 
@@ -282,12 +288,7 @@
                     row.info1 = "Updated info"; // Update the Genre column (index 3)
                 });
 
-                console.log(transformedMovies);
-                transformedMovies[2][4]=saveResp;
-                console.log(transformedMovies);
 
-                // Re-render the table with updated data
-                grid.updateConfig({ data: transformedMovies }).forceRender();
 
 
             });
