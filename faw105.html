@@ -251,7 +251,7 @@
             selectedRows.forEach((row, index) => {
                 console.log(`Row ${index + 1}:`, row);
                 console.log(`Row.title:`, row.title);
-                res=await invokeModel(`tell about this movie: ${row.title}`);
+                res=invokeModel(`tell about this movie: ${row.title}`);
                 console.log(`res:`, res);
                 // Perform any specific action with each row here
                 // Example: Show data in the console
