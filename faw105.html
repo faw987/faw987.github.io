@@ -173,6 +173,7 @@
                         title: row.cells[2].data, // Title (index 1 in data)
                         year: row.cells[3].data, // Year (index 2 in data)
                         genre: row.cells[4].data, // Genre (index 3 in data)
+                        info1: row.cells[5].data, // Info1 (index 3 in data)
                     };
                     return gridjs.html(`
                         <input
@@ -260,7 +261,7 @@
 
                 selectedRows.forEach((row, rowIndex) => {
                     // row[rowIndex][3] = "Updated Genre"; // Update the Genre column (index 3)
-                    row.genre = "Updated Genre"; // Update the Genre column (index 3)
+                    row.info1 = "Updated info"; // Update the Genre column (index 3)
                 });
 
                 // Re-render the table with updated data
