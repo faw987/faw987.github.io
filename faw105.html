@@ -265,7 +265,7 @@
                     console.log(`resp:`, resp);
                     const  saveResp = resp;
                     console.log(transformedMovies);
-                    transformedMovies[index+1][5]=saveResp;
+                    transformedMovies[index][5]=saveResp;
                     console.log(transformedMovies);
 
                     // Re-render the table with updated data
@@ -276,18 +276,18 @@
                     console.log(`resp:`, resp);
                     const  saveResp = resp;
                     console.log(transformedMovies);
-                    transformedMovies[index+1][3]=saveResp;
+                    transformedMovies[index][3]=saveResp;
                     console.log(transformedMovies);
 
                     // Re-render the table with updated data
                     grid.updateConfig({ data: transformedMovies }).forceRender();
                 });
 
-                invokeModel(`consider this movie: ${row.title}. how many stars is its Rotten Tomatoes percentage rating.`).then( resp => {
+                invokeModel(`consider this movie: ${row.title}. What is its Rotten Tomatoes percentage rating.`).then( resp => {
                     console.log(`resp:`, resp);
                     const  saveResp = resp;
                     console.log(transformedMovies);
-                    transformedMovies[index+1][4]=saveResp;
+                    transformedMovies[index][4]=saveResp;
                     console.log(transformedMovies);
 
                     // Re-render the table with updated data
