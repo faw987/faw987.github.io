@@ -43,6 +43,14 @@
       padding: 10px;
       background-color: #f9f9f9;
     }
+    #promptText {
+      white-space: pre-wrap;
+      overflow-y: auto;
+      max-height: 300px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background-color: #f9f9f9;
+    }
   </style>
 </head>
 <body>
@@ -75,6 +83,10 @@
 
   <button type="submit">Submit</button>
 </form>
+<div id="prompt">
+  <h2>Prompt:</h2>
+  <pre id="promptText">No prompt text yet.</pre>
+</div>
 <div id="response">
   <h2>Response:</h2>
   <pre id="responseText">No response yet.</pre>
@@ -138,6 +150,7 @@
     const startYear = document.getElementById('startYear').value;
     const endYear = document.getElementById('endYear').value;
     const responseText = document.getElementById('responseText');
+    const promptText = document.getElementById('promptText');
 
     if (!userInput.trim()) {
       responseText.textContent = "Please enter some text!";
@@ -145,12 +158,14 @@
     }
 
     // Build the modified prompt
-    let modifiedPrompt = userInput;
-    if (actorChecked) modifiedPrompt += " actor";
-    if (titleChecked) modifiedPrompt += " title";
+    let modifiedPrompt = `consider this: "${userInput}."`;
+    if (actorChecked) modifiedPrompt += " list all movies this actor appeared in.";
+    if (titleChecked) modifiedPrompt += " list information about this title.";
     if (startYear && endYear) {
-      modifiedPrompt += ` between years ${startYear} and ${endYear}`;
+      modifiedPrompt += ` restrict years between ${startYear} and ${endYear}`;
     }
+
+    promptText.textContent = modifiedPrompt;
 
     responseText.textContent = "Loading...";
 
