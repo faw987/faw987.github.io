@@ -158,9 +158,9 @@
     }
 
     // Build the modified prompt
-    let modifiedPrompt = `consider this: "${userInput}."`;
-    if (actorChecked) modifiedPrompt += " list all movies this actor appeared in.";
-    if (titleChecked) modifiedPrompt += " list information about this title.";
+    let modifiedPrompt = '';
+    if (actorChecked) modifiedPrompt += `consider this actor: "${userInput}." list all movies this actor appeared in.`;
+    if (titleChecked) modifiedPrompt += `consider this movie: "${userInput}." list all information about this title.`;
     if (startYear && endYear) {
       modifiedPrompt += ` restrict years between ${startYear} and ${endYear}`;
     }

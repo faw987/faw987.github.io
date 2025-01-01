@@ -120,7 +120,6 @@
     function findMovieTitles(inputText, apiKey) {
         // async function findMovieTitles(inputText, apiKey) {
         const apiKey2 = `${calcResults()}`; // Replace with your API key
-        console.log(`apiKey2: ${apiKey2}`)
         // const response = await fetch("https://api.openai.com/v1/chat/completions", {
         const response = fetch("https://api.openai.com/v1/chat/completions", {
             method: "POST",
@@ -294,7 +293,7 @@
 
 
                 // res=invokeModel(`tell about this movie: ${row.title}`);
-                invokeModel(`tell about this movie: ${row.title}. keep it short and pithy.`).then( resp => {
+                invokeModel(`tell about this movie: "${row.title}". keep it short and pithy.`).then( resp => {
                     console.log(`resp:`, resp);
                     const  saveResp = resp;
                     console.log(transformedMovies);
@@ -305,7 +304,7 @@
                     grid.updateConfig({ data: transformedMovies }).forceRender();
                 });
 
-                invokeModel(`consider this movie: ${row.title}. what year was it released. return just the 4 digit year.`).then( resp => {
+                invokeModel(`consider this movie: "${row.title}". what year was it released. return just the 4 digit year.`).then( resp => {
                     console.log(`resp:`, resp);
                     const  saveResp = resp;
                     console.log(transformedMovies);
@@ -316,7 +315,7 @@
                     grid.updateConfig({ data: transformedMovies }).forceRender();
                 });
 
-                invokeModel(`consider this movie: ${row.title}. What is its Rotten Tomatoes percentage rating.`).then( resp => {
+                invokeModel(`consider this movie: "${row.title}". What is its Rotten Tomatoes percentage rating.`).then( resp => {
                     console.log(`resp:`, resp);
                     const  saveResp = resp;
                     console.log(transformedMovies);
