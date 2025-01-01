@@ -272,7 +272,16 @@
                     grid.updateConfig({ data: transformedMovies }).forceRender();
                 });
 
+                invokeModel(`consider this movie: ${row.title}. what year was it released.`).then( resp => {
+                    console.log(`resp:`, resp);
+                    const  saveResp = resp;
+                    console.log(transformedMovies);
+                    transformedMovies[index][3]=saveResp;
+                    console.log(transformedMovies);
 
+                    // Re-render the table with updated data
+                    grid.updateConfig({ data: transformedMovies }).forceRender();
+                });
 
 
 
