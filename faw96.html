@@ -1,4 +1,132 @@
+<!--&lt;!&ndash;<!DOCTYPE html>&ndash;&gt;-->
+
+
+<!--&lt;!&ndash;&lt;!&ndash;WhatIsThis:&ndash;&gt;-->
+
+<!--&lt;!&ndash;    short: TAXI hailing&ndash;&gt;-->
+
+<!--&lt;!&ndash;    html/js code&ndash;&gt;-->
+
+<!--&lt;!&ndash;    &ndash;&gt;&ndash;&gt;-->
+
+
+<!--&lt;!&ndash;<html lang="en">&ndash;&gt;-->
+<!--&lt;!&ndash;<head>&ndash;&gt;-->
+<!--&lt;!&ndash;    <meta charset="UTF-8">&ndash;&gt;-->
+<!--&lt;!&ndash;    <meta name="viewport" content="width=device-width, initial-scale=1.0">&ndash;&gt;-->
+<!--&lt;!&ndash;    <title>Rotated Taxi Display</title>&ndash;&gt;-->
+<!--&lt;!&ndash;    <style>&ndash;&gt;-->
+<!--&lt;!&ndash;        body {&ndash;&gt;-->
+<!--&lt;!&ndash;            margin: 0;&ndash;&gt;-->
+<!--&lt;!&ndash;            overflow: hidden;&ndash;&gt;-->
+<!--&lt;!&ndash;            background-color: #000;&ndash;&gt;-->
+<!--&lt;!&ndash;        }&ndash;&gt;-->
+<!--&lt;!&ndash;        #taxi-text {&ndash;&gt;-->
+<!--&lt;!&ndash;            position: absolute;&ndash;&gt;-->
+<!--&lt;!&ndash;            top: 100px; /* Adjusted for better visibility */&ndash;&gt;-->
+<!--&lt;!&ndash;            left: 0px; /* Adjusted for better positioning */&ndash;&gt;-->
+<!--&lt;!&ndash;            font-family: Arial, sans-serif;&ndash;&gt;-->
+<!--&lt;!&ndash;            font-size: 200px;&ndash;&gt;-->
+<!--&lt;!&ndash;            font-weight: bold;&ndash;&gt;-->
+<!--&lt;!&ndash;            color: red;&ndash;&gt;-->
+<!--&lt;!&ndash;            transform: rotate(-90deg);&ndash;&gt;-->
+<!--&lt;!&ndash;            text-shadow: 2px 2px 5px rgba(255, 255, 255, 0.8);&ndash;&gt;-->
+<!--&lt;!&ndash;        }&ndash;&gt;-->
+<!--&lt;!&ndash;    </style>&ndash;&gt;-->
+<!--&lt;!&ndash;</head>&ndash;&gt;-->
+<!--&lt;!&ndash;<body>&ndash;&gt;-->
+<!--&lt;!&ndash;<div id="taxi-text">TAXI</div>&ndash;&gt;-->
+<!--&lt;!&ndash;<script>&ndash;&gt;-->
+<!--&lt;!&ndash;    // JavaScript to change color&ndash;&gt;-->
+<!--&lt;!&ndash;    const taxiText = document.getElementById('taxi-text');&ndash;&gt;-->
+<!--&lt;!&ndash;    const colors = ['red', 'green', 'blue'];&ndash;&gt;-->
+<!--&lt;!&ndash;    let colorIndex = 0;&ndash;&gt;-->
+
+<!--&lt;!&ndash;    setInterval(() => {&ndash;&gt;-->
+<!--&lt;!&ndash;        taxiText.style.color = colors[colorIndex];&ndash;&gt;-->
+<!--&lt;!&ndash;        colorIndex = (colorIndex + 1) % colors.length;&ndash;&gt;-->
+<!--&lt;!&ndash;    }, 500); // Change color every 1/4 second&ndash;&gt;-->
+<!--&lt;!&ndash;</script>&ndash;&gt;-->
+<!--&lt;!&ndash;</body>&ndash;&gt;-->
+<!--&lt;!&ndash;</html>&ndash;&gt;-->
+<!--<!DOCTYPE html>-->
+
+<!--&lt;!&ndash;WhatIsThis:-->
+
+<!--    short: TAXI hailing-->
+
+<!--    html/js code with dynamic black/white mode-->
+
+<!--    &ndash;&gt;-->
+
+<!--<html lang="en">-->
+<!--<head>-->
+<!--    <meta charset="UTF-8">-->
+<!--    <meta name="viewport" content="width=device-width, initial-scale=1.0">-->
+<!--    <title>Rotated Taxi Display</title>-->
+<!--    <style>-->
+<!--        body {-->
+<!--            margin: 0;-->
+<!--            overflow: hidden;-->
+<!--        }-->
+
+<!--        #taxi-text {-->
+<!--            position: absolute;-->
+<!--            top: 100px; /* Adjusted for better visibility */-->
+<!--            left: 0px; /* Adjusted for better positioning */-->
+<!--            font-family: Arial, sans-serif;-->
+<!--            font-size: 200px;-->
+<!--            font-weight: bold;-->
+<!--            transform: rotate(-90deg);-->
+<!--            text-shadow: 2px 2px 5px rgba(255, 255, 255, 0.8);-->
+<!--        }-->
+<!--    </style>-->
+<!--</head>-->
+<!--<body>-->
+<!--<div id="taxi-text">TAXI</div>-->
+<!--<script>-->
+<!--    // Configuration parameter-->
+<!--    const bw = true; // Set to true for black/white mode-->
+
+<!--    // DOM Elements-->
+<!--    const body = document.body;-->
+<!--    const taxiText = document.getElementById('taxi-text');-->
+
+<!--    if (bw) {-->
+<!--        let inverted = false;-->
+<!--        setInterval(() => {-->
+<!--            if (inverted) {-->
+<!--                body.style.backgroundColor = "#fff";-->
+<!--                taxiText.style.color = "#000";-->
+<!--            } else {-->
+<!--                body.style.backgroundColor = "#000";-->
+<!--                taxiText.style.color = "#fff";-->
+<!--            }-->
+<!--            inverted = !inverted;-->
+<!--        }, 500); // Switch every 1/2 second-->
+<!--    } else {-->
+<!--        // Default color change logic-->
+<!--        const colors = ['red', 'green', 'blue'];-->
+<!--        let colorIndex = 0;-->
+<!--        setInterval(() => {-->
+<!--            taxiText.style.color = colors[colorIndex];-->
+<!--            colorIndex = (colorIndex + 1) % colors.length;-->
+<!--        }, 500); // Change color every 1/2 second-->
+<!--    }-->
+<!--</script>-->
+<!--</body>-->
+<!--</html>-->
+
 <!DOCTYPE html>
+
+<!--WhatIsThis:
+
+    short: TAXI hailing
+
+    html/js code with dynamic black/white mode from URL parameter
+
+    -->
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -8,8 +136,8 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #000;
         }
+
         #taxi-text {
             position: absolute;
             top: 100px; /* Adjusted for better visibility */
@@ -17,7 +145,6 @@
             font-family: Arial, sans-serif;
             font-size: 200px;
             font-weight: bold;
-            color: red;
             transform: rotate(-90deg);
             text-shadow: 2px 2px 5px rgba(255, 255, 255, 0.8);
         }
@@ -26,15 +153,35 @@
 <body>
 <div id="taxi-text">TAXI</div>
 <script>
-    // JavaScript to change color
-    const taxiText = document.getElementById('taxi-text');
-    const colors = ['red', 'green', 'blue'];
-    let colorIndex = 0;
+    // Extract the 'bw' parameter from the URL
+    const params = new URLSearchParams(window.location.search);
+    const bw = params.get('bw') === 'true'; // Convert 'bw' parameter to boolean
 
-    setInterval(() => {
-        taxiText.style.color = colors[colorIndex];
-        colorIndex = (colorIndex + 1) % colors.length;
-    }, 500); // Change color every 1/4 second
+    // DOM Elements
+    const body = document.body;
+    const taxiText = document.getElementById('taxi-text');
+
+    if (bw) {
+        let inverted = false;
+        setInterval(() => {
+            if (inverted) {
+                body.style.backgroundColor = "#fff";
+                taxiText.style.color = "#000";
+            } else {
+                body.style.backgroundColor = "#000";
+                taxiText.style.color = "#fff";
+            }
+            inverted = !inverted;
+        }, 500); // Switch every 1/2 second
+    } else {
+        // Default color change logic
+        const colors = ['red', 'green', 'blue'];
+        let colorIndex = 0;
+        setInterval(() => {
+            taxiText.style.color = colors[colorIndex];
+            colorIndex = (colorIndex + 1) % colors.length;
+        }, 500); // Change color every 1/2 second
+    }
 </script>
 </body>
 </html>
