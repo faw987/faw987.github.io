@@ -265,6 +265,10 @@
                     row.info1 = "Updated info"; // Update the Genre column (index 3)
                 });
 
+                console.log(transformedMovies);
+                transformedMovies[2][2]="xxx";
+                console.log(transformedMovies);
+
                 // Re-render the table with updated data
                 grid.updateConfig({ data: transformedMovies }).forceRender();
 
