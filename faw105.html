@@ -65,7 +65,7 @@
                 })
             // }
 
-            alert(`response: ${response}`);
+            // alert(`response: ${response}`);
 
             if (!response.ok) {
                 throw new Error(`API Error: ${response.statusText}`);
@@ -75,7 +75,7 @@
             const data =  await response.json();
             const gptResponse = data.choices[0].message.content;
             responseText = gptResponse;
-            alert(`responseText: ${responseText}`);
+            // alert(`responseText: ${responseText}`);
 
         // } catch (error) {
         //     responseText = `Error: ${error.message}`;
@@ -261,11 +261,11 @@
 
 
                 // res=invokeModel(`tell about this movie: ${row.title}`);
-                invokeModel(`tell about this movie: ${row.title}`).then( resp => {
+                invokeModel(`tell about this movie: ${row.title}. keep it short and pithy.`).then( resp => {
                     console.log(`resp:`, resp);
                     const  saveResp = resp;
                     console.log(transformedMovies);
-                    transformedMovies[2][4]=saveResp;
+                    transformedMovies[index][5]=saveResp;
                     console.log(transformedMovies);
 
                     // Re-render the table with updated data
