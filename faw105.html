@@ -251,8 +251,25 @@
             selectedRows.forEach((row, index) => {
                 console.log(`Row ${index + 1}:`, row);
                 console.log(`Row.title:`, row.title);
-                res=invokeModel(`tell about this movie: ${row.title}`);
-                console.log(`res:`, res);
+
+                //
+                // fetchSomeData().then(response => {
+                //     x[1][1] = response; // Store the resolved value
+                //     console.log("Updated row:", x);
+                // });
+
+
+
+                // res=invokeModel(`tell about this movie: ${row.title}`);
+                invokeModel(`tell about this movie: ${row.title}`).then( resp => {
+                    console.log(`resp:`, resp);
+                    const  saveResp = resp;
+                });
+
+
+
+
+
                 // Perform any specific action with each row here
                 // Example: Show data in the console
 
@@ -266,7 +283,7 @@
                 });
 
                 console.log(transformedMovies);
-                transformedMovies[2][4]=res;
+                transformedMovies[2][4]=saveResp;
                 console.log(transformedMovies);
 
                 // Re-render the table with updated data
