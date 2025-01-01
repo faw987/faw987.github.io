@@ -39,6 +39,16 @@
 <h1>Grid.js With Utility Function</h1>
 <p>Select rows using checkboxes, click titles for alerts, and use the buttons for actions.</p>
 
+<label for="modelSelect">Choose a model:</label><br>
+<select id="modelSelect">
+    <option value="gpt-4">GPT-4</option>
+    <option value="gpt-3.5-turbo">GPT-3.5-Turbo</option>
+    <option value="gpt-4o">GPT-4o</option>
+    <option value="gpt-4o-mini">GPT-4o-mini</option>
+    <option value="o1-preview">o1-preview</option>
+    <option value="o1-mini">o1-mini</option>
+</select><br><br>
+
 <button id="addRow">Add Random Movie</button>
 <button id="selectAll">Select All</button>
 <button id="deselectAll">Deselect All</button>
@@ -51,6 +61,25 @@
 
     // model: 'gpt-4o',
 
+    const params = new URLSearchParams(window.location.search);
+
+    // Set text area
+    const textParam = params.get('text');
+    if (textParam) {
+        document.getElementById('userInput').value = decodeURIComponent(textParam);
+    }
+
+    // Set model selection
+    const modelParam = params.get('model');
+    if (modelParam) {
+        const modelSelect = document.getElementById('modelSelect');
+        const options = Array.from(modelSelect.options);
+        const isValidOption = options.some(option => option.value === modelParam);
+        if (isValidOption) {
+            modelSelect.value = modelParam;
+        }
+    }
+    const selectedModel = document.getElementById('modelSelect').value;
 
         async function invokeModel(prompt) {
         // try {
@@ -62,7 +91,8 @@
                         "Authorization": `Bearer ${calcResults()}` // Replace with your API key
                     },
                     body: JSON.stringify({
-                        model: 'o1-mini',
+                        // model: 'o1-mini',
+                        model: selectedModel,
                         messages: [{role: 'user', content: prompt}]
                     })
                 })
@@ -119,7 +149,7 @@
     // http://localhost:63342/faw987.github.io/faw105.html?_ijt=ptg30b3u5eir978i8n4tblt263?movietitlelist=dune,1984,wicked
     // http://faw987.github.io/faw105.html?movietitlelist=dune,1984,wicked
 
-    const params = new URLSearchParams(window.location.search);
+    // const params = new URLSearchParams(window.location.search);
     // alert(params);
 
     // Set text area
