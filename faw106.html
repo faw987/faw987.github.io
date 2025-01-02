@@ -103,10 +103,14 @@
         if (event) event.preventDefault(); // Prevent default form submission behavior
         const userInput = document.getElementById('userInput').value;
 
+        const responseText = document.getElementById('responseText');
 
-        invokeModel(`tell about this movie: "${userInput}". keep it short and pithy.`).then((resp) => {
+        const myPrompt = `tell about this movie: "${userInput}". provide extensive details about the movie. include stars, director, producer. include all trivia regarding the movie.`;
+
+        responseText.textContent = `Invoke LLM (Model: ${document.getElementById('modelSelect').value}) prompt: "${myPrompt}"`;
+
+        invokeModel(myPrompt).then((resp) => {
             console.log(`Response:`, resp);
-            const responseText = document.getElementById('responseText');
             responseText.textContent = resp;
 
             // transformedMovies[row.actualIndex][5] = resp;
