@@ -290,7 +290,7 @@
                 //     console.log("Updated row:", x);
                 // });
 
-                const i = row.id;           // HACK HACK HACK - reconsider it
+                const i = row.id-1;           // HACK HACK HACK - reconsider it   hack hack
 
                 // res=invokeModel(`tell about this movie: ${row.title}`);
                 invokeModel(`tell about this movie: "${row.title}". keep it short and pithy.`).then( resp => {
