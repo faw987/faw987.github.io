@@ -290,14 +290,14 @@
                 //     console.log("Updated row:", x);
                 // });
 
-
+                const i = row.id;           // HACK HACK HACK - reconsider it
 
                 // res=invokeModel(`tell about this movie: ${row.title}`);
                 invokeModel(`tell about this movie: "${row.title}". keep it short and pithy.`).then( resp => {
                     console.log(`resp:`, resp);
                     const  saveResp = resp;
                     console.log(transformedMovies);
-                    transformedMovies[index][5]=saveResp;
+                    transformedMovies[i][5]=saveResp;
                     console.log(transformedMovies);
 
                     // Re-render the table with updated data
@@ -308,7 +308,7 @@
                     console.log(`resp:`, resp);
                     const  saveResp = resp;
                     console.log(transformedMovies);
-                    transformedMovies[index][3]=saveResp;
+                    transformedMovies[i][3]=saveResp;
                     console.log(transformedMovies);
 
                     // Re-render the table with updated data
@@ -319,7 +319,7 @@
                     console.log(`resp:`, resp);
                     const  saveResp = resp;
                     console.log(transformedMovies);
-                    transformedMovies[index][4]=saveResp;
+                    transformedMovies[i][4]=saveResp;
                     console.log(transformedMovies);
 
                     // Re-render the table with updated data
