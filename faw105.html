@@ -54,14 +54,12 @@
 <button id="deselectAll">Deselect All</button>
 <button id="showSelected">Show Selected Rows</button>
 <div id="movieTable"></div>
-<!--<a id="navigateToDetails" style="display:none;" href="#">Go to Details</a>-->
+
 <a id="navigateToDetails" style="display:none;" href="#" target="_blank">Go to Details</a>
+
 <script src="js/util1.js"></script>
 
 <script>
-
-    // model: 'gpt-4o',
-
     const params = new URLSearchParams(window.location.search);
 
     // Set text area
@@ -99,8 +97,6 @@
                 })
             // }
 
-            // alert(`response: ${response}`);
-
             if (!response.ok) {
                 throw new Error(`API Error: ${response.statusText}`);
             }
@@ -109,11 +105,7 @@
             const data =  await response.json();
             const gptResponse = data.choices[0].message.content;
             responseText = gptResponse;
-            // alert(`responseText: ${responseText}`);
 
-        // } catch (error) {
-        //     responseText = `Error: ${error.message}`;
-        // };
         return responseText;
     };
 
@@ -149,22 +141,7 @@
     // http://localhost:63342/faw987.github.io/faw105.html?_ijt=ptg30b3u5eir978i8n4tblt263?movietitlelist=dune,1984,wicked
     // http://faw987.github.io/faw105.html?movietitlelist=dune,1984,wicked
 
-    // const params = new URLSearchParams(window.location.search);
-    // alert(params);
-
-    // Set text area
     const movieTitleList = params.get('movietitlelist');
-    // alert(movieTitleList);
-    // if (movieTitleList) {
-    //     document.getElementById('userInput').value = decodeURIComponent(textParam);
-    // }
-
-    //     // Original data: [ID, Title, Year, Genre]
-    // let movies = [
-    //     [1, "The Matrix", 1999, "Sci-Fi"],
-    //     [2, "Inception", 2010, "Action"],
-    //     [3, "The Godfather", 1972, "Crime"],
-    // ];
 
     function convertToMoviesStructure(commaSeparatedTitles) {
         // Split the input string into an array of titles
@@ -174,15 +151,13 @@
         const movies = titles.map((title, index) => [
             index + 1,   // Sequential ID
             title,       // Movie title
-            1999,        // Default year
-            "Other"      // Default genre
+            "unknown",   // Default year
+            "unknown"    // Default genre
         ]);
 
         return movies;
     }
 
-    // Example usage
-    // const input = "The Matrix, Inception, The Godfather";
     const movies = convertToMoviesStructure(movieTitleList);
 
     console.log(movies);
@@ -244,24 +219,6 @@
         },
     }).render(document.getElementById("movieTable"));
 
-    // Add a random movie
-    // document.getElementById("addRow").addEventListener("click", () => {
-    //     const randomMovies = [
-    //         [4, "Pulp Fiction", 1994, "Crime"],
-    //         [5, "Interstellar", 2014, "Sci-Fi"],
-    //         [6, "The Dark Knight", 2008, "Action"],
-    //     ];
-    //
-    //     const randomMovie = randomMovies[Math.floor(Math.random() * randomMovies.length)];
-    //     movies.push(randomMovie);
-    //
-    //     // Update transformed data
-    //     const updatedMovies = transformMovies(movies);
-    //
-    //     // Re-render with updated data
-    //     grid.updateConfig({ data: updatedMovies }).forceRender();
-    // });
-
     // Select all rows
     document.getElementById("selectAll").addEventListener("click", () => {
         document.querySelectorAll(".row-select").forEach((checkbox) => {
@@ -275,92 +232,6 @@
             checkbox.checked = false;
         });
     });
-
-    // // Show selected rows
-    // document.getElementById("showSelected").addEventListener("click", () => {
-    //     const selectedRows = [];
-    //     document.querySelectorAll(".row-select:checked").forEach((checkbox) => {
-    //         const rowData = JSON.parse(checkbox.dataset.row);
-    //         selectedRows.push(rowData);
-    //     });
-    //
-    //     if (selectedRows.length === 0) {
-    //         alert("No rows selected!");
-    //     } else {
-    //
-    //         // Example of iterating over the selectedRows array
-    //         selectedRows.forEach((row, index) => {
-    //             console.log(`Row ${index + 1}:`, row);
-    //             console.log(`Row.title:`, row.title);
-    //
-    //             //
-    //             // fetchSomeData().then(response => {
-    //             //     x[1][1] = response; // Store the resolved value
-    //             //     console.log("Updated row:", x);
-    //             // });
-    //
-    //             const i = row.id-1;           // HACK HACK HACK - reconsider it   hack hack
-    //
-    //             // res=invokeModel(`tell about this movie: ${row.title}`);
-    //             invokeModel(`tell about this movie: "${row.title}". keep it short and pithy.`).then( resp => {
-    //                 console.log(`resp:`, resp);
-    //                 const  saveResp = resp;
-    //                 console.log(transformedMovies);
-    //                 transformedMovies[i][5]=saveResp;
-    //                 console.log(transformedMovies);
-    //
-    //                 // Re-render the table with updated data
-    //                 grid.updateConfig({ data: transformedMovies }).forceRender();
-    //             });
-    //
-    //             invokeModel(`consider this movie: "${row.title}". what year was it released. return just the 4 digit year.`).then( resp => {
-    //                 console.log(`resp:`, resp);
-    //                 const  saveResp = resp;
-    //                 console.log(transformedMovies);
-    //                 transformedMovies[i][3]=saveResp;
-    //                 console.log(transformedMovies);
-    //
-    //                 // Re-render the table with updated data
-    //                 grid.updateConfig({ data: transformedMovies }).forceRender();
-    //             });
-    //
-    //             invokeModel(`consider this movie: "${row.title}. What is its Rotten Tomatoes percentage rating. Report the critics percentage as a two digit number.`).then( resp => {
-    //                 console.log(`resp:`, resp);
-    //                 const  saveResp = resp;
-    //                 console.log(transformedMovies);
-    //                 transformedMovies[i][4]=saveResp;
-    //                 console.log(transformedMovies);
-    //
-    //                 // Re-render the table with updated data
-    //                 grid.updateConfig({ data: transformedMovies }).forceRender();
-    //             });
-    //
-    //
-    //
-    //             // Perform any specific action with each row here
-    //             // Example: Show data in the console
-    //
-    //             // selectedRows.forEach((rowIndex) => {
-    //             //     movies[rowIndex][3] = "Updated Genre"; // Update the Genre column (index 3)
-    //             // });
-    //
-    //             selectedRows.forEach((row, rowIndex) => {
-    //                 // row[rowIndex][3] = "Updated Genre"; // Update the Genre column (index 3)
-    //                 row.info1 = "Updated info"; // Update the Genre column (index 3)
-    //             });
-    //
-    //
-    //
-    //
-    //         });
-    //
-    //         // Alert the user with the summary of selected rows
-    //
-    //
-    //         alert("Selected Rows:\n" + JSON.stringify(selectedRows, null, 2));
-    //     }
-    // });
-
 
     // Show selected rows
     document.getElementById("showSelected").addEventListener("click", () => {
@@ -438,6 +309,7 @@
                 // const title = encodeURIComponent(rowData[0][2]);
                 // const releaseYear = encodeURIComponent(rowData.releaseYear);
                 // const url = `https://faw106.html?title=${title}&year=${releaseYear}`;
+
                 const url = `https://faw987.github.io/faw106.html?title=${title}`;
 
                 // alert(`url: ${url}`);
