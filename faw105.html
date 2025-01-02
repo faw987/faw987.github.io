@@ -412,7 +412,7 @@
             });
 
             // Alert the user with the summary of selected rows
-            alert("Selected Rows:\n" + JSON.stringify(selectedRows, null, 2));
+            // alert("Selected Rows:\n" + JSON.stringify(selectedRows, null, 2));
         }
     });
 
@@ -432,7 +432,7 @@
                 const rowData = cells.map(cell => cell.textContent.trim());
                 const title = encodeURIComponent(rowData[2]);
 
-                alert(`You clicked on: ${title}\nFull Row: ${JSON.stringify(rowData)}`);
+                // alert(`You clicked on: ${title}\nFull Row: ${JSON.stringify(rowData)}`);
 
                 // Construct the URL with query parameters
                 // const title = encodeURIComponent(rowData[0][2]);
@@ -440,7 +440,7 @@
                 // const url = `https://faw106.html?title=${title}&year=${releaseYear}`;
                 const url = `https://faw987.github.io/faw106.html?title=${title}`;
 
-                alert(`url: ${url}`);
+                // alert(`url: ${url}`);
 
                 // Update the hidden anchor and simulate a click
                 const link = document.getElementById("navigateToDetails");
