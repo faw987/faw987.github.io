@@ -54,7 +54,7 @@
 <button id="deselectAll">Deselect All</button>
 <button id="showSelected">Show Selected Rows</button>
 <div id="movieTable"></div>
-
+<a id="navigateToDetails" style="display:none;" href="#">Go to Details</a>
 <script src="js/util1.js"></script>
 
 <script>
@@ -244,22 +244,22 @@
     }).render(document.getElementById("movieTable"));
 
     // Add a random movie
-    document.getElementById("addRow").addEventListener("click", () => {
-        const randomMovies = [
-            [4, "Pulp Fiction", 1994, "Crime"],
-            [5, "Interstellar", 2014, "Sci-Fi"],
-            [6, "The Dark Knight", 2008, "Action"],
-        ];
-
-        const randomMovie = randomMovies[Math.floor(Math.random() * randomMovies.length)];
-        movies.push(randomMovie);
-
-        // Update transformed data
-        const updatedMovies = transformMovies(movies);
-
-        // Re-render with updated data
-        grid.updateConfig({ data: updatedMovies }).forceRender();
-    });
+    // document.getElementById("addRow").addEventListener("click", () => {
+    //     const randomMovies = [
+    //         [4, "Pulp Fiction", 1994, "Crime"],
+    //         [5, "Interstellar", 2014, "Sci-Fi"],
+    //         [6, "The Dark Knight", 2008, "Action"],
+    //     ];
+    //
+    //     const randomMovie = randomMovies[Math.floor(Math.random() * randomMovies.length)];
+    //     movies.push(randomMovie);
+    //
+    //     // Update transformed data
+    //     const updatedMovies = transformMovies(movies);
+    //
+    //     // Re-render with updated data
+    //     grid.updateConfig({ data: updatedMovies }).forceRender();
+    // });
 
     // Select all rows
     document.getElementById("selectAll").addEventListener("click", () => {
@@ -275,90 +275,147 @@
         });
     });
 
+    // // Show selected rows
+    // document.getElementById("showSelected").addEventListener("click", () => {
+    //     const selectedRows = [];
+    //     document.querySelectorAll(".row-select:checked").forEach((checkbox) => {
+    //         const rowData = JSON.parse(checkbox.dataset.row);
+    //         selectedRows.push(rowData);
+    //     });
+    //
+    //     if (selectedRows.length === 0) {
+    //         alert("No rows selected!");
+    //     } else {
+    //
+    //         // Example of iterating over the selectedRows array
+    //         selectedRows.forEach((row, index) => {
+    //             console.log(`Row ${index + 1}:`, row);
+    //             console.log(`Row.title:`, row.title);
+    //
+    //             //
+    //             // fetchSomeData().then(response => {
+    //             //     x[1][1] = response; // Store the resolved value
+    //             //     console.log("Updated row:", x);
+    //             // });
+    //
+    //             const i = row.id-1;           // HACK HACK HACK - reconsider it   hack hack
+    //
+    //             // res=invokeModel(`tell about this movie: ${row.title}`);
+    //             invokeModel(`tell about this movie: "${row.title}". keep it short and pithy.`).then( resp => {
+    //                 console.log(`resp:`, resp);
+    //                 const  saveResp = resp;
+    //                 console.log(transformedMovies);
+    //                 transformedMovies[i][5]=saveResp;
+    //                 console.log(transformedMovies);
+    //
+    //                 // Re-render the table with updated data
+    //                 grid.updateConfig({ data: transformedMovies }).forceRender();
+    //             });
+    //
+    //             invokeModel(`consider this movie: "${row.title}". what year was it released. return just the 4 digit year.`).then( resp => {
+    //                 console.log(`resp:`, resp);
+    //                 const  saveResp = resp;
+    //                 console.log(transformedMovies);
+    //                 transformedMovies[i][3]=saveResp;
+    //                 console.log(transformedMovies);
+    //
+    //                 // Re-render the table with updated data
+    //                 grid.updateConfig({ data: transformedMovies }).forceRender();
+    //             });
+    //
+    //             invokeModel(`consider this movie: "${row.title}. What is its Rotten Tomatoes percentage rating. Report the critics percentage as a two digit number.`).then( resp => {
+    //                 console.log(`resp:`, resp);
+    //                 const  saveResp = resp;
+    //                 console.log(transformedMovies);
+    //                 transformedMovies[i][4]=saveResp;
+    //                 console.log(transformedMovies);
+    //
+    //                 // Re-render the table with updated data
+    //                 grid.updateConfig({ data: transformedMovies }).forceRender();
+    //             });
+    //
+    //
+    //
+    //             // Perform any specific action with each row here
+    //             // Example: Show data in the console
+    //
+    //             // selectedRows.forEach((rowIndex) => {
+    //             //     movies[rowIndex][3] = "Updated Genre"; // Update the Genre column (index 3)
+    //             // });
+    //
+    //             selectedRows.forEach((row, rowIndex) => {
+    //                 // row[rowIndex][3] = "Updated Genre"; // Update the Genre column (index 3)
+    //                 row.info1 = "Updated info"; // Update the Genre column (index 3)
+    //             });
+    //
+    //
+    //
+    //
+    //         });
+    //
+    //         // Alert the user with the summary of selected rows
+    //
+    //
+    //         alert("Selected Rows:\n" + JSON.stringify(selectedRows, null, 2));
+    //     }
+    // });
+
+
     // Show selected rows
     document.getElementById("showSelected").addEventListener("click", () => {
+        const tableRows = document.querySelectorAll("table tbody tr"); // Adjust selector based on your table's structure
         const selectedRows = [];
-        document.querySelectorAll(".row-select:checked").forEach((checkbox) => {
-            const rowData = JSON.parse(checkbox.dataset.row);
-            selectedRows.push(rowData);
+
+        tableRows.forEach((row, rowIndex) => {
+            const checkbox = row.querySelector(".row-select");
+            if (checkbox && checkbox.checked) {
+                const rowData = JSON.parse(checkbox.dataset.row);
+                selectedRows.push({ ...rowData, actualIndex: rowIndex }); // Include actual row index
+            }
         });
 
         if (selectedRows.length === 0) {
             alert("No rows selected!");
         } else {
-
-            // Example of iterating over the selectedRows array
-            selectedRows.forEach((row, index) => {
-                console.log(`Row ${index + 1}:`, row);
+            // Process each selected row
+            selectedRows.forEach((row) => {
+                console.log(`Processing Row at index ${row.actualIndex}:`, row);
                 console.log(`Row.title:`, row.title);
 
-                //
-                // fetchSomeData().then(response => {
-                //     x[1][1] = response; // Store the resolved value
-                //     console.log("Updated row:", x);
-                // });
-
-                const i = row.id-1;           // HACK HACK HACK - reconsider it   hack hack
-
-                // res=invokeModel(`tell about this movie: ${row.title}`);
-                invokeModel(`tell about this movie: "${row.title}". keep it short and pithy.`).then( resp => {
-                    console.log(`resp:`, resp);
-                    const  saveResp = resp;
-                    console.log(transformedMovies);
-                    transformedMovies[i][5]=saveResp;
-                    console.log(transformedMovies);
+                invokeModel(`tell about this movie: "${row.title}". keep it short and pithy.`).then((resp) => {
+                    console.log(`Response:`, resp);
+                    transformedMovies[row.actualIndex][5] = resp;
 
                     // Re-render the table with updated data
                     grid.updateConfig({ data: transformedMovies }).forceRender();
                 });
 
-                invokeModel(`consider this movie: "${row.title}". what year was it released. return just the 4 digit year.`).then( resp => {
-                    console.log(`resp:`, resp);
-                    const  saveResp = resp;
-                    console.log(transformedMovies);
-                    transformedMovies[i][3]=saveResp;
-                    console.log(transformedMovies);
+                invokeModel(`consider this movie: "${row.title}". what year was it released. return just the 4 digit year.`).then((resp) => {
+                    console.log(`Response:`, resp);
+                    transformedMovies[row.actualIndex][3] = resp;
 
                     // Re-render the table with updated data
                     grid.updateConfig({ data: transformedMovies }).forceRender();
                 });
 
-                invokeModel(`consider this movie: "${row.title}. What is its Rotten Tomatoes percentage rating. Report the critics percentage as a two digit number.`).then( resp => {
-                    console.log(`resp:`, resp);
-                    const  saveResp = resp;
-                    console.log(transformedMovies);
-                    transformedMovies[i][4]=saveResp;
-                    console.log(transformedMovies);
+                invokeModel(`consider this movie: "${row.title}". What is its Rotten Tomatoes percentage rating. Report the critics percentage as a two-digit number.`).then((resp) => {
+                    console.log(`Response:`, resp);
+                    transformedMovies[row.actualIndex][4] = resp;
 
                     // Re-render the table with updated data
                     grid.updateConfig({ data: transformedMovies }).forceRender();
                 });
 
-
-
-                // Perform any specific action with each row here
-                // Example: Show data in the console
-
-                // selectedRows.forEach((rowIndex) => {
-                //     movies[rowIndex][3] = "Updated Genre"; // Update the Genre column (index 3)
-                // });
-
-                selectedRows.forEach((row, rowIndex) => {
-                    // row[rowIndex][3] = "Updated Genre"; // Update the Genre column (index 3)
-                    row.info1 = "Updated info"; // Update the Genre column (index 3)
-                });
-
-
-
-
+                // Example of updating a specific field
+                row.info1 = "Updated info"; // Update a custom field in the row
             });
 
             // Alert the user with the summary of selected rows
-
-
             alert("Selected Rows:\n" + JSON.stringify(selectedRows, null, 2));
         }
     });
+
+
 
     // Handle clickable titles
     document.getElementById("movieTable").addEventListener("click", (event) => {
@@ -372,8 +429,25 @@
                 // Extract row data by traversing cells
                 const cells = Array.from(rowElement.querySelectorAll("td"));
                 const rowData = cells.map(cell => cell.textContent.trim());
+                const title = encodeURIComponent(rowData[2]);
 
                 alert(`You clicked on: ${title}\nFull Row: ${JSON.stringify(rowData)}`);
+
+                // Construct the URL with query parameters
+                // const title = encodeURIComponent(rowData[0][2]);
+                // const releaseYear = encodeURIComponent(rowData.releaseYear);
+                // const url = `https://faw106.html?title=${title}&year=${releaseYear}`;
+                const url = `https://faw106.html?title=${title}`;
+
+
+                alert(`url: ${url}`);
+
+
+                // Update the hidden anchor and simulate a click
+                const link = document.getElementById("navigateToDetails");
+                link.href = url;
+                link.click();
+
             }
         }
     });

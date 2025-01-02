@@ -1,10 +1,493 @@
 <!DOCTYPE html>
+
+<!--WhatIsThis:
+
+    AI movie gridjs table
+
+** faw105 builds on faw98 and 104 and 105 **
+
+-->
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Movie Details</title>
+    <link href="https://unpkg.com/gridjs/dist/theme/mermaid.min.css" rel="stylesheet" />
+    <script src="https://unpkg.com/gridjs/dist/gridjs.umd.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .gridjs-wrapper {
+            margin-top: 20px;
+            border: 2px solid #ccc;
+        }
+        button {
+            margin-right: 10px;
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+        .clickable-title {
+            color: blue;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        #responseText {
+            white-space: pre-wrap;
+            overflow-y: auto;
+            max-height: 300px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+    </style>
 </head>
 <body>
+<h1>Movie Details</h1>
 
+<form id="inputForm">
+    <label for="userInput">Enter your text:</label><br>
+    <textarea id="userInput" rows="4" cols="50" placeholder="Type something..."></textarea><br><br>
+
+
+    <button type="submit">Submit</button>
+</form>
+
+<label for="modelSelect">Choose a model:</label><br>
+<select id="modelSelect">
+    <option value="gpt-4">GPT-4</option>
+    <option value="gpt-3.5-turbo">GPT-3.5-Turbo</option>
+    <option value="gpt-4o">GPT-4o</option>
+    <option value="gpt-4o-mini">GPT-4o-mini</option>
+    <option value="o1-preview">o1-preview</option>
+    <option value="o1-mini">o1-mini</option>
+</select><br><br>
+
+<div id="response">
+    <h2>Response:</h2>
+    <pre id="responseText">No response yet.</pre>
+</div>
+
+<script src="js/util1.js"></script>
+
+<script>
+
+    // model: 'gpt-4o',
+
+    const params = new URLSearchParams(window.location.search);
+
+    // Set text area
+    const titleParam = params.get('title');
+    if (titleParam) {
+        document.getElementById('userInput').value = decodeURIComponent(titleParam);
+    }
+
+    // Set model selection
+    const modelParam = params.get('model');
+    if (modelParam) {
+        const modelSelect = document.getElementById('modelSelect');
+        const options = Array.from(modelSelect.options);
+        const isValidOption = options.some(option => option.value === modelParam);
+        if (isValidOption) {
+            modelSelect.value = modelParam;
+        }
+    }
+
+    // Attach the form submit handler
+    const form = document.getElementById('inputForm');
+    form.addEventListener('submit', handleSubmit);
+
+
+    async function handleSubmit(event) {
+        if (event) event.preventDefault(); // Prevent default form submission behavior
+        const userInput = document.getElementById('userInput').value;
+
+
+        invokeModel(`tell about this movie: "${userInput}". keep it short and pithy.`).then((resp) => {
+            console.log(`Response:`, resp);
+            const responseText = document.getElementById('responseText');
+            responseText.textContent = resp;
+
+            // transformedMovies[row.actualIndex][5] = resp;
+            //
+            // // Re-render the table with updated data
+            // grid.updateConfig({ data: transformedMovies }).forceRender();
+        });
+
+    }
+
+    async function invokeModel(prompt) {
+        // try {
+        // const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        const selectedModel = document.getElementById('modelSelect').value;
+        console.log(`selectedModel: ${selectedModel}`);
+        const response =  await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                "Authorization": `Bearer ${calcResults()}` // Replace with your API key
+            },
+            body: JSON.stringify({
+                model: selectedModel,
+                messages: [{role: 'user', content: prompt}]
+            })
+        })
+        // }
+
+        // alert(`response: ${response}`);
+
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.statusText}`);
+        }
+
+        // const data = await response.json();
+        const data =  await response.json();
+        const gptResponse = data.choices[0].message.content;
+        responseText = gptResponse;
+        // alert(`responseText: ${responseText}`);
+
+        // } catch (error) {
+        //     responseText = `Error: ${error.message}`;
+        // };
+        return responseText;
+    };
+
+    // Helper function to find movie titles using OpenAI
+    function findMovieTitles(inputText, apiKey) {
+        // async function findMovieTitles(inputText, apiKey) {
+        const apiKey2 = `${calcResults()}`; // Replace with your API key
+        // const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        const response = fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${apiKey2}`
+            },
+            body: JSON.stringify({
+                model: "gpt-3.5-turbo",
+                messages: [
+                    {role: "system", content: 'Identify all movie titles in the given text.'},
+                    {
+                        role: "user",
+                        content: `Extract movie titles from the following text:\n${inputText}.
+                    list each title on a seperate line. Do not number the results, just the title please.
+                    no extranious punctuation. no leading hyphen.
+                    Do not include "The movie title in the given text is" in the output, just the title.
+                    double check your work.`
+                    }
+                ],
+                max_tokens: 200
+            })
+        });
+    };
+
+    // http://localhost:63342/faw987.github.io/faw105.html?_ijt=ptg30b3u5eir978i8n4tblt263?movietitlelist=dune,1984,wicked
+    // http://faw987.github.io/faw105.html?movietitlelist=dune,1984,wicked
+
+    // const params = new URLSearchParams(window.location.search);
+    // alert(params);
+
+    // Set text area
+    // const movieTitleList = params.get('movietitlelist');
+    // alert(movieTitleList);
+    // if (movieTitleList) {
+    //     document.getElementById('userInput').value = decodeURIComponent(textParam);
+    // }
+
+    //     // Original data: [ID, Title, Year, Genre]
+    // let movies = [
+    //     [1, "The Matrix", 1999, "Sci-Fi"],
+    //     [2, "Inception", 2010, "Action"],
+    //     [3, "The Godfather", 1972, "Crime"],
+    // ];
+
+    function convertToMoviesStructure(commaSeparatedTitles) {
+        // Split the input string into an array of titles
+        const titles = commaSeparatedTitles.split(",").map(title => title.trim());
+
+        // Map titles to the desired structure
+        const movies = titles.map((title, index) => [
+            index + 1,   // Sequential ID
+            title,       // Movie title
+            1999,        // Default year
+            "Other"      // Default genre
+        ]);
+
+        return movies;
+    }
+
+    // Example usage
+    // const input = "The Matrix, Inception, The Godfather";
+    // const movies = convertToMoviesStructure(movieTitleList);
+
+    // console.log(movies);
+
+    // Transform movies to include placeholder for Select column
+    function transformMovies(movies) {
+        return movies.map(row => [null, ...row]);
+    }
+
+    // const transformedMovies = transformMovies(movies);
+
+    // Create a Grid.js instance
+    // const grid = new gridjs.Grid({
+    //     columns: [
+    //         {
+    //             name: "Select",
+    //             sort: false,
+    //             width: "60px",
+    //             formatter: (_, row) => {
+    //                 const rowData = {
+    //                     id: row.cells[1].data, // Skip Select column (index 0)
+    //                     title: row.cells[2].data, // Title (index 1 in data)
+    //                     year: row.cells[3].data, // Year (index 2 in data)
+    //                     genre: row.cells[4].data, // Genre (index 3 in data)
+    //                     info1: row.cells[5].data, // Info1 (index 3 in data)
+    //                 };
+    //                 return gridjs.html(`
+    //                     <input
+    //                         type="checkbox"
+    //                         class="row-select"
+    //                         data-row='${JSON.stringify(rowData)}'
+    //                     />
+    //                 `);
+    //             },
+    //         },
+    //         { name: "ID", width: "50px" },
+    //         {
+    //             name: "Title",
+    //             formatter: (cell) => gridjs.html(`<span class="clickable-title">${cell}</span>`),
+    //         },
+    //         { name: "Year", width: "80px" },
+    //         { name: "Genre" },
+    //         { name: "Info1" },
+    //     ],
+    //     data: transformedMovies,
+    //     style: {
+    //         td: {
+    //             border: '1px solid #ccc'
+    //         },
+    //         table: {
+    //             'font-size': '15px'
+    //         }
+    //     },
+    //     search: true,
+    //     sort: true,
+    //     pagination: {
+    //         enabled: true,
+    //         limit: 5,
+    //     },
+    // }).render(document.getElementById("movieTable"));
+
+    // Add a random movie
+    // document.getElementById("addRow").addEventListener("click", () => {
+    //     const randomMovies = [
+    //         [4, "Pulp Fiction", 1994, "Crime"],
+    //         [5, "Interstellar", 2014, "Sci-Fi"],
+    //         [6, "The Dark Knight", 2008, "Action"],
+    //     ];
+    //
+    //     const randomMovie = randomMovies[Math.floor(Math.random() * randomMovies.length)];
+    //     movies.push(randomMovie);
+    //
+    //     // Update transformed data
+    //     const updatedMovies = transformMovies(movies);
+    //
+    //     // Re-render with updated data
+    //     grid.updateConfig({ data: updatedMovies }).forceRender();
+    // });
+
+    // Select all rows
+    // document.getElementById("selectAll").addEventListener("click", () => {
+    //     document.querySelectorAll(".row-select").forEach((checkbox) => {
+    //         checkbox.checked = true;
+    //     });
+    // });
+
+    // Deselect all rows
+    // document.getElementById("deselectAll").addEventListener("click", () => {
+    //     document.querySelectorAll(".row-select").forEach((checkbox) => {
+    //         checkbox.checked = false;
+    //     });
+    // });
+
+    // // Show selected rows
+    // document.getElementById("showSelected").addEventListener("click", () => {
+    //     const selectedRows = [];
+    //     document.querySelectorAll(".row-select:checked").forEach((checkbox) => {
+    //         const rowData = JSON.parse(checkbox.dataset.row);
+    //         selectedRows.push(rowData);
+    //     });
+    //
+    //     if (selectedRows.length === 0) {
+    //         alert("No rows selected!");
+    //     } else {
+    //
+    //         // Example of iterating over the selectedRows array
+    //         selectedRows.forEach((row, index) => {
+    //             console.log(`Row ${index + 1}:`, row);
+    //             console.log(`Row.title:`, row.title);
+    //
+    //             //
+    //             // fetchSomeData().then(response => {
+    //             //     x[1][1] = response; // Store the resolved value
+    //             //     console.log("Updated row:", x);
+    //             // });
+    //
+    //             const i = row.id-1;           // HACK HACK HACK - reconsider it   hack hack
+    //
+    //             // res=invokeModel(`tell about this movie: ${row.title}`);
+    //             invokeModel(`tell about this movie: "${row.title}". keep it short and pithy.`).then( resp => {
+    //                 console.log(`resp:`, resp);
+    //                 const  saveResp = resp;
+    //                 console.log(transformedMovies);
+    //                 transformedMovies[i][5]=saveResp;
+    //                 console.log(transformedMovies);
+    //
+    //                 // Re-render the table with updated data
+    //                 grid.updateConfig({ data: transformedMovies }).forceRender();
+    //             });
+    //
+    //             invokeModel(`consider this movie: "${row.title}". what year was it released. return just the 4 digit year.`).then( resp => {
+    //                 console.log(`resp:`, resp);
+    //                 const  saveResp = resp;
+    //                 console.log(transformedMovies);
+    //                 transformedMovies[i][3]=saveResp;
+    //                 console.log(transformedMovies);
+    //
+    //                 // Re-render the table with updated data
+    //                 grid.updateConfig({ data: transformedMovies }).forceRender();
+    //             });
+    //
+    //             invokeModel(`consider this movie: "${row.title}. What is its Rotten Tomatoes percentage rating. Report the critics percentage as a two digit number.`).then( resp => {
+    //                 console.log(`resp:`, resp);
+    //                 const  saveResp = resp;
+    //                 console.log(transformedMovies);
+    //                 transformedMovies[i][4]=saveResp;
+    //                 console.log(transformedMovies);
+    //
+    //                 // Re-render the table with updated data
+    //                 grid.updateConfig({ data: transformedMovies }).forceRender();
+    //             });
+    //
+    //
+    //
+    //             // Perform any specific action with each row here
+    //             // Example: Show data in the console
+    //
+    //             // selectedRows.forEach((rowIndex) => {
+    //             //     movies[rowIndex][3] = "Updated Genre"; // Update the Genre column (index 3)
+    //             // });
+    //
+    //             selectedRows.forEach((row, rowIndex) => {
+    //                 // row[rowIndex][3] = "Updated Genre"; // Update the Genre column (index 3)
+    //                 row.info1 = "Updated info"; // Update the Genre column (index 3)
+    //             });
+    //
+    //
+    //
+    //
+    //         });
+    //
+    //         // Alert the user with the summary of selected rows
+    //
+    //
+    //         alert("Selected Rows:\n" + JSON.stringify(selectedRows, null, 2));
+    //     }
+    // });
+
+
+    // Show selected rows
+    // document.getElementById("showSelected").addEventListener("click", () => {
+    //     const tableRows = document.querySelectorAll("table tbody tr"); // Adjust selector based on your table's structure
+    //     const selectedRows = [];
+    //
+    //     tableRows.forEach((row, rowIndex) => {
+    //         const checkbox = row.querySelector(".row-select");
+    //         if (checkbox && checkbox.checked) {
+    //             const rowData = JSON.parse(checkbox.dataset.row);
+    //             selectedRows.push({ ...rowData, actualIndex: rowIndex }); // Include actual row index
+    //         }
+    //     });
+    //
+    //     if (selectedRows.length === 0) {
+    //         alert("No rows selected!");
+    //     } else {
+    //         // Process each selected row
+    //         selectedRows.forEach((row) => {
+    //             console.log(`Processing Row at index ${row.actualIndex}:`, row);
+    //             console.log(`Row.title:`, row.title);
+    //
+    //             invokeModel(`tell about this movie: "${row.title}". keep it short and pithy.`).then((resp) => {
+    //                 console.log(`Response:`, resp);
+    //                 transformedMovies[row.actualIndex][5] = resp;
+    //
+    //                 // Re-render the table with updated data
+    //                 grid.updateConfig({ data: transformedMovies }).forceRender();
+    //             });
+    //
+    //             invokeModel(`consider this movie: "${row.title}". what year was it released. return just the 4 digit year.`).then((resp) => {
+    //                 console.log(`Response:`, resp);
+    //                 transformedMovies[row.actualIndex][3] = resp;
+    //
+    //                 // Re-render the table with updated data
+    //                 grid.updateConfig({ data: transformedMovies }).forceRender();
+    //             });
+    //
+    //             invokeModel(`consider this movie: "${row.title}". What is its Rotten Tomatoes percentage rating. Report the critics percentage as a two-digit number.`).then((resp) => {
+    //                 console.log(`Response:`, resp);
+    //                 transformedMovies[row.actualIndex][4] = resp;
+    //
+    //                 // Re-render the table with updated data
+    //                 grid.updateConfig({ data: transformedMovies }).forceRender();
+    //             });
+    //
+    //             // Example of updating a specific field
+    //             row.info1 = "Updated info"; // Update a custom field in the row
+    //         });
+    //
+    //         // Alert the user with the summary of selected rows
+    //         alert("Selected Rows:\n" + JSON.stringify(selectedRows, null, 2));
+    //     }
+    // });
+
+
+
+    // Handle clickable titles
+    // document.getElementById("movieTable").addEventListener("click", (event) => {
+    //     if (event.target.classList.contains("clickable-title")) {
+    //         const title = event.target.textContent;
+    //
+    //         // Traverse up the DOM to find the corresponding row
+    //         const rowElement = event.target.closest("tr");
+    //
+    //         if (rowElement) {
+    //             // Extract row data by traversing cells
+    //             const cells = Array.from(rowElement.querySelectorAll("td"));
+    //             const rowData = cells.map(cell => cell.textContent.trim());
+    //             const title = encodeURIComponent(rowData[2]);
+    //
+    //             alert(`You clicked on: ${title}\nFull Row: ${JSON.stringify(rowData)}`);
+    //
+    //             // Construct the URL with query parameters
+    //             // const title = encodeURIComponent(rowData[0][2]);
+    //             // const releaseYear = encodeURIComponent(rowData.releaseYear);
+    //             // const url = `https://faw106.html?title=${title}&year=${releaseYear}`;
+    //             const url = `https://faw106.html?title=${title}`;
+    //
+    //
+    //             alert(`url: ${url}`);
+    //
+    //
+    //             // Update the hidden anchor and simulate a click
+    //             const link = document.getElementById("navigateToDetails");
+    //             link.href = url;
+    //             link.click();
+    //
+    //         }
+    //     }
+    // });
+</script>
 </body>
 </html>
