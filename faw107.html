@@ -190,11 +190,10 @@
             },
             { name: "ID", width: "50px" },
             {
-                name: "Title",
+                name: "Actor",
                 formatter: (cell) => gridjs.html(`<span class="clickable-title">${cell}</span>`),
             },
-            { name: "Year", width: "80px" },
-            { name: "Genre" },
+            { name: "Years", width: "80px" },
             { name: "Info1" },
         ],
         data: transformedMovies,
@@ -304,7 +303,8 @@
                 // Extract row data by traversing cells
                 const cells = Array.from(rowElement.querySelectorAll("td"));
                 const rowData = cells.map(cell => cell.textContent.trim());
-                const title = encodeURIComponent(rowData[2]);
+                // const title = encodeURIComponent(rowData[2]);
+                const actor = encodeURIComponent(rowData[2]);
 
                 // alert(`You clicked on: ${title}\nFull Row: ${JSON.stringify(rowData)}`);
 
@@ -312,8 +312,7 @@
                 // const title = encodeURIComponent(rowData[0][2]);
                 // const releaseYear = encodeURIComponent(rowData.releaseYear);
                 // const url = `https://faw106.html?title=${title}&year=${releaseYear}`;
-
-                const url = `https://faw987.github.io/faw106.html?title=${title}`;
+                const url = `https://faw987.github.io/faw108.html?actor=${actor}`;
 
                 // alert(`url: ${url}`);
 

@@ -188,14 +188,15 @@
                     `);
                 },
             },
-            { name: "ID", width: "50px" },
+            { name: "ID", width: "50px", hidden: true },
             {
                 name: "Title",
                 formatter: (cell) => gridjs.html(`<span class="clickable-title">${cell}</span>`),
             },
             { name: "Year", width: "80px" },
-            { name: "Genre" },
+            { name: "Rating" },
             { name: "Info1" },
+            { name: "Stars" },
         ],
         data: transformedMovies,
         style: {
