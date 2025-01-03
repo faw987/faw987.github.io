@@ -306,6 +306,20 @@
                     grid.updateConfig({ data: transformedMovies }).forceRender();
                 });
 
+                p = `consider this movie: "${row.title}".
+                list the top actors and actresses in the film.
+                one actor/actress per line.
+                no additional punctionation.`;
+
+                invokeModel(p).then((resp) => {
+                    console.log(`Response:`, resp);
+                    transformedMovies[row.actualIndex][6] = resp;
+
+                    // Re-render the table with updated data
+                    grid.updateConfig({ data: transformedMovies }).forceRender();
+                });
+
+
                 // Example of updating a specific field
                 row.info1 = "Updated info"; // Update a custom field in the row
             });
