@@ -343,7 +343,8 @@
                 // Extract row data by traversing cells
                 const cells = Array.from(rowElement.querySelectorAll("td"));
                 const rowData = cells.map(cell => cell.textContent.trim());
-                const title = encodeURIComponent(rowData[2]);
+                // const title = encodeURIComponent(rowData[2]);
+                const title = encodeURIComponent(rowData[1]);
 
                 // alert(`You clicked on: ${title}\nFull Row: ${JSON.stringify(rowData)}`);
 
