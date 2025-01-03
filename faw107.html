@@ -179,7 +179,7 @@
                     const rowData = {
                         id: row.cells[1].data, // Skip Select column (index 0)
                         actor: row.cells[2].data, // Title (index 1 in data)
-                        // years: row.cells[3].data, // Year (index 2 in data)
+                        years: row.cells[3].data, // Year (index 2 in data)
                         // genre: row.cells[4].data, // Genre (index 3 in data)
                         // info1: row.cells[5].data, // Info1 (index 3 in data)
                     };
@@ -251,9 +251,9 @@
             // Process each selected row
             selectedRows.forEach((row) => {
                 console.log(`Processing Row at index ${row.actualIndex}:`, row);
-                console.log(`Row.title:`, row.title);
+                console.log(`Row.actor:`, row.actor);
 
-                invokeModel(`tell about this actor: "${row.title}". keep it short and pithy.`).then((resp) => {
+                invokeModel(`tell about this actor: "${row.actor}". keep it short and pithy.`).then((resp) => {
                     console.log(`Response:`, resp);
                     transformedMovies[row.actualIndex][5] = resp;
 
@@ -261,7 +261,7 @@
                     grid.updateConfig({ data: transformedMovies }).forceRender();
                 });
 
-                invokeModel(`consider this actor: "${row.title}". what years this actor active? return just the 4 digit year.`).then((resp) => {
+                invokeModel(`consider this actor: "${row.actor}". what years this actor active? return just the 4 digit year.`).then((resp) => {
                     console.log(`Response:`, resp);
                     transformedMovies[row.actualIndex][3] = resp;
 
@@ -269,7 +269,7 @@
                     grid.updateConfig({ data: transformedMovies }).forceRender();
                 });
 
-                p = `consider this actor: "${row.title}".
+                p = `consider this actor: "${row.actor}".
                 What is its Rotten Tomatoes percentage rating.
                     Report the critics percentage as a two-digit number.
                     examples:
