@@ -270,7 +270,15 @@
                     grid.updateConfig({ data: transformedMovies }).forceRender();
                 });
 
-                invokeModel(`consider this movie: "${row.title}". What is its Rotten Tomatoes percentage rating. Report the critics percentage as a two-digit number.`).then((resp) => {
+                p = `consider this movie: "${row.title}".
+                What is its Rotten Tomatoes percentage rating.
+                    Report the critics percentage as a two-digit number.
+                    examples:
+                        the movie has a Rotten Tomatoes critics' percentage rating of **23**. => 23
+                        has a **48%** rating on Rotten Tomatoes based on critics' reviews => 48
+                        no movie titled **"Much-Binding-in-the-Marsh"** listed on Rotten Tomatoes => NA`;
+
+                invokeModel(p).then((resp) => {
                     console.log(`Response:`, resp);
                     transformedMovies[row.actualIndex][4] = resp;
 
