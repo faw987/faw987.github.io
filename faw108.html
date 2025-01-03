@@ -78,9 +78,9 @@
   const params = new URLSearchParams(window.location.search);
 
   // Set text area
-  const titleParam = params.get('title');
-  if (titleParam) {
-    document.getElementById('userInput').value = decodeURIComponent(titleParam);
+  const actorParam = params.get('actor');
+  if (actorParam) {
+    document.getElementById('userInput').value = decodeURIComponent(actorParam);
   }
 
   // Set model selection
