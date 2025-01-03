@@ -254,7 +254,7 @@
                 console.log(`Processing Row at index ${row.actualIndex}:`, row);
                 console.log(`Row.title:`, row.title);
 
-                invokeModel(`tell about this movie: "${row.title}". keep it short and pithy.`).then((resp) => {
+                invokeModel(`tell about this actor: "${row.title}". keep it short and pithy.`).then((resp) => {
                     console.log(`Response:`, resp);
                     transformedMovies[row.actualIndex][5] = resp;
 
@@ -262,7 +262,7 @@
                     grid.updateConfig({ data: transformedMovies }).forceRender();
                 });
 
-                invokeModel(`consider this movie: "${row.title}". what year was it released. return just the 4 digit year.`).then((resp) => {
+                invokeModel(`consider this actor: "${row.title}". what years this actor active? return just the 4 digit year.`).then((resp) => {
                     console.log(`Response:`, resp);
                     transformedMovies[row.actualIndex][3] = resp;
 
@@ -270,7 +270,7 @@
                     grid.updateConfig({ data: transformedMovies }).forceRender();
                 });
 
-                p = `consider this movie: "${row.title}".
+                p = `consider this actor: "${row.title}".
                 What is its Rotten Tomatoes percentage rating.
                     Report the critics percentage as a two-digit number.
                     examples:
