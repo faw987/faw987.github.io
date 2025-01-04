@@ -2,7 +2,9 @@
 
 <!--WhatIsThis:
 
-    AI movie gridjs table - for list of ACTORs
+    table of ACTORs
+
+    Uses URL parameter, e.g., : movieActorlist="Peter Sellers, Paul Neuman"
 
 ** faw105 builds on faw98 and 104 and 105 **
 
@@ -261,31 +263,14 @@
                 console.log(`Processing Row at index ${row.actualIndex}:`, row);
                 console.log(`Row.actor:`, row.actor);
 
-                // invokeModel(`tell about this actor: "${row.actor}". keep it short and pithy.`).then((resp) => {
-                //     invokeModel(`tell about this actor: "${row.actor}". keep it short and pithy.`).then((resp) => {
-                //         console.log(`Response:`, resp);
-                //         transformedMovies[row.actualIndex][5] = resp;
-                //
-                //         // Re-render the table with updated data
-                //         grid.updateConfig({ data: transformedMovies }).forceRender();
-                //     });
-                // }
-
                 p = `tell about this actor: "${row.actor}". keep it short and pithy.`;
 
                 updateTableFromModel(row,5,p);
 
+                p = `consider this actor: "${row.actor}". what years this actor active? return just the 4 digit year.
+                whenever possible combine adjacent years into a range of years.
+                so, e.g., 1990,1991,1992,1993, 1997 should display as: 1990-1993, 1997`;
 
-
-                // invokeModel(`consider this actor: "${row.actor}". what years this actor active? return just the 4 digit year.`).then((resp) => {
-                //     console.log(`Response:`, resp);
-                //     transformedMovies[row.actualIndex][3] = resp;
-                //
-                //     // Re-render the table with updated data
-                //     grid.updateConfig({ data: transformedMovies }).forceRender();
-                // });
-
-                p = `consider this actor: "${row.actor}". what years this actor active? return just the 4 digit year.`;
                 updateTableFromModel(row,3,p);
 
 
@@ -297,16 +282,19 @@
                         has a **48%** rating on Rotten Tomatoes based on critics' reviews => 48
                         no movie titled **"Much-Binding-in-the-Marsh"** listed on Rotten Tomatoes => NA`;
 
-                invokeModel(p).then((resp) => {
-                    console.log(`Response:`, resp);
-                    transformedMovies[row.actualIndex][4] = resp;
+                // invokeModel(p).then((resp) => {
+                //     console.log(`Response:`, resp);
+                //     transformedMovies[row.actualIndex][4] = resp;
+                //
+                //     // Re-render the table with updated data
+                //     grid.updateConfig({ data: transformedMovies }).forceRender();
+                // });
 
-                    // Re-render the table with updated data
-                    grid.updateConfig({ data: transformedMovies }).forceRender();
-                });
+                updateTableFromModel(row,4,p);
+
 
                 // Example of updating a specific field
-                row.info1 = "Updated info"; // Update a custom field in the row
+                row.info1 = "info information."; // Update a custom field in the row
             });
 
             // Alert the user with the summary of selected rows
@@ -328,18 +316,9 @@
                 // Extract row data by traversing cells
                 const cells = Array.from(rowElement.querySelectorAll("td"));
                 const rowData = cells.map(cell => cell.textContent.trim());
-                // const title = encodeURIComponent(rowData[2]);
                 const actor = encodeURIComponent(rowData[2]);
 
-                // alert(`You clicked on: ${title}\nFull Row: ${JSON.stringify(rowData)}`);
-
-                // Construct the URL with query parameters
-                // const title = encodeURIComponent(rowData[0][2]);
-                // const releaseYear = encodeURIComponent(rowData.releaseYear);
-                // const url = `https://faw106.html?title=${title}&year=${releaseYear}`;
                 const url = `https://faw987.github.io/faw108.html?actor=${actor}`;
-
-                // alert(`url: ${url}`);
 
                 // Update the hidden anchor and simulate a click
                 const link = document.getElementById("navigateToDetails");
