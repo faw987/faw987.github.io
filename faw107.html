@@ -132,6 +132,15 @@
         });
     };
 
+    function updateTableFromModel(tableIndex,prompt) {
+        transformedMovies[row.actualIndex][tableIndex] = "Obtaining information.";
+        invokeModel(prompt).then((resp) => {
+            console.log(`Table Index: ${tableIndex},  Response: ${resp}.`);
+            transformedMovies[row.actualIndex][tableIndex] = resp;
+            grid.updateConfig({ data: transformedMovies }).forceRender();
+        });
+    }
+
     // http://localhost:63342/faw987.github.io/faw105.html?_ijt=ptg30b3u5eir978i8n4tblt263?movietitlelist=dune,1984,wicked
     // http://faw987.github.io/faw105.html?movietitlelist=dune,1984,wicked
 
@@ -252,21 +261,33 @@
                 console.log(`Processing Row at index ${row.actualIndex}:`, row);
                 console.log(`Row.actor:`, row.actor);
 
-                invokeModel(`tell about this actor: "${row.actor}". keep it short and pithy.`).then((resp) => {
-                    console.log(`Response:`, resp);
-                    transformedMovies[row.actualIndex][5] = resp;
+                // invokeModel(`tell about this actor: "${row.actor}". keep it short and pithy.`).then((resp) => {
+                //     invokeModel(`tell about this actor: "${row.actor}". keep it short and pithy.`).then((resp) => {
+                //         console.log(`Response:`, resp);
+                //         transformedMovies[row.actualIndex][5] = resp;
+                //
+                //         // Re-render the table with updated data
+                //         grid.updateConfig({ data: transformedMovies }).forceRender();
+                //     });
+                // }
 
-                    // Re-render the table with updated data
-                    grid.updateConfig({ data: transformedMovies }).forceRender();
-                });
+                p = `tell about this actor: "${row.actor}". keep it short and pithy.`);
 
-                invokeModel(`consider this actor: "${row.actor}". what years this actor active? return just the 4 digit year.`).then((resp) => {
-                    console.log(`Response:`, resp);
-                    transformedMovies[row.actualIndex][3] = resp;
+                updateTableFromModel(5,p);
 
-                    // Re-render the table with updated data
-                    grid.updateConfig({ data: transformedMovies }).forceRender();
-                });
+
+
+                // invokeModel(`consider this actor: "${row.actor}". what years this actor active? return just the 4 digit year.`).then((resp) => {
+                //     console.log(`Response:`, resp);
+                //     transformedMovies[row.actualIndex][3] = resp;
+                //
+                //     // Re-render the table with updated data
+                //     grid.updateConfig({ data: transformedMovies }).forceRender();
+                // });
+
+                p = `consider this actor: "${row.actor}". what years this actor active? return just the 4 digit year.`;
+                updateTableFromModel(3,p);
+
 
                 p = `consider this actor: "${row.actor}".
                 What is its Rotten Tomatoes percentage rating.
