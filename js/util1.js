@@ -20,6 +20,17 @@ function calcResults() {
     return pp1;
 }
 
+
+function updateTableFromModel(row,tableIndex,prompt) {
+    transformedMovies[row.actualIndex][tableIndex] = "Obtaining information.";
+    invokeModel(prompt).then((resp) => {
+        console.log(`Table Index: ${tableIndex},  Response: ${resp}.`);
+        transformedMovies[row.actualIndex][tableIndex] = resp;
+        grid.updateConfig({ data: transformedMovies }).forceRender();
+    });
+}
+
+
 //
 //
 //

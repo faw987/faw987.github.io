@@ -4,7 +4,7 @@
 
     table of ACTORs
 
-    Uses URL parameter, e.g., : movieActorlist="Peter Sellers, Paul Neuman"
+    Uses URL parameter, e.g., : &movieActorlist=Peter Sellers, Paul Neuman
 
 ** faw105 builds on faw98 and 104 and 105 **
 
@@ -133,15 +133,15 @@
             })
         });
     };
-
-    function updateTableFromModel(row,tableIndex,prompt) {
-        transformedMovies[row.actualIndex][tableIndex] = "Obtaining information.";
-        invokeModel(prompt).then((resp) => {
-            console.log(`Table Index: ${tableIndex},  Response: ${resp}.`);
-            transformedMovies[row.actualIndex][tableIndex] = resp;
-            grid.updateConfig({ data: transformedMovies }).forceRender();
-        });
-    }
+    //
+    // function updateTableFromModel(row,tableIndex,prompt) {
+    //     transformedMovies[row.actualIndex][tableIndex] = "Obtaining information.";
+    //     invokeModel(prompt).then((resp) => {
+    //         console.log(`Table Index: ${tableIndex},  Response: ${resp}.`);
+    //         transformedMovies[row.actualIndex][tableIndex] = resp;
+    //         grid.updateConfig({ data: transformedMovies }).forceRender();
+    //     });
+    // }
 
     // http://localhost:63342/faw987.github.io/faw105.html?_ijt=ptg30b3u5eir978i8n4tblt263?movietitlelist=dune,1984,wicked
     // http://faw987.github.io/faw105.html?movietitlelist=dune,1984,wicked
@@ -264,15 +264,13 @@
                 console.log(`Row.actor:`, row.actor);
 
                 p = `tell about this actor: "${row.actor}". keep it short and pithy.`;
-
                 updateTableFromModel(row,5,p);
 
                 p = `consider this actor: "${row.actor}". what years this actor active? return just the 4 digit year.
                 whenever possible combine adjacent years into a range of years.
-                so, e.g., 1990,1991,1992,1993, 1997 should display as: 1990-1993, 1997`;
-
+                so, e.g., 1990,1991,1992,1993, 1997 should display as: 1990-1993, 1997.
+                return just dates and dae ranges. no extranious text or wording needed.`;
                 updateTableFromModel(row,3,p);
-
 
                 p = `consider this actor: "${row.actor}".
                 What is its Rotten Tomatoes percentage rating.
@@ -281,17 +279,7 @@
                         the movie has a Rotten Tomatoes critics' percentage rating of **23**. => 23
                         has a **48%** rating on Rotten Tomatoes based on critics' reviews => 48
                         no movie titled **"Much-Binding-in-the-Marsh"** listed on Rotten Tomatoes => NA`;
-
-                // invokeModel(p).then((resp) => {
-                //     console.log(`Response:`, resp);
-                //     transformedMovies[row.actualIndex][4] = resp;
-                //
-                //     // Re-render the table with updated data
-                //     grid.updateConfig({ data: transformedMovies }).forceRender();
-                // });
-
                 updateTableFromModel(row,4,p);
-
 
                 // Example of updating a specific field
                 row.info1 = "info information."; // Update a custom field in the row
@@ -301,7 +289,6 @@
             // alert("Selected Rows:\n" + JSON.stringify(selectedRows, null, 2));
         }
     });
-
 
 
     // Handle clickable titles
