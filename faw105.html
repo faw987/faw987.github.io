@@ -354,7 +354,15 @@
         tableRows.forEach((row, rowIndex) => {
             const checkbox = row.querySelector(".row-select");
             if (checkbox && checkbox.checked) {
-                console.log(`row: ${row}`)
+                console.log(`row: ${row}`);
+                // Get the first cell in the row
+                const firstCell = row.children[0];
+                console.log(firstCell.textContent);
+
+// Get the second cell
+                const secondCell = row.children[1];
+                console.log(secondCell.textContent);
+
                 const rowData = JSON.parse(checkbox.dataset.row);
                 selectedRows.push({ ...rowData, actualIndex: rowIndex }); // Include actual row index
             }
