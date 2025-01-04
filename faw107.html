@@ -38,7 +38,7 @@
     </style>
 </head>
 <body>
-<h1>Movie Table</h1>
+<h1>Actor Table</h1>
 <p>Select rows using checkboxes, click titles for alerts, and use the buttons for actions.</p>
 
 <label for="modelSelect">Choose a model:</label><br>
@@ -208,7 +208,7 @@
                 formatter: (cell) => gridjs.html(`<span class="clickable-title">${cell}</span>`),
             },
             { name: "Years", width: "80px" },
-            { name: "Rating" },
+            { name: "Movies" },
             { name: "Info1" },
         ],
         data: transformedMovies,
@@ -282,6 +282,11 @@
                 //         has a **48%** rating on Rotten Tomatoes based on critics' reviews => 48
                 //         no movie titled **"Much-Binding-in-the-Marsh"** listed on Rotten Tomatoes => NA`;
                 // updateTableFromModel(row,4,p);
+
+                p = `consider this actor: "${row.actor}".
+                List the top 10 movies this actor has appeared in.`;
+                updateTableFromModel(row,4,p);
+
 
                 // Example of updating a specific field
                 row.info1 = "info information."; // Update a custom field in the row
