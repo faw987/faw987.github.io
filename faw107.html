@@ -132,7 +132,7 @@
         });
     };
 
-    function updateTableFromModel(tableIndex,prompt) {
+    function updateTableFromModel(row,tableIndex,prompt) {
         transformedMovies[row.actualIndex][tableIndex] = "Obtaining information.";
         invokeModel(prompt).then((resp) => {
             console.log(`Table Index: ${tableIndex},  Response: ${resp}.`);
@@ -273,7 +273,7 @@
 
                 p = `tell about this actor: "${row.actor}". keep it short and pithy.`;
 
-                updateTableFromModel(5,p);
+                updateTableFromModel(row,5,p);
 
 
 
@@ -286,7 +286,7 @@
                 // });
 
                 p = `consider this actor: "${row.actor}". what years this actor active? return just the 4 digit year.`;
-                updateTableFromModel(3,p);
+                updateTableFromModel(row,3,p);
 
 
                 p = `consider this actor: "${row.actor}".
