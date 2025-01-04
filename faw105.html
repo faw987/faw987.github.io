@@ -73,6 +73,7 @@
 <button id="selectAll">Select All</button>
 <button id="deselectAll">Deselect All</button>
 <button id="showSelected">Show Selected Rows</button>
+<button id="speakSelected">Speak Selected Rows</button>
 <div id="movieTable"></div>
 
 <a id="navigateToDetails" style="display:none;" href="#" target="_blank">Go to Details</a>
@@ -338,6 +339,99 @@
 
                 // Example of updating a specific field
                 row.info1 = "Updated info"; // Update a custom field in the row
+            });
+
+            // Alert the user with the summary of selected rows
+            // alert("Selected Rows:\n" + JSON.stringify(selectedRows, null, 2));
+        }
+    });
+
+    // Show selected rows
+    document.getElementById("speakSelected").addEventListener("click", () => {
+        const tableRows = document.querySelectorAll("table tbody tr"); // Adjust selector based on your table's structure
+        const selectedRows = [];
+
+        tableRows.forEach((row, rowIndex) => {
+            const checkbox = row.querySelector(".row-select");
+            if (checkbox && checkbox.checked) {
+                const rowData = JSON.parse(checkbox.dataset.row);
+                selectedRows.push({ ...rowData, actualIndex: rowIndex }); // Include actual row index
+            }
+        });
+
+        if (selectedRows.length === 0) {
+            alert("No rows selected!");
+        } else {
+            // Process each selected row
+            selectedRows.forEach((row) => {
+                console.log(`Processing Row at index ${row.actualIndex}:`, row);
+                console.log(`Row.title:`, row.title);
+                console.log(`Row.info1:`, row.info1);
+                //
+                // p = `tell about this movie: "${row.title}". keep it short and pithy.`;
+                //
+                // // invokeModel(`tell about this movie: "${row.title}". keep it short and pithy.`).then((resp) => {
+                // //     console.log(`Response:`, resp);
+                // //     transformedMovies[row.actualIndex][5] = resp;
+                // //
+                // //     // Re-render the table with updated data
+                // //     grid.updateConfig({ data: transformedMovies }).forceRender();
+                // // });
+                //
+                // updateTableFromModel(row,5,p);
+                //
+                //
+                // p = `consider this movie: "${row.title}". what year was it released. return just the 4 digit year.`;
+                //
+                // // invokeModel(`consider this movie: "${row.title}". what year was it released. return just the 4 digit year.`).then((resp) => {
+                // //     console.log(`Response:`, resp);
+                // //     transformedMovies[row.actualIndex][3] = resp;
+                // //
+                // //     // Re-render the table with updated data
+                // //     grid.updateConfig({ data: transformedMovies }).forceRender();
+                // // });
+                //
+                // updateTableFromModel(row,3,p);
+                //
+                //
+                // p = `consider this movie: "${row.title}".
+                // What is its Rotten Tomatoes percentage rating.
+                //     Report the critics percentage as a two-digit number.
+                //     examples:
+                //         the movie has a Rotten Tomatoes critics' percentage rating of **23**. => 23
+                //         has a **48%** rating on Rotten Tomatoes based on critics' reviews => 48
+                //         no movie titled **"Much-Binding-in-the-Marsh"** listed on Rotten Tomatoes => NA
+                //         The movie "Dr. Strangelove" has a Rotten Tomatoes critics' percentage rating of **98** ==> 98`;
+                //
+                // // invokeModel(p).then((resp) => {
+                // //     console.log(`Response:`, resp);
+                // //     transformedMovies[row.actualIndex][4] = resp;
+                // //
+                // //     // Re-render the table with updated data
+                // //     grid.updateConfig({ data: transformedMovies }).forceRender();
+                // // });
+                //
+                // updateTableFromModel(row,4,p);
+                //
+                //
+                // p = `consider this movie: "${row.title}".
+                // list the top actors and actresses in the film.
+                // one actor/actress per line.
+                // no additional punctionation.`;
+                //
+                // // invokeModel(p).then((resp) => {
+                // //     console.log(`Response:`, resp);
+                // //     transformedMovies[row.actualIndex][6] = resp;
+                // //
+                // //     // Re-render the table with updated data
+                // //     grid.updateConfig({ data: transformedMovies }).forceRender();
+                // // });
+                //
+                // updateTableFromModel(row,6,p);
+                //
+                //
+                // // Example of updating a specific field
+                // row.info1 = "Updated info"; // Update a custom field in the row
             });
 
             // Alert the user with the summary of selected rows
