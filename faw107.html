@@ -272,14 +272,16 @@
                 return just dates and dae ranges. no extranious text or wording needed.`;
                 updateTableFromModel(row,3,p);
 
-                p = `consider this actor: "${row.actor}".
-                What is its Rotten Tomatoes percentage rating.
-                    Report the critics percentage as a two-digit number.
-                    examples:
-                        the movie has a Rotten Tomatoes critics' percentage rating of **23**. => 23
-                        has a **48%** rating on Rotten Tomatoes based on critics' reviews => 48
-                        no movie titled **"Much-Binding-in-the-Marsh"** listed on Rotten Tomatoes => NA`;
-                updateTableFromModel(row,4,p);
+                // no reatings for actors
+                //
+                // p = `consider this actor: "${row.actor}".
+                // What is its Rotten Tomatoes percentage rating.
+                //     Report the critics percentage as a two-digit number.
+                //     examples:
+                //         the movie has a Rotten Tomatoes critics' percentage rating of **23**. => 23
+                //         has a **48%** rating on Rotten Tomatoes based on critics' reviews => 48
+                //         no movie titled **"Much-Binding-in-the-Marsh"** listed on Rotten Tomatoes => NA`;
+                // updateTableFromModel(row,4,p);
 
                 // Example of updating a specific field
                 row.info1 = "info information."; // Update a custom field in the row
