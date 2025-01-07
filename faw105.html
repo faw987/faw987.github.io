@@ -220,6 +220,10 @@
 
     const movieTitleList = params.get('movietitlelist');
 
+    function removeChars(str) {
+        return str.replace(/['?]/g, '');
+    }
+
     function convertToMoviesStructure(commaSeparatedTitles) {
         // Split the input string into an array of titles
         const titles = commaSeparatedTitles.split(",").map(title => title.trim());
@@ -227,7 +231,7 @@
         // Map titles to the desired structure
         const movies = titles.map((title, index) => [
             index + 1,   // Sequential ID
-            title,       // Movie title
+            removeChars(title),       // Movie title
             "unknown",   // Default year
             "unknown"    // Default genre
         ]);
