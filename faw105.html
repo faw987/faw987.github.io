@@ -322,6 +322,7 @@
         tableRows.forEach((row, rowIndex) => {
             const checkbox = row.querySelector(".row-select");
             if (checkbox && checkbox.checked) {
+                console.log(`checkbox.dataset.row: "${checkbox.dataset.row}".`)
                 const rowData = JSON.parse(checkbox.dataset.row);
                 selectedRows.push({ ...rowData, actualIndex: rowIndex }); // Include actual row index
             }
