@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Render and Copy Page Content</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 10px;
+        }
+        #urlInput {
+            width: calc(100% - 20px);
+            padding: 10px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        #loadUrlButton, #copyButton {
+            padding: 10px;
+            background-color: #0078d7;
+            color: white;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        #loadUrlButton:hover, #copyButton:hover {
+            background-color: #005a9e;
+        }
+        iframe {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ccc;
+            margin-top: 20px;
+        }
+        #plainText {
+            width: calc(100% - 20px);
+            height: 200px;
+            margin-top: 20px;
+            padding: 10px;
+            font-size: 14px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+
+<body>
+<div>
+    <textarea id="textToSpeak" rows="5" cols="50" placeholder="Enter text here..."></textarea>
+</div>
+<div>
+    <label for="voiceSelect">Choose Voice:</label>
+    <select id="voiceSelect"></select>
+</div>
+<div>
+    <button id="startButton">Start</button>
+    <button id="pauseButton">Pause</button>
+    <button id="resumeButton">Resume</button>
+    <button id="stopButton">Stop</button>
+</div>
+</body>
+
+
+<script>
+
+    const synth = window.speechSynthesis;
+    const textArea = document.getElementById('textToSpeak');
+    const voiceSelect = document.getElementById('voiceSelect');
+    const startButton = document.getElementById('startButton');
+    const pauseButton = document.getElementById('pauseButton');
+    const resumeButton = document.getElementById('resumeButton');
+    const stopButton = document.getElementById('stopButton');
+
+    let utterance;
+    let voices = [];
+
+    // Populate voices when they are loaded
+    function populateVoices() {
+        voices = synth.getVoices();
+        voiceSelect.innerHTML = voices
+            .map((voice, index) => `<option value="${index}">${voice.name} (${voice.lang})</option>`)
+            .join('');
+    }
+
+    // Ensure voices are loaded
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = populateVoices;
+    } else {
+        populateVoices();
+    }
+
+    // Function to start speaking
+    document.getElementById("startButton").addEventListener('click', () => {
+        const text = textArea.value;
+        if (!text) {
+            alert("Please enter some text.");
+            return;
+        }
+
+        if (synth.speaking) {
+            synth.cancel();
+        }
+
+        utterance = new SpeechSynthesisUtterance(text);
+        const selectedVoice = voices[voiceSelect.value];
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+
+        utterance.onend = () => {
+            console.log("Speech finished.");
+        };
+
+        utterance.onerror = (e) => {
+            console.error("Speech error:", e);
+        };
+
+        synth.speak(utterance);
+    });
+
+    // Function to pause speaking
+    pauseButton.addEventListener('click', () => {
+        if (synth.speaking && !synth.paused) {
+            synth.pause();
+        }
+    });
+
+    // Function to resume speaking
+    resumeButton.addEventListener('click', () => {
+        if (synth.paused) {
+            synth.resume();
+        }
+    });
+
+    // Function to stop speaking
+    stopButton.addEventListener('click', () => {
+        if (synth.speaking) {
+            synth.cancel();
+        }
+    });
+
+
+</script>
