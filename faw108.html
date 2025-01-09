@@ -133,7 +133,10 @@
 
             render(responseText.textContent).then((res) => {
                 alert('yo rendered');
-                responseText.textContent = res;
+              // responseText.textContent = res;
+              responseText.innerHTML = res;
+                // preview.innerHTML = rendered;
+
             })
 
 
