@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Initial Title</title>
+</head>
+<body>
+<h1>Dynamic Title Test</h1>
+<button id="changeTitle">Change Title</button>
+
+<script>
+    document.getElementById("changeTitle").addEventListener("click", () => {
+        const newTitle = "Updated Title at " + new Date().toLocaleTimeString();
+        document.title = newTitle;
+        console.log("New Title Set:", newTitle); // Verify in console
+    });
+</script>
+</body>
+</html>
