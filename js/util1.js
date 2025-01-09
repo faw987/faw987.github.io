@@ -13,6 +13,10 @@ function calcResults() {
     return pp1;
 }
 
+function getAppName() {
+    return "Mr. Movie";
+}
+
 
 function updateTableFromModel(row,tableIndex,prompt) {
     transformedMovies[row.actualIndex][tableIndex] = "Obtaining information.";
