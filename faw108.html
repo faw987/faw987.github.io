@@ -72,6 +72,19 @@
 
 <script>
 
+  async function render(markdown) {
+    return (await fetch('https://api.github.com/markdown', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({'mode': 'markdown', 'text': markdown})
+    })).text();
+  }
+
+
+
+
   const params = new URLSearchParams(window.location.search);
 
   // Set text area
@@ -108,7 +121,16 @@
     invokeModel(myPrompt).then((resp) => {
       console.log(`Response:`, resp);
       responseText.textContent = resp;
+
+      let rendered = await render(responseText.textContent);
+      alert('yo');
+      responseText.textContent = resp;
+
+
     });
+
+
+
 
   }
 
