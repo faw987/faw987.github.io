@@ -69,6 +69,15 @@
 <script src="js/util1.js"></script>
 
 <script>
+
+    document.addEventListener("DOMContentLoaded", () => {
+        document.title = `${getAppName()} ${document.title}`;
+        const firstH1 = document.querySelector("h1");
+        if (firstH1) {
+            firstH1.textContent = document.title;
+        }
+    });
+
     const params = new URLSearchParams(window.location.search);
 
     // Set text area

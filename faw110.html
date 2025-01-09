@@ -824,6 +824,17 @@
 <textarea id="plainText" readonly placeholder="Plain text will appear here..."></textarea>
 
 <script>
+
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.title = `${getAppName()} ${document.title}`;
+    const firstH1 = document.querySelector("h1");
+    if (firstH1) {
+      firstH1.textContent = document.title;
+    }
+  });
+
+
   document.getElementById("loadUrlButton").addEventListener("click", () => {
     const url = document.getElementById("urlInput").value.trim();
     const iframe = document.getElementById("webpageDisplay");

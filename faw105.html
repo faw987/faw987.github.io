@@ -104,6 +104,14 @@
 
 <script>
 
+    document.addEventListener("DOMContentLoaded", () => {
+        document.title = `${getAppName()} ${document.title}`;
+        const firstH1 = document.querySelector("h1");
+        if (firstH1) {
+            firstH1.textContent = document.title;
+        }
+    });
+
     // Get references to the HTML elements
     const speakerSelect = document.getElementById('speakerSelect');
     const testText = document.getElementById('testText');
