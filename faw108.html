@@ -99,6 +99,19 @@
   const form = document.getElementById('inputForm');
   form.addEventListener('submit', handleSubmit);
 
+
+  async function render(markdown) {
+    return (await fetch('https://api.github.com/markdown', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({'mode': 'markdown', 'text': markdown})
+    })).text();
+  }
+
+
+
   async function handleSubmit(event) {
     if (event) event.preventDefault(); // Prevent default form submission behavior
     const userInput = document.getElementById('userInput').value;
@@ -117,24 +130,13 @@
       console.log(`Response:`, resp);
       responseText.textContent = resp;
 
-      let rendered = await render(responseText.textContent);
+      let rendered =  render(responseText.textContent);
       alert('yo');
       responseText.textContent = resp;
 
     })
   }
 
-
-
-  async function render(markdown) {
-    return (await fetch('https://api.github.com/markdown', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({'mode': 'markdown', 'text': markdown})
-    })).text();
-  }
 
 
   async function invokeModel(prompt) {
