@@ -123,7 +123,7 @@
     responseText.textContent = `Invoke LLM (Model: ${document.getElementById('modelSelect').value}) prompt: "${myPrompt}"`;
 
 
-    alert('yo');
+    alert('yo before');
 
 
     invokeModel(myPrompt).then((resp) => {
@@ -131,8 +131,8 @@
       responseText.textContent = resp;
 
       let rendered =  render(responseText.textContent);
-      alert('yo');
-      responseText.textContent = resp;
+      alert('yo rendered');
+      responseText.textContent = rendered;
 
     })
   }
