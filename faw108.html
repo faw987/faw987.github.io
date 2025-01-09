@@ -72,15 +72,6 @@
 
 <script>
 
-  async function render(markdown) {
-    return (await fetch('https://api.github.com/markdown', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({'mode': 'markdown', 'text': markdown})
-    })).text();
-  }
 
 
 
@@ -130,13 +121,21 @@
       alert('yo');
       responseText.textContent = resp;
 
-
-    });
-
-
-
-
+    })
   }
+
+
+
+  async function render(markdown) {
+    return (await fetch('https://api.github.com/markdown', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({'mode': 'markdown', 'text': markdown})
+    })).text();
+  }
+
 
   async function invokeModel(prompt) {
     const selectedModel = document.getElementById('modelSelect').value;
