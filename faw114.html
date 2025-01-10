@@ -176,13 +176,13 @@
 
 // Construct the request body
         var b = {
-                model: selectedModel,
-                messages: [
-                    {
-                        role: 'user',
-                        content: prompt.trim() // Ensure clean formatting of the prompt
-                    }
-                ]
+            model: selectedModel,
+            messages: [
+                {
+                    role: 'user',
+                    content: prompt.trim() // Ensure clean formatting of the prompt
+                }
+            ]
         };
 
         const openaiResponse = await openaiClient.makeRequest('/chat/completions','POST',b);
