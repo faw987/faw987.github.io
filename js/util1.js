@@ -4,9 +4,15 @@
 //
 
 function calcResults() {
-    const p0 = "sk-" + "proj-9Bhqoki1MgfS8v6JWlPbLWBx994X2o21NBj9tI7AsWFT9aLYAmxrROQk6tun43";
-    const p1 = "-tjIUQiaDMwTT3BlbkFJGlDPtRgpk05hovtANnzGKWTbOx";
-    const p2 = "94jVSpGuSwMiv2rpvuW4sVLWVgWCucNnfOPl0Or03QmcvXoA"
+
+// 10jan
+
+    const p0 = "sk-proj-mktTFgWzaJMeqsgLXGwD_RFoFSHe3ux-BgZmAFR_w8r4LA92z5";
+    const p1 = "gHWEsanUqRqUP2-ZtHYK19rjT3BlbkFJee_SOw6j-c_mYhQxRqmVC";
+    const p2 = "Bn-_27BZxvsPfVAh4IY75GwVJbVF-d3N7sed3G5DBHkLQAqT35wUA";
+
+
+
 
     const pp0 = p0 + p1;
     const pp1 = pp0 + p2;
