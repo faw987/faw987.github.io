@@ -2,6 +2,8 @@
 
 <!--WhatIsThis:
 
+    table of Movies
+
     AI movie gridjs table - movie table
 
 ** faw105 builds on faw98 and 104 and 105 **
@@ -33,10 +35,16 @@
             cursor: pointer;
             text-decoration: underline;
         }
+        .title-with-icon {
+            background: url('icons/video-camera128128.png') no-repeat left center;
+            padding-left: 30px; /* Adjust padding to leave space for the icon */
+            background-size: 24px 24px; /* Adjust size of the icon */
+        }
     </style>
 </head>
 <body>
-<h1>Movie Table</h1>
+<!--<h1>Movie Table</h1>-->
+<h1 class="title-with-icon">Movie Table</h1>
 <p>Select rows using checkboxes, click titles for alerts, and use the buttons for actions.</p>
 
 
@@ -105,7 +113,7 @@
 <script>
 
     document.addEventListener("DOMContentLoaded", () => {
-        document.title = `${getAppName()} ${document.title}`;
+        document.title = `${getAppName()}: ${document.title}`;
         const firstH1 = document.querySelector("h1");
         if (firstH1) {
             firstH1.textContent = document.title;
