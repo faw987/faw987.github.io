@@ -185,7 +185,6 @@
                 ]
         };
 
-        const openaiClient = new APIClient('openai', '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');
         const openaiResponse = await openaiClient.makeRequest('/chat/completions','POST',b);
         console.log('OpenAI Response:', openaiResponse);
 
@@ -194,7 +193,6 @@
         //
         //
         // Example: Gemini API call
-        const geminiClient = new APIClient('gemini', 'AIzaSyBmhdVS_BREH2c5ytb2drON3J-jd4EauPI');
         // const geminiResponse = await geminiClient.makeRequest('/symbols','POST',b);
 
         var b = {
