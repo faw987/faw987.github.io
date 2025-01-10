@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Magic - faw109</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 10px;
+            width: 400px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #queryInput {
+            width: calc(100% - 20px);
+            padding: 10px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        #submitQuery {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #0078d7;
+            color: white;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        #submitQuery:hover {
+            background-color: #005a9e;
+        }
+
+        .movie-item {
+            margin-bottom: 5px;
+        }
+
+        button {
+            margin-top: 10px;
+        }
+
+        .radio-group {
+            margin-bottom: 10px;
+        }
+
+        .radio-group label {
+            margin-right: 10px;
+        }
+
+        iframe {
+            display: none; /* Hidden iframe for loading the page */
+            width: 100%;
+            height: 400px;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+<h3 id="popupTitle">Movie Magic 0.93</h3>
+
+
+<a href="https://margarethamiltonbook.com/" class="grid-item" data-hover="Margaret Hamilton book">Check out this great
+    book.</a>
+
+
+<br>
+<button id="configureButton">Configure</button>
+
+<div class="radio-group">
+    <label><input type="radio" name="queryType" value="movies" checked> Movies</label>
+    <label><input type="radio" name="queryType" value="actors"> Actors</label>
+    <label><input type="radio" name="queryType" value="other"> Other</label>
+</div>
+
+<div id="inputContainer">
+    <input id="queryInput" type="text" placeholder="Enter text or URL here..."/>
+    <button id="submitQuery">Search</button>
+</div>
+
+<div id="moviesList"></div>
+<iframe id="renderFrame"></iframe>
+<div class="spacer"></div>
+<br>
+<button id="getMoreInfo" class="hidden">Get More Info</button>
+<button id="setAll">Set All</button>
+<button id="clearAll">Clear All</button>
+<button id="openMovieTable">Open Movie Table</button>
+<button id="openActorTable">Open Actor Table</button>
+</body>
+
+<script src="js/util1.js"></script>
+
+<script>
+
+    // Define a class for API interaction
+    class APIClient {
+        constructor(apiType, apiKey) {
+            this.apiType = apiType; // e.g., 'openai' or 'gemini'
+            this.apiKey = apiKey;
+            this.apiConfig = this.getAPIConfig(apiType);
+        }
+
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json',
+        //         "Authorization": `Bearer ${calcResults()}` // Replace with your API key
+        //     },
+        //     body: JSON.stringify({
+        //         model: selectedModel,
+        //         messages: [{role: 'user', content: prompt}]
+        //     })
+
+        // Method to get API configuration based on type
+        getAPIConfig(apiType) {
+            const apiConfigs = {
+                openai: {
+                    baseUrl: 'https://api.openai.com/v1',
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${this.apiKey}`
+                    }
+                },
+                gemini: {
+                    // baseUrl: 'https://api.gemini.com/v1',
+                    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-GEMINI-APIKEY': this.apiKey
+                    }
+                }
+            };
+
+            return apiConfigs[apiType];
+        }
+
+        // Generalized method to make requests
+        async makeRequest(endpoint, method = 'GET', body = null) {
+            const { baseUrl, headers } = this.apiConfig;
+
+            try {
+                const response = await fetch(`${baseUrl}${endpoint}`, {
+                    method,
+                    headers,
+                    body: body ? JSON.stringify(body) : null
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.status} - ${response.statusText}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error(`API Request failed: ${error.message}`);
+                return null;
+            }
+        }
+    }
+
+    // Example usage
+    (async () => {
+        // Example: OpenAI API call
+
+        const selectedModel = 'gpt-4o-mini'; // Updated model
+        const prompt = `
+    consider this movie: "dune".
+    list the top actors and actresses in the film.
+    one actor/actress per line.
+    no additional punctuation.
+`;
+
+// Construct the request body
+        var b = {
+                model: selectedModel,
+                messages: [
+                    {
+                        role: 'user',
+                        content: prompt.trim() // Ensure clean formatting of the prompt
+                    }
+                ]
+        };
+
+        const openaiClient = new APIClient('openai', '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');
+        const openaiResponse = await openaiClient.makeRequest('/chat/completions','POST',b);
+        console.log('OpenAI Response:', openaiResponse);
+
+
+
+        //
+        //
+        // Example: Gemini API call
+        const geminiClient = new APIClient('gemini', 'AIzaSyBmhdVS_BREH2c5ytb2drON3J-jd4EauPI');
+        // const geminiResponse = await geminiClient.makeRequest('/symbols','POST',b);
+
+        var b = {
+            model: 'gemini-2.0-flash-exp',
+            contents: [{
+                "parts": [{"text": "Explain how AI works"}]
+            }]
+        };
+
+
+
+
+        const geminiResponse = await geminiClient.makeRequest('','POST',b);
+        console.log('Gemini Response:', geminiResponse);
+
+        // Future APIs can be added simply by extending the `getAPIConfig` method.
+    })();
+</script>
+</html>
