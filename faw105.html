@@ -8,8 +8,12 @@
 
 ** faw105 builds on faw98 and 104 and 105 **
 
-https://faw987.github.io/faw105.html?movietitlelist=I%27m%20All%20Right%20Jack%2CLolita%2CDr.%20Strangelove
-http://localhost:63342/faw987.github.io/faw105.html?_ijt=nb45pcvmbuaj429t90rlu3e0p3&movietitlelist=I%27m%20All%20Right%20Jack%2CLolita%2CDr.%20Strangelove
+    https://faw987.github.io/faw105.html?movietitlelist=I%27m%20All%20Right%20Jack%2CLolita%2CDr.%20Strangelove
+    http://localhost:63342/faw987.github.io/faw105.html?_ijt=nb45pcvmbuaj429t90rlu3e0p3&movietitlelist=I%27m%20All%20Right%20Jack%2CLolita%2CDr.%20Strangelove
+
+    // http://localhost:63342/faw987.github.io/faw105.html?_ijt=ptg30b3u5eir978i8n4tblt263?movietitlelist=dune,1984,wicked
+    // http://faw987.github.io/faw105.html?movietitlelist=dune,1984,wicked
+
 -->
 <html lang="en">
 <head>
@@ -96,15 +100,12 @@ http://localhost:63342/faw987.github.io/faw105.html?_ijt=nb45pcvmbuaj429t90rlu3e
     <button id="stopButton">Stop</button>
 </div>
 
-
-
 <h2>Test Different Speakers</h2>
 
 <label for="speakerSelect">Select Speaker:</label>
 <select id="speakerSelect"></select>
 
 <br><br>
-
 
 <div id="movieTable"></div>
 
@@ -190,66 +191,35 @@ http://localhost:63342/faw987.github.io/faw105.html?_ijt=nb45pcvmbuaj429t90rlu3e
     }
 
 
-    //
-    // // Helper function to find movie titles using OpenAI
-    // function findMovieTitles(inputText, apiKey) {
-    //     const apiKey2 = `${calcResults()}`; // Replace with your API key
-    //     const response = fetch("https://api.openai.com/v1/chat/completions", {
-    //         method: "POST",
-    //         headers: {
-    //             "Content-Type": "application/json",
-    //             Authorization: `Bearer ${apiKey2}`
-    //         },
-    //         body: JSON.stringify({
-    //             model: "gpt-3.5-turbo",
-    //             messages: [
-    //                 {role: "system", content: 'Identify all movie titles in the given text.'},
-    //                 {
-    //                     role: "user",
-    //                     content: `Extract movie titles from the following text:\n${inputText}.
-    //                 list each title on a seperate line. Do not number the results, just the title please.
-    //                 no extranious punctuation. no leading hyphen.
-    //                 Do not include "The movie title in the given text is" in the output, just the title.
-    //                 double check your work.`
-    //                 }
-    //             ],
-    //             max_tokens: 200
-    //         })
-    //     });
-    // };
-
-    // http://localhost:63342/faw987.github.io/faw105.html?_ijt=ptg30b3u5eir978i8n4tblt263?movietitlelist=dune,1984,wicked
-    // http://faw987.github.io/faw105.html?movietitlelist=dune,1984,wicked
-
     const movieTitleList = params.get('movietitlelist');
 
-    function removeChars(str) {
-        return str.replace(/['?]/g, '');
-    }
-
-    function convertToMoviesStructure(commaSeparatedTitles) {
-        // Split the input string into an array of titles
-        const titles = commaSeparatedTitles.split(",").map(title => title.trim());
-
-        // Map titles to the desired structure
-        const movies = titles.map((title, index) => [
-            index + 1,   // Sequential ID
-            removeChars(title),       // Movie title
-            "unknown",   // Default year
-            "unknown"    // Default genre
-        ]);
-
-        return movies;
-    }
+    // function removeChars(str) {
+    //     return str.replace(/['?]/g, '');
+    // }
+    //
+    // function convertToMoviesStructure(commaSeparatedTitles) {
+    //     // Split the input string into an array of titles
+    //     const titles = commaSeparatedTitles.split(",").map(title => title.trim());
+    //
+    //     // Map titles to the desired structure
+    //     const movies = titles.map((title, index) => [
+    //         index + 1,   // Sequential ID
+    //         removeChars(title),       // Movie title
+    //         "unknown",   // Default year
+    //         "unknown"    // Default genre
+    //     ]);
+    //
+    //     return movies;
+    // }
 
     const movies = convertToMoviesStructure(movieTitleList);
 
     console.log(movies);
 
-    // Transform movies to include placeholder for Select column
-    function transformMovies(movies) {
-        return movies.map(row => [null, ...row]);
-    }
+    // // Transform movies to include placeholder for Select column
+    // function transformMovies(movies) {
+    //     return movies.map(row => [null, ...row]);
+    // }
 
     const transformedMovies = transformMovies(movies);
 

@@ -85,3 +85,43 @@ function findMovieTitles(inputText, apiKey) {
         })
     });
 };
+
+
+
+
+async function render(markdown) {
+    return (await fetch('https://api.github.com/markdown', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({'mode': 'markdown', 'text': markdown})
+    })).text();
+}
+
+// from 105
+
+function removeChars(str) {
+    return str.replace(/['?]/g, '');
+}
+
+function convertToMoviesStructure(commaSeparatedTitles) {
+    // Split the input string into an array of titles
+    const titles = commaSeparatedTitles.split(",").map(title => title.trim());
+
+    // Map titles to the desired structure
+    const movies = titles.map((title, index) => [
+        index + 1,   // Sequential ID
+        removeChars(title),       // Movie title
+        "unknown",   // Default year
+        "unknown"    // Default genre
+    ]);
+
+    return movies;
+}
+
+
+// Transform movies to include placeholder for Select column
+function transformMovies(movies) {
+    return movies.map(row => [null, ...row]);
+}

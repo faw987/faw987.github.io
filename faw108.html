@@ -108,18 +108,18 @@
     // Attach the form submit handler
     const form = document.getElementById('inputForm');
     form.addEventListener('submit', handleSubmit);
-
-
-    async function render(markdown) {
-        return (await fetch('https://api.github.com/markdown', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({'mode': 'markdown', 'text': markdown})
-        })).text();
-    }
-
+    //
+    //
+    // async function render(markdown) {
+    //     return (await fetch('https://api.github.com/markdown', {
+    //         method: 'POST',
+    //         headers: {
+    //             'Content-Type': 'application/json'
+    //         },
+    //         body: JSON.stringify({'mode': 'markdown', 'text': markdown})
+    //     })).text();
+    // }
+    //
 
     async function handleSubmit(event) {
         if (event) event.preventDefault(); // Prevent default form submission behavior
@@ -197,24 +197,24 @@
     // };
 
 
-    function convertToMoviesStructure(commaSeparatedTitles) {
-        // Split the input string into an array of titles
-        const titles = commaSeparatedTitles.split(",").map(title => title.trim());
+    // function convertToMoviesStructure(commaSeparatedTitles) {
+    //     // Split the input string into an array of titles
+    //     const titles = commaSeparatedTitles.split(",").map(title => title.trim());
+    //
+    //     // Map titles to the desired structure
+    //     const movies = titles.map((title, index) => [
+    //         index + 1,   // Sequential ID
+    //         title,       // Movie title
+    //         1999,        // Default year
+    //         "Other"      // Default genre
+    //     ]);
+    //
+    //     return movies;
+    // }
 
-        // Map titles to the desired structure
-        const movies = titles.map((title, index) => [
-            index + 1,   // Sequential ID
-            title,       // Movie title
-            1999,        // Default year
-            "Other"      // Default genre
-        ]);
-
-        return movies;
-    }
-
-    function transformMovies(movies) {
-        return movies.map(row => [null, ...row]);
-    }
+    // function transformMovies(movies) {
+    //     return movies.map(row => [null, ...row]);
+    // }
 
 </script>
 </body>

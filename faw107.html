@@ -148,29 +148,29 @@
 
     const movieActorlist = params.get('movieActorlist');            // main input
 
-    function convertToMoviesStructure(commaSeparatedTitles) {
-        // Split the input string into an array of titles
-        const titles = commaSeparatedTitles.split(",").map(title => title.trim());
-
-        // Map titles to the desired structure
-        const movies = titles.map((title, index) => [
-            index + 1,   // Sequential ID
-            title,       // Movie title
-            "unknown",   // Default year
-            "unknown"    // Default genre
-        ]);
-
-        return movies;
-    }
+    // function convertToMoviesStructure(commaSeparatedTitles) {
+    //     // Split the input string into an array of titles
+    //     const titles = commaSeparatedTitles.split(",").map(title => title.trim());
+    //
+    //     // Map titles to the desired structure
+    //     const movies = titles.map((title, index) => [
+    //         index + 1,   // Sequential ID
+    //         title,       // Movie title
+    //         "unknown",   // Default year
+    //         "unknown"    // Default genre
+    //     ]);
+    //
+    //     return movies;
+    // }
 
     const actors = convertToMoviesStructure(movieActorlist);
 
     console.log(actors);
 
-    // Transform movies to include placeholder for Select column
-    function transformMovies(movies) {
-        return movies.map(row => [null, ...row]);
-    }
+    // // Transform movies to include placeholder for Select column
+    // function transformMovies(movies) {
+    //     return movies.map(row => [null, ...row]);
+    // }
 
     const transformedMovies = transformMovies(actors);
 
