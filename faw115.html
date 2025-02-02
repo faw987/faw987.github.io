@@ -120,7 +120,7 @@ http://localhost:63342/faw987.github.io/faw115.html?_ijt=5ic9fd92jllr6o470otlnsd
 
         // Automatically submit if "submit=true"
         if (params.get('submit') === 'true') {
-            alert("about to submit");
+            console.log("about to submit");
             await handleSubmit(); // Call submit handler
         }
     }
@@ -150,6 +150,8 @@ http://localhost:63342/faw987.github.io/faw115.html?_ijt=5ic9fd92jllr6o470otlnsd
             A few of a few of the most relevant reviews by recent visitors.
             List any negative findings or problems reported.
             days and hours the restaurant is open.
+            address of restaurant.
+            Phone number of restaurant.
             we need to find the walking distance from "${distFrom}`;
 
         responseText.textContent = "Loading...";
