@@ -141,9 +141,12 @@ http://localhost:63342/faw987.github.io/faw115.html?_ijt=5ic9fd92jllr6o470otlnsd
             return;
         }
 
+        //
+
+
         promptText.textContent = `
         consider the restaurant with the name"${userInput}".
-        It is located near: "${area}".
+        It is located near: "${area}"
         We need the following results:
             what kind of cuisine is served.
             overall star rating for the restaurant. typically from 1.0 to 5.0.
@@ -152,7 +155,7 @@ http://localhost:63342/faw987.github.io/faw115.html?_ijt=5ic9fd92jllr6o470otlnsd
             days and hours the restaurant is open.
             address of restaurant.
             Phone number of restaurant.
-            we need to find the walking distance from "${distFrom}`;
+            we need to find the walking distance from "${distFrom}"`;
 
         responseText.textContent = "Loading...";
 
