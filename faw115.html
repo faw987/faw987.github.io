@@ -5,35 +5,17 @@
 
     borrowed faw98
 
-    html/js code to use LLM to "probe" regarding some text, actor/title flag, range of relevent years
-    either interactive (submit not present) or "auto" when submit=true present
+    html/js code to use LLM to "probe" regarding
 
     specific to the text= param
     model=o1-mini etc
-   n/a title=true/false
-    n/a actor=true/false
     sumbit=true/false
+    area=geo area (zip, city, etc) where rest is located
+    distFrom=place to calculate rest dist from
 
 http://localhost:63342/faw987.github.io/faw115.html?_ijt=5ic9fd92jllr6o470otlnsdaob&text="Indian Table"&area="Brooklyn"&distFrom="509 Atlantic Ave"
 
     -->
-
-<!-- URL accepts parameters, e.g.,-->
-<!--    text="movie: Dune"-->
-<!--    model=o1-mini-->
-<!--    movie=true-->
-<!--    actor=true-->
-<!--    submit=true-->
-
-<!--https://faw987.github.io/faw98.html?text=%22Sellers%22&model=o1-mini&actor=true&start=1900&end=1980&submit=true-->
-
-<!-- See: <select id="modelSelect"> for current options, e.g.,-->
-<!--  <option value="gpt-4">GPT-4</option>-->
-<!--  <option value="gpt-3.5-turbo">GPT-3.5-Turbo</option>-->
-<!--  <option value="gpt-4o">GPT-4o</option>-->
-<!--  <option value="gpt-4o-mini">GPT-4o-mini</option>-->
-<!--  <option value="o1-preview">o1-preview</option>-->
-<!--  <option value="o1-mini">o1-mini</option>-->
 
 <html lang="en">
 <head>
@@ -76,6 +58,7 @@ http://localhost:63342/faw987.github.io/faw115.html?_ijt=5ic9fd92jllr6o470otlnsd
         <option        value="o1-mini">o1-mini       - $3.00 per 1 M input tokens and $12.00 per 1 M output tokens</option>
         <option     value="o1-preview">o1-preview    - $15.00 per 1 M input tokens and $60.00 per 1 M output tokens</option>
         <option  value="gpt-3.5-turbo">GPT-3.5-Turbo - $3.00 per 1 M input tokens and $6.00 per 1 milliMon output tokens</option>
+        <option  value="o3-mini-2025-01-31">o3-mini-2025-01-31 - $???  output tokens</option>
     </select><br><br>
 
     <label>Additional Options:</label><br>
@@ -101,7 +84,6 @@ http://localhost:63342/faw987.github.io/faw115.html?_ijt=5ic9fd92jllr6o470otlnsd
     <pre id="responseText">No response yet.</pre>
 </div>
 
-
 <script src="js/util1.js"></script>
 
 <script>
@@ -115,9 +97,6 @@ http://localhost:63342/faw987.github.io/faw115.html?_ijt=5ic9fd92jllr6o470otlnsd
             alert(`xxx ${textParam}`);
         }
 
-
-
-
         // Set model selection
         const modelParam = params.get('model');
         if (modelParam) {
@@ -129,19 +108,11 @@ http://localhost:63342/faw987.github.io/faw115.html?_ijt=5ic9fd92jllr6o470otlnsd
             }
         }
 
-        // Set checkboxes
-        // if (params.get('actor') === 'true') {
-        //     document.getElementById('actorCheck').checked = true;
-        // }
-        // if (params.get('title') === 'true') {
-        //     document.getElementById('titleCheck').checked = true;
-        // }
-
-        // Set year fields
         const areaParam = params.get('area');
         if (areaParam) {
             document.getElementById('area').value = areaParam;
         }
+
         const distFrom = params.get('distFrom');
         if (distFrom) {
             document.getElementById('distFrom').value = distFrom;
@@ -169,18 +140,6 @@ http://localhost:63342/faw987.github.io/faw115.html?_ijt=5ic9fd92jllr6o470otlnsd
             responseText.textContent = "Please enter some text!";
             return;
         }
-
-
-        //
-        // // Build the modified prompt
-        // let modifiedPrompt = '';
-        // if (actorChecked) modifiedPrompt += `consider this actor: "${userInput}." list all movies this actor appeared in.`;
-        // if (titleChecked) modifiedPrompt += `consider this movie: "${userInput}." list all information about this title.`;
-        // if (startYear && endYear) {
-        //     modifiedPrompt += ` restrict years between ${startYear} and ${endYear}`;
-        // }
-        //
-        // promptText.textContent = modifiedPrompt;
 
         promptText.textContent = `
         consider the restaurant with the name"${userInput}".
