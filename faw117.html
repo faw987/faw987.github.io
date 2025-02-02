@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat API Call</title>
+</head>
+<body>
+<h1>Calling Chat API</h1>
+<button onclick="callChatAPI()">Call Chat API</button>
+
+<script>
+    async function callChatAPI() {
+        const response = await fetch('http://localhost:1234/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: "deepseek-coder-v2-lite-instruct-mlx",
+                messages: [
+                    { role: "system", content: "Always answer in rhymes. Today is Thursday" },
+                    { role: "user", content: "What day is it today?" }
+                ],
+                temperature: 0.7,
+                max_tokens: -1,
+                stream: false
+            })
+        });
+
+        const data = await response.json();
+        const messageContent = data.choices[0].message.content;
+        console.log(messageContent);    }
+</script>
+</body>
+</html>

@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physical Therapy Coach</title>
+    <link rel="stylesheet" href="styles5.css">
+</head>
+
+<body>
+<h1>Physical Therapy Coach</h1>
+
+<div class="flex-container">
+    <div class="flex-item">
+        <table id="routinesTable" >
+            <thead>
+            <tr style="height: 10px;">
+                <th style="height: 10px; font-family: Arial, sans-serif; font-size: 16px;">Click below to select a routine to execute.</th>
+            </tr>
+            </thead>
+            <tbody>
+            <!-- Rows will be populated by JavaScript -->
+            </tbody>
+        </table>
+        <br/>
+    </div>
+
+    <div class="flex-item">
+        <form id="urlForm">
+            <label for="sheetUrl">Google Sheet URL:</label>
+            <input type="url" id="sheetUrl" name="sheetUrl" required>
+            <button type="submit">Load Routines</button>
+        </form>
+        <br/>
+
+        <label for="volume">Volume: </label>
+        <input type="range" id="volume" min="0" max="1" step="0.10" value="0.5">
+        <output id="volume-output" for="volume">0.5</output>
+        <br>
+        <label for="rate">Rate: </label>
+        <input type="range" id="rate" min="0.1" max="10" step="0.1" value="1">
+        <output id="rate-output" for="rate">1</output>
+        <br>
+        <label for="pitch">Pitch: </label>
+        <input type="range" id="pitch" min="0" max="2" step="0.01" value="1">
+        <output id="pitch-output" for="pitch">1</output>
+        <br>
+        <label for="speakerSelect">Select Speaker:</label>
+        <select id="speakerSelect"></select>
+        <br>
+        <label for="debugFlags">Special Flags:</label>
+        <input type="text" id="debugFlags">
+    </div>
+
+</div>
+
+<div class="flex-container">
+    <div class="flex-item">
+        <div class="image-wrapper">
+            <img id="myImage" src="default.png" alt="Image" onerror="imgError(this);" class="customImage" width="100%" height="30%" onclick="openInNewTab(this)">
+            <div class="hovered-image">
+                <img id="myImage2" src="default.png" alt="Image">
+            </div>
+
+            <!--      for the future-->
+            <!--      <video id="myVideo" width="640" height="360" alt="Image" onerror="imgError(this);" class="customImage" controls>-->
+            <!--        <source src="your-video.mp4" id="videoSrc" type="video/mp4">-->
+            <!--        Your browser does not support the video tag.-->
+            <!--      </video>-->
+
+        </div>
+
+        <!--Exercise	Description	Sets	Reps	Hold	Freq	Pic	Extras-->
+
+        <div  id="tableContainer" class="scrollable-table">
+            <table id="exerciseTable">
+                <thead>
+                <tr>
+                    <th style="width: 15px;">Select</th>
+                    <th>Exercise</th>
+                    <th>Description</th>
+                    <th>Sets</th>
+                    <th>Reps</th>
+                    <th>Hold</th>
+                    <th>Frequency</th>
+                    <!--    <th>Picture</th>-->
+                    <!--    <th>Extras</th>-->
+                    <!--    <th>Rep Pause</th>-->
+                    <!--    <th>Set Pause</th>-->
+                    <!--    <th>Countdown At</th>-->
+                </tr>
+                </thead>
+                <tbody>
+                <!-- Rows will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="flex-item-a">
+        <button onclick="goRoutine()" id="goButton" style="font-size: 20px; padding: 10px 20px; margin-top: 20px; display: block;">Go</button>
+        <button onclick="pauseRoutine()" id="pauseButton" style="font-size: 20px; padding: 10px 20px; margin-top: 20px; display: block;">Pause</button>
+        <button onclick="resumeRoutine()" id="resumeButton" style="font-size: 20px; padding: 10px 20px; margin-top: 20px; display: block;">Resume</button>
+        <button onclick="stopRoutine()" id="stopButton" style="font-size: 20px; padding: 10px 20px; margin-top: 20px; display: block;">Stop</button>
+        <button id="sendEmailButton" style="font-size: 20px; padding: 10px 20px; margin-top: 20px; display: block;">Send Stats</button>
+        <button onclick="listenText()" id="listenButton" style="font-size: 20px; padding: 10px 20px; margin-top: 20px; display: block;">Listen</button>
+    </div>
+
+    <div class="flex-item-b" id="status_id">
+        <table id="dashboardTable">
+            <thead>
+            <tr>
+                <th style="height: 40px; font-family: Arial, sans-serif; font-size: 36px;">Dashboard</th>
+                <td><span id="status-routine"></span></td>
+            </tr>
+            </thead>
+            <tbody id="big1">
+            <tr>
+                <td><label id="dash">Status:</label></td>
+                <td><span id="overallStatus"></span></td>
+            </tr>
+            <tr>
+                <td><label>Exercise:</label></td>
+                <td><span id="status-exercise"></span></td>
+                <!--          <td><button onclick="nextExercise()" style="font-size: 20px; padding: 10px 20px; margin-top: 20px; display: block;">Next</button></td>-->
+                <td class="bar-container">
+                    <div class="bar" id="bar-exercise"></div>
+                </td>
+            </tr>
+            <tr>
+                <td><label>Description:</label></td>
+                <td><span id="exercise-description"></span></td>
+            </tr>
+            <tr>
+                <td><label>Set:      </label></td>
+                <td><span id="status-set">Set</span></td>
+                <!--          <td><button onclick="nextSet()" style="font-size: 20px; padding: 10px 20px; margin-top: 20px; display: block;">Next</button></td>-->
+                <td class="bar-container">
+                    <div class="bar" id="bar-set"></div>
+                </td>
+            </tr>
+            <tr>
+                <td><label>Rep:       </label>
+                <td><span id="status-rep"></span></td>
+                <!--          <td><button onclick="nextRep()" style="font-size: 20px; padding: 10px 20px; margin-top: 20px; display: block;">Next</button></td>-->
+                <td class="bar-container">
+                    <div class="bar" id="bar-rep"></div>
+                </td>
+            </tr>
+            <tr>
+                <td><label>Time Remaining: </label>
+                <td><span id="status-time"></span></td>
+                <td class="bar-container">
+                    <div class="bar" id="bar-time"></div>
+                </td>
+            </tr>
+            <!-- Rows will be populated by JavaScript -->
+            </tbody>
+        </table>
+        <br/>
+    </div>
+</div>
+
+<script>
+    let data = [];
+    let rows = [];        // of routines
+    let numberExercises = 0;
+
+    let exercise_stats = '';
+
+    pauseSwitch = false;
+    stopSwitch = false;
+    weAreSpeaking = false;
+
+    myYellow = "#FDEE00";
+    myGreen = "#50C878"
+
+
+    // If voices are already loaded, populate the select box
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = loadSpeakers;
+    }
+
+    document.getElementById('pauseButton').disabled = true;
+    document.getElementById('resumeButton').disabled = true;
+
+    // document.getElementById('status-exercise').innerText = 1;
+    // document.getElementById('status-set').innerText = 1;
+    // document.getElementById('status-rep').innerText = 1;
+
+    updateDashboardField('exercise',1,numberExercises);
+    updateDashboardField('set',1,1);          // hack
+    updateDashboardField('rep',1,1);          //hack
+
+    document.getElementById('urlForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        let sheetUrl = document.getElementById('sheetUrl').value;
+        loadSheetData(sheetUrl);
+    });
+
+    document.getElementById('sendEmailButton').addEventListener('click',
+        function () {
+            // Format the data as CSV
+            // let csvData = `Exercise,Start Time,End Time,Duration\nExercise Name,${startTime},${endTime},${duration}`;
+            let csvData = exercise_stats;
+            alert(csvData)
+            // Use the mailto protocol to open the email client
+            sendEmail(csvData);
+        });
+
+    function updateDashboardField(fieldName,newValue,maxValue){
+        document.getElementById(`status-${fieldName}`).innerText = newValue;
+        let stylew = extracted(newValue, maxValue, `bar-${fieldName}`);
+        document.getElementById(`bar-${fieldName}`).style.width = stylew;
+        document.getElementById(`bar-${fieldName}`).innerText = stylew;
+    }
+
+    function openInNewTab(imgElement) {
+        const imgUrl = imgElement.src;
+        const win = window.open(imgUrl, '_blank');
+        win.focus();
+    }
+
+    // Populate the select box with available speakers and set a default
+    function loadSpeakers() {
+        const voices = window.speechSynthesis.getVoices();
+        voices.forEach(voice => {
+            const option = document.createElement('option');
+            option.textContent = voice.name + ' (' + voice.lang + ')';
+            option.setAttribute('data-lang', voice.lang);
+            option.setAttribute('data-name', voice.name);
+            speakerSelect.appendChild(option);
+
+            // Check if this voice is Moira (en-IE) and set it as default if so
+            if (voice.name === "Moira" && voice.lang === "en-IE") {
+                option.selected = true;
+            }
+        });
+    }
+
+    // Ensure the voices are loaded before setting the default
+    window.speechSynthesis.onvoiceschanged = function() {
+        loadSpeakers();
+    };
+
+
+    function sendEmail(data) {
+        let recipientEmail = "faw987@gmail.com"; // Change to the desired email address
+        let subject = "stats";
+        let body = encodeURIComponent(data);
+        window.location.href = `mailto:${recipientEmail}?subject=${subject}&body=${body}`;
+    }
+
+    function scrollToRowById(rowId) {
+        const tableContainer = document.getElementById('tableContainer');
+        const rowElement = document.getElementById(rowId);
+        // let specificRow = tableBody.rows[r]; // This gets the second row (index starts at 0)
+
+        if (rowElement) {
+            const rowTopPosition = rowElement.offsetTop;
+            const centeringOffset = tableContainer.clientHeight / 2 - rowElement.clientHeight / 2;
+            tableContainer.scrollTop = rowTopPosition - centeringOffset;
+        }
+    }
+
+    function scrollToRowIndex(rowIndex) {
+        const tableContainer = document.getElementById('tableContainer');
+        const rows = document.querySelectorAll('#exerciseTable tr');
+        if (rows[rowIndex]) {
+            const rowElement = rows[rowIndex];
+            const rowTopPosition = rowElement.offsetTop;
+            const centeringOffset = tableContainer.clientHeight / 2 - rowElement.clientHeight / 2;
+            tableContainer.scrollTop = rowTopPosition - centeringOffset;
+        }
+    }
+
+    function scrollToRow(rowId) {
+        const rowElement = document.getElementById(rowId);
+        // console.log(`rowElement: ${rowElement}`)   faw
+        const containerElement = document.querySelector('.scrollable-table');
+        if (rowElement && containerElement) {
+            containerElement.scrollTop = rowElement.offsetTop - containerElement.offsetTop;
+        }
+    }
+
+    function padWithZero(number) {
+        return (number < 10) ? '0' + number : number;
+    }
+
+    function formatHHMMSS(d) {
+// Extract time (hours, minutes, and seconds)
+        const hours = d.getHours();
+        const minutes = d.getMinutes();
+        const seconds = d.getSeconds();
+        return hours + ":" + padWithZero(minutes) + ":" + padWithZero(seconds);
+    }
+
+    function changeVideoSource(newSrc) {
+        // Select the source and video elements
+        const videoSrc = document.getElementById('videoSrc');
+        const myVideo = document.getElementById('myVideo');
+
+        // Change the source of the video
+        videoSrc.src = newSrc;
+
+        // Load and play the new source
+        myVideo.load();
+        myVideo.play();
+    }
+
+    function loadDefaultData(){
+        const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-h0k-U8hiLu00qWnw' +
+            'iTGyd8ZGiPq97G1T1qMvN79DuXoI7q8hzvv6zilsM6U5KmnhJ8PTTt4-XxDE/pub?output=csv'
+        //
+        // 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-h0k-U8hiLu00qWnwiTGyd8ZGiPq' +
+        // '97G1T1qMvN79DuXoI7q8hzvv6zilsM6U5KmnhJ8PTTt4-XxDE/pub?gid=0&single=true&output=csv'
+        console.log(`URL=${sheetUrl}`);
+        loadSheetData(sheetUrl);
+    }
+
+    function highlightSpecificRow(r) {
+        let tableBody = document.querySelector("#exerciseTable tbody");
+        let specificRow = tableBody.rows[r]; // This gets the second row (index starts at 0)
+        highlightRow(specificRow);
+
+    }function highlightSpecificRowColor(r,c) {
+        let tableBody = document.querySelector("#exerciseTable tbody");
+        let specificRow = tableBody.rows[r]; // This gets the second row (index starts at 0)
+        highlightRowColor(specificRow,c);
+    }
+
+    // Highlight row function
+    function highlightRow(row) {
+        row.style.backgroundColor = myYellow; // Change color as desired
+    }
+
+    // Highlight row function
+    function highlightRowColor(row,color) {
+        row.style.backgroundColor = color; // Change color as desired
+    }
+
+    // Unhighlight row function
+    function unhighlightRow(row) {
+        row.style.backgroundColor = ""; // Reset to original color
+    }
+
+    function generateExerciseTable(dataTable){
+        // Populate the HTML table
+        let tableBody = document.querySelector("#exerciseTable tbody");
+        tableBody.innerHTML = ''
+        dataTable.forEach(rowData => {
+            let row = tableBody.insertRow();
+            ex = Object.values(rowData).slice(0, 1);
+            row.id = "ex-" + ex; // This will set IDs like row-0, row-1, etc.
+            console.log(`row id: ${row.id}`)
+
+            // Add a checkbox at the beginning of each row
+            let checkboxCell = row.insertCell(0);
+            let checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkboxCell.appendChild(checkbox);
+
+            // 0-6 is Exercise	Description	Sets	Reps	Hold	Frequency
+            Object.values(rowData).slice(0, 6).forEach(cellData => {
+                let cell = row.insertCell();
+                cell.textContent = cellData;
+            });
+
+            // Add click events for demonstration purposes
+            row.onclick = function() {
+                highlightRow(this);
+                setTimeout(() => {
+                    unhighlightRow(this);
+                }, 2000); // Unhighlight after 2 seconds for demonstration
+            };
+        });
+
+    }
+
+    // Function to process the clicked item (button) corresponding to the selected routine
+
+    function processRoutineSelectRow(row, rows) {
+        let selectedRoutine = row.name;
+        console.log(`selectedRoutine=${selectedRoutine}`);
+        document.getElementById('status-routine').innerText = selectedRoutine;
+        data = [];
+        rows.forEach(eachrow => {
+            if (eachrow.startsWith(selectedRoutine + ",")) {
+                let remainder = eachrow.substring(selectedRoutine.length + 1);
+                newRow=remainder.split(',');
+                data.push(newRow);
+            }
+        });
+
+        generateExerciseTable(data);
+        numberExercises=data.length;
+        console.log(`numberExercises=${numberExercises}`);
+        console.log(`data=${data}`);
+
+        let Exercise = 1;
+        let d = getExerciseDetails(data,Number(Exercise)-1);  // HACK ???????
+        const [rExercise, rDescription, rSets, rReps, rHold, rFreq, rPic, rExtras, rRepP, rSetP, rCountdownAt] = d;
+        document.getElementById('exercise-description').innerText = rDescription;     // check if hacks
+
+        console.log(`in processRoutineSelectRow - set exercise to ${rDescription}    number()-1= ${Number(Exercise)-1}`)
+
+        setImage(rPic); // check if hack
+        updateDashboardField('exercise',1,numberExercises);
+        updateDashboardField('set',1,rSets);          // hack  ?
+        updateDashboardField('rep',1,rReps);          //hack ?
+        updateDashboardField('time',rHold,rHold);          //hack ?
+
+        //
+    }
+
+    // go thru all  csv rows to build table of routine names for subsequent user selection
+
+    function routinesTableInit(rows) {
+
+        const routines = new Set();
+        rows.forEach(row => {
+            // console.log(`row: ${row}`);
+            r = row.split(',')[0];
+            if ((r.length>0) && (r !== "Routine")) {
+                routines.add(row.split(',')[0])
+            }
+        });
+
+        // Populate the Routines table with the list of routine names for user selection
+
+        const tableBody = document.querySelector("#routinesTable tbody");
+        tableBody.innerHTML = ''              // clear table before generating based on csv data and user input
+
+        routines.forEach(thing => {
+            const radioButton = document.createElement('input');
+            radioButton.type = 'button';
+            radioButton.name = thing;
+            radioButton.value = thing.toLowerCase();
+            radioButton.id = thing.toLowerCase();
+
+            radioButton.style.display = 'block'; // Add the display block style
+            radioButton.style.marginBottom = '5px'; // Add margin-bottom style
+
+
+            tableBody.appendChild(radioButton);
+
+            // Add click event to each row
+            radioButton.addEventListener("click", function () {
+                processRoutineSelectRow(this,rows);
+            });
+        });
+
+    }
+
+    function loadSheetData(sheetUrl) {
+        // Assume sheetUrl is in a format that leads to a CSV published file
+        fetch(sheetUrl)
+            .then(response => response.text())
+            .then(data => {
+                let rows = data.split("\n");
+                displaySummary(rows);
+                routinesTableInit(rows);
+            })
+            .catch(error => console.error('Error fetching data:', error));
+    }
+
+    function displaySummary(relevantRows) {
+        // let summaryElement = document.getElementById('summary');
+        // relevantRows.forEach(row => {
+        //   let div = document.createElement('div');
+        //   div.innerText = row;
+        //   summaryElement.appendChild(div);
+        // });
+        // let summaryElement = document.getElementById('summary');
+        relevantRows.forEach(row => {
+            console.log(`summary row: ${row}`)
+        });
+    }
+
+
+    function imgError(thing) {
+        let imageElement = document.getElementById('myImage');
+        imageElement.src = "default.png";
+        // hovered-
+        let imageElement2 = document.getElementById('myImage2');
+        imageElement2.src = "default.png";
+
+    }
+
+
+    function setImage(image) {
+        // Get the image element by its id
+        let imageElement = document.getElementById('myImage');
+
+        console.log(`image=${image}`);
+
+        imageElement.src = image;
+// hover
+        let imageElement2 = document.getElementById('myImage2');
+        imageElement2.src = image;
+
+
+        // below not quite working - look at it
+        // let imageElementVid = document.getElementById('myVideo');
+        // imageElementVid.src = image;
+
+    }
+
+    function getExerciseDetails(table,index){
+        const tableRow = table[index];
+        // console.log(`getExerciseDetails index=${index}  tableRow=${tableRow}`);  faw
+        return tableRow;
+    }
+
+    function pauseRoutine(){
+        pauseSwitch = true;
+        document.getElementById('overallStatus').innerText = "Paused"
+        document.getElementById('pauseButton').disabled = true;
+        document.getElementById('resumeButton').disabled = false;
+    }
+
+    function resumeRoutine(){
+        pauseSwitch = false;
+        document.getElementById('overallStatus').innerText = "Running"
+        document.getElementById('pauseButton').disabled = false;
+        document.getElementById('resumeButton').disabled = true;
+        test1_1sec();
+    }
+
+    function stopRoutine(){
+        stopSwitch = true;
+    }
+
+    async function goRoutine(){
+
+        document.getElementById('goButton').disabled = true;
+        document.getElementById('pauseButton').disabled = false;
+        document.getElementById('resumeButton').disabled = true;
+
+
+        updateDashboardField('exercise',1,numberExercises);
+
+        document.getElementById('overallStatus').innerText = "Running"
+
+        exercise_startTime = new Date();
+
+        data.forEach(d => {
+            console.log(`data: ${d}`); // Outputs: "remainder of the string
+        });
+
+        test1_1sec()            // first call is not delayed by 1000 ms, subsequent calls are delayed
+    }
+
+    function extracted(tr, rHold, info) {
+        let percentComplete = Math.round((tr / rHold) * 100);
+        let stylew = `${percentComplete}%`
+        console.log(`info=${info}, value=${tr}, max=${rHold},  percentComplete=${percentComplete}`);
+        return stylew;
+    }
+
+    async function test1_1sec(){
+        let repRemainingTime = document.getElementById('status-time').innerText;
+
+        let Exercise = document.getElementById('status-exercise').innerText;
+        let exerciseIndex = Number(Exercise)-1;
+        let Set = document.getElementById('status-set').innerText;
+        let Rep = document.getElementById('status-rep').innerText;
+
+        let d = getExerciseDetails(data,exerciseIndex);  // HACK ???????
+        const [rExercise, rDescription, rSets, rReps, rHold, rFreq, rPic, rExtras, rRepP, rSetP, rCountdownAt] = d;
+
+        document.getElementById('exercise-description').innerText = rDescription;
+
+        // if first time for this exercise, say the details
+
+        if (repRemainingTime == rHold) {
+            console.log(`runRoutine initial time remaining=${repRemainingTime}`)
+            setImage(rPic); // check if hack
+            // t2=`exercise ${Exercise}  ${rDescription}, ${rSets} sets of ${rReps} repetitions holding ${rHold} seconds.`
+            t2=`exercise ${Exercise} ${rDescription}`
+            await speakText(t2);
+        }
+
+        // updateDashboardField('set',1,rSets);          // hack  ?
+        // updateDashboardField('rep',1,rReps);          //hack ?
+        // updateDashboardField('time',rHold,rHold);          //hack ?
+
+        let rid= `ex-${Exercise}`;
+
+        scrollToRow(rid);
+
+        if (stopSwitch) {
+            console.log("stop accepted.");
+            // Select the div with class "flex-container"
+            var divElement = document.querySelector('.flex-container');
+
+// Set its display property to "none" to hide it
+            divElement.style.display = 'grid';
+            document.getElementById('stopButton').disabled = true;
+
+            return;
+        }
+
+        if (pauseSwitch) {
+            setTimeout(test1_1sec,1000);
+            return;
+        }
+
+        let tableBody = document.querySelector("#exerciseTable tbody");
+        let specificRow = tableBody.rows[exerciseIndex]; // This gets the second row (index starts at 0)
+
+        firstCell = specificRow.cells[0];
+        firstCellValue = firstCell.textContent || firstCell.innerText;
+
+        let checkbox = specificRow.cells[0].querySelector("input[type='checkbox']");
+        if (checkbox && checkbox.checked) {
+            console.log(`checked - specificRow=${specificRow} firstCellValue=${firstCellValue}`)
+        }  else {
+            console.log(`not checked - specificRow=${specificRow} firstCellValue=${firstCellValue}`)
+        }
+
+        t1=`test1_1sec: tr:${repRemainingTime}  rExercise: ${rExercise}  rDescription: ${rDescription}  rSets: ${rSets}  rReps: ${rReps}`
+        // console.log(t1)
+
+        if (repRemainingTime === rHold) {
+            t2=`set  ${Set} repetition  ${Rep}  hold ${rHold}.`
+            await speakText(t2);
+            highlightSpecificRowColor(exerciseIndex,myYellow);
+            scrollToRowIndex(exerciseIndex);
+        }
+
+        if (parseInt(repRemainingTime) > 0) {
+            slashesAddedCountdown='/'+rCountdownAt+'/';
+            slashesAddedTr='/'+repRemainingTime+'/';
+
+            index=slashesAddedCountdown.indexOf(slashesAddedTr);
+
+            if (index !== -1) {
+                t = `${repRemainingTime} remaining.`;
+                await speakText(t);
+            }
+
+            repRemainingTime=Number(repRemainingTime)-1;
+            document.getElementById('status-time').innerText = repRemainingTime;
+            let stylew = extracted(repRemainingTime, rHold, "bar-time");
+            document.getElementById("bar-time").style.width = stylew;
+            document.getElementById("bar-time").innerText = stylew;   // so we see e.g., 55%
+
+            setTimeout(test1_1sec,1000);
+
+        } else {
+
+            highlightSpecificRowColor(Number(Exercise)-1,myGreen);
+
+            // t = `Exercise ${Exercise} Set ${Set} Rep ${Rep} complete.`;
+            // t = `Set ${Set} repetition ${Rep} complete.`;
+            t = `repetition ${Rep} complete.`;
+            await  speakText(`${t}`);
+
+            console.log(`Rep ${Rep}   rReps ${rReps}`);
+
+            if (parseInt(Rep) < parseInt(rReps)) {
+                let newRep = Number(Rep)+1;
+
+                updateDashboardField('rep',newRep,rReps);
+                updateDashboardField('time',rHold,rHold);          //hack?
+
+                console.log(`rRepP=${rRepP}   pausing`);
+                await speakText(`pause ${rRepP}`);
+                setTimeout(test1_1sec,rRepP*1000);
+            } else {
+                if (parseInt(Set) < parseInt(rSets)) {
+                    let newSet = Number(Set)+1;
+
+                    // document.getElementById('status-set').innerText = newSet;
+
+                    updateDashboardField('set',newSet,rSets);
+                    updateDashboardField('rep',1,1);          //hack?
+                    updateDashboardField('time',rHold,rHold);          //hack?
+
+                    console.log(`rSetP=${rSetP}  pausing`);
+                    await  speakText(`pause ${rSetP}`);
+                    setTimeout(test1_1sec,rSetP*1000);
+                } else {
+                    if (parseInt(Exercise) < numberExercises) {
+                        let exercise_endTime = new Date();
+                        // Extract month and day  HACK - assume date of end is ok
+                        const month = exercise_endTime.getMonth() + 1; // Add 1 because months are 0-indexed
+                        const day = exercise_endTime.getDate();
+                        const month_day= month + "/" + day;
+
+// Calculate the difference in milliseconds
+                        const differenceInMilliseconds = exercise_endTime.getTime() - exercise_startTime.getTime();
+
+// Convert the difference to seconds
+                        const differenceInSeconds = differenceInMilliseconds / 1000;
+
+                        const estart = formatHHMMSS(exercise_startTime);
+                        const eend = formatHHMMSS(exercise_endTime);
+                        line = Exercise + "," + month_day + "," + estart + "," + eend + "," + differenceInSeconds;
+                        exercise_stats = exercise_stats + "\n" + line;
+
+                        console.log(`exercise_stats: ${exercise_stats}`);
+
+                        setImage(rPic);
+                        document.getElementById('exercise-description').innerText = rDescription;    // look HARDER
+
+                        console.log(`in test1_1sec - set exercise to ${rDescription} exerciseIndex=${exerciseIndex}`)
+
+                        newExercise = Number(Exercise)+1;
+
+                        updateDashboardField('exercise',newExercise,numberExercises);
+
+                        updateDashboardField('set',1,1);          // hack?
+                        updateDashboardField('rep',1,1);          //hack?
+                        updateDashboardField('time',rHold,rHold);          //hack?
+
+                        setTimeout(test1_1sec,1000);
+                    } else {
+                        speakText("thats all folks");
+                        document.getElementById('overallStatus').innerText = "Complete"
+
+                        document.getElementById('goButton').disabled = false;
+                        document.getElementById('pauseButton').disabled = true;
+                        document.getElementById('resumeButton').disabled = true;
+                        document.getElementById('stopButton').disabled = true;
+
+                    }
+                }
+            }
+        }
+    }
+
+
+    function appendText(id,newText) {
+        // Get the textarea element
+        var textarea = document.getElementById(id);
+
+        // Get the current text in the textarea
+        var currentText = textarea.value;
+
+        // Append the new text with a newline character
+        textarea.value = currentText + "\n" + newText;
+    }
+
+
+    function speakCancel() {
+        if ('speechSynthesis' in window) {
+            console.log(`speakText cancel()`);
+            window.speechSynthesis.cancel();
+        } else {
+            alert("Sorry, your browser does not support Text to Speech!");
+        }
+    }
+    //
+    function speakTextCallback(text, callback) {
+        // Create a new speech utterance instance
+        const utterance = new SpeechSynthesisUtterance(text);
+
+        // Attach an event handler for the 'end' event
+        utterance.onend = function(event) {
+            console.log('Speech has finished');
+            if (callback) {
+                callback();
+            }
+        };
+
+        // Speak the text
+        window.speechSynthesis.speak(utterance);
+    }
+
+    async function speakText(text) {
+        return new Promise((resolve, reject) => {
+            let utterance = new SpeechSynthesisUtterance(text);
+            console.log(`text: ${text}`);
+
+            utterance.onend = function(event) {
+                resolve(); // Resolve the promise when speech ends
+            };
+
+            utterance.onerror = function(event) {
+                reject(new Error('Speech synthesis error')); // Reject on error
+            };
+
+            let volume = document.getElementById('volume').value;
+            let rate = document.getElementById('rate').value;
+            let pitch = document.getElementById('pitch').value;
+
+            // Rest of your code to set the voice for utterance
+            const speakerSelect = document.getElementById('speakerSelect');
+            const selectedVoiceName = speakerSelect.selectedOptions[0].getAttribute('data-name');
+            const voices = window.speechSynthesis.getVoices();
+            const voice = voices.find(voice => voice.name === selectedVoiceName);
+
+// const utterance = new SpeechSynthesisUtterance(text);
+            utterance.voice = voice;
+
+            // utterance.lang = 'en-GB';
+
+            utterance.volume = volume; // 0 to 1
+            utterance.rate = rate; // 0.1 to 10
+            utterance.pitch = pitch; // 0 to 2
+
+            window.speechSynthesis.speak(utterance);
+        });
+    }
+
+    function listenText() {
+        if ('webkitSpeechRecognition' in window) {
+            const recognition = new webkitSpeechRecognition();
+            recognition.lang = 'en-US';
+
+            recognition.onresult = function(event) {
+                // document.getElementById('text-input').value = event.results[0][0].transcript;
+                const text = event.results[0][0].transcript;
+                console.log(`JUST_HEARD: ${text}`);
+                // console.log("recognition.start() !!!!!!!! ");
+                // recognition.start();
+                switch (text) {
+                    case "pause":
+                        // code to be executed if expression is value1
+                        console.log("pause !!!!!!!");
+                        pauseRoutine();
+                        break;
+                    case "resume":
+                        console.log("resume !!!!!!!! ");
+                        resumeRoutine();
+                        break;
+                    default:
+                    // code to be executed if expression is different from all
+                }
+            };
+
+            recognition.onerror = function(event) {
+                alert('Error occurred in recognition: ' + event.error);
+            };
+
+            console.log("recognition start");
+            recognition.continuous = true; // Set to continuous mode
+            recognition.interimResults = true; // Get interim (not-final) results
+
+
+            if (window.SpeechGrammarList || window.webkitSpeechGrammarList) {
+                let SpeechGrammarList = window.SpeechGrammarList || window.webkitSpeechGrammarList;
+                let grammarList = new SpeechGrammarList();
+                const grammar =
+                    "#JSGF V1.0; grammar colors; public <color> = pause | juxtaposition | resume | stop ;";
+                // const recognition = new SpeechRecognition();
+                const speechRecognitionList = new SpeechGrammarList();
+                speechRecognitionList.addFromString(grammar, 1);
+                recognition.grammars = speechRecognitionList;
+                console.log('SpeechGrammarList set.');
+            } else {
+                console.log('SpeechGrammarList is not supported in this browser.');
+            }
+
+            recognition.start();
+            console.log("go routine");
+            goRoutine();
+        } else {
+            alert("Sorry, your browser does not support Speech Recognition!");
+        }
+    }
+
+
+    document.getElementById('volume').addEventListener('input', function (event) {
+        document.getElementById('volume-output').value = event.target.value;
+    });
+
+    document.getElementById('rate').addEventListener('input', function (event) {
+        document.getElementById('rate-output').value = event.target.value;
+    });
+
+    document.getElementById('pitch').addEventListener('input', function (event) {
+        document.getElementById('pitch-output').value = event.target.value;
+    });
+
+    window.onload = () => {
+        //... any existing onload code...
+        loadDefaultData(); // ???????
+        loadSpeakers();       // ???????????????????????//
+    };
+
+</script>
+</body>
+
+</html>
