@@ -94,7 +94,7 @@ http://localhost:63342/faw987.github.io/faw115.html?_ijt=5ic9fd92jllr6o470otlnsd
         const textParam = params.get('text');
         if (textParam) {
             document.getElementById('userInput').value = decodeURIComponent(textParam);
-            alert(`xxx ${textParam}`);
+            console.log(`INPUT PARAM text: "${textParam}"`);
         }
 
         // Set model selection
