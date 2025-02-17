@@ -189,7 +189,13 @@ http://localhost:63342/faw987.github.io/faw115.html?_ijt=5ic9fd92jllr6o470otlnsd
 
             const data = await response.json();
             const gptResponse = data.choices[0].message.content;
-            responseText.textContent = gptResponse;
+
+            // responseText.textContent = gptResponse;
+
+            render(gptResponse).then((res) => {
+                responseText.innerHTML = res;
+            })
+
         } catch (error) {
             responseText.textContent = `Error: ${error.message}`;
         }

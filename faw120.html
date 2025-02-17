@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        canvas { border: 2px solid black; }
+    </style>
+</head>
+<body>
+<div>
+    <h1>Snake Game</h1>
+    <p>Score: <span id="score">0</span></p>
+</div>
+<canvas id="gameCanvas" width="400" height="400"></canvas>
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Variables for the snake and food
+    let speed = 7; // Speed of the game
+    let tileCount = 20; // Number of tiles on canvas (width and height)
+    let snakeSize = tileCount / 2; // Size of the snake (half of tiles)
+    let headX = tileCount / 4;
+    let headY = tileCount / 4;
+    let snake = [headX, headY]; // Initial position of the snake (center)
+    let foodX = Math.floor(Math.random() * tileCount);
+    let foodY = Math.floor(Math.random() * tileCount);
+    let xVelocity = 0;
+    let yVelocity = 0;
+    let score = 0; // Score of the player
+
+    // Draw the food on canvas
+    function drawFood() {
+        ctx.fillStyle = "#FF0000"; // Color of the food
+        ctx.fillRect(foodX * snakeSize, foodY * snakeSize, snakeSize, snakeSize);
+    }
+
+    // Move the snake on canvas and check for collision with food
+    function moveSnake() {
+        headX += xVelocity;
+        headY += yVelocity;
+        snake.unshift(headX, headY); // Add new position to the front of the array
+        if (snake[0] == foodX && snake[1] == foodY) {
+            score++; // Increase the score if the head of the snake touches the food
+            drawFood(); // Draw new food after eating
+        } else {
+            snake.pop(); // Remove the end of the array (tail) to simulate movement without growing
+        }
+    }
+
+    // Draw the snake on canvas
+    function drawSnake() {
+        ctx.fillStyle = "#00CC00"; // Color of the snake
+        for (let i = 0; i < snake.length; i++) {
+            ctx.fillRect(snake[i] * snakeSize, snake[i + 1] * snakeSize, snakeSize, snakeSize);
+            i++;
+        }
+    }
+
+    // Handle key presses to control the snake's movement
+    document.body.addEventListener('keydown', (e) => {
+        switch(e.key) {
+            case 'ArrowUp':
+                if (yVelocity != speed) yVelocity = -speed; xVelocity = 0; break;
+            case 'ArrowDown':
+                if (yVelocity != -speed) yVelocity = speed; xVelocity = 0; break;
+            case 'ArrowLeft':
+                if (xVelocity != speed) xVelocity = -speed; yVelocity = 0; break;
+            case 'ArrowRight':
+                if (xVelocity != -speed) xVelocity = speed; yVelocity = 0; break;
+        }
+    });
+
+    // Clear the canvas and draw everything on it every frame
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the entire canvas
+        drawFood();
+        moveSnake();
+        drawSnake();
+        window.requestAnimationFrame(draw); // Call the draw function again on next frame render
+    }
+
+    // Start the game when the HTML loads
+    draw();
+
+</script>
+</body>
+</html>
