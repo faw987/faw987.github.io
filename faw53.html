@@ -37,20 +37,32 @@
 <button id="wikiButton">Wikipedia Page</button>
 <button id="statsButton">City-Stats Page</button>
 <button id="justiceButton">Justice Map Page</button>
+<button id="NYCp1Button">NYC Parking #1</button>
+<button id="NYCp2Button">NYC Parking #2</button>
 <div id="output"></div>
 <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDgsAGFHzzPSQ4tJWIpTUc3SducsQp45bw&callback=initMap">
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBmg5TrcOSMmChnpcbmDgpTON5E0xg3k1Q&callback=initMap">
 </script>
 <script>
 
 
-
+    const a0 = 'AIzaSyBmg';
+    const a1 = '5TrcOSMmC';
+    const a2 = 'hnpcbmDgpTON';
+    const a3 = '5E0xg3k1Q';
 
     // Declare global variables
+
+    CONSOLEDEBUG = false;
+
+    const apiKey = a0 + a1 + a2 + a3;
+
     globaltown = '';
     globalstate = '';
     globalcounty = '';
 
+    var glat  = 0;
+    var glon  = 0;
 
 
     window.addEventListener('load', (event) => {
@@ -84,14 +96,14 @@
             // const state = stateInput.value;
             const town = globaltown;
             const state = globalstate;
-            // alert("here we are")
 
             thestate=fixupStatsPage(state);
             thetown=fixupStatsTown(town);
 
-            alert ("global town ,global state, local town local state:",globaltown,globalstate,thetown,thestate);
+            if (CONSOLEDEBUG == true ) {
+                alert ("global town ,global state, local town local state:",globaltown,globalstate,thetown,thestate);
+            };
 
-            // const wikiPage = await getStatsPage(town, thestate);
             const wikiPage = await getStatsPage(thetown, thestate);
 
             if (wikiPage) {
@@ -103,19 +115,34 @@
         const justiceButton = document.getElementById('justiceButton');
 
         justiceButton.addEventListener('click', async () => {
-            // const town = townInput.value;
-            // const state = stateInput.value;
-            const town = globaltown;
-            const thestate = globalstate;
-            // alert("here we are")
-            // const wikiPage = await getStatsPage(town, thestate);
-
-            // if (wikiPage) {
-                window.location.href = `https://www.justicemap.org/`;
-            // }
+            const town = globaltown;                // ?????? maybe remove
+            const thestate = globalstate;           // ??????
+                window.location.href = `https://www.justicemap.org/?gfLon=${glon}&gfLat=${glat}&gsLayer=income&giZoom=14`;
         });
 
-        // https://www.city-data.com/city/South-Plainfield-New-Jersey.html
+
+
+        // https://nycdotsigns.net/-73.9807735:40.6856169/parking,21/867
+
+        const NYCp1Button = document.getElementById('NYCp1Button');
+
+        NYCp1Button.addEventListener('click', async () => {
+            const town = globaltown;                // ?????? maybe remove
+            const thestate = globalstate;           // ??????
+            window.location.href = `https://nycdotsigns.net/${glon}:${glat}/parking,21/867`;
+        });
+
+        // https://nycdot.maps.arcgis.com/apps/webappviewer/index.html?center=-74.00604334095112,40.735033490610675&level=18
+
+        const NYCp2Button = document.getElementById('NYCp2Button');
+
+        NYCp2Button.addEventListener('click', async () => {
+            const town = globaltown;                // ?????? maybe remove
+            const thestate = globalstate;           // ??????
+            window.location.href = `https://nycdot.maps.arcgis.com/apps/webappviewer/index.html?center=${glon},${glat}&level=18`;
+        });
+
+            // https://www.city-data.com/city/South-Plainfield-New-Jersey.html
 
         async function getStatsPage(town, state) {
             const pageTitle = `${town}-${state}`;
@@ -171,35 +198,13 @@
         if (location.length === 2) {
             const [lat, long] = location;
             getAddressComponents(parseFloat(lat), parseFloat(long));
-            alert ("processLocationAddress 2 > global town ,global state:",globaltown,globalstate);
-
+            if (CONSOLEDEBUG == true ) {
+                alert("processLocationAddress 2 > global town ,global state:", globaltown, globalstate);
+            }
         } else {
             document.getElementById('output').innerText = "Invalid format";
         }
     }
-    //
-    // async function getLatLon(address,apiKey) {
-    //     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
-    //
-    //     try {
-    //         const response = await fetch(url);
-    //         if (response.ok) {
-    //             const data = await response.json();
-    //             if (data.status === 'OK') {
-    //                 const location = data.results[0].geometry.location;
-    //                 return { lat: location.lat, lon: location.lng };
-    //             } else {
-    //                 throw new Error(`Error from API: ${data.status}`);
-    //             }
-    //         } else {
-    //             throw new Error(`HTTP Error: ${response.status}`);
-    //         }
-    //     } catch (error) {
-    //         console.error(error);
-    //         return null;
-    //     }
-    //
-    // }
 
     async function getLatLon(address, apiKey) {
         const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
@@ -210,6 +215,8 @@
                 const data = await response.json();
                 if (data.status === 'OK') {
                     const location = data.results[0].geometry.location;
+                    glat  = location.lat;
+                    glon  = location.lng;
                     return { lat: location.lat, lon: location.lng };
                 } else {
                     console.warn(`No valid results for the address. API status: ${data.status}`);
@@ -227,16 +234,17 @@
 
     async function processLocationAddress() {
         const address = document.getElementById('locationInput').value;
-        const latlon= await getLatLon(address, 'AIzaSyDgsAGFHzzPSQ4tJWIpTUc3SducsQp45bw');
+        const latlon= await getLatLon(address, 'AIzaSyBmg5TrcOSMmChnpcbmDgpTON5E0xg3k1Q');
         console.log(`Address: ${address}, API Response:`, latlon);
-        // alert(latlon);
+
         // Pull lat and lon out of the response
         const { lat, lon } = latlon;
 
         getAddressComponents(lat, lon);
 
-        alert ("processLocationAddress 1 > global town ,global state:",globaltown,globalstate);
-
+        if (CONSOLEDEBUG == true ) {
+            alert("processLocationAddress 1 > global town ,global state:", globaltown, globalstate);
+        };
     }
 
     function fixupStatsPage(page) {
@@ -279,13 +287,7 @@
                  }
             });
         }
-        // alert(x);
-        // alert("loc,st="+{ locality, state });
-        // alert("loc,st="+locality+state );
-        // const loc = locality;
-        // const st = state;
         let r = {locality, county, state};
-        // alert("r=" + r);
         console.log(r);
         return r;
     }
@@ -321,7 +323,9 @@
                 const lat = position.coords.latitude;
                 const long = position.coords.longitude;
                 getAddressComponents(lat, long);
-                alert ("processLocationAddress 2 > global town ,global state:",globaltown,globalstate);
+                if (CONSOLEDEBUG == true ) {
+                    alert ("processLocationAddress 2 > global town ,global state:",globaltown,globalstate);
+                };
                 setClipboard(lat +"," + long);
             }, () => {
                 document.getElementById('output').innerText = "Error getting location.";
@@ -332,7 +336,6 @@
     }
 
     function getAddressComponents(lat, long) {
-        const apiKey = 'AIzaSyDgsAGFHzzPSQ4tJWIpTUc3SducsQp45bw'; // Replace with your API key
         const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${long}&key=${apiKey}`;
 
         fetch(url)
@@ -344,7 +347,9 @@
                     globaltown   = locality;
                     globalstate = state;
                     globalcounty = county;
-                    alert("global: " + globaltown+ " " +globalstate + " " +globalcounty);
+                    if (CONSOLEDEBUG == true ) {
+                        alert("global: " + globaltown + " " + globalstate + " " + globalcounty);
+                    };
                     const geopolitical = globaltown + " " + globalstate + " " + globalcounty ;
                     // const [latLong, geopolitical] = document.getElementById('output').innerText.split(': ');
                     // document.getElementById('output').innerText = `${latLong} (${lat}, ${long})\n${address}\n${geopolitical}`;

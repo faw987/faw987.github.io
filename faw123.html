@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>xAI/Grok Simple Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #chatContainer {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #f9f9f9;
+            height: 400px;
+            overflow-y: auto;
+        }
+        .message {
+            margin: 10px 0;
+        }
+        .user {
+            text-align: right;
+            color: blue;
+        }
+        .assistant {
+            text-align: left;
+            color: green;
+        }
+        #inputContainer {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        #userInput {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin-left: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<h1 style="text-align: center;">xAI/Grok Simple Example App</h1>
+<div id="chatContainer"></div>
+<div id="inputContainer">
+    <input type="text" id="userInput" placeholder="Type your message..." />
+    <button id="sendButton">Send</button>
+</div>
+<script>
+
+    const t1 = "xai-RtvRgXpFTFk1Veymi6s";
+    const t2 = "DOHB207Rm5cVS1JrWlPU92";
+    const t3 = "mIa9D8PBDzeqyP4Y51K";
+    const t4 = "C0Pw7m8d8UbnvYtIBi4F";
+
+
+    const apiUrl = "https://api.x.ai/v1/chat/completions";
+    const token = t1 + t2 + t3 + t4;
+    const chatContainer = document.getElementById('chatContainer');
+
+    // Function to render chat messages
+    function renderChat(message) {
+        const div = document.createElement('div');
+        div.classList.add('message', message.role === 'user' ? 'user' : 'assistant');
+        div.textContent = message.content;
+        chatContainer.appendChild(div);
+        chatContainer.scrollTop = chatContainer.scrollHeight; // Scroll to the bottom
+    }
+
+    // Function to handle user input and send it to x.ai API
+    async function handleUserInput() {
+        const userMessage = document.getElementById('userInput').value.trim();
+        if (!userMessage) return;
+
+        // Add user's message to the conversation and render it
+        const userMessageObj = { role: 'user', content: userMessage };
+        renderChat(userMessageObj);
+
+        // Clear input field
+        document.getElementById('userInput').value = '';
+
+        const payload = {
+            messages: [...conversation, userMessageObj],
+            model: "grok-2-latest",
+            stream: false,
+            temperature: 0
+        };
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const gptResponse = data.choices[0].message.content;
+
+            // Add x.ai's response to the conversation and render it
+            const assistantMessage = { role: 'assistant', content: gptResponse };
+            renderChat(assistantMessage);
+        } catch (error) {
+            console.error("Error:", error);
+            // In case of an error, add a message to the conversation
+            const errorMessage = { role: 'assistant', content: "Sorry, I encountered an error. Please try again." };
+            renderChat(errorMessage);
+        }
+    }
+
+    // Event Listener for the Send Button
+    document.getElementById('sendButton').addEventListener('click', handleUserInput);
+
+    // Event Listener for Enter Key
+    document.getElementById('userInput').addEventListener('keypress', async (event) => {
+        if (event.key === 'Enter') {
+            await handleUserInput();
+        }
+    });
+
+    // Initial Render of the chat (if there are any initial messages)
+    const conversation = [{ role: "system", content: "You are a helpful assistant." }];
+    if (conversation.length > 1) {
+        conversation.slice(1).forEach(msg => renderChat(msg));
+    }
+</script>
+</body>
+</html>

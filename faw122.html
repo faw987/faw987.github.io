@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>X.AI API Request Example</title>
+</head>
+<body>
+<script>
+    const apiUrl = "https://api.x.ai/v1/chat/completions";
+    const token = "xai-RtvRgXpFTFk1Veymi6sDOHB207Rm5cVS1JrWlPU92mIa9D8PBDzeqyP4Y51KC0Pw7m8d8UbnvYtIBi4F";
+
+    const payload = {
+        messages: [
+            {
+                role: "system",
+                content: "You are a test assistant."
+            },
+            {
+                role: "user",
+                content: "Testing. Just say hi and hello world and nothing else."
+            }
+        ],
+        model: "grok-2-latest",
+        stream: false,
+        temperature: 0
+    };
+
+    fetch(apiUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify(payload)
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("API response:", data);
+        })
+        .catch(error => {
+            console.error("Error:", error);
+        });
+</script>
+</body>
+</html>
