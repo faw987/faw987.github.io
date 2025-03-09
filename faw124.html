@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dynamic iFrames</title>
+  <script src="js/util1.js"></script> <!-- Your preferred script structure -->
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    #controls {
+      margin-bottom: 10px;
+    }
+    .iframe-container {
+      display: flex;
+      justify-content: space-around;
+      gap: 10px;
+    }
+    iframe {
+      width: 45%;
+      height: 500px;
+      border: 1px solid black;
+    }
+  </style>
+</head>
+<body>
+
+<div id="controls">
+  <label for="inputValue">40.5674537,-74.4398605 Enter Value: </label>
+  <input type="text" id="inputValue" placeholder="Enter something: -74.4398605,40.5674537">
+<!--  <input type="text" id="inputValue" placeholder="Enter something: 40.5674537,-74.4398605 ">-->
+  <button onclick="updateIframes()">Update</button>
+</div>
+
+<div class="iframe-container">
+  <iframe id="iframe1" src="about:blank"></iframe>
+  <iframe id="iframe2" src="about:blank"></iframe>
+  <iframe id="iframe3" src="about:blank"></iframe>
+</div>
+
+
+
+<script>
+
+  // Global variables for location data
+  // let globaltown = '';
+  // let globalstate = '';
+  // let globalcounty = '';
+  let glat = 0;
+  let glon = 0;
+
+  // Use the browser's geolocation API to get the current position and update globals
+  function getCurrentLocation() {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        glat = lat;
+        glon = lon;
+        // getAddressComponents(lat, lon);
+        // setClipboard(lat + "," + lon);
+      }, () => {
+        // document.getElementById('output').innerText = "Error getting location.";
+      });
+    } else {
+      // document.getElementById('output').innerText = "Geolocation not supported.";
+    }
+  }
+
+  // Process input as lat,lon string
+  function processLocation() {
+    const locationStr = document.getElementById('inputValue').value;
+    const location = locationStr.split(',');
+    if (location.length === 2) {
+      const lat = parseFloat(location[0].trim());
+      const lon = parseFloat(location[1].trim());
+      // Update global coordinates
+      glat = lat;
+      glon = lon;
+      // getAddressComponents(lat, lon);
+    } else {
+      // document.getElementById('output').innerText = "Invalid format. Please enter in 'lat, lon' format.";
+    }
+  }
+// ?? https://www.justicemap.org/?gfLon=-74.4398605&gfLat=40.5674537&gsLayer=income&giZoom=14
+
+  // https://faw987.github.io/faw59
+
+  function updateIframes() {
+    let value = document.getElementById("inputValue").value;
+
+    // getCurrentLocation()
+
+    processLocation();
+    https://www.youtube.com/
+    if (value) {
+      let baseUrl1 = "https://www.justicemap.org"; // Replace with real URLs
+      let baseUrl2 = "https://www.justicemap.org"; // Replace with real URLs
+      let baseUrl3 = "https://faw987.github.io/faw59"; // Replace with real URLs
+      // let baseUrl3 = "https://www.wiki.com/"; // Replace with real URLs
+
+      document.getElementById("iframe1").src = `${baseUrl1}?gfLon=${glon}&gfLat=${glat}&gsLayer=income&giZoom=${encodeURIComponent(12)}`;
+      document.getElementById("iframe2").src = `${baseUrl2}?gfLon=${glon}&gfLat=${glat}&gsLayer=income&giZoom=${encodeURIComponent(11)}`;
+      document.getElementById("iframe3").src = `${baseUrl3}`;
+    }
+  }
+</script>
+
+</body>
+</html>
