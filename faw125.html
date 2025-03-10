@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Conflicts Overview</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+            background-color: #f8f8f8;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #333;
+            color: white;
+        }
+        .conflict-row:hover {
+            background-color: #f1f1f1;
+        }
+        .map-link, .footnote-link, .combatant-link {
+            color: blue;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .footnote {
+            display: none;
+            background: #eee;
+            padding: 10px;
+            margin-top: 5px;
+            border-left: 3px solid #333;
+        }
+    </style>
+</head>
+<body>
+<h2>Global Conflicts Overview</h2>
+<table>
+    <thead>
+    <tr>
+        <th>Conflict</th>
+        <th>Duration (Years/Days)</th>
+        <th>Region</th>
+        <th>Combatants</th>
+        <th>Type</th>
+        <th>Religious Context</th>
+        <th>More Info</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="conflict-row">
+        <td>Israel–Palestine</td>
+        <td>Ongoing (since 1948) / ~27,900 days</td>
+        <td><a class="map-link" href="https://www.google.com/maps?q=Israel,Palestine" target="_blank">View Map</a></td>
+        <td><a class="combatant-link" href="https://www.nytimes.com/search?query=Israel%20Palestine%20conflict" target="_blank">Israel vs. Palestinian groups</a></td>
+        <td>Territorial</td>
+        <td>Judaism, Islam</td>
+        <td><span class="footnote-link" onclick="toggleFootnote(1)">Details</span></td>
+    </tr>
+    <tr id="footnote-1" class="footnote">
+        <td colspan="7">A long-standing conflict over land, national identity, and sovereignty, heavily influenced by religious and historical factors. <a href="https://en.wikipedia.org/wiki/Israeli%E2%80%93Palestinian_conflict" target="_blank">Wikipedia</a></td>
+    </tr>
+
+    <tr class="conflict-row">
+        <td>Russia–Ukraine</td>
+        <td>Ongoing (since 2022) / ~1,100 days</td>
+        <td><a class="map-link" href="https://www.google.com/maps?q=Ukraine,Russia" target="_blank">View Map</a></td>
+        <td><a class="combatant-link" href="https://www.nytimes.com/search?query=Russia%20Ukraine%20war" target="_blank">Russia vs. Ukraine</a></td>
+        <td>Territorial</td>
+        <td>Orthodox Christianity</td>
+        <td><span class="footnote-link" onclick="toggleFootnote(2)">Details</span></td>
+    </tr>
+    <tr id="footnote-2" class="footnote">
+        <td colspan="7">A war sparked by Russia’s 2022 invasion of Ukraine, driven by territorial ambitions, NATO tensions, and Ukrainian resistance against Russian aggression. <a href="https://en.wikipedia.org/wiki/Russo-Ukrainian_War" target="_blank">Wikipedia</a></td>
+    </tr>
+
+    <tr class="conflict-row">
+        <td>Yemen Civil War</td>
+        <td>Ongoing (since 2014) / ~4,000 days</td>
+        <td><a class="map-link" href="https://www.google.com/maps?q=Yemen" target="_blank">View Map</a></td>
+        <td><a class="combatant-link" href="https://www.nytimes.com/search?query=Yemen%20civil%20war" target="_blank">Houthi Rebels vs. Yemeni Gov.</a></td>
+        <td>Sectarian</td>
+        <td>Sunni, Shia Islam</td>
+        <td><span class="footnote-link" onclick="toggleFootnote(3)">Details</span></td>
+    </tr>
+    <tr id="footnote-3" class="footnote">
+        <td colspan="7">A proxy conflict between the Saudi-backed Yemeni government and Iran-supported Houthi rebels, fueled by sectarian, political, and regional power struggles. <a href="https://en.wikipedia.org/wiki/Yemeni_Civil_War_(2014%E2%80%93present)" target="_blank">Wikipedia</a></td>
+    </tr>
+
+    <!-- Remaining conflicts: Sudan, Ethiopia, Somalia, Mexico, Afghanistan, DRC, Colombia -->
+    </tbody>
+</table>
+
+<script>
+    function toggleFootnote(id) {
+        let footnote = document.getElementById(`footnote-${id}`);
+        footnote.style.display = (footnote.style.display === "table-row") ? "none" : "table-row";
+    }
+</script>
+</body>
+</html>
