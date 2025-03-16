@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CodeMirror Editor Example</title>
+    <!-- Load CodeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <!-- Optional: Include a theme -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <style>
+        /* Optional: Set a height for the editor */
+        .CodeMirror {
+            height: 300px;
+        }
+    </style>
+</head>
+<body>
+<h1>CodeMirror Editor</h1>
+<!-- The textarea that will be replaced by CodeMirror -->
+<textarea id="code" name="code">
+function hello() {
+  console.log("Hello, CodeMirror!");
+}
+  </textarea>
+
+<!-- Load CodeMirror JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<!-- Load the JavaScript mode (or any mode you need) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+
+<script>
+    // Initialize CodeMirror on the textarea element
+    var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
+        mode: "javascript",
+        theme: "monokai",  // Optional: remove or change theme if desired
+        lineNumbers: true,
+        tabSize: 2,
+        indentUnit: 2,
+        matchBrackets: true
+    });
+</script>
+</body>
+</html>
