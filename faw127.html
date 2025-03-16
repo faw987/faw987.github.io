@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GPX Track Interpolator</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        #controls { padding: 10px; background: #f0f0f0; }
+        #drop-zone {
+            width: 100%;
+            height: 100px;
+            border: 2px dashed #999;
+            border-radius: 10px;
+            text-align: center;
+            line-height: 100px;
+            color: #999;
+            margin: 10px 0;
+        }
+        #map { height: 80vh; width: 100%; }
+        #debug {
+            padding: 10px;
+            background: #eef;
+            font-family: monospace;
+            display: none;
+        }
+        table {
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+        table, th, td {
+            border: 1px solid #ccc;
+        }
+        th, td {
+            padding: 5px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div id="controls">
+    <label for="distance">Desired spacing (meters):</label>
+    <input type="number" id="distance" placeholder="Enter spacing" value="50">
+    <br>
+    <label>
+        <input type="checkbox" id="showOriginal">
+        Show original track points
+    </label>
+    <label>
+        <input type="checkbox" id="showInterpolated">
+        Show interpolated track points
+    </label>
+    <br>
+    <button id="refreshBtn">Refresh</button>
+    <div id="drop-zone">Drag &amp; Drop GPX file(s) here</div>
+</div>
+<div id="map"></div>
+<div id="debug"></div>
+
+<script>
+    // Prevent default behavior for drag events globally.
+    ['dragenter', 'dragover', 'drop'].forEach(eventName => {
+        document.addEventListener(eventName, function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+    });
+
+    // Debug mode flag: set to true to show debug info.
+    const DEBUG_MODE = false;
+
+    // Global storage for track data and overlays.
+    let globalTrackPoints = null;
+    let originalPolyline = null;
+    let interpolatedPolyline = null;
+    let originalMarkers = [];
+    let interpolatedMarkers = [];
+    let map;
+
+    // Global icons: these will be set once google.maps is available.
+    let iconOriginal, iconInterpolated;
+
+    // Compute API key from segments.
+    const a0 = 'AIzaSyBmg';
+    const a1 = '5TrcOSMmC';
+    const a2 = 'hnpcbmDgpTON';
+    const a3 = '5E0xg3k1Q';
+    const apiKey = a0 + a1 + a2 + a3;
+
+    // Dynamically load the Google Maps API using the computed API key.
+    function loadGoogleMapsAPI(callback) {
+        const script = document.createElement("script");
+        script.src = "https://maps.googleapis.com/maps/api/js?key=" + apiKey;
+        script.async = true;
+        script.defer = true;
+        script.onload = callback;
+        document.head.appendChild(script);
+    }
+
+    // Initialize the map and define the icons.
+    function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: { lat: 0, lng: 0 },
+            zoom: 2,
+        });
+        // Define icons after google.maps is available.
+        iconOriginal = {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 4,
+            fillColor: "#FF0000",
+            fillOpacity: 1,
+            strokeColor: "#FFFFFF",
+            strokeWeight: 1
+        };
+        iconInterpolated = {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 4,
+            fillColor: "#0000FF",
+            fillOpacity: 1,
+            strokeColor: "#FFFFFF",
+            strokeWeight: 1
+        };
+    }
+    loadGoogleMapsAPI(initMap);
+
+    // Clear existing overlays (markers and polylines).
+    function clearOverlays() {
+        if (originalPolyline) { originalPolyline.setMap(null); originalPolyline = null; }
+        if (interpolatedPolyline) { interpolatedPolyline.setMap(null); interpolatedPolyline = null; }
+        originalMarkers.forEach(marker => marker.setMap(null));
+        originalMarkers = [];
+        interpolatedMarkers.forEach(marker => marker.setMap(null));
+        interpolatedMarkers = [];
+    }
+
+    // Set up drop zone events.
+    const dropZone = document.getElementById("drop-zone");
+    dropZone.addEventListener("dragover", (e) => {
+        dropZone.style.borderColor = "#666";
+        dropZone.style.color = "#666";
+    });
+    dropZone.addEventListener("dragleave", (e) => {
+        dropZone.style.borderColor = "#999";
+        dropZone.style.color = "#999";
+    });
+    dropZone.addEventListener("drop", (e) => {
+        dropZone.style.borderColor = "#999";
+        dropZone.style.color = "#999";
+        const files = e.dataTransfer.files;
+        for (let file of files) {
+            if (file.name.toLowerCase().endsWith(".gpx")) {
+                readGPX(file);
+            } else {
+                alert("Unsupported file type. Only GPX files are currently supported.");
+            }
+        }
+    });
+
+    // Read and parse the GPX file.
+    function readGPX(file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(event.target.result, "application/xml");
+            const trkpts = xmlDoc.getElementsByTagName("trkpt");
+            const points = [];
+            for (let i = 0; i < trkpts.length; i++) {
+                const lat = parseFloat(trkpts[i].getAttribute("lat"));
+                const lon = parseFloat(trkpts[i].getAttribute("lon"));
+                points.push({ lat, lng: lon });
+            }
+            if (points.length > 0) {
+                globalTrackPoints = points;
+                plotTracks();
+            } else {
+                alert("No track points found in the GPX file.");
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    // Compute the haversine distance between two lat/lng points in meters.
+    function haversineDistance(p1, p2) {
+        const R = 6371000; // Earth radius in meters
+        const toRad = deg => deg * Math.PI / 180;
+        const dLat = toRad(p2.lat - p1.lat);
+        const dLon = toRad(p2.lng - p1.lng);
+        const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(p1.lat)) * Math.cos(toRad(p2.lat)) *
+            Math.sin(dLon / 2) ** 2;
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    // Interpolate between two points.
+    function interpolatePoint(p1, p2, fraction) {
+        return {
+            lat: p1.lat + (p2.lat - p1.lat) * fraction,
+            lng: p1.lng + (p2.lng - p1.lng) * fraction,
+        };
+    }
+
+    // Interpolate the track so that points are approximately spaced at the given interval.
+    function interpolateTrack(points, spacing) {
+        const newPoints = [];
+        if (points.length === 0) return newPoints;
+        newPoints.push(points[0]);
+        let remaining = spacing;
+        // Use a copy of points for interpolation.
+        for (let i = 1; i < points.length; i++) {
+            let segmentDistance = haversineDistance(points[i - 1], points[i]);
+            while (segmentDistance >= remaining) {
+                const fraction = remaining / segmentDistance;
+                const newPoint = interpolatePoint(points[i - 1], points[i], fraction);
+                newPoints.push(newPoint);
+                points[i - 1] = newPoint;
+                segmentDistance = haversineDistance(points[i - 1], points[i]);
+                remaining = spacing;
+            }
+            remaining -= segmentDistance;
+        }
+        return newPoints;
+    }
+
+    // Plot the polylines, markers, and optionally debug tables.
+    function plotTracks() {
+        if (!globalTrackPoints) return;
+        clearOverlays();
+
+        const spacing = parseFloat(document.getElementById("distance").value) || 50;
+        const showOriginal = document.getElementById("showOriginal").checked;
+        const showInterpolated = document.getElementById("showInterpolated").checked;
+
+        originalPolyline = new google.maps.Polyline({
+            path: globalTrackPoints,
+            geodesic: true,
+            strokeColor: "#FF0000",
+            strokeOpacity: 1.0,
+            strokeWeight: 2,
+        });
+        originalPolyline.setMap(map);
+
+        const interpPoints = interpolateTrack([...globalTrackPoints], spacing);
+        interpolatedPolyline = new google.maps.Polyline({
+            path: interpPoints,
+            geodesic: true,
+            strokeColor: "#0000FF",
+            strokeOpacity: 1.0,
+            strokeWeight: 2,
+        });
+        interpolatedPolyline.setMap(map);
+
+        if (showOriginal) {
+            globalTrackPoints.forEach(pt => {
+                const marker = new google.maps.Marker({
+                    position: pt,
+                    icon: iconOriginal,
+                    map: map
+                });
+                originalMarkers.push(marker);
+            });
+        }
+        if (showInterpolated) {
+            interpPoints.forEach(pt => {
+                const marker = new google.maps.Marker({
+                    position: pt,
+                    icon: iconInterpolated,
+                    map: map
+                });
+                interpolatedMarkers.push(marker);
+            });
+        }
+
+        const bounds = new google.maps.LatLngBounds();
+        globalTrackPoints.forEach(pt => bounds.extend(new google.maps.LatLng(pt.lat, pt.lng)));
+        map.fitBounds(bounds);
+
+        // Debug output.
+        const debugDiv = document.getElementById("debug");
+        if (DEBUG_MODE) {
+            let debugHTML = "<h3>Original Track Points</h3>";
+            debugHTML += "<table><thead><tr><th>Index</th><th>Latitude</th><th>Longitude</th></tr></thead><tbody>";
+            globalTrackPoints.forEach((pt, idx) => {
+                debugHTML += `<tr><td>${idx}</td><td>${pt.lat.toFixed(6)}</td><td>${pt.lng.toFixed(6)}</td></tr>`;
+            });
+            debugHTML += "</tbody></table>";
+
+            debugHTML += "<h3>Interpolated Track Points</h3>";
+            debugHTML += "<table><thead><tr><th>Index</th><th>Latitude</th><th>Longitude</th></tr></thead><tbody>";
+            interpPoints.forEach((pt, idx) => {
+                debugHTML += `<tr><td>${idx}</td><td>${pt.lat.toFixed(6)}</td><td>${pt.lng.toFixed(6)}</td></tr>`;
+            });
+            debugHTML += "</tbody></table>";
+
+            debugDiv.innerHTML = debugHTML;
+            debugDiv.style.display = "block";
+        } else {
+            debugDiv.style.display = "none";
+        }
+    }
+
+    document.getElementById("refreshBtn").addEventListener("click", () => {
+        if (globalTrackPoints) {
+            plotTracks();
+        } else {
+            alert("Please drop a GPX file first.");
+        }
+    });
+</script>
+</body>
+</html>
