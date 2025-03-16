@@ -1,450 +1,94 @@
-<!--<!DOCTYPE html>-->
-<!--<html lang="en">-->
-<!--<head>-->
-<!--    <meta charset="UTF-8">-->
-<!--    <meta name="viewport" content="width=device-width, initial-scale=1.0">-->
-<!--    <title>Geolocation Info - In the context of the geopolitical infrastructure.</title>-->
-<!--    <style>-->
-<!--        body {-->
-<!--            font-family: Arial, sans-serif;-->
-<!--            text-align: center;-->
-<!--            padding: 20px;-->
-<!--        }-->
-<!--        #output {-->
-<!--            margin-top: 10px;-->
-<!--            font-size: 1.2em;-->
-<!--        }-->
-<!--        #map {-->
-<!--            margin-top: 20px;-->
-<!--            width: 100%;-->
-<!--            height: 600px;-->
-<!--            margin-bottom: 20px;-->
-
-<!--        }-->
-<!--        button {-->
-<!--            height: 40px;-->
-<!--        }-->
-<!--    </style>-->
-<!--</head>-->
-<!--<body>-->
-<!--<h1>Geolocation Info</h1>-->
-<!--<h2>... in the context of the geopolitical infrastructure.</h2>-->
-<!--<div id="map"></div>-->
-<!--<input type="text" id="locationInput" placeholder="Enter lat, long (e.g., 37.7749, -122.4194)">-->
-<!--<button onClick="processLocation()">Use Input Lat,Lon</button>-->
-<!--<button onclick="processLocationAddress()">Use Input Address</button>-->
-<!--<button onclick="getCurrentLocation()" style="margin-left: 10px;">Current Location</button>-->
-<!--<button id="wikiButton">Wikipedia Page</button>-->
-<!--<button id="statsButton">City-Stats Page</button>-->
-<!--<button id="justiceButton">Justice Map Page</button>-->
-<!--<button id="NYCp1Button">NYC Parking #1</button>-->
-<!--<button id="NYCp2Button">NYC Parking #2</button>-->
-<!--<div id="output"></div>-->
-
-
-
-<!--<script async defer-->
-<!--        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBmg5TrcOSMmChnpcbmDgpTON5E0xg3k1Q&callback=initMap">-->
-<!--</script>-->
-
-<!--<script>-->
-
-<!--    // need to fix it: this is correct, no %20 allowed-->
-
-<!--    // https://www.city-data.com/city/New-Brunswick-New-Jersey.html#google_vignette-->
-
-
-<!--    const a0 = 'AIzaSyBmg';-->
-<!--    const a1 = '5TrcOSMmC';-->
-<!--    const a2 = 'hnpcbmDgpTON';-->
-<!--    const a3 = '5E0xg3k1Q';-->
-
-<!--    // Declare global variables-->
-
-<!--    CONSOLEDEBUG = false;-->
-
-<!--    const apiKey = a0 + a1 + a2 + a3;-->
-
-<!--    globaltown = '';-->
-<!--    globalstate = '';-->
-<!--    globalcounty = '';-->
-
-<!--    var glat  = 0;-->
-<!--    var glon  = 0;-->
-
-
-<!--    window.addEventListener('load', (event) => {-->
-<!--        // alert('Page fully loaded');-->
-<!--        getCurrentLocation();-->
-<!--        });-->
-
-
-
-<!--    document.addEventListener('DOMContentLoaded', () => {-->
-<!--        // const townInput = document.getElementById('town');-->
-<!--        // const stateInput = document.getElementById('state');-->
-<!--        const wikiButton = document.getElementById('wikiButton');-->
-
-<!--        wikiButton.addEventListener('click', async () => {-->
-<!--            // const town = townInput.value;-->
-<!--            // const state = stateInput.value;-->
-<!--            const town = globaltown;-->
-<!--            const state = globalstate;-->
-<!--            const wikiPage = await getWikipediaPage(town, state);-->
-
-<!--            if (wikiPage) {-->
-<!--                window.location.href = `https://en.wikipedia.org/wiki/${wikiPage}`;-->
-<!--            }-->
-<!--        });-->
-
-<!--        const statsButton = document.getElementById('statsButton');-->
-
-<!--        statsButton.addEventListener('click', async () => {-->
-<!--            // const town = townInput.value;-->
-<!--            // const state = stateInput.value;-->
-<!--            const town = globaltown;-->
-<!--            const state = globalstate;-->
-
-<!--            thestate=fixupStatsPage(state);-->
-<!--            thetown=fixupStatsTown(town);-->
-
-<!--            if (CONSOLEDEBUG == true ) {-->
-<!--                alert ("global town ,global state, local town local state:",globaltown,globalstate,thetown,thestate);-->
-<!--            };-->
-
-<!--            const wikiPage = await getStatsPage(thetown, thestate);-->
-
-<!--            if (wikiPage) {-->
-<!--                window.location.href = `https://www.city-data.com/city/${wikiPage}.html`;-->
-<!--            }-->
-<!--        });-->
-
-
-<!--        const justiceButton = document.getElementById('justiceButton');-->
-
-<!--        justiceButton.addEventListener('click', async () => {-->
-<!--            const town = globaltown;                // ?????? maybe remove-->
-<!--            const thestate = globalstate;           // ??????-->
-<!--                window.location.href = `https://www.justicemap.org/?gfLon=${glon}&gfLat=${glat}&gsLayer=income&giZoom=14`;-->
-<!--        });-->
-
-
-
-<!--        // https://nycdotsigns.net/-73.9807735:40.6856169/parking,21/867-->
-
-<!--        const NYCp1Button = document.getElementById('NYCp1Button');-->
-
-<!--        NYCp1Button.addEventListener('click', async () => {-->
-<!--            const town = globaltown;                // ?????? maybe remove-->
-<!--            const thestate = globalstate;           // ??????-->
-<!--            window.location.href = `https://nycdotsigns.net/${glon}:${glat}/parking,21/867`;-->
-<!--        });-->
-
-<!--        // https://nycdot.maps.arcgis.com/apps/webappviewer/index.html?center=-74.00604334095112,40.735033490610675&level=18-->
-
-<!--        const NYCp2Button = document.getElementById('NYCp2Button');-->
-
-<!--        NYCp2Button.addEventListener('click', async () => {-->
-<!--            const town = globaltown;                // ?????? maybe remove-->
-<!--            const thestate = globalstate;           // ??????-->
-<!--            window.location.href = `https://nycdot.maps.arcgis.com/apps/webappviewer/index.html?center=${glon},${glat}&level=18`;-->
-<!--        });-->
-
-<!--            // https://www.city-data.com/city/South-Plainfield-New-Jersey.html-->
-
-<!--        async function getStatsPage(town, state) {-->
-<!--            const pageTitle = `${town}-${state}`;-->
-<!--            const url = `https://www.city-data.com/city/${encodeURIComponent(pageTitle)}.html`;-->
-<!--            console.log("url="+url)-->
-<!--            // try {-->
-<!--            //     const response = await fetch(url);-->
-<!--            //     const data = await response.json();-->
-<!--            //     const pages = data.query.pages;-->
-<!--            //     const pageId = Object.keys(pages)[0];-->
-<!--            //-->
-<!--            //     if (pageId !== '-1') {-->
-<!--            //         wikiButton.disabled = false;-->
-<!--                    return pageTitle;-->
-<!--            //     } else {-->
-<!--            //         wikiButton.disabled = true;-->
-<!--            //         return null;-->
-<!--            //     }-->
-<!--            // } catch (error) {-->
-<!--            //     console.error('Error fetching Wikipedia page:', error);-->
-<!--            //     wikiButton.disabled = true;-->
-<!--            //     return null;-->
-<!--            // }-->
-<!--        }-->
-<!--    });-->
-
-<!--    async function getWikipediaPage(town, state) {-->
-<!--        const pageTitle = `${town},_${state}`;-->
-<!--        const url = `https://en.wikipedia.org/w/api.php?action=query&origin=*&format=json&titles=${encodeURIComponent(pageTitle)}`;-->
-<!--        console.log("url="+url)-->
-<!--        try {-->
-<!--            const response = await fetch(url);-->
-<!--            const data = await response.json();-->
-<!--            const pages = data.query.pages;-->
-<!--            const pageId = Object.keys(pages)[0];-->
-
-<!--            if (pageId !== '-1') {-->
-<!--                wikiButton.disabled = false;-->
-<!--                return pageTitle;-->
-<!--            } else {-->
-<!--                wikiButton.disabled = true;-->
-<!--                return null;-->
-<!--            }-->
-<!--        } catch (error) {-->
-<!--            console.error('Error fetching Wikipedia page:', error);-->
-<!--            wikiButton.disabled = true;-->
-<!--            return null;-->
-<!--        }-->
-<!--    };-->
-
-<!--    function processLocation() {-->
-<!--        const location = document.getElementById('locationInput').value.split(',');-->
-<!--        if (location.length === 2) {-->
-<!--            const [lat, long] = location;-->
-<!--            getAddressComponents(parseFloat(lat), parseFloat(long));-->
-<!--            if (CONSOLEDEBUG == true ) {-->
-<!--                alert("processLocationAddress 2 > global town ,global state:", globaltown, globalstate);-->
-<!--            }-->
-<!--        } else {-->
-<!--            document.getElementById('output').innerText = "Invalid format";-->
-<!--        }-->
-<!--    }-->
-
-<!--    async function getLatLon(address, apiKey) {-->
-<!--        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;-->
-
-<!--        try {-->
-<!--            const response = await fetch(url);-->
-<!--            if (response.ok) {-->
-<!--                const data = await response.json();-->
-<!--                if (data.status === 'OK') {-->
-<!--                    const location = data.results[0].geometry.location;-->
-<!--                    glat  = location.lat;-->
-<!--                    glon  = location.lng;-->
-<!--                    return { lat: location.lat, lon: location.lng };-->
-<!--                } else {-->
-<!--                    console.warn(`No valid results for the address. API status: ${data.status}`);-->
-<!--                    return { lat: 0, lon: 0 };-->
-<!--                }-->
-<!--            } else {-->
-<!--                throw new Error(`HTTP Error: ${response.status}`);-->
-<!--            }-->
-<!--        } catch (error) {-->
-<!--            console.error(`Error occurred: ${error.message}`);-->
-<!--            return { lat: 0, lon: 0 };-->
-<!--        }-->
-<!--    }-->
-
-
-<!--    async function processLocationAddress() {-->
-<!--        const address = document.getElementById('locationInput').value;-->
-<!--        const latlon= await getLatLon(address, 'AIzaSyBmg5TrcOSMmChnpcbmDgpTON5E0xg3k1Q');-->
-<!--        console.log(`Address: ${address}, API Response:`, latlon);-->
-
-<!--        // Pull lat and lon out of the response-->
-<!--        const { lat, lon } = latlon;-->
-
-<!--        getAddressComponents(lat, lon);-->
-
-<!--        if (CONSOLEDEBUG == true ) {-->
-<!--            alert("processLocationAddress 1 > global town ,global state:", globaltown, globalstate);-->
-<!--        };-->
-<!--    }-->
-
-<!--    function fixupStatsPage(page) {-->
-<!--        // alert("page:" + page);-->
-<!--        switch (page) {-->
-<!--            case page = "New%20Jersey":-->
-<!--                return 'New-Jersey';-->
-<!--            case page = "New Jersey":-->
-<!--                return 'New-Jersey';-->
-<!--            // Default case if no matches are found-->
-<!--            default:-->
-<!--                return page; // or any other adjustment you need-->
-<!--        }-->
-<!--    }-->
-
-
-<!--    function fixupStatsTown(page) {-->
-<!--        return page.replace(/%20/g, '-');-->
-<!--        return page.replace(/ /g, '-');-->
-<!--    }-->
-
-
-<!--    function extractLocalityAndState(geocodingResult) {-->
-<!--        let locality = null;-->
-<!--        let state = null;-->
-<!--        let county = null;-->
-<!--        // const locality;-->
-<!--        // const state;-->
-<!--        x='';-->
-<!--        if (geocodingResult.status === 'OK') {-->
-<!--            const addressComponents = geocodingResult.results[0].address_components;-->
-<!--            addressComponents.forEach(component => {-->
-<!--                x = x + component.types + " " + component.long_name  + "\n";-->
-<!--                if (component.types.includes('locality')) {-->
-<!--                    locality = component.long_name;-->
-<!--                 } else if (component.types.includes('administrative_area_level_1')) {-->
-<!--                    state = component.long_name;-->
-<!--                 } else if (component.types.includes('administrative_area_level_2')) {-->
-<!--                    county = component.long_name;-->
-<!--                 }-->
-<!--            });-->
-<!--        }-->
-<!--        let r = {locality, county, state};-->
-<!--        console.log(r);-->
-<!--        return r;-->
-<!--    }-->
-
-<!--    function setClipboard(textToCopy) {-->
-<!--        // The string you want to copy to the clipboard-->
-<!--        // const textToCopy = "This is the text to be copied";-->
-
-<!--        // Check if the Clipboard API is available-->
-<!--        if (navigator.clipboard) {-->
-<!--            navigator.clipboard.writeText(textToCopy).then(() => {-->
-<!--                console.log("Text copied to clipboard successfully!");-->
-<!--            }).catch(err => {-->
-<!--                console.error("Failed to copy text: ", err);-->
-<!--            });-->
-<!--        } else {-->
-<!--            // Fallback for browsers that do not support the Clipboard API-->
-<!--            const textArea = document.createElement("textarea");-->
-<!--            textArea.value = textToCopy;-->
-<!--            document.body.appendChild(textArea);-->
-<!--            textArea.select();-->
-<!--            document.execCommand("copy");-->
-<!--            document.body.removeChild(textArea);-->
-<!--            console.log("Text copied to clipboard using fallback method.");-->
-<!--        }-->
-<!--    }-->
-
-
-
-<!--    function getCurrentLocation() {-->
-<!--        if (navigator.geolocation) {-->
-<!--            navigator.geolocation.getCurrentPosition((position) => {-->
-<!--                const lat = position.coords.latitude;-->
-<!--                const long = position.coords.longitude;-->
-<!--                getAddressComponents(lat, long);-->
-<!--                if (CONSOLEDEBUG == true ) {-->
-<!--                    alert ("processLocationAddress 2 > global town ,global state:",globaltown,globalstate);-->
-<!--                };-->
-<!--                setClipboard(lat +"," + long);-->
-<!--            }, () => {-->
-<!--                document.getElementById('output').innerText = "Error getting location.";-->
-<!--            });-->
-<!--        } else {-->
-<!--            document.getElementById('output').innerText = "Geolocation not supported.";-->
-<!--        }-->
-<!--    }-->
-
-<!--    function getAddressComponents(lat, long) {-->
-<!--        const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${long}&key=${apiKey}`;-->
-
-<!--        fetch(url)-->
-<!--            .then((response) => response.json())-->
-<!--            .then((data) => {-->
-<!--                if (data.results[0]) {-->
-<!--                    const address = data.results[0].formatted_address;-->
-<!--                    const { locality, state, county }  = extractLocalityAndState(data);-->
-<!--                    globaltown   = locality;-->
-<!--                    globalstate = state;-->
-<!--                    globalcounty = county;-->
-<!--                    if (CONSOLEDEBUG == true ) {-->
-<!--                        alert("global: " + globaltown + " " + globalstate + " " + globalcounty);-->
-<!--                    };-->
-<!--                    const geopolitical = globaltown + " " + globalstate + " " + globalcounty ;-->
-<!--                    // const [latLong, geopolitical] = document.getElementById('output').innerText.split(': ');-->
-<!--                    // document.getElementById('output').innerText = `${latLong} (${lat}, ${long})\n${address}\n${geopolitical}`;-->
-<!--                    document.getElementById('output').innerText = `(${lat}, ${long})\n${address}\n${geopolitical}`;-->
-<!--                    initMap(lat, long);-->
-<!--                } else {-->
-<!--                    document.getElementById('output').innerText = "Error getting address.";-->
-<!--                }-->
-<!--            })-->
-<!--            .catch((error) => {-->
-<!--                document.getElementById('output').innerText = `Error: ${error}`;-->
-<!--            });-->
-<!--    }-->
-
-<!--    function initMap(lat, long) {-->
-<!--        const mapOptions = {-->
-<!--            zoom: 15,-->
-<!--            center: new google.maps.LatLng(lat, long),-->
-<!--            mapTypeId: google.maps.MapTypeId.ROADMAP-->
-<!--        };-->
-<!--        const map = new google.maps.Map(document.getElementById('map'), mapOptions);-->
-<!--        new google.maps.Marker({-->
-<!--            position: { lat: lat, lng: long },-->
-<!--            map: map-->
-<!--        });-->
-<!--        //-->
-<!--        // alert("in initMap")-->
-
-<!--    }-->
-
-<!--    // https://www.city-data.com/township/Piscataway-Middlesex-NJ.html#google_vignette-->
-<!--    // https://www.city-data.com/township/New-Jersey0.html-->
-<!--    // https://www.city-data.com/township/New-Jersey1.html-->
-<!--    // https://www.city-data.com/township/Plainsboro-Middlesex-NJ.html#google_vignette-->
-
-<!--</script>-->
-<!--</body>-->
-<!--</html>-->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Geolocation Info - In the context of the geopolitical infrastructure.</title>
+    <title>Geopolitical Map</title>
     <style>
+        /* Overall dark theme with light text */
         body {
             font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+            background-color: #222;
+            color: #f2f2f2;
             text-align: center;
-            padding: 20px;
         }
+        /* Smaller header text to maximize map space */
+        h2 {
+            font-size: 0.8em;
+            margin: 5px 0;
+        }
+        /* Output styling */
         #output {
             margin-top: 10px;
             font-size: 1.2em;
+            white-space: pre-wrap;
         }
+        /* Map occupies most of the view height */
         #map {
-            margin-top: 20px;
+            margin: 10px 0;
             width: 100%;
-            height: 600px;
-            margin-bottom: 20px;
+            height: calc(100vh - 150px);
         }
-        button {
+        /* Button group styling */
+        .button-group {
+            margin: 10px 0;
+        }
+        .button-group button {
             height: 40px;
             margin: 5px;
+            padding: 5px 15px;
+            font-size: 1em;
+            border: none;
+            border-radius: 4px;
+            background-color: #444;
+            color: #f2f2f2;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .button-group button:hover {
+            background-color: #666;
+        }
+        /* Input styling */
+        input[type="text"] {
+            padding: 10px;
+            font-size: 1em;
+            width: 80%;
+            max-width: 500px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 4px;
+            background-color: #333;
+            color: #f2f2f2;
+        }
+        input[type="text"]::placeholder {
+            color: #bbb;
         }
     </style>
 </head>
 <body>
-<h1>Geolocation Info</h1>
+<!-- Removed the large Geolocation header for more map space -->
 <h2>... in the context of the geopolitical infrastructure.</h2>
 <div id="map"></div>
-<input type="text" id="locationInput" placeholder="Enter lat, long or an address" />
-<br>
-<button onClick="processLocation()">Use Input Lat,Lon</button>
-<button onclick="processLocationAddress()">Use Input Address</button>
-<button onclick="getCurrentLocation()">Current Location</button>
-<br>
-<button id="wikiButton">Wikipedia Page</button>
-<button id="statsButton">City-Stats Page</button>
-<button id="justiceButton">Justice Map Page</button>
-<button id="NYCp1Button">NYC Parking #1</button>
-<button id="NYCp2Button">NYC Parking #2</button>
+<input type="text" id="locationInput" placeholder="Enter lat, lon or address, or track interval (sec)" />
+<div class="button-group">
+    <button id="processLocationBtn" title="Process the input as latitude, longitude">Use Input Lat, Lon</button>
+    <button id="processAddressBtn" title="Process the input as an address">Use Input Address</button>
+    <button id="currentLocationBtn" title="Get your current location">Current Location</button>
+    <button id="trackButton" title="Toggle tracking mode based on interval input">Track</button>
+</div>
+<div class="button-group">
+    <button id="wikiButton" title="Go to the Wikipedia page">Wikipedia Page</button>
+    <button id="statsButton" title="Go to the City-Stats page">City-Stats Page</button>
+    <button id="justiceButton" title="Go to the Justice Map page">Justice Map Page</button>
+    <button id="NYCp1Button" style="display:none;" title="NYC Parking #1">NYC Parking #1</button>
+    <button id="NYCp2Button" style="display:none;" title="NYC Parking #2">NYC Parking #2</button>
+</div>
 <div id="output"></div>
 
-<script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBmg5TrcOSMmChnpcbmDgpTON5E0xg3k1Q&callback=initMap">
-</script>
+<!-- Load the Google Maps API -->
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBmg5TrcOSMmChnpcbmDgpTON5E0xg3k1Q&callback=initMap"></script>
 
 <script>
     // API key segments (for example purposes)
@@ -455,18 +99,19 @@
     const apiKey = a0 + a1 + a2 + a3;
 
     // Global variables for location data
-    let globaltown = '';
-    let globalstate = '';
-    let globalcounty = '';
+    let globalTown = '';
+    let globalState = '';
+    let globalCounty = '';
     let glat = 0;
     let glon = 0;
     const CONSOLEDEBUG = false;
+    let trackingIntervalId = null;
 
-    // Update map when the Google Maps API callback is called
-    function initMap(lat, lon) {
-        // If no parameters are passed, use global coordinates
-        lat = (typeof lat !== 'undefined') ? lat : glat;
-        lon = (typeof lon !== 'undefined') ? lon : glon;
+    /**
+     * Initializes the Google Map.
+     * If no coordinates are provided, it uses the global values.
+     */
+    function initMap(lat = glat, lon = glon) {
         const mapOptions = {
             zoom: 15,
             center: new google.maps.LatLng(lat, lon),
@@ -480,141 +125,162 @@
     }
 
     // On page load, attempt to use current location
-    window.addEventListener('load', (event) => {
+    window.addEventListener('load', () => {
         getCurrentLocation();
     });
 
-    // Set up button event listeners
+    // Setup event listeners after the DOM is fully loaded
     document.addEventListener('DOMContentLoaded', () => {
-        const wikiButton = document.getElementById('wikiButton');
-        wikiButton.addEventListener('click', async () => {
-            const town = globaltown;
-            const state = globalstate;
-            const wikiPage = await getWikipediaPage(town, state);
+        document.getElementById('processLocationBtn').addEventListener('click', processLocation);
+        document.getElementById('processAddressBtn').addEventListener('click', processLocationAddress);
+        document.getElementById('currentLocationBtn').addEventListener('click', getCurrentLocation);
+        document.getElementById('trackButton').addEventListener('click', toggleTracking);
+
+        document.getElementById('wikiButton').addEventListener('click', async () => {
+            const wikiPage = await getWikipediaPage(globalTown, globalState);
             if (wikiPage) {
                 window.location.href = `https://en.wikipedia.org/wiki/${wikiPage}`;
+            } else {
+                updateOutput("Wikipedia page not found.");
             }
         });
 
-        const statsButton = document.getElementById('statsButton');
-        statsButton.addEventListener('click', async () => {
-            const town = globaltown;
-            const state = globalstate;
-            const fixedState = fixupStatsPage(state);
-            const fixedTown = fixupStatsTown(town);
+        document.getElementById('statsButton').addEventListener('click', async () => {
+            const fixedState = fixupStatsPage(globalState);
+            const fixedTown = fixupStatsTown(globalTown);
             const statsPage = await getStatsPage(fixedTown, fixedState);
             if (statsPage) {
                 window.location.href = `https://www.city-data.com/city/${statsPage}.html`;
+            } else {
+                updateOutput("City-Stats page not found.");
             }
         });
 
-        const justiceButton = document.getElementById('justiceButton');
-        justiceButton.addEventListener('click', async () => {
+        document.getElementById('justiceButton').addEventListener('click', () => {
             window.location.href = `https://www.justicemap.org/?gfLon=${glon}&gfLat=${glat}&gsLayer=income&giZoom=14`;
         });
 
-        const NYCp1Button = document.getElementById('NYCp1Button');
-        NYCp1Button.addEventListener('click', async () => {
+        document.getElementById('NYCp1Button').addEventListener('click', () => {
             window.location.href = `https://nycdotsigns.net/${glon}:${glat}/parking,21/867`;
         });
 
-        const NYCp2Button = document.getElementById('NYCp2Button');
-        NYCp2Button.addEventListener('click', async () => {
+        document.getElementById('NYCp2Button').addEventListener('click', () => {
             window.location.href = `https://nycdot.maps.arcgis.com/apps/webappviewer/index.html?center=${glon},${glat}&level=18`;
         });
     });
 
-    // Wikipedia lookup using global town and state
+    /**
+     * Helper function to update the output area.
+     */
+    function updateOutput(message) {
+        document.getElementById('output').innerText = message;
+    }
+
+    /**
+     * Looks up the Wikipedia page for the given town and state.
+     */
     async function getWikipediaPage(town, state) {
         const pageTitle = `${town},_${state}`;
         const url = `https://en.wikipedia.org/w/api.php?action=query&origin=*&format=json&titles=${encodeURIComponent(pageTitle)}`;
-        console.log("Wikipedia API URL: " + url);
+        if (CONSOLEDEBUG) console.log("Wikipedia API URL:", url);
         try {
             const response = await fetch(url);
             const data = await response.json();
             const pages = data.query.pages;
             const pageId = Object.keys(pages)[0];
-            if (pageId !== '-1') {
-                return pageTitle;
-            } else {
-                return null;
-            }
+            return pageId !== '-1' ? pageTitle : null;
         } catch (error) {
             console.error('Error fetching Wikipedia page:', error);
             return null;
         }
     }
 
-    // City-Stats page generator
+    /**
+     * Generates the City-Stats page URL component.
+     */
     async function getStatsPage(town, state) {
         const pageTitle = `${town}-${state}`;
-        console.log("City-Stats URL: " + pageTitle);
+        if (CONSOLEDEBUG) console.log("City-Stats page title:", pageTitle);
         return pageTitle;
     }
 
-    // Fixup functions for City-Stats URLs
-    function fixupStatsPage(page) {
-        if (page === "New Jersey" || page === "New%20Jersey") {
-            return 'New-Jersey';
-        }
-        return page;
+    /**
+     * Fixup function for City-Stats state names.
+     */
+    function fixupStatsPage(state) {
+        return (state === "New Jersey" || state === "New%20Jersey") ? 'New-Jersey' : state;
     }
 
-    function fixupStatsTown(page) {
-        return page.replace(/%20/g, '-').replace(/ /g, '-');
+    /**
+     * Fixup function for City-Stats town names.
+     */
+    function fixupStatsTown(town) {
+        return town.replace(/%20/g, '-').replace(/ /g, '-');
     }
 
-    // Process input as lat,lon string
+    /**
+     * Processes the input as a lat,lon string.
+     */
     function processLocation() {
         const locationStr = document.getElementById('locationInput').value;
-        const location = locationStr.split(',');
-        if (location.length === 2) {
-            const lat = parseFloat(location[0].trim());
-            const lon = parseFloat(location[1].trim());
-            // Update global coordinates
+        const parts = locationStr.split(',');
+        if (parts.length === 2) {
+            const lat = parseFloat(parts[0].trim());
+            const lon = parseFloat(parts[1].trim());
+            if (isNaN(lat) || isNaN(lon)) {
+                updateOutput("Invalid coordinates. Please enter valid numbers.");
+                return;
+            }
             glat = lat;
             glon = lon;
             getAddressComponents(lat, lon);
         } else {
-            document.getElementById('output').innerText = "Invalid format. Please enter in 'lat, lon' format.";
+            updateOutput("Invalid format. Please enter in 'lat, lon' format.");
         }
     }
 
-    // Process input as address lookup
+    /**
+     * Processes the input as an address lookup.
+     */
     async function processLocationAddress() {
         const address = document.getElementById('locationInput').value;
         const latlon = await getLatLon(address, apiKey);
-        console.log(`Address: ${address}, API Response:`, latlon);
-        const { lat, lon } = latlon;
-        getAddressComponents(lat, lon);
+        if (latlon && latlon.lat && latlon.lon) {
+            getAddressComponents(latlon.lat, latlon.lon);
+        } else {
+            updateOutput("Unable to geocode the provided address.");
+        }
     }
 
-    // Geocode an address to lat,lon and update globals
+    /**
+     * Geocodes an address to lat,lon and updates the global coordinates.
+     */
     async function getLatLon(address, apiKey) {
         const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
         try {
             const response = await fetch(url);
-            if (response.ok) {
-                const data = await response.json();
-                if (data.status === 'OK') {
-                    const location = data.results[0].geometry.location;
-                    glat = location.lat;
-                    glon = location.lng;
-                    return { lat: location.lat, lon: location.lng };
-                } else {
-                    console.warn(`No valid results for the address. API status: ${data.status}`);
-                    return { lat: 0, lon: 0 };
-                }
-            } else {
+            if (!response.ok) {
                 throw new Error(`HTTP Error: ${response.status}`);
             }
+            const data = await response.json();
+            if (data.status === 'OK' && data.results.length > 0) {
+                const location = data.results[0].geometry.location;
+                glat = location.lat;
+                glon = location.lng;
+                return { lat: location.lat, lon: location.lng };
+            }
+            updateOutput(`Geocoding error: ${data.status}`);
+            return null;
         } catch (error) {
-            console.error(`Error occurred: ${error.message}`);
-            return { lat: 0, lon: 0 };
+            console.error(`Error in getLatLon: ${error.message}`);
+            updateOutput(`Error: ${error.message}`);
+            return null;
         }
     }
 
-    // Use the browser's geolocation API to get the current position and update globals
+    /**
+     * Uses the browser's geolocation API to get the current position.
+     */
     function getCurrentLocation() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition((position) => {
@@ -623,52 +289,85 @@
                 glat = lat;
                 glon = lon;
                 getAddressComponents(lat, lon);
-                setClipboard(lat + "," + lon);
-            }, () => {
-                document.getElementById('output').innerText = "Error getting location.";
+                setClipboard(`${lat}, ${lon}`);
+            }, (error) => {
+                updateOutput("Error getting current location.");
+                console.error("Geolocation error:", error);
             });
         } else {
-            document.getElementById('output').innerText = "Geolocation not supported.";
+            updateOutput("Geolocation not supported.");
         }
     }
 
-    // Reverse geocode the lat,lon and update the UI and global address info
+    /**
+     * Toggles the tracking mode.
+     * When starting, the input value is interpreted as an interval (in seconds) for auto-updating the current location.
+     */
+    function toggleTracking() {
+        const trackBtn = document.getElementById('trackButton');
+        if (trackingIntervalId !== null) {
+            clearInterval(trackingIntervalId);
+            trackingIntervalId = null;
+            trackBtn.textContent = "Track";
+            updateOutput("Tracking stopped.");
+        } else {
+            const inputVal = document.getElementById('locationInput').value;
+            const intervalSeconds = parseFloat(inputVal);
+            if (isNaN(intervalSeconds) || intervalSeconds <= 0) {
+                updateOutput("Please enter a valid number (in seconds) for tracking.");
+                return;
+            }
+            updateOutput(`Tracking location every ${intervalSeconds} seconds...`);
+            getCurrentLocation();
+            trackingIntervalId = setInterval(getCurrentLocation, intervalSeconds * 1000);
+            trackBtn.textContent = "Stop Tracking";
+        }
+    }
+
+    /**
+     * Reverse geocodes the given lat,lon and updates the UI and global address info.
+     * Only displays NYC parking buttons if the state is New York.
+     */
     function getAddressComponents(lat, lon) {
         const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${apiKey}`;
         fetch(url)
-            .then((response) => response.json())
-            .then((data) => {
-                if (data.results[0]) {
+            .then(response => response.json())
+            .then(data => {
+                if (data.results && data.results[0]) {
                     const address = data.results[0].formatted_address;
                     const { locality, state, county } = extractLocalityAndState(data);
-                    globaltown = locality;
-                    globalstate = state;
-                    globalcounty = county;
-                    const geopolitical = `${globaltown} ${globalstate} ${globalcounty}`;
-                    document.getElementById('output').innerText = `(${lat}, ${lon})\n${address}\n${geopolitical}`;
+                    globalTown = locality;
+                    globalState = state;
+                    globalCounty = county;
+                    updateOutput(`(${lat}, ${lon})\n${address}`);
                     initMap(lat, lon);
+                    updateNYCParkingVisibility();
                 } else {
-                    document.getElementById('output').innerText = "Error getting address.";
+                    updateOutput("Error getting address components.");
                 }
             })
-            .catch((error) => {
-                document.getElementById('output').innerText = `Error: ${error}`;
+            .catch(error => {
+                updateOutput(`Error: ${error.message}`);
+                console.error("Error in getAddressComponents:", error);
             });
     }
 
-    // Extract locality, state, and county from geocoding response
+    /**
+     * Extracts locality, state, and county from the geocoding response.
+     */
     function extractLocalityAndState(geocodingResult) {
-        let locality = null;
-        let state = null;
-        let county = null;
-        if (geocodingResult.status === 'OK') {
-            const addressComponents = geocodingResult.results[0].address_components;
-            addressComponents.forEach(component => {
+        let locality = '';
+        let state = '';
+        let county = '';
+        if (geocodingResult && geocodingResult.results && geocodingResult.results[0]) {
+            geocodingResult.results[0].address_components.forEach(component => {
                 if (component.types.includes('locality')) {
                     locality = component.long_name;
-                } else if (component.types.includes('administrative_area_level_1')) {
+                }
+                if (component.types.includes('administrative_area_level_1')) {
                     state = component.long_name;
-                } else if (component.types.includes('administrative_area_level_2')) {
+                }
+                if (component.types.includes('administrative_area_level_2')) {
                     county = component.long_name;
                 }
             });
@@ -676,24 +375,57 @@
         return { locality, state, county };
     }
 
-    // Copy text to clipboard
-    function setClipboard(textToCopy) {
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(textToCopy)
-                .then(() => {
-                    console.log("Text copied to clipboard successfully!");
-                })
-                .catch(err => {
-                    console.error("Failed to copy text: ", err);
-                });
+    /**
+     * Updates the visibility of the NYC Parking buttons based on the current state.
+     */
+    function updateNYCParkingVisibility() {
+        const nycParkingBtn1 = document.getElementById('NYCp1Button');
+        const nycParkingBtn2 = document.getElementById('NYCp2Button');
+        if (globalState && (globalState.toLowerCase().includes("new york") || globalState.toLowerCase() === "ny")) {
+            nycParkingBtn1.style.display = "inline-block";
+            nycParkingBtn2.style.display = "inline-block";
+        } else {
+            nycParkingBtn1.style.display = "none";
+            nycParkingBtn2.style.display = "none";
+        }
+    }
+
+    /**
+     * Copies the specified text to the clipboard.
+     * Only attempts the copy if the document is focused.
+     */
+    function setClipboard(text) {
+        if (!document.hasFocus()) {
+            console.warn("Document not focused; skipping clipboard update.");
+            return;
+        }
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text)
+                .then(() => { if (CONSOLEDEBUG) console.log("Text copied successfully!"); })
+                .catch(err => { console.error("Failed to copy text:", err); });
         } else {
             const textArea = document.createElement("textarea");
-            textArea.value = textToCopy;
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.top = 0;
+            textArea.style.left = 0;
+            textArea.style.width = "2em";
+            textArea.style.height = "2em";
+            textArea.style.padding = 0;
+            textArea.style.border = "none";
+            textArea.style.outline = "none";
+            textArea.style.boxShadow = "none";
+            textArea.style.background = "transparent";
             document.body.appendChild(textArea);
+            textArea.focus();
             textArea.select();
-            document.execCommand("copy");
+            try {
+                document.execCommand('copy');
+                if (CONSOLEDEBUG) console.log("Text copied using fallback.");
+            } catch (err) {
+                console.error("Fallback: Unable to copy", err);
+            }
             document.body.removeChild(textArea);
-            console.log("Text copied to clipboard using fallback method.");
         }
     }
 </script>
