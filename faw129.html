@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech Command App</title>
+</head>
+<body>
+<h1>🎤 Real-Time Speech-to-Text & Text-to-Speech</h1>
+<button onclick="startListening()">Start Listening</button>
+<p><strong>You said:</strong> <span id="output">...</span></p>
+<script>
+    function startListening() {
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = "en-US";
+        recognition.continuous = false;
+
+        recognition.onresult = (event) => {
+            const text = event.results[0][0].transcript;
+            document.getElementById("output").innerText = text;
+            processCommand(text);
+        };
+
+        recognition.onerror = (event) => console.error("Speech recognition error:", event.error);
+        recognition.start();
+    }
+
+    function processCommand(text) {
+        let response = "I didn't understand that.";
+
+        if (text.toLowerCase().includes("hello")) {
+            response = "Hello! How can I help?";
+        } else if (text.toLowerCase().includes("weather")) {
+            response = "Checking the weather...";
+        }
+
+        speak(response);
+    }
+
+    function speak(text) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "en-US";
+        window.speechSynthesis.speak(utterance);
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Speech Translator</title>
+</head>
+<body>
+<h1>🎙️ AI Speech Translator</h1>
+
+<label for="language">Select Output Language:</label>
+<select id="language">
+    <option value="en">English</option>
+    <option value="de">German</option>
+    <option value="ja">Japanese</option>
+</select>
+
+<button onclick="startRecording()">🎤 Start Recording</button>
+<button onclick="stopRecording()">🛑 Stop</button>
+<button onclick="translateAndSpeak()">🌍 Translate & Speak</button>
+
+<p><strong>You said:</strong> <span id="output">...</span></p>
+<p><strong>Translation:</strong> <span id="translated">...</span></p>
+
+<audio id="audioPlayer" controls></audio>
+
+<script>
+    let audioBlob, transcribedText = "";
+
+    async function startRecording() {
+        mediaRecorder = new MediaRecorder(await navigator.mediaDevices.getUserMedia({ audio: true }));
+        let chunks = [];
+
+        mediaRecorder.ondataavailable = event => chunks.push(event.data);
+        mediaRecorder.onstop = async () => {
+            audioBlob = new Blob(chunks, { type: "audio/wav" });
+            console.log("🎤 Audio recorded.");
+            await sendAudioToSTT(audioBlob);
+        };
+
+        mediaRecorder.start();
+        console.log("🎙️ Recording...");
+    }
+
+    function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state !== "inactive") {
+            mediaRecorder.stop();
+            console.log("🛑 Recording stopped.");
+        }
+    }
+
+    // async function sendAudioToSTT(blob) {
+    //     const formData = new FormData();
+    //     formData.append("audio", blob, "audio.wav");
+    //
+    //     const response = await fetch("http://localhost:3000/stt", {
+    //         method: "POST",
+    //         body: formData
+    //     });
+    //
+    //     const data = await response.json();
+    //     transcribedText = data.text;
+    //     document.getElementById("output").innerText = transcribedText;
+    // }
+
+    async function sendAudioToSTT(blob) {
+        const formData = new FormData();
+        formData.append("audio", blob, "audio.wav");
+
+        console.log("📤 Sending audio to server...");
+        const response = await fetch("http://3.88.43.20:3000/stt", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+        transcribedText = data.text;
+        document.getElementById("output").innerText = transcribedText;
+    }
+
+    // async function translateAndSpeak() {
+    //     const targetLang = document.getElementById("language").value;
+    //
+    //     if (!transcribedText) {
+    //         alert("Please record first before translating!");
+    //         return;
+    //     }
+    //
+    //     const response = await fetch("http://localhost:3000/translate", {
+    //         method: "POST",
+    //         headers: { "Content-Type": "application/json" },
+    //         body: JSON.stringify({ text: transcribedText, targetLang })
+    //     });
+    //
+    //     const { translatedText } = await response.json();
+    //     document.getElementById("translated").innerText = translatedText;
+    //
+    //     const ttsResponse = await fetch("http://localhost:3000/tts", {
+    //         method: "POST",
+    //         headers: { "Content-Type": "application/json" },
+    //         body: JSON.stringify({ text: translatedText, lang: targetLang })
+    //     });
+    //
+    //     // const { audioUrl } = await ttsResponse.json();
+    //     // document.getElementById("audioPlayer").src = audioUrl;
+    // }
+
+    async function translateAndSpeak() {
+        const targetLang = document.getElementById("language").value;
+
+        if (!transcribedText) {
+            alert("Please record first before translating!");
+            return;
+        }
+
+        console.log("📤 Sending text for translation...");
+
+        try {
+            // Fetch translated text
+            const response = await fetch("http://3.88.43.20:3000/translate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: transcribedText, targetLang })
+            });
+
+            if (!response.ok) {
+                console.error("❌ Server error during translation:", response.status);
+                return;
+            }
+
+            const { translatedText } = await response.json();
+            document.getElementById("translated").innerText = translatedText;
+
+            console.log("🎙️ Sending translated text to TTS...");
+
+            // Call TTS API
+            const ttsResponse = await fetch("http://3.88.43.20:3000/tts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: translatedText, lang: targetLang })
+            });
+
+            // Log the full TTS response
+            const ttsData = await ttsResponse.json();
+            console.log("🔊 OpenAI TTS Response:", ttsData);
+
+            // Check if audioUrl exists
+            if (ttsData.audioUrl) {
+                // document.getElementById("audioPlayer").src = ttsData.audioUrl;
+                document.getElementById("audioPlayer").src = "http://3.88.43.20:3000/tts_output.mp3";
+            } else {
+                console.error("❌ No audio URL in TTS response");
+            }
+
+        } catch (error) {
+            console.error("❌ Network error:", error);
+        }
+    }
+
+</script>
+</body>
+</html>

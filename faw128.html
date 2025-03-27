@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Text-to-Speech Example</title>
+</head>
+<body>
+<h1>Text-to-Speech Demo</h1>
+<input type="text" id="textInput" placeholder="Enter your text here" style="width:300px;">
+<button onclick="speakText()">Speak</button>
+
+<script>
+    function speakText() {
+        // Get the text from the input field
+        var text = document.getElementById('textInput').value;
+        // Create a new speech synthesis utterance for the provided text
+        var utterance = new SpeechSynthesisUtterance(text);
+        // Optional: Customize voice, pitch, and rate if needed
+        // utterance.voice = speechSynthesis.getVoices()[0];
+        // utterance.pitch = 1;
+        // utterance.rate = 1;
+        // Speak the text
+        window.speechSynthesis.speak(utterance);
+    }
+</script>
+</body>
+</html>

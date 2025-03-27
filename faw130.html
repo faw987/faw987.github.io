@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speech Translation App</title>
+</head>
+<body>
+<h1>🎙️ Real-Time Speech Translator</h1>
+
+<label for="language">Select Output Language:</label>
+<select id="language">
+  <option value="en">English</option>
+  <option value="de">German</option>
+  <option value="ja">Japanese</option>
+</select>
+
+<button onclick="startListening()">🎤 Listen</button>
+<button onclick="translateAndSpeak()">🌍 Translate & Speak</button>
+
+<p><strong>You said:</strong> <span id="output">...</span></p>
+<p><strong>Translation:</strong> <span id="translated">...</span></p>
+
+<script>
+  let transcribedText = "";
+
+  function startListening() {
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = "en-US";
+    recognition.continuous = false;
+
+    recognition.onresult = (event) => {
+      transcribedText = event.results[0][0].transcript;
+      document.getElementById("output").innerText = transcribedText;
+    };
+
+    recognition.onerror = (event) => console.error("Speech recognition error:", event.error);
+    recognition.start();
+  }
+
+  async function translateAndSpeak() {
+    const targetLang = document.getElementById("language").value;
+    if (!transcribedText) {
+      alert("Please speak first before translating!");
+      return;
+    }
+
+    const translatedText = await translateText(transcribedText, targetLang);
+    document.getElementById("translated").innerText = translatedText;
+    speak(translatedText, targetLang);
+  }
+
+  async function translateText(text, targetLang) {
+    const apiKey = "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"; // Replace with your OpenAI API key
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [{ role: "system", content: `Translate the following text to ${targetLang}: "${text}"` }],
+        max_tokens: 100
+      })
+    });
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "Translation failed";
+  }
+
+  function speak(text, lang) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+    window.speechSynthesis.speak(utterance);
+  }
+</script>
+</body>
+</html>
