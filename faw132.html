@@ -149,7 +149,7 @@
             // Check if audioUrl exists
             if (ttsData.audioUrl) {
                 // document.getElementById("audioPlayer").src = ttsData.audioUrl;
-                document.getElementById("audioPlayer").src = `${endpoint}:3000/tts_output.mp3`;
+                document.getElementById("audioPlayer").src = `${endpoint}/tts_output.mp3`;
             } else {
                 console.error("❌ No audio URL in TTS response");
             }
