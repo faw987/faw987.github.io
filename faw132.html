@@ -26,6 +26,8 @@
 
 <script>
     let audioBlob, transcribedText = "";
+    let endpoint = "https://faw987.duckdns.org";
+
 
     async function startRecording() {
         mediaRecorder = new MediaRecorder(await navigator.mediaDevices.getUserMedia({ audio: true }));
@@ -66,9 +68,9 @@
     async function sendAudioToSTT(blob) {
         const formData = new FormData();
         formData.append("audio", blob, "audio.wav");
-
-        console.log("📤 Sending audio to server...");
-        const response = await fetch("http://3.88.43.20:3000/stt", {
+        // faw987.duckdns.org
+        console.log("📤 Sending audio to server..."+ `${endpoint}/stt`);
+        const response = await fetch(`${endpoint}/stt`, {
             method: "POST",
             body: formData
         });
@@ -117,7 +119,7 @@
 
         try {
             // Fetch translated text
-            const response = await fetch("http://3.88.43.20:3000/translate", {
+            const response = await fetch(`${endpoint}/translate`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ text: transcribedText, targetLang })
@@ -134,7 +136,7 @@
             console.log("🎙️ Sending translated text to TTS...");
 
             // Call TTS API
-            const ttsResponse = await fetch("http://3.88.43.20:3000/tts", {
+            const ttsResponse = await fetch(`${endpoint}/tts`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ text: translatedText, lang: targetLang })
@@ -147,7 +149,7 @@
             // Check if audioUrl exists
             if (ttsData.audioUrl) {
                 // document.getElementById("audioPlayer").src = ttsData.audioUrl;
-                document.getElementById("audioPlayer").src = "http://3.88.43.20:3000/tts_output.mp3";
+                document.getElementById("audioPlayer").src = `${endpoint}:3000/tts_output.mp3`;
             } else {
                 console.error("❌ No audio URL in TTS response");
             }
