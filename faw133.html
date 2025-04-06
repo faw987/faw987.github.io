@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Word Game</title>
+    <style>
+        /* Basic styling for a clean, modern look */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            resize: vertical;
+        }
+        .score-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        .output-field {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            min-height: 30px;
+            background: #e9e9e9;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .grid-container button {
+            padding: 10px;
+            font-size: 1rem;
+        }
+        .indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: red;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        .practice-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Word Game</h1>
+
+    <!-- Target language selection -->
+    <div>
+        <label for="language">Select Target Language:</label>
+        <select id="language">
+            <option value="en">English</option>
+            <option value="de">German</option>
+            <option value="ja">Japanese</option>
+        </select>
+    </div>
+
+    <!-- Input list of words/phrases -->
+    <div>
+        <label for="wordList">Enter Words/Phrases (one per line):</label>
+        <textarea id="wordList" placeholder="Enter words or phrases here..."></textarea>
+    </div>
+
+    <!-- Score display and reset -->
+    <div class="score-container">
+        <label>Score: <span id="scoreDisplay">0</span></label>
+        <button id="resetScoreBtn">Reset Score</button>
+    </div>
+
+    <!-- Controls for selecting and displaying the random word -->
+    <div class="controls">
+        <button id="newWordBtn">New Word</button>
+        <button id="showWordBtn">Show Word</button>
+        <button id="hideWordBtn">Hide Word</button>
+    </div>
+
+    <!-- Output field for the selected word/phrase -->
+    <div>
+        <label for="selectedWord">Selected Word/Phrase:</label>
+        <div id="selectedWord" class="output-field"></div>
+    </div>
+
+    <!-- Grid of translation options -->
+    <div>
+        <label>Translation Options:</label>
+        <div id="translationGrid" class="grid-container"></div>
+    </div>
+
+    <!-- Pronounce button -->
+    <div class="controls">
+        <button id="pronounceBtn" disabled>Pronounce Word</button>
+    </div>
+
+    <!-- Practice section -->
+    <div class="practice-section">
+        <div class="controls">
+            <button id="practiceBtn">Practice</button>
+            <span id="listeningIndicator" class="indicator"></span>
+            <button id="scoreAttemptBtn" disabled>Score My Attempt</button>
+        </div>
+        <div>
+            <label for="practiceOutput">Practice Output (target language):</label>
+            <div id="practiceOutput" class="output-field"></div>
+        </div>
+        <div>
+            <label for="backTranslation">Back Translation (to from language):</label>
+            <div id="backTranslation" class="output-field"></div>
+        </div>
+        <div>
+            <label>Match Check:</label>
+            <div id="matchIndicator" class="output-field" style="font-size: 2rem;"></div>
+        </div>
+        <!-- "Move on" button -->
+        <div class="controls" style="margin-top: 20px;">
+            <button id="moveOnBtn" disabled>I'm right. Let's move on</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Set the server endpoint – adjust as needed.
+    const endpoint = "https://faw987.duckdns.org";
+    let score = 0;
+    let wordListArray = [];
+    let currentWord = "";
+    let correctTranslation = "";
+    let gridButtons = [];
+
+    // Element references for main game
+    const wordListEl = document.getElementById("wordList");
+    const scoreDisplayEl = document.getElementById("scoreDisplay");
+    const selectedWordEl = document.getElementById("selectedWord");
+    const translationGridEl = document.getElementById("translationGrid");
+    const pronounceBtn = document.getElementById("pronounceBtn");
+    const languageSelect = document.getElementById("language");
+
+    // Button elements for main game
+    const resetScoreBtn = document.getElementById("resetScoreBtn");
+    const newWordBtn = document.getElementById("newWordBtn");
+    const showWordBtn = document.getElementById("showWordBtn");
+    const hideWordBtn = document.getElementById("hideWordBtn");
+
+    // Main game event listeners
+    resetScoreBtn.addEventListener("click", resetScore);
+    newWordBtn.addEventListener("click", loadNewWord);
+    showWordBtn.addEventListener("click", showCurrentWord);
+    hideWordBtn.addEventListener("click", hideCurrentWord);
+    pronounceBtn.addEventListener("click", pronounceWord);
+
+    function resetScore() {
+        score = 0;
+        updateScoreDisplay();
+    }
+
+    function updateScoreDisplay() {
+        scoreDisplayEl.innerText = score;
+    }
+
+    // Read and split the words/phrases entered by the user.
+    function loadWordList() {
+        const rawText = wordListEl.value.trim();
+        if (!rawText) {
+            alert("Please enter some words or phrases in the list.");
+            return [];
+        }
+        return rawText.split(/\r?\n/).filter(line => line.trim() !== "");
+    }
+
+    // Load a new random word from the input list and reset the game state.
+    function loadNewWord() {
+        wordListArray = loadWordList();
+        if (wordListArray.length === 0) return;
+
+        // Reset previous state
+        pronounceBtn.disabled = true;
+        selectedWordEl.innerText = "";
+        translationGridEl.innerHTML = "";
+        // Clear practice section outputs and match indicator
+        practiceOutputEl.innerText = "";
+        backTranslationEl.innerText = "";
+        matchIndicatorEl.innerHTML = "";
+        moveOnBtn.disabled = true;
+
+        // Pick a random word from the list.
+        currentWord = wordListArray[Math.floor(Math.random() * wordListArray.length)];
+
+        // Fetch the translation from the server.
+        const targetLang = languageSelect.value;
+        fetch(`${endpoint}/translate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: currentWord, targetLang: targetLang })
+        })
+            .then(response => response.json())
+            .then(data => {
+                correctTranslation = data.translatedText;
+                // Generate the grid options with distractors.
+                const options = generateOptions(correctTranslation);
+                renderTranslationGrid(options);
+            })
+            .catch(error => {
+                console.error("Error during translation:", error);
+            });
+    }
+
+    // Generates 8 dummy distractor options along with the correct translation.
+    function generateOptions(correct) {
+        let options = [];
+        for (let i = 1; i <= 8; i++) {
+            options.push(correct + " " + i);
+        }
+        // Insert the correct translation at a random position.
+        const randomIndex = Math.floor(Math.random() * 9);
+        options.splice(randomIndex, 0, correct);
+        return options;
+    }
+
+    // Render the grid of translation option buttons.
+    function renderTranslationGrid(options) {
+        translationGridEl.innerHTML = ""; // Clear any previous grid.
+        gridButtons = [];
+        options.forEach(option => {
+            const btn = document.createElement("button");
+            btn.textContent = option;
+            btn.addEventListener("click", () => handleOptionClick(btn));
+            translationGridEl.appendChild(btn);
+            gridButtons.push(btn);
+        });
+    }
+
+    // Handle user selection from the grid.
+    function handleOptionClick(button) {
+        if (button.textContent === correctTranslation) {
+            // Correct answer: add points, disable further clicks, and enable pronunciation.
+            score += 10;
+            updateScoreDisplay();
+            disableGridButtons();
+            pronounceBtn.disabled = false;
+            // Commented out alert code:
+            // alert("Correct! You may now pronounce the word.");
+            console.log("Correct answer selected. Score updated:", score);
+            // Highlight the correct button to stand out.
+            button.style.border = "3px solid green";
+            button.style.fontWeight = "bold";
+        } else {
+            // Incorrect answer: subtract points and remove the wrong option.
+            score -= 10;
+            updateScoreDisplay();
+            button.disabled = true;
+            button.style.visibility = "hidden";
+            // Commented out alert code:
+            // alert("Incorrect! 10 points deducted.");
+            console.log("Incorrect answer. 10 points deducted. Score updated:", score);
+        }
+    }
+
+    // Disable all grid buttons.
+    function disableGridButtons() {
+        gridButtons.forEach(btn => {
+            btn.disabled = true;
+        });
+    }
+
+    // Show the currently selected word.
+    function showCurrentWord() {
+        selectedWordEl.innerText = currentWord;
+    }
+
+    // Hide the displayed word.
+    function hideCurrentWord() {
+        selectedWordEl.innerText = "";
+    }
+
+    // Call the TTS service to pronounce the correct translation.
+    function pronounceWord() {
+        const targetLang = languageSelect.value;
+        fetch(`${endpoint}/tts`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: correctTranslation, lang: targetLang })
+        })
+            .then(response => response.json())
+            .then(data => {
+                const audioUrl = data.audioUrl || `${endpoint}/tts_output.mp3`;
+                const audio = new Audio(audioUrl);
+                audio.play();
+            })
+            .catch(error => {
+                console.error("Error during TTS:", error);
+            });
+    }
+
+    // ----------------------------
+    // Practice Section Variables and Functions
+    // ----------------------------
+    let practiceRecorder;
+    let practiceChunks = [];
+    let practiceAudioBlob = null;
+
+    const practiceBtn = document.getElementById("practiceBtn");
+    const scoreAttemptBtn = document.getElementById("scoreAttemptBtn");
+    const listeningIndicator = document.getElementById("listeningIndicator");
+    const practiceOutputEl = document.getElementById("practiceOutput");
+    const backTranslationEl = document.getElementById("backTranslation");
+    const matchIndicatorEl = document.getElementById("matchIndicator");
+    const moveOnBtn = document.getElementById("moveOnBtn");
+
+    practiceBtn.addEventListener("click", startPracticeRecording);
+    scoreAttemptBtn.addEventListener("click", scorePracticeAttempt);
+    moveOnBtn.addEventListener("click", () => {
+        console.log("User confirmed correct match. Moving on to next word.");
+        loadNewWord();
+    });
+
+    // Normalize text: trim, lowercase, remove diacritics, punctuation, and extra spaces.
+    function normalizeText(text) {
+        return text
+            .trim()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^\w\s]|_/g, "")
+            .replace(/\s+/g, " ");
+    }
+
+    async function startPracticeRecording() {
+        practiceChunks = [];
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            practiceRecorder = new MediaRecorder(stream);
+            practiceRecorder.ondataavailable = event => {
+                practiceChunks.push(event.data);
+            };
+            practiceRecorder.onstart = () => {
+                listeningIndicator.style.backgroundColor = "green";
+                scoreAttemptBtn.disabled = false;
+            };
+            practiceRecorder.start();
+        } catch (err) {
+            console.error("Error accessing audio devices:", err);
+        }
+    }
+
+    async function scorePracticeAttempt() {
+        if (practiceRecorder && practiceRecorder.state !== "inactive") {
+            practiceRecorder.stop();
+            listeningIndicator.style.backgroundColor = "red";
+            scoreAttemptBtn.disabled = true;
+            practiceRecorder.onstop = async () => {
+                practiceAudioBlob = new Blob(practiceChunks, { type: "audio/wav" });
+                const formData = new FormData();
+                formData.append("audio", practiceAudioBlob, "practice.wav");
+                try {
+                    const sttResponse = await fetch(`${endpoint}/stt`, {
+                        method: "POST",
+                        body: formData
+                    });
+                    const sttData = await sttResponse.json();
+                    const practiceText = sttData.text;
+                    practiceOutputEl.innerText = practiceText;
+
+                    // Translate the practice text back to the from language (assumed English).
+                    const translateResponse = await fetch(`${endpoint}/translate`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ text: practiceText, targetLang: "en" })
+                    });
+                    const translateData = await translateResponse.json();
+                    const backTranslated = translateData.translatedText;
+                    backTranslationEl.innerText = backTranslated;
+
+                    // Debug logs for comparison.
+                    const originalLine = currentWord.split(/\r?\n/)[0];
+                    const normalizedOriginal = normalizeText(originalLine);
+                    const normalizedBack = normalizeText(backTranslated);
+                    console.log("Original (first line):", JSON.stringify(originalLine));
+                    console.log("Normalized Original:", JSON.stringify(normalizedOriginal));
+                    console.log("Back Translated:", JSON.stringify(backTranslated));
+                    console.log("Normalized Back Translated:", JSON.stringify(normalizedBack));
+
+                    // Compare normalized texts.
+                    if (normalizedBack === normalizedOriginal) {
+                        matchIndicatorEl.innerHTML = "&#10004;"; // Green check mark.
+                        matchIndicatorEl.style.color = "green";
+                        // Enable move on button.
+                        moveOnBtn.disabled = false;
+                    } else {
+                        matchIndicatorEl.innerHTML = "&#10008;"; // Red cross.
+                        matchIndicatorEl.style.color = "red";
+                        moveOnBtn.disabled = true;
+                    }
+                } catch (error) {
+                    console.error("Error scoring practice attempt:", error);
+                }
+            };
+        }
+    }
+</script>
+</body>
+</html>
