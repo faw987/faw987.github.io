@@ -34,13 +34,15 @@ app.use((req, res, next) => {
 
 /**
  * 🎙️ Speech-to-Text (STT) Endpoint
+ * Now uses the language sent in the request (via req.body.lang or req.body field from FormData)
  */
 app.post("/stt", upload.single("audio"), async (req, res) => {
     try {
         const inputPath = req.file.path;
         const wavPath = `${inputPath}.wav`;
+        const lang = req.body.lang || "en"; // Use language provided from client
 
-        console.log("📤 Received audio file:", inputPath);
+        console.log("📤 Received audio file:", inputPath, "with language:", lang);
 
         // Convert to WAV using ffmpeg
         exec(
@@ -61,7 +63,8 @@ app.post("/stt", upload.single("audio"), async (req, res) => {
                         const FormData = require("form-data");
                         const formData = new FormData();
                         formData.append("file", fs.createReadStream(wavPath));
-                        formData.append("language", "en"); // Adjust as needed
+                        // Use the provided language here
+                        formData.append("language", lang);
 
                         const sttResponse = await axios.post(
                             "https://api.elevenlabs.io/v1/speech-to-text",
@@ -79,7 +82,7 @@ app.post("/stt", upload.single("audio"), async (req, res) => {
                         const response = await openai.audio.transcriptions.create({
                             file: fs.createReadStream(wavPath),
                             model: "whisper-1",
-                            language: "en",
+                            language: lang, // Now use language from client
                         });
                         transcript = response.text;
                     }
@@ -104,51 +107,21 @@ app.post("/stt", upload.single("audio"), async (req, res) => {
 /**
  * 🌐 Translation Endpoint
  */
-// app.post("/translate", async (req, res) => {
-//     try {
-//         const { text, targetLang } = req.body;
-//         if (!text || !targetLang) {
-//             return res.status(400).json({ error: "Missing text or target language" });
-//         }
-//         console.log(`🌍 Translating to ${targetLang}: ${text}`);
-//
-//         const response = await openai.chat.completions.create({
-//             model: "gpt-4o",
-//             messages: [
-//                 {
-//                     role: "system",
-//                     content: `Translate this text into ${targetLang}: "${text}"`,
-//                 },
-//             ],
-//             max_tokens: 100,
-//         });
-//         if (!response || !response.choices?.[0]?.message) {
-//             throw new Error("Invalid OpenAI response format");
-//         }
-//         const translatedText = response.choices[0].message.content;
-//         console.log("✅ Translated:", translatedText);
-//         res.json({ translatedText });
-//     } catch (error) {
-//         console.error("❌ Error translating:", error);
-//         res.status(500).json({ error: error.message || "Translation failed" });
-//     }
-// });
-
 app.post("/translate", async (req, res) => {
     try {
         const { text, targetLang } = req.body;
         if (!text || !targetLang) {
             return res.status(400).json({ error: "Missing text or target language" });
         }
-        console.log(`Translating to ${targetLang}: ${text}`);
+        console.log(`🌍 Translating to ${targetLang}: ${text}`);
 
-        // Notice the updated messages array:
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
                 {
                     role: "system",
-                    content: "You are a helpful translation assistant. Translate the following text into " +
+                    content:
+                        "You are a helpful translation assistant. Translate the following text into " +
                         targetLang +
                         ". Output only the translated text with no additional commentary.",
                 },
@@ -159,15 +132,14 @@ app.post("/translate", async (req, res) => {
             ],
             max_tokens: 100,
         });
-
         if (!response || !response.choices?.[0]?.message) {
             throw new Error("Invalid OpenAI response format");
         }
         const translatedText = response.choices[0].message.content.trim();
-        console.log("Translated:", translatedText);
+        console.log("✅ Translated:", translatedText);
         res.json({ translatedText });
     } catch (error) {
-        console.error("Error translating:", error);
+        console.error("❌ Error translating:", error);
         res.status(500).json({ error: error.message || "Translation failed" });
     }
 });
@@ -247,11 +219,7 @@ app.use("/tts_output.mp3", express.static(path.join(__dirname, "tts_output.mp3")
 
 /**
  * 🤖 GPT Distractors Endpoint
- * This endpoint uses OpenAI chat completions to generate a list of alternative distractor options.
- * It expects a JSON body with:
- *   - baseText: (string) the input text for which alternatives are needed,
- *   - targetLang: (string) the language of the input text,
- *   - distractorCount: (number) the number of alternatives to generate.
+ * Generates alternative distractor options for the base text.
  */
 app.post("/gpt_distractors", async (req, res) => {
     try {
@@ -280,13 +248,12 @@ Please output exactly the alternatives separated by newline, with no extra comme
         });
 
         const distractorText = response.choices[0].message.content;
-        // Split the text into an array (removing leading numbering if present).
+        // Split the text into an array (remove any numbering, etc.)
         const distractors = distractorText
             .split("\n")
             .map((line) => line.trim())
             .filter((line) => line.length > 0)
             .map((line) => line.replace(/^\d+\.\s*/, ""));
-
         res.json({ distractors });
     } catch (error) {
         console.error("❌ GPT distractors error:", error);
