@@ -104,32 +104,70 @@ app.post("/stt", upload.single("audio"), async (req, res) => {
 /**
  * 🌐 Translation Endpoint
  */
+// app.post("/translate", async (req, res) => {
+//     try {
+//         const { text, targetLang } = req.body;
+//         if (!text || !targetLang) {
+//             return res.status(400).json({ error: "Missing text or target language" });
+//         }
+//         console.log(`🌍 Translating to ${targetLang}: ${text}`);
+//
+//         const response = await openai.chat.completions.create({
+//             model: "gpt-4o",
+//             messages: [
+//                 {
+//                     role: "system",
+//                     content: `Translate this text into ${targetLang}: "${text}"`,
+//                 },
+//             ],
+//             max_tokens: 100,
+//         });
+//         if (!response || !response.choices?.[0]?.message) {
+//             throw new Error("Invalid OpenAI response format");
+//         }
+//         const translatedText = response.choices[0].message.content;
+//         console.log("✅ Translated:", translatedText);
+//         res.json({ translatedText });
+//     } catch (error) {
+//         console.error("❌ Error translating:", error);
+//         res.status(500).json({ error: error.message || "Translation failed" });
+//     }
+// });
+
 app.post("/translate", async (req, res) => {
     try {
         const { text, targetLang } = req.body;
         if (!text || !targetLang) {
             return res.status(400).json({ error: "Missing text or target language" });
         }
-        console.log(`🌍 Translating to ${targetLang}: ${text}`);
+        console.log(`Translating to ${targetLang}: ${text}`);
 
+        // Notice the updated messages array:
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
                 {
                     role: "system",
-                    content: `Translate this text into ${targetLang}: "${text}"`,
+                    content: "You are a helpful translation assistant. Translate the following text into " +
+                        targetLang +
+                        ". Output only the translated text with no additional commentary.",
+                },
+                {
+                    role: "user",
+                    content: text,
                 },
             ],
             max_tokens: 100,
         });
+
         if (!response || !response.choices?.[0]?.message) {
             throw new Error("Invalid OpenAI response format");
         }
-        const translatedText = response.choices[0].message.content;
-        console.log("✅ Translated:", translatedText);
+        const translatedText = response.choices[0].message.content.trim();
+        console.log("Translated:", translatedText);
         res.json({ translatedText });
     } catch (error) {
-        console.error("❌ Error translating:", error);
+        console.error("Error translating:", error);
         res.status(500).json({ error: error.message || "Translation failed" });
     }
 });
