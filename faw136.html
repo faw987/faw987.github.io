@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Word Game - faw135</title>
+    <title>Word Game - FAW136</title>
     <style>
         /* Basic styling for a clean, modern look */
         body {
@@ -67,7 +66,6 @@
         }
         .grid-container {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
             gap: 10px;
             margin-top: 20px;
         }
@@ -89,12 +87,23 @@
             padding-top: 20px;
             border-top: 1px solid #ccc;
         }
+        /* New grid settings row */
+        .grid-settings {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .grid-settings label {
+            margin-top: 0;
+        }
     </style>
 </head>
 <body>
-<!-- faw135 - Enhanced Word Game -->
 <div class="container">
-    <h1>Word Game</h1>
+    <h1>Word Game - FAW136</h1>
 
     <!-- Target language selection -->
     <div>
@@ -115,7 +124,7 @@
 "How are you?"
 "How much does this cost?"
 "Which way to the exit?"
-      </textarea>
+    </textarea>
     </div>
 
     <!-- Score display and reset -->
@@ -137,10 +146,55 @@
         <div id="selectedWord" class="output-field"></div>
     </div>
 
+    <!-- New Grid Settings Controls: Rows, Columns, and Button Character Limit -->
+    <div class="grid-settings">
+        <label for="rowSelect">Rows:</label>
+        <select id="rowSelect">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5" selected>5</option>
+        </select>
+        <label for="colSelect">Columns:</label>
+        <select id="colSelect">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5" selected>5</option>
+        </select>
+        <label for="charCountSelect">Button Character Limit:</label>
+        <select id="charCountSelect">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10" selected>10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+            <option value="13">13</option>
+            <option value="14">14</option>
+            <option value="15">15</option>
+            <option value="16">16</option>
+            <option value="17">17</option>
+            <option value="18">18</option>
+            <option value="19">19</option>
+            <option value="20">20</option>
+        </select>
+    </div>
+
     <!-- Grid of translation options -->
     <div>
         <label>Translation Options:</label>
         <div id="translationGrid" class="grid-container"></div>
+        <!-- Field to show full text of the clicked button -->
+        <div id="fullTextDisplay" class="output-field"></div>
     </div>
 
     <!-- Pronounce button -->
@@ -199,6 +253,12 @@
     const pronounceBtn = document.getElementById("pronounceBtn");
     const languageSelect = document.getElementById("language");
     const toggleWordBtn = document.getElementById("toggleWordBtn");
+
+    // New elements for grid settings and full text display
+    const rowSelect = document.getElementById("rowSelect");
+    const colSelect = document.getElementById("colSelect");
+    const charCountSelect = document.getElementById("charCountSelect");
+    const fullTextDisplayEl = document.getElementById("fullTextDisplay");
 
     // Button elements for main game
     const resetScoreBtn = document.getElementById("resetScoreBtn");
@@ -259,6 +319,7 @@
         pronounceBtn.disabled = true;
         selectedWordEl.innerText = "";
         translationGridEl.innerHTML = "";
+        fullTextDisplayEl.innerText = "";
         toggleWordBtn.textContent = "Hide Word";
         toggleWordBtn.disabled = false;
 
@@ -293,25 +354,46 @@
             .catch(error => console.error("Error during translation:", error));
     }
 
-    // Generate dummy distractor options along with the correct translation.
+    // Generate distractor options along with the correct translation based on grid settings.
     function generateOptions(correct) {
+        const numRows = parseInt(rowSelect.value);
+        const numCols = parseInt(colSelect.value);
+        const gridSize = numRows * numCols;
         let options = [];
-        for (let i = 1; i <= 8; i++) {
+        // Generate (gridSize - 1) distractor options.
+        for (let i = 1; i < gridSize; i++) {
             options.push(correct + " " + i);
         }
-        const randomIndex = Math.floor(Math.random() * 9);
+        // Insert the correct translation at a random index.
+        const randomIndex = Math.floor(Math.random() * gridSize);
         options.splice(randomIndex, 0, correct);
         return options;
     }
 
-    // Render grid option buttons.
+    // Render grid option buttons with truncated text.
     function renderTranslationGrid(options) {
         translationGridEl.innerHTML = "";
         gridButtons = [];
+        // Set grid template based on selected rows and columns.
+        const numRows = parseInt(rowSelect.value);
+        const numCols = parseInt(colSelect.value);
+        translationGridEl.style.gridTemplateColumns = `repeat(${numCols}, 1fr)`;
+        translationGridEl.style.gridTemplateRows = `repeat(${numRows}, auto)`;
+        const charLimit = parseInt(charCountSelect.value);
+
         options.forEach(option => {
             const btn = document.createElement("button");
-            btn.textContent = option;
-            btn.addEventListener("click", () => handleOptionClick(btn));
+            // Store full text in data attribute.
+            btn.dataset.fulltext = option;
+            // Display only the first n characters.
+            btn.textContent = option.length > charLimit ? option.substring(0, charLimit) : option;
+            // Set hover tooltip to display the full text.
+            btn.title = option;
+            btn.addEventListener("click", () => {
+                handleOptionClick(btn);
+                // Always populate the full text display field.
+                fullTextDisplayEl.innerText = btn.dataset.fulltext;
+            });
             translationGridEl.appendChild(btn);
             gridButtons.push(btn);
         });
@@ -319,7 +401,8 @@
 
     // Handle grid option selection.
     function handleOptionClick(button) {
-        if (button.textContent === correctTranslation) {
+        const selectedFullText = button.dataset.fulltext;
+        if (selectedFullText === correctTranslation) {
             score += 10;
             updateScoreDisplay();
             disableGridButtons();
@@ -364,8 +447,7 @@
         })
             .then(response => response.json())
             .then(data => {
-                // const audioUrl = data.audioUrl || `${endpoint}/tts_output.mp3`;
-                const audioUrl =  `${endpoint}/tts_output.mp3`;
+                const audioUrl = `${endpoint}/tts_output.mp3`;
                 new Audio(audioUrl).play();
             })
             .catch(error => console.error("Error during TTS:", error));
