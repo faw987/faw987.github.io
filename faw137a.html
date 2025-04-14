@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Word Game - FAW136</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+        /* Reset and base styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f9fafb;
+            color: #333;
+            padding: 30px 15px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        }
+
+        h1 {
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: block;
+            color: #374151;
+        }
+
+        select,
+        textarea,
+        button {
+            font-family: inherit;
+            font-size: 1rem;
+        }
+
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: #f9fafb;
+            margin-top: 5px;
+            transition: border 0.2s;
+        }
+
+        select:focus,
+        textarea:focus {
+            border-color: #6366f1;
+            outline: none;
+            background: #fff;
+        }
+
+        textarea {
+            resize: vertical;
+            height: 120px;
+        }
+
+        .score-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #6366f1;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-weight: 600;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        button:hover {
+            background-color: #4f46e5;
+        }
+
+        button:disabled {
+            background-color: #c7d2fe;
+            cursor: not-allowed;
+        }
+
+        .output-field {
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 10px;
+            min-height: 40px;
+        }
+
+        .scrollable {
+            overflow-y: auto;
+            max-height: 150px;
+        }
+
+        .grid-container {
+            display: grid;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .grid-container button {
+            padding: 10px;
+            font-size: 1rem;
+            background-color: #e0e7ff;
+            color: #1e3a8a;
+            border: none;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .grid-container button:hover {
+            background-color: #c7d2fe;
+        }
+
+        .indicator {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background-color: red;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .practice-section {
+            margin-top: 40px;
+            padding-top: 25px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .grid-settings {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+
+        #matchIndicator {
+            font-size: 2rem;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            .controls,
+            .grid-settings {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .score-container {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Word Game - FAW136</h1>
+
+    <div>
+        <label for="language">Select Target Language:</label>
+        <select id="language">
+            <option value="de" selected>German</option>
+            <option value="en">English</option>
+            <option value="ja">Japanese</option>
+            <option value="es">Spanish</option>
+        </select>
+    </div>
+
+    <div>
+        <label for="wordList">Enter Words/Phrases (one per line):</label>
+        <textarea id="wordList" placeholder="Enter words or phrases here...">
+"Good Morning."
+"How are you?"
+"How much does this cost?"
+"Which way to the exit?"
+      </textarea>
+    </div>
+
+    <div class="score-container">
+        <label>Score: <span id="scoreDisplay">0</span></label>
+        <button id="resetScoreBtn">Reset Score</button>
+    </div>
+
+    <div class="controls">
+        <button id="newWordBtn">New Word</button>
+        <button id="toggleWordBtn" disabled>Hide Word</button>
+    </div>
+
+    <div>
+        <label for="selectedWord">Selected Word/Phrase:</label>
+        <div id="selectedWord" class="output-field"></div>
+    </div>
+
+    <div class="grid-settings">
+        <label for="rowSelect">Rows:</label>
+        <select id="rowSelect">
+            <option value="1">1</option>
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+        </select>
+        <label for="colSelect">Columns:</label>
+        <select id="colSelect">
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+        </select>
+        <label for="charCountSelect">Character Limit:</label>
+        <select id="charCountSelect">
+            <option value="10" selected>10</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
+        </select>
+        <button id="gptBtn">GPT</button>
+    </div>
+
+    <div>
+        <label>Translation Options:</label>
+        <div id="translationGrid" class="grid-container"></div>
+        <div id="fullTextDisplay" class="output-field"></div>
+    </div>
+
+    <div class="controls">
+        <button id="pronounceBtn" disabled>Pronounce Word</button>
+    </div>
+
+    <div class="practice-section">
+        <div class="controls">
+            <button id="practiceBtn">Practice</button>
+            <span id="listeningIndicator" class="indicator"></span>
+            <button id="scoreAttemptBtn" disabled>Score My Attempt</button>
+            <button id="rescoreBtn" disabled>Rescore</button>
+        </div>
+
+        <div class="controls">
+            <button id="retranslateBtn" disabled>Retranslate</button>
+        </div>
+
+        <div>
+            <label for="practiceOutput">Practice Output (target language):</label>
+            <div id="practiceOutput" class="output-field scrollable"></div>
+        </div>
+
+        <div>
+            <label for="backTranslation">Back Translation (to from language):</label>
+            <div id="backTranslation" class="output-field scrollable"></div>
+        </div>
+
+        <div>
+            <label>Match Check:</label>
+            <div id="matchIndicator" class="output-field"></div>
+        </div>
+
+        <div class="controls" style="margin-top: 20px;">
+            <button id="moveOnBtn">I'm right. Let's move on</button>
