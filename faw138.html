@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Store Text File</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    label {
+      font-weight: bold;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+<h1>Store Text File</h1>
+<form id="storeForm">
+  <div>
+    <label for="fileId">File ID:</label>
+    <input type="text" id="fileId" name="fileId" required>
+  </div>
+  <br>
+  <div>
+    <label for="content">Content:</label><br>
+    <textarea id="content" name="content" cols="80" rows="20" required></textarea>
+  </div>
+  <br>
+  <button type="submit">Store it</button>
+</form>
+<div id="result"></div>
+
+<script>
+  document.getElementById('storeForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const fileId = document.getElementById('fileId').value;
+    const content = document.getElementById('content').value;
+    const resultDiv = document.getElementById('result');
+
+    try {
+      const response = await fetch('/save_text', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id: fileId, content: content })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        resultDiv.textContent = data.message || 'File saved successfully.';
+      } else {
+        resultDiv.textContent = data.error || 'Error saving file.';
+      }
+    } catch (error) {
+      resultDiv.textContent = 'Error: ' + error.message;
+    }
+  });
+</script>
+</body>
+</html>
