@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Store Text File with Dictation</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    label {
+      font-weight: bold;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+    button {
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+<h1>Store Text File with Dictation</h1>
+<form id="storeForm">
+  <div>
+    <label for="fileId">File ID:</label>
+    <input type="text" id="fileId" name="fileId" required />
+  </div>
+  <br />
+  <div>
+    <label for="content">Content:</label><br />
+    <textarea id="content" name="content" cols="80" rows="20" required></textarea>
+  </div>
+  <br />
+  <button type="submit">Store it</button>
+</form>
+
+<hr />
+
+<div>
+  <button id="startDictation" type="button">Start Dictation</button>
+  <button id="endDictation" type="button" disabled>End Dictation</button>
+</div>
+
+<div id="result"></div>
+
+<script>
+  const storeForm = document.getElementById("storeForm");
+  const fileIdInput = document.getElementById("fileId");
+  const contentTextarea = document.getElementById("content");
+  const resultDiv = document.getElementById("result");
+  const startBtn = document.getElementById("startDictation");
+  const endBtn = document.getElementById("endDictation");
+
+  // Submit form handler (unchanged)
+  storeForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const fileId = fileIdInput.value.trim();
+    const content = contentTextarea.value;
+
+    if (!fileId || !content) {
+      resultDiv.textContent = "Please provide both File ID and Content.";
+      return;
+    }
+
+    try {
+      const response = await fetch("/save_text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: fileId, content }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        resultDiv.textContent = data.message || "File saved successfully.";
+      } else {
+        resultDiv.textContent = data.error || "Error saving file.";
+      }
+    } catch (err) {
+      resultDiv.textContent = "Error: " + err.message;
+    }
+  });
+
+  // Speech Recognition Setup
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    startBtn.disabled = true;
+    endBtn.disabled = true;
+    resultDiv.textContent = "Speech recognition is not supported by your browser.";
+  } else {
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+
+    // On result event - append recognized text to textarea
+    recognition.addEventListener("result", (event) => {
+      const transcript = Array.from(event.results)
+              .map((result) => result[0].transcript)
+              .join("");
+      // Append to the text area with a space before if not empty
+      contentTextarea.value += (contentTextarea.value ? " " : "") + transcript;
+    });
+
+    recognition.addEventListener("end", () => {
+      // Disable End Dictation, enable Start Dictation when recognition ends
+      startBtn.disabled = false;
+      endBtn.disabled = true;
+    });
+
+    recognition.addEventListener("error", (event) => {
+      resultDiv.textContent = "Speech recognition error: " + event.error;
+      startBtn.disabled = false;
+      endBtn.disabled = true;
+    });
+
+    // Start Dictation button starts recognition
+    startBtn.addEventListener("click", () => {
+      try {
+        recognition.start();
+        resultDiv.textContent = "Listening... Speak now.";
+        startBtn.disabled = true;
+        endBtn.disabled = false;
+      } catch (error) {
+        resultDiv.textContent = "Error starting dictation: " + error.message;
+      }
+    });
+
+    // End Dictation button stops recognition
+    endBtn.addEventListener("click", () => {
+      recognition.stop();
+      resultDiv.textContent = "Dictation stopped.";
+      // Buttons will be toggled in recognition 'end' event
+    });
+  }
+</script>
+</body>
+</html>
