@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Word Game – FAW138</title>
+    <style>
+        /* Container & Typography */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* Form Elements */
+        label {
+            font-weight: bold;
+        }
+        textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            resize: vertical;
+        }
+        select {
+            width: auto;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        /* Buttons */
+        button {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: background-color 0.2s ease;
+        }
+        button:hover:not(:disabled) {
+            background-color: #005bb5;
+        }
+        button:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Layout Helpers */
+        .controls,
+        .grid-settings {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 15px;
+        }
+        .output-field {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background: #e9e9e9;
+            min-height: 30px;
+        }
+
+        /* Scrollable practice fields */
+        .scrollable {
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        /* Translation grid */
+        .grid-container {
+            display: grid;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .grid-container button {
+            padding: 8px;
+            font-size: 0.95rem;
+            text-align: center;
+        }
+
+        /* Practice indicator */
+        .indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: red;
+            transition: background-color 0.2s;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Word Game – FAW138</h1>
+
+    <!-- Top controls: Language + Score -->
+    <div class="controls">
+        <label for="language">Base → Target Language:</label>
+        <select id="language">
+            <option value="de" selected>German</option>
+            <option value="ja">Japanese</option>
+            <option value="es">Spanish</option>
+            <option value="en">English</option>
+        </select>
+
+        <label>Score: <span id="scoreDisplay">0</span></label>
+        <button id="resetScoreBtn">Reset Score</button>
+    </div>
+
+    <!-- Word list -->
+    <label for="wordList">Words/Phrases (one per line):</label>
+    <textarea id="wordList" rows="4">
+Good morning.
+How are you?
+Which way to the exit?
+    </textarea>
+
+    <!-- New Word & Grid Settings -->
+    <div class="controls">
+        <button id="newWordBtn">New Word</button>
+        <button id="toggleWordBtn" disabled>Hide Word</button>
+    </div>
+    <label>Selected:</label>
+    <div id="selectedWord" class="output-field"></div>
+
+    <div class="grid-settings">
+        <label for="rowSelect">Rows:</label>
+        <select id="rowSelect">
+            <option>1</option>
+            <option selected>2</option>
+            <option>3</option>
+            <option>4</option>
+        </select>
+        <label for="colSelect">Cols:</label>
+        <select id="colSelect">
+            <option selected>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+        </select>
+        <label for="charCountSelect">Char Limit:</label>
+        <select id="charCountSelect">
+            <option>5</option><option>8</option><option selected>10</option><option>12</option><option>15</option>
+        </select>
+        <button id="gptBtn">Generate Grid</button>
+    </div>
+
+    <!-- Translation Grid & Feedback -->
+    <label>Options:</label>
+    <div id="translationGrid" class="grid-container"></div>
+    <label for="feedback">Feedback:</label>
+    <div id="feedback" class="output-field"></div>
+
+    <!-- Pronunciation -->
+    <div class="controls">
+        <button id="pronounceBtn" disabled>🔊 Pronounce</button>
+    </div>
+
+    <!-- Practice Section -->
+    <div class="controls">
+        <button id="practiceBtn">🎙️ Record</button>
+        <div id="listeningIndicator" class="indicator"></div>
+        <button id="scoreAttemptBtn" disabled>Score</button>
+        <button id="rescoreBtn" disabled>Rescore</button>
+        <button id="retranslateBtn" disabled>Retranslate 🔄</button>
+    </div>
+
+    <label>Practice Output (target):</label>
+    <div id="practiceOutput" class="output-field scrollable"></div>
+
+    <label>Back Translation (base):</label>
+    <div id="backTranslation" class="output-field scrollable"></div>
+
+    <div class="controls" style="margin-top:20px;">
+        <button id="moveOnBtn">✔ I’m right—Next!</button>
+    </div>
+</div>
+
+<script>
+    const endpoint = "https://faw987.duckdns.org";
+    let score = 0;
+    let wordListArray = [], currentWord = "", correctTranslation = "";
+    let practiceRecorder, practiceChunks = [], lastSttText = "", practiceAudioBlob = null;
+
+    // DOM refs
+    const wordListEl        = document.getElementById("wordList");
+    const scoreDisplayEl    = document.getElementById("scoreDisplay");
+    const selectedWordEl    = document.getElementById("selectedWord");
+    const translationGridEl = document.getElementById("translationGrid");
+    const feedbackEl        = document.getElementById("feedback");
+    const pronounceBtn      = document.getElementById("pronounceBtn");
+    const languageSelect    = document.getElementById("language");
+    const toggleWordBtn     = document.getElementById("toggleWordBtn");
+    const rowSelect         = document.getElementById("rowSelect");
+    const colSelect         = document.getElementById("colSelect");
+    const charCountSelect   = document.getElementById("charCountSelect");
+    const gptBtn            = document.getElementById("gptBtn");
+    const resetScoreBtn     = document.getElementById("resetScoreBtn");
+    const newWordBtn        = document.getElementById("newWordBtn");
+    const practiceBtn       = document.getElementById("practiceBtn");
+    const scoreAttemptBtn   = document.getElementById("scoreAttemptBtn");
+    const rescoreBtn        = document.getElementById("rescoreBtn");
+    const retranslateBtn    = document.getElementById("retranslateBtn");
+    const listeningIndicator= document.getElementById("listeningIndicator");
+    const practiceOutputEl  = document.getElementById("practiceOutput");
+    const backTranslationEl = document.getElementById("backTranslation");
+    const moveOnBtn         = document.getElementById("moveOnBtn");
+
+    // Event listeners
+    resetScoreBtn.addEventListener("click", () => { score = 0; updateScoreDisplay(); });
+    newWordBtn.addEventListener("click", loadNewWord);
+    toggleWordBtn.addEventListener("click", toggleWordVisibility);
+    pronounceBtn.addEventListener("click", pronounceWord);
+    gptBtn.addEventListener("click", fetchGPTDistractors);
+    practiceBtn.addEventListener("click", startPracticeRecording);
+    scoreAttemptBtn.addEventListener("click", scorePracticeAttempt);
+    rescoreBtn.addEventListener("click", rescorePracticeAttempt);
+    // <<< FIXED HERE: use addEventListener, not EventListener
+    retranslateBtn.addEventListener("click", retranslatePracticeAttempt);
+    // Move‑On button now correctly bound
+    moveOnBtn.addEventListener("click", loadNewWord);
+
+    function updateScoreDisplay() {
+        scoreDisplayEl.textContent = score;
+    }
+
+    function loadWordList() {
+        return wordListEl.value
+            .split(/\r?\n/)
+            .map(l => l.trim())
+            .filter(l => l);
+    }
+
+    async function loadNewWord() {
+        // Reset UI
+        selectedWordEl.textContent    = "";
+        translationGridEl.innerHTML   = "";
+        feedbackEl.textContent        = "";
+        pronounceBtn.disabled         = true;
+        toggleWordBtn.disabled        = false;
+        toggleWordBtn.textContent     = "Hide Word";
+        practiceOutputEl.innerHTML    = "";
+        backTranslationEl.innerHTML   = "";
+        scoreAttemptBtn.disabled      = true;
+        rescoreBtn.disabled           = true;
+        retranslateBtn.disabled       = true;
+        listeningIndicator.style.backgroundColor = "red";
+
+        wordListArray = loadWordList();
+        if (!wordListArray.length) return alert("Enter some words first!");
+        currentWord = wordListArray[Math.floor(Math.random() * wordListArray.length)];
+        selectedWordEl.textContent = currentWord;
+
+        try {
+            let resp = await fetch(`${endpoint}/translate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: currentWord, targetLang: languageSelect.value })
+            });
+            let { translatedText } = await resp.json();
+            correctTranslation = translatedText;
+            fetchGPTDistractors();
+        } catch (err) {
+            console.error("Translate error:", err);
+        }
+    }
+
+    async function fetchGPTDistractors() {
+        if (!correctTranslation) return;
+        const rows = +rowSelect.value, cols = +colSelect.value;
+        const gridSize = rows * cols;
+
+        // 1×1 special
+        if (gridSize === 1) {
+            renderTranslationGrid([correctTranslation]);
+            return;
+        }
+
+        try {
+            let resp = await fetch(`${endpoint}/gpt_distractors`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    baseText: correctTranslation,
+                    targetLang: languageSelect.value,
+                    distractorCount: gridSize - 1
+                })
+            });
+            let { distractors } = await resp.json();
+            let options = distractors.slice(0, gridSize - 1);
+            options.splice(Math.floor(Math.random() * gridSize), 0, correctTranslation);
+            renderTranslationGrid(options);
+        } catch (err) {
+            console.error("GPT error:", err);
+        }
+    }
+
+    function renderTranslationGrid(options) {
+        translationGridEl.innerHTML = "";
+        feedbackEl.textContent       = "";
+        translationGridEl.style.gridTemplateColumns = `repeat(${colSelect.value},1fr)`;
+        translationGridEl.style.gridTemplateRows    = `repeat(${rowSelect.value},auto)`;
+        const charLimit = +charCountSelect.value;
+
+        options.forEach(opt => {
+            const btn = document.createElement("button");
+            btn.textContent = opt.length > charLimit ? opt.slice(0, charLimit) + "…" : opt;
+            btn.title       = opt;
+            btn.addEventListener("click", () => {
+                feedbackEl.textContent = opt;
+                if (opt === correctTranslation) {
+                    score += 10; updateScoreDisplay();
+                    pronounceBtn.disabled = false;
+                    btn.style.boxShadow = "0 0 0 3px #28a745";
+                } else {
+                    score -= 10; updateScoreDisplay();
+                    btn.disabled = true;
+                    btn.style.visibility = "hidden";
+                }
+            });
+            translationGridEl.appendChild(btn);
+        });
+    }
+
+    function toggleWordVisibility() {
+        if (selectedWordEl.textContent) {
+            selectedWordEl.textContent = "";
+            toggleWordBtn.textContent = "Restore Word";
+        } else {
+            selectedWordEl.textContent = currentWord;
+            toggleWordBtn.textContent = "Hide Word";
+        }
+    }
+
+    function pronounceWord() {
+        fetch(`${endpoint}/tts`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: correctTranslation, lang: languageSelect.value })
+        })
+            .then(() => new Audio(`${endpoint}/tts_output.mp3`).play())
+            .catch(e => console.error("TTS error:", e));
+    }
+
+    /* Practice Flow (unchanged) */
+    async function startPracticeRecording() {
+        practiceChunks = [];
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            practiceRecorder = new MediaRecorder(stream);
+            practiceRecorder.ondataavailable = e => practiceChunks.push(e.data);
+            practiceRecorder.onstart = () => {
+                listeningIndicator.style.backgroundColor = "green";
+                scoreAttemptBtn.disabled = false;
+            };
+            practiceRecorder.start();
+        } catch(e) { console.error(e); }
+    }
+
+    async function scorePracticeAttempt() {
+        if (!practiceRecorder || practiceRecorder.state === "inactive") return;
+        practiceRecorder.stop();
+        practiceRecorder.onstop = async () => {
+            listeningIndicator.style.backgroundColor = "red";
+            practiceAudioBlob = new Blob(practiceChunks, { type:"audio/webm" });
+            await processPracticeAudio(practiceAudioBlob);
+            rescoreBtn.disabled     = false;
+            retranslateBtn.disabled = false;
+        };
+        scoreAttemptBtn.disabled = true;
+    }
+
+    async function rescorePracticeAttempt() {
+        if (practiceAudioBlob) await processPracticeAudio(practiceAudioBlob);
+    }
+
+    async function retranslatePracticeAttempt() {
+        if (!lastSttText) return;
+        try {
+            let resp = await fetch(`${endpoint}/translate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: lastSttText, targetLang: "en" })
+            });
+            let { translatedText } = await resp.json();
+            const symbol = makeSymbol(normalize(translatedText), normalize(currentWord));
+            backTranslationEl.innerHTML += `${translatedText} ${symbol}<br>`;
+        } catch(e) { console.error(e); }
+    }
+
+    async function processPracticeAudio(blob) {
+        const form = new FormData();
+        form.append("audio", blob, "practice.webm");
+        form.append("lang", languageSelect.value);
+
+        let stt = "";
+        try {
+            let resp = await fetch(`${endpoint}/stt`, { method: "POST", body: form });
+            stt = (await resp.json()).text;
+            lastSttText = stt;
+        } catch(e) { console.error(e); }
+
+        const psym = makeSymbol(normalize(stt), normalize(correctTranslation));
+        practiceOutputEl.innerHTML += `${stt} ${psym}<br>`;
+
+        try {
+            let resp2 = await fetch(`${endpoint}/translate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: stt, targetLang: "en" })
+            });
+            let { translatedText } = await resp2.json();
+            const bsym = makeSymbol(normalize(translatedText), normalize(currentWord));
+            backTranslationEl.innerHTML += `${translatedText} ${bsym}<br>`;
+        } catch(e) { console.error(e); }
+    }
+
+    function normalize(str) {
+        return (str||"")
+            .trim()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^\w\s]/g, "")
+            .replace(/\s+/g, " ");
+    }
+    function makeSymbol(a,b) {
+        return a===b
+            ? '<span style="color:#28a745;font-size:1.2em">✔</span>'
+            : '<span style="color:#dc3545;font-size:1.2em">✘</span>';
+    }
+</script>
+</body>
+</html>

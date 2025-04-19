@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Word Game - FAW136</title>
+    <title>Word Game - FAW137</title>
     <style>
         /* Basic styling for a clean, modern look */
         body {
@@ -103,7 +104,7 @@
 </head>
 <body>
 <div class="container">
-    <h1>Word Game - FAW136</h1>
+    <h1>Word Game - FAW137</h1>
 
     <!-- Target language selection -->
     <div>
@@ -136,6 +137,7 @@
     <!-- Controls for selecting and displaying the random word -->
     <div class="controls">
         <button id="newWordBtn">New Word</button>
+        <!-- Toggle button for hide/restore -->
         <button id="toggleWordBtn" disabled>Hide Word</button>
     </div>
 
@@ -226,6 +228,7 @@
             <label>Match Check:</label>
             <div id="matchIndicator" class="output-field" style="font-size: 2rem;"></div>
         </div>
+        <!-- "Move on" button (always available) -->
         <div class="controls" style="margin-top: 20px;">
             <button id="moveOnBtn">I'm right. Let's move on</button>
         </div>
@@ -327,6 +330,7 @@
         practiceOutputEl.innerHTML = "";
         backTranslationEl.innerHTML = "";
         matchIndicatorEl.innerHTML = "";
+        // Reset practice buttons.
         scoreAttemptBtn.disabled = true;
         rescoreBtn.disabled = true;
         retranslateBtn.disabled = true;
@@ -346,6 +350,7 @@
             .then(response => response.json())
             .then(data => {
                 correctTranslation = data.translatedText;
+                // By default, generate dummy options if GPT is not used.
                 const options = generateOptions(correctTranslation);
                 renderTranslationGrid(options);
             })
@@ -358,9 +363,11 @@
         const numCols = parseInt(colSelect.value);
         const gridSize = numRows * numCols;
         let options = [];
+        // Generate (gridSize - 1) dummy options.
         for (let i = 1; i < gridSize; i++) {
             options.push(correct + " " + i);
         }
+        // Insert the correct translation at a random index.
         const randomIndex = Math.floor(Math.random() * gridSize);
         options.splice(randomIndex, 0, correct);
         return options;
@@ -370,6 +377,7 @@
     function renderTranslationGrid(options) {
         translationGridEl.innerHTML = "";
         gridButtons = [];
+        // Set grid template based on selected rows and columns.
         const numRows = parseInt(rowSelect.value);
         const numCols = parseInt(colSelect.value);
         translationGridEl.style.gridTemplateColumns = `repeat(${numCols}, 1fr)`;
@@ -378,11 +386,15 @@
 
         options.forEach(option => {
             const btn = document.createElement("button");
+            // Store full text in data attribute.
             btn.dataset.fulltext = option;
+            // Display only the first n characters.
             btn.textContent = option.length > charLimit ? option.substring(0, charLimit) : option;
+            // Set hover tooltip to display the full text.
             btn.title = option;
             btn.addEventListener("click", () => {
                 handleOptionClick(btn);
+                // Always populate the full text display field.
                 fullTextDisplayEl.innerText = btn.dataset.fulltext;
             });
             translationGridEl.appendChild(btn);
@@ -410,10 +422,12 @@
         }
     }
 
+    // Disable all grid buttons.
     function disableGridButtons() {
         gridButtons.forEach(btn => btn.disabled = true);
     }
 
+    // Toggle the visibility of the displayed word.
     function toggleWordVisibility() {
         if (selectedWordEl.innerText) {
             selectedWordEl.innerText = "";
@@ -426,6 +440,7 @@
         }
     }
 
+    // Call TTS to pronounce the correct translation.
     function pronounceWord() {
         const targetLang = languageSelect.value;
         fetch(`${endpoint}/tts`, {
@@ -441,7 +456,9 @@
             .catch(error => console.error("Error during TTS:", error));
     }
 
+    // ----------------------------
     // GPT Distractors Integration
+    // ----------------------------
     function fetchGPTDistractors() {
         if (!correctTranslation) {
             console.error("No correct translation available yet!");
@@ -465,6 +482,7 @@
             .then(data => {
                 if (data.distractors) {
                     const distractors = data.distractors;
+                    // Create an array with distractorCount GPT alternatives and insert the correct answer.
                     let options = distractors.slice(0, distractorCount);
                     const randomIndex = Math.floor(Math.random() * gridSize);
                     options.splice(randomIndex, 0, correctTranslation);
@@ -502,6 +520,7 @@
         }
     }
 
+    // Score attempt: stops recording, sends audio for STT and translation.
     async function scorePracticeAttempt() {
         if (practiceRecorder && practiceRecorder.state !== "inactive") {
             practiceRecorder.stop();
@@ -510,12 +529,14 @@
             practiceRecorder.onstop = async () => {
                 practiceAudioBlob = new Blob(practiceChunks, { type: "audio/wav" });
                 await processPracticeAudio(practiceAudioBlob);
+                // Enable rescore and retranslate.
                 rescoreBtn.disabled = false;
                 retranslateBtn.disabled = false;
             };
         }
     }
 
+    // Rescore using the existing audio file.
     async function rescorePracticeAttempt() {
         if (!practiceAudioBlob) {
             console.warn("No audio available to rescore.");
@@ -524,6 +545,7 @@
         await processPracticeAudio(practiceAudioBlob);
     }
 
+    // Retranslate using the last STT text.
     async function retranslatePracticeAttempt() {
         if (!lastSttText) {
             console.warn("No STT text available to retranslate.");
@@ -537,4 +559,68 @@
             });
             const translateData = await translateResponse.json();
             const backTranslated = translateData.translatedText;
-            backTranslationEl.inner
+            backTranslationEl.innerHTML += backTranslated + "<br>";
+            // Append match check symbol.
+            const originalLine = currentWord.split(/\r?\n/)[0];
+            const normalizedOriginal = normalizeText(originalLine);
+            const normalizedBack = normalizeText(backTranslated);
+            const symbol = normalizedBack === normalizedOriginal ?
+                '<span style="color:green">&#10004;</span>' :
+                '<span style="color:red">&#10008;</span>';
+            matchIndicatorEl.innerHTML += symbol;
+        } catch (error) {
+            console.error("Error during retranslation:", error);
+        }
+    }
+
+    // Process the given audio blob: run STT then translation.
+    async function processPracticeAudio(audioBlob) {
+        const formData = new FormData();
+        formData.append("audio", audioBlob, "practice.wav");
+        formData.append("lang", languageSelect.value);
+        try {
+            const sttResponse = await fetch(`${endpoint}/stt`, {
+                method: "POST",
+                body: formData
+            });
+            const sttData = await sttResponse.json();
+            const practiceText = sttData.text;
+            lastSttText = practiceText;
+            practiceOutputEl.innerHTML += practiceText + "<br>";
+            const translateResponse = await fetch(`${endpoint}/translate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: practiceText, targetLang: "en" })
+            });
+            const translateData = await translateResponse.json();
+            const backTranslated = translateData.translatedText;
+            backTranslationEl.innerHTML += backTranslated + "<br>";
+            const originalLine = currentWord.split(/\r?\n/)[0];
+            const normalizedOriginal = normalizeText(originalLine);
+            const normalizedBack = normalizeText(backTranslated);
+            console.log("Original (first line):", JSON.stringify(originalLine));
+            console.log("Normalized Original:", JSON.stringify(normalizedOriginal));
+            console.log("Back Translated:", JSON.stringify(backTranslated));
+            console.log("Normalized Back Translated:", JSON.stringify(normalizedBack));
+            const symbol = normalizedBack === normalizedOriginal ?
+                '<span style="color:green">&#10004;</span>' :
+                '<span style="color:red">&#10008;</span>';
+            matchIndicatorEl.innerHTML += symbol;
+        } catch (error) {
+            console.error("Error processing practice audio:", error);
+        }
+    }
+
+    // Normalize text for comparison.
+    function normalizeText(text) {
+        return text
+            .trim()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^\w\s]|_/g, "")
+            .replace(/\s+/g, " ");
+    }
+</script>
+</body>
+</html>
