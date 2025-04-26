@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SpaceMouse WebHID + Three.js Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Three.js (r164) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.164.0/build/three.min.js"></script>
+    <style>
+        html,body{height:100%;margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#111;color:#eee;font-family:system-ui}
+        #connect{padding:.6rem 1rem;border:0;border-radius:.5rem;background:#08f;color:#fff;cursor:pointer;font-size:1rem;margin-bottom:1rem}
+        #status{font-size:.9rem;opacity:.8;margin-top:.5rem;text-align:center;max-width:80ch}
+        canvas{display:block;max-width:100%;height:60vh;border:1px solid #444;border-radius:.5rem}
+    </style>
+</head>
+<body>
+<button id="connect">Connect SpaceMouse</button>
+<div id="status">Initializing…</div>
+
+<script>
+    /* ----------------  THREE.JS SCENE ---------------- */
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111111);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / (window.innerHeight * 0.6), 0.1, 100);
+    camera.position.set(0, 0, 5);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth * 0.9, window.innerHeight * 0.6);
+    document.body.appendChild(renderer.domElement);
+
+    const cube = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshNormalMaterial());
+    scene.add(cube);
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / (window.innerHeight * 0.6);
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth * 0.9, window.innerHeight * 0.6);
+    });
+
+    function animate(){ requestAnimationFrame(animate); renderer.render(scene, camera);} animate();
+
+    /* ----------------  SPACEMOUSE HANDLING ---------------- */
+    const SCALE_T = 600;   // translation divisor
+    const SCALE_R = 800;   // rotation divisor
+    let spaceMouse;
+
+    const status = document.getElementById('status');
+    function setStatus(msg){ status.textContent = msg; }
+
+    async function connectSpaceMouse(){
+        if(!('hid' in navigator)){
+            setStatus('❌ WebHID API not found. Please open this page in a recent Chromium‑based browser (Chrome 89+ / Edge 89+)');
+            return;
+        }
+        if(!window.isSecureContext){
+            setStatus('❌ WebHID only works on secure origins (https:// or localhost). Please serve this file via https://localhost or a secure host.');
+            return;
+        }
+        try{
+            const devices = await navigator.hid.requestDevice({ filters: [{ vendorId: 0x256f }] });
+            if(!devices.length){ setStatus('No device selected.'); return; }
+            spaceMouse = devices[0];
+            await spaceMouse.open();
+            setStatus('✅ Connected: '+spaceMouse.productName);
+            spaceMouse.addEventListener('inputreport', handleReport);
+            spaceMouse.addEventListener('disconnect',()=>setStatus('⚠️ Device disconnected. Click Connect to re‑establish.'));
+        }catch(err){
+            console.error(err);
+            setStatus('❌ Connection failed: '+err.message);
+        }
+    }
+
+    // Parse 3Dconnexion 6‑axis report (6 × int16 LE after 1‑byte reportId)
+    function handleReport(e){
+        try{
+            const d = new DataView(e.data.buffer);
+            if(d.byteLength < 13) return;
+            const tx = d.getInt16(1,  true) / SCALE_T;
+            const ty = d.getInt16(3,  true) / SCALE_T;
+            const tz = d.getInt16(5,  true) / SCALE_T;
+            const rx = d.getInt16(7,  true) / SCALE_R;
+            const ry = d.getInt16(9,  true) / SCALE_R;
+            const rz = d.getInt16(11, true) / SCALE_R;
+            cube.rotation.x += rx; cube.rotation.y += ry; cube.rotation.z += rz;
+            cube.position.x += tx; cube.position.y += -ty; cube.position.z += -tz;
+        }catch(err){ console.error('inputreport parse:', err); }
+    }
+
+    document.getElementById('connect').addEventListener('click', connectSpaceMouse);
+
+    /* ----------------  DEBUG: GLOBAL PROMISE REJECTION ---------------- */
+    window.addEventListener('unhandledrejection', evt => {
+        console.error('Unhandled promise rejection:', evt.reason);
+        setStatus('❌ '+evt.reason);
+    });
+
+    /* ----------------  INIT MESSAGE ---------------- */
+    if('hid' in navigator){
+        setStatus('WebHID detected. Click “Connect SpaceMouse”.');
+    }else{
+        setStatus('❌ WebHID not available in this browser.');
+    }
+</script>
+</body>
+</html>
