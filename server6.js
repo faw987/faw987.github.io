@@ -89,7 +89,10 @@ app.post("/translate", async (req, res) => {
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
-                { role: "system", content: `Translate the following into ${targetLang}, output only the translated text.` },
+                {
+                    role: "system",
+                    content: `Translate the following into ${targetLang}, output only the translated text.`
+                },
                 { role: "user", content: text }
             ],
             max_tokens: 100,
@@ -108,7 +111,7 @@ app.post("/tts", async (req, res) => {
         let audioStream;
 
         if (provider === "eleven") {
-            // ElevenLabs: use style_instructions only if provided
+            // ElevenLabs: inject style_instructions only if provided
             const elevenApiKey = process.env.ELEVEN_API_KEY;
             const voiceId = process.env.ELEVEN_VOICE_ID ||
                 (lang === "ja" ? "default_japanese_voice_id" :
@@ -116,19 +119,20 @@ app.post("/tts", async (req, res) => {
                         "default_voice_id");
             const payload = {
                 text,
-                voice_settings: {
-                    stability: 0.5,
-                    similarity_boost: 0.75,
-                }
+                voice_settings: { stability: 0.5, similarity_boost: 0.75 }
             };
-            if (instructions) payload.voice_settings.style_instructions = instructions;
-
+            if (instructions) {
+                payload.voice_settings.style_instructions = instructions;
+            }
             const ttsResponse = await axios.post(
                 `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
                 payload,
                 {
                     responseType: "stream",
-                    headers: { "xi-api-key": elevenApiKey, "Content-Type": "application/json" }
+                    headers: {
+                        "xi-api-key": elevenApiKey,
+                        "Content-Type": "application/json"
+                    }
                 }
             );
             audioStream = ttsResponse.data;
@@ -141,24 +145,90 @@ app.post("/tts", async (req, res) => {
                 input: text,
                 response_format: "mp3",
             };
-            if (instructions) params.instructions = instructions;
-
+            if (instructions) {
+                params.instructions = instructions;
+            }
             const response = await openai.audio.speech.create(params);
             audioStream = response.body;
         }
 
         // Save and serve the MP3
         const filePath = path.join(__dirname, "tts_output.mp3");
-        const stream = fs.createWriteStream(filePath);
-        audioStream.pipe(stream);
-        stream.on("finish", () => res.json({ audioUrl: `https://${req.headers.host}/tts_output.mp3` }));
-        stream.on("error", () => res.status(500).json({ error: "Failed to save audio" }));
+        const fileStream = fs.createWriteStream(filePath);
+        audioStream.pipe(fileStream);
+        fileStream.on("finish", () =>
+            res.json({ audioUrl: `https://${req.headers.host}/tts_output.mp3` })
+        );
+        fileStream.on("error", () =>
+            res.status(500).json({ error: "Failed to save audio" })
+        );
 
     } catch {
         res.status(500).json({ error: "TTS failed" });
     }
 });
+app.use(
+    "/tts_output.mp3",
+    express.static(path.join(__dirname, "tts_output.mp3"))
+);
 
-app.use("/tts_output.mp3", express.static(path.join(__dirname, "tts_output.mp3")));
-// ... other endpoints unchanged ...
-app.listen(port, () => console.log(`Server running on port ${port}`));
+// 🤖 GPT Distractors Endpoint
+app.post("/gpt_distractors", async (req, res) => {
+    try {
+        const { baseText, targetLang, distractorCount } = req.body;
+        if (!baseText || !targetLang || distractorCount == null) {
+            return res.status(400).json({ error: "Missing required parameters" });
+        }
+        const prompt = `Generate ${distractorCount} alternative distractor options for the base text "${baseText}" in ${targetLang}. Please output exactly the alternatives separated by newline, with no extra commentary.`;
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                {
+                    role: "system",
+                    content:
+                        "You are a helpful assistant for a word game. Provide alternative words or phrases as distractors with no extra commentary.",
+                },
+                { role: "user", content: prompt },
+            ],
+            max_tokens: 150,
+        });
+        const distractorText = response.choices[0].message.content;
+        const distractors = distractorText
+            .split("\n")
+            .map((l) => l.trim())
+            .filter((l) => l.length > 0)
+            .map((l) => l.replace(/^\d+\.\s*/, ""));
+        res.json({ distractors });
+    } catch {
+        res.status(500).json({ error: "Failed to generate distractors" });
+    }
+});
+
+// 📄 Save Text Endpoint
+app.post("/save_text", async (req, res) => {
+    try {
+        const { id, content } = req.body;
+        if (!id || !content) {
+            return res.status(400).json({ error: "Missing id or content" });
+        }
+        const dataDir = process.env.DATA_STORE_DIR;
+        if (!dataDir) {
+            return res.status(500).json({ error: "DATA_STORE_DIR not set" });
+        }
+        const now = new Date();
+        const prefix = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}_${String(now.getHours()).padStart(2,"0")}${String(now.getMinutes()).padStart(2,"0")}${String(now.getSeconds()).padStart(2,"0")}_`;
+        const safeId = path.basename(id);
+        const filename = prefix + safeId;
+        const filePath = path.join(dataDir, filename);
+        fs.writeFile(filePath, content, (err) => {
+            if (err) return res.status(500).json({ error: "Failed to save file." });
+            res.json({ message: "File saved.", filePath });
+        });
+    } catch {
+        res.status(500).json({ error: "Unexpected server error." });
+    }
+});
+
+app.listen(port, () => {
+    console.log(`✅ Server running on http://localhost:${port}`);
+});
