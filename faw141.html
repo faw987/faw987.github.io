@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Word Game – FAW138</title>
+    <!-- Styles unchanged... -->
+</head>
+<body>
+<div class="container">
+    <!-- up to feedback -->
+    <label>Feedback:</label>
+    <div id="feedback" class="output-field"></div>
+
+    <!-- Speak Instructions -->
+    <label for="speechInstructions">Speak Instructions:</label>
+    <input type="text" id="speechInstructions" placeholder="e.g. cheerful and positive tone" style="width:100%;padding:6px;margin-top:5px;border:1px solid #ccc;border-radius:8px;" />
+
+    <!-- Pronunciation -->
+    <div class="controls">
+        <button id="pronounceBtn" disabled>🔊 Pronounce</button>
+    </div>
+
+    <!-- practice UI continues... -->
+</div>
+<script>
+    const speechInstructionsInput = document.getElementById("speechInstructions");
+
+    function pronounceWord() {
+        fetch(`${endpoint}/tts`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                text: correctTranslation,
+                lang: languageSelect.value,
+                instructions: speechInstructionsInput.value
+            })
+        })
+            .then(() => new Audio(`${endpoint}/tts_output.mp3`).play())
+            .catch(e => console.error("TTS error:", e));
+    }
+
+    // rest of client JS unchanged...
+</script>
+</body>
+</html>
