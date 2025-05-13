@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hand Synth</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; }
+        video { display: none; }
+        canvas { position: absolute; top: 0; left: 0; }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            text-align: center;
+            padding: 1em;
+            color: #fff;
+            z-index: 9999;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div id="overlay">Tap anywhere to enable audio and start the synth</div>
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas"></canvas>
+
+<!-- MediaPipe Hands & helpers -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<script>
+    const overlay = document.getElementById('overlay');
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    let audioCtx;
+    const NOTE_FREQS = [261.63, 293.66, 329.63, 349.23];
+    const oscillators = [];
+    const gains = [];
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            console.log('AudioContext state:', audioCtx.state);
+            NOTE_FREQS.forEach(freq => {
+                const osc = audioCtx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                osc.connect(gainNode).connect(audioCtx.destination);
+                osc.start();
+                oscillators.push(osc);
+                gains.push(gainNode);
+            });
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume().then(() => console.log('AudioContext resumed'));
+        }
+    }
+
+    function startApp() {
+        initAudio();
+        overlay.style.display = 'none';
+        startCamera();
+    }
+
+    // Use pointerup and touchend for iOS browsers
+    ['click','pointerup','touchend'].forEach(evt => {
+        overlay.addEventListener(evt, event => {
+            event.preventDefault();
+            startApp();
+        });
+    });
+
+    function startCamera() {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => console.error('Camera error:', err));
+
+        const hands = new Hands({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+        hands.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+        hands.onResults(onResults);
+
+        new Camera(video, {
+            onFrame: async () => await hands.send({ image: video }),
+            width: 640,
+            height: 480
+        }).start();
+    }
+
+    const TOUCH_THRESHOLD = 0.05;
+    function onResults(results) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
+            const landmarks = results.multiHandLandmarks[0];
+            drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: '#00FF00', lineWidth: 4 });
+            drawLandmarks(ctx, landmarks, { color: '#FF0000', lineWidth: 2 });
+
+            [8, 12, 16, 20].forEach((tipId, i) => {
+                const dx = landmarks[4].x - landmarks[tipId].x;
+                const dy = landmarks[4].y - landmarks[tipId].y;
+                if (Math.hypot(dx, dy) < TOUCH_THRESHOLD) {
+                    gains[i].gain.value = 0.2;
+                    const x = (landmarks[4].x + landmarks[tipId].x) / 2 * canvas.width;
+                    const y = (landmarks[4].y + landmarks[tipId].y) / 2 * canvas.height;
+                    ctx.beginPath(); ctx.arc(x, y, 20, 0, 2 * Math.PI);
+                    ctx.fillStyle = 'rgba(0,255,0,0.5)'; ctx.fill();
+                } else {
+                    gains[i].gain.value = 0;
+                }
+            });
+        }
+    }
+</script>
+</body>
+</html>
