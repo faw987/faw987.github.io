@@ -7,7 +7,7 @@
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
         #map { height: 400px; width: 100%; }
         table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 8px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; cursor: pointer; }
         tr:hover { background-color: #f9f9f9; }
     </style>
@@ -19,78 +19,80 @@
     <thead>
     <tr>
         <th></th>
-        <th>Ordinal</th>
-        <th>Locale</th>
-        <th>Type</th>
-        <th>Borough/Area</th>
+        <th data-key="ordinal">Ordinal</th>
+        <th data-key="name">Locale</th>
+        <th data-key="type">Type</th>
+        <th data-key="borough">Borough/Area</th>
+        <th data-key="recommender">Recommender</th>
     </tr>
     </thead>
     <tbody></tbody>
 </table>
-
 <script>
     let map;
     let geocoder;
     const markers = {};
     const locales = [
-        { ordinal: 1, name: "Central Park", type: "Park", borough: "Manhattan", address: "Central Park, New York, NY" },
-        { ordinal: 2, name: "East River Waterfront", type: "Waterfront Route", borough: "Manhattan/Queens/Brooklyn", address: "East River Waterfront, New York, NY" },
-        { ordinal: 3, name: "Brooklyn Waterfront Greenway", type: "Greenway", borough: "Brooklyn", address: "Brooklyn Waterfront Greenway, Brooklyn, NY" },
-        { ordinal: 4, name: "Prospect Park", type: "Park", borough: "Brooklyn", address: "Prospect Park, Brooklyn, NY" },
-        { ordinal: 5, name: "Jersey Waterfront", type: "Waterfront Route", borough: "New Jersey", address: "Jersey Waterfront, NJ" },
-        { ordinal: 6, name: "Owl’s Head Park", type: "Park/Pier", borough: "Brooklyn (Sunset Park)", address: "Owl's Head Park, Brooklyn, NY" },
-        { ordinal: 7, name: "New York Harbor Waterfront", type: "Waterfront Route", borough: "Manhattan/Brooklyn", address: "New York Harbor, New York, NY" },
-        { ordinal: 8, name: "Coney Island", type: "Neighborhood/Beach", borough: "Brooklyn", address: "Coney Island, Brooklyn, NY" },
-        { ordinal: 9, name: "Rockaway Peninsula", type: "Coastal Route", borough: "Queens", address: "Rockaway Peninsula, Queens, NY" },
-        { ordinal: 10, name: "Bedford Avenue", type: "Street", borough: "Brooklyn", address: "Bedford Avenue, Brooklyn, NY" },
-        { ordinal: 11, name: "Hudson River Route", type: "Route", borough: "Hudson River Valley", address: "Hudson River Valley, NY" },
-        { ordinal: 12, name: "Bear Mountain Bridge", type: "Bridge", borough: "Rockland County, NY", address: "Bear Mountain Bridge, NY" },
-        { ordinal: 13, name: "Bear Mountain State Park", type: "Park", borough: "Rockland County, NY", address: "Bear Mountain State Park, NY" },
-        { ordinal: 14, name: "Harriman State Park", type: "Park", borough: "Rockland County, NY", address: "Harriman State Park, NY" },
-        { ordinal: 15, name: "George Washington Bridge", type: "Bridge", borough: "Manhattan–New Jersey", address: "George Washington Bridge, NY" },
-        { ordinal: 16, name: "Mario M. Cuomo Bridge", type: "Bridge", borough: "Westchester–Rockland County, NY", address: "Mario M. Cuomo Bridge, NY" },
-        { ordinal: 17, name: "34th Avenue Open Street", type: "Open Street/Bike Route", borough: "Queens (Jackson Heights)", address: "34th Avenue Open Street, Queens, NY" },
-        { ordinal: 18, name: "Sunnyside Bike Boulevard", type: "Boulevard/Route", borough: "Queens (Sunnyside)", address: "Sunnyside Bike Boulevard, Queens, NY" },
-        { ordinal: 19, name: "Long Island City Waterfront", type: "Waterfront Route", borough: "Queens", address: "Long Island City Waterfront, NY" },
-        { ordinal: 20, name: "Flushing Meadows Corona Park", type: "Park", borough: "Queens", address: "Flushing Meadows Corona Park, Queens, NY" },
-        { ordinal: 21, name: "Hudson River Greenway", type: "Greenway", borough: "Manhattan", address: "Hudson River Greenway, New York, NY" },
-        { ordinal: 22, name: "Columbus Circle", type: "Landmark/Starting Point", borough: "Manhattan", address: "Columbus Circle, New York, NY" },
-        { ordinal: 23, name: "Piermont Village", type: "Village/Hudson Route", borough: "Rockland County, NY", address: "Piermont, NY" },
-        { ordinal: 24, name: "Greenpoint Waterfront", type: "Waterfront Route", borough: "Brooklyn/Queens", address: "Greenpoint Waterfront, Brooklyn, NY" },
-        { ordinal: 25, name: "Pulaski Bridge", type: "Bridge", borough: "Brooklyn–Queens", address: "Pulaski Bridge, NY" },
-        { ordinal: 26, name: "Socrates Sculpture Park", type: "Park/Outdoor Sculpture Park", borough: "Queens", address: "Socrates Sculpture Park, Queens, NY" },
-        { ordinal: 27, name: "Queensboro (59th St) Bridge", type: "Bridge", borough: "Queens–Manhattan", address: "Queensboro Bridge, NY" },
-        { ordinal: 28, name: "Lower East Side", type: "Neighborhood", borough: "Manhattan", address: "Lower East Side, Manhattan, NY" },
-        { ordinal: 29, name: "Manhattan Bridge", type: "Bridge", borough: "Manhattan–Brooklyn", address: "Manhattan Bridge, NY" },
-        { ordinal: 30, name: "Crescent Street", type: "Street/Connector", borough: "Queens (Astoria)", address: "Crescent Street, Astoria, Queens, NY" },
-        { ordinal: 31, name: "Roosevelt Island Bike Path", type: "Island/Bike Loop", borough: "Manhattan (Roosevelt Island)", address: "Roosevelt Island, NY" },
-        { ordinal: 32, name: "Randall’s Island Bike Loop", type: "Island/Bike Loop", borough: "Manhattan", address: "Randall's Island, New York, NY" },
-        { ordinal: 33, name: "Wards Island Bridge", type: "Bridge/Connector", borough: "Manhattan", address: "Wards Island Bridge, NY" },
-        { ordinal: 34, name: "Bronx Connector Path", type: "Path Connector", borough: "Bronx", address: "Bronx Connector, Bronx, NY" },
-        { ordinal: 35, name: "Bruckner Boulevard Bike Lane", type: "Protected Bike Lane", borough: "Bronx", address: "Bruckner Boulevard, Bronx, NY" },
-        { ordinal: 36, name: "Bronx River Greenway", type: "Greenway", borough: "Bronx", address: "Bronx River Greenway, Bronx, NY" },
-        { ordinal: 37, name: "Kensico Dam (Valhalla)", type: "Park/Endpoint", borough: "Westchester County, NY", address: "Kensico Dam, Valhalla, NY" },
-        { ordinal: 38, name: "St. Bart’s Park (34th & First Ave)", type: "Park/Starting Point", borough: "Manhattan", address: "St. Bart's Park, New York, NY" },
-        { ordinal: 39, name: "First Avenue Bike Lane", type: "Protected Bike Lane", borough: "Manhattan", address: "First Avenue, New York, NY" },
-        { ordinal: 40, name: "East Midtown Greenway", type: "Greenway", borough: "Manhattan", address: "East Midtown Greenway, New York, NY" },
-        { ordinal: 41, name: "Third Avenue Protected Bike Lane", type: "Protected Bikeway", borough: "Manhattan", address: "Third Avenue, New York, NY" },
-        { ordinal: 42, name: "Calvary Cemetery", type: "Cemetery", borough: "Queens", address: "Calvary Cemetery, Queens, NY" },
-        { ordinal: 43, name: "Evergreen Cemetery", type: "Cemetery", borough: "Queens", address: "Evergreen Cemetery, Queens, NY" },
-        { ordinal: 44, name: "Naval Cemetery (Brooklyn Navy Yard)", type: "Cemetery", borough: "Brooklyn", address: "Brooklyn Navy Yard, Brooklyn, NY" },
-        { ordinal: 45, name: "Kent Avenue Bike Lane", type: "Protected Bikeway", borough: "Brooklyn", address: "Kent Avenue, Brooklyn, NY" },
-        { ordinal: 46, name: "Flushing Avenue Bike Lane", type: "Protected Bikeway", borough: "Brooklyn", address: "Flushing Avenue, Brooklyn, NY" },
-        { ordinal: 47, name: "Riverside Drive Bike Path", type: "Bike Path", borough: "Manhattan", address: "Riverside Drive, New York, NY" },
-        { ordinal: 48, name: "Riverside Park", type: "Park", borough: "Manhattan", address: "Riverside Park, New York, NY" },
-        { ordinal: 49, name: "Cassandra Velodrome", type: "Velodrome/Track", borough: "Brooklyn", address: "Cassandra Velodrome, Brooklyn, NY" }
+        { ordinal: 1, name: "Central Park", type: "Park", borough: "Manhattan", address: "Central Park, New York, NY", recommender: "Alison Stewart" },
+        { ordinal: 2, name: "East River Waterfront", type: "Waterfront Route", borough: "Manhattan/Queens/Brooklyn", address: "East River Waterfront, New York, NY", recommender: "Alison Stewart" },
+        { ordinal: 3, name: "Brooklyn Waterfront Greenway", type: "Greenway", borough: "Brooklyn", address: "Brooklyn Waterfront Greenway, Brooklyn, NY", recommender: "Alison Stewart" },
+        { ordinal: 4, name: "Prospect Park", type: "Park", borough: "Brooklyn", address: "Prospect Park, Brooklyn, NY", recommender: "Alison Stewart" },
+        { ordinal: 5, name: "Jersey Waterfront", type: "Waterfront Route", borough: "New Jersey", address: "Jersey Waterfront, NJ", recommender: "Alison Stewart" },
+        { ordinal: 6, name: "Owl’s Head Park", type: "Park/Pier", borough: "Brooklyn (Sunset Park)", address: "Owl's Head Park, Brooklyn, NY", recommender: "Cooper" },
+        { ordinal: 7, name: "New York Harbor Waterfront", type: "Waterfront Route", borough: "Manhattan/Brooklyn", address: "New York Harbor, New York, NY", recommender: "Cooper" },
+        { ordinal: 8, name: "Coney Island", type: "Neighborhood/Beach", borough: "Brooklyn", address: "Coney Island, Brooklyn, NY", recommender: "Cooper" },
+        { ordinal: 9, name: "Rockaway Peninsula", type: "Coastal Route", borough: "Queens", address: "Rockaway Peninsula, Queens, NY", recommender: "Cooper" },
+        { ordinal: 10, name: "Bedford Avenue", type: "Street", borough: "Brooklyn", address: "Bedford Avenue, Brooklyn, NY", recommender: "Cooper" },
+        { ordinal: 11, name: "Hudson River Route", type: "Route", borough: "Hudson River Valley", address: "Hudson River Valley, NY", recommender: "Matt" },
+        { ordinal: 12, name: "Bear Mountain Bridge", type: "Bridge", borough: "Rockland County, NY", address: "Bear Mountain Bridge, NY", recommender: "Matt" },
+        { ordinal: 13, name: "Bear Mountain State Park", type: "Park", borough: "Rockland County, NY", address: "Bear Mountain State Park, NY", recommender: "Matt" },
+        { ordinal: 14, name: "Harriman State Park", type: "Park", borough: "Rockland County, NY", address: "Harriman State Park, NY", recommender: "Matt" },
+        { ordinal: 15, name: "George Washington Bridge", type: "Bridge", borough: "Manhattan–New Jersey", address: "George Washington Bridge, NY", recommender: "Matt" },
+        { ordinal: 16, name: "Mario M. Cuomo Bridge", type: "Bridge", borough: "Westchester–Rockland County, NY", address: "Mario M. Cuomo Bridge, NY", recommender: "Matt" },
+        { ordinal: 17, name: "34th Avenue Open Street", type: "Open Street/Bike Route", borough: "Queens (Jackson Heights)", address: "34th Avenue Open Street, Queens, NY", recommender: "Rita" },
+        { ordinal: 18, name: "Sunnyside Bike Boulevard", type: "Boulevard/Route", borough: "Queens (Sunnyside)", address: "Sunnyside Bike Boulevard, Queens, NY", recommender: "Rita" },
+        { ordinal: 19, name: "Long Island City Waterfront", type: "Waterfront Route", borough: "Queens", address: "Long Island City Waterfront, NY", recommender: "Rita" },
+        { ordinal: 20, name: "Flushing Meadows Corona Park", type: "Park", borough: "Queens", address: "Flushing Meadows Corona Park, Queens, NY", recommender: "Rita" },
+        { ordinal: 21, name: "Hudson River Greenway", type: "Greenway", borough: "Manhattan", address: "Hudson River Greenway, New York, NY", recommender: "Anna Berlanga" },
+        { ordinal: 22, name: "Columbus Circle", type: "Landmark/Starting Point", borough: "Manhattan", address: "Columbus Circle, New York, NY", recommender: "Charlie" },
+        { ordinal: 23, name: "Piermont Village", type: "Village/Hudson Route", borough: "Rockland County, NY", address: "Piermont, NY", recommender: "Charlie" },
+        { ordinal: 24, name: "Greenpoint Waterfront", type: "Waterfront Route", borough: "Brooklyn/Queens", address: "Greenpoint Waterfront, Brooklyn, NY", recommender: "Karen" },
+        { ordinal: 25, name: "Pulaski Bridge", type: "Bridge", borough: "Brooklyn–Queens", address: "Pulaski Bridge, NY", recommender: "Karen" },
+        { ordinal: 26, name: "Socrates Sculpture Park", type: "Park/Outdoor Sculpture Park", borough: "Queens", address: "Socrates Sculpture Park, Queens, NY", recommender: "Karen" },
+        { ordinal: 27, name: "Queensboro (59th St) Bridge", type: "Bridge", borough: "Queens–Manhattan", address: "Queensboro Bridge, NY", recommender: "Karen" },
+        { ordinal: 28, name: "Lower East Side", type: "Neighborhood", borough: "Manhattan", address: "Lower East Side, Manhattan, NY", recommender: "Karen" },
+        { ordinal: 29, name: "Manhattan Bridge", type: "Bridge", borough: "Manhattan–Brooklyn", address: "Manhattan Bridge, NY", recommender: "Karen" },
+        { ordinal: 30, name: "Crescent Street", type: "Street/Connector", borough: "Queens (Astoria)", address: "Crescent Street, Astoria, Queens, NY", recommender: "Mae Francke" },
+        { ordinal: 31, name: "Roosevelt Island Bike Path", type: "Island/Bike Loop", borough: "Manhattan (Roosevelt Island)", address: "Roosevelt Island, NY", recommender: "Mae Francke" },
+        { ordinal: 32, name: "Randall’s Island Bike Loop", type: "Island/Bike Loop", borough: "Manhattan", address: "Randall's Island, New York, NY", recommender: "Anna Berlanga" },
+        { ordinal: 33, name: "Wards Island Bridge", type: "Bridge/Connector", borough: "Manhattan", address: "Wards Island Bridge, NY", recommender: "Anna Berlanga" },
+        { ordinal: 34, name: "Bronx Connector Path", type: "Path Connector", borough: "Bronx", address: "Bronx Connector, Bronx, NY", recommender: "Anna Berlanga" },
+        { ordinal: 35, name: "Bruckner Boulevard Bike Lane", type: "Protected Bike Lane", borough: "Bronx", address: "Bruckner Boulevard, Bronx, NY", recommender: "Anna Berlanga" },
+        { ordinal: 36, name: "Bronx River Greenway", type: "Greenway", borough: "Bronx", address: "Bronx River Greenway, Bronx, NY", recommender: "Anna Berlanga" },
+        { ordinal: 37, name: "Kensico Dam (Valhalla)", type: "Park/Endpoint", borough: "Westchester County, NY", address: "Kensico Dam, Valhalla, NY", recommender: "Anna Berlanga" },
+        { ordinal: 38, name: "St. Bart’s Park (34th & First Ave)", type: "Park/Starting Point", borough: "Manhattan", address: "St. Bart's Park, New York, NY", recommender: "Emily Jacobi" },
+        { ordinal: 39, name: "First Avenue Bike Lane", type: "Protected Bike Lane", borough: "Manhattan", address: "First Avenue, New York, NY", recommender: "Emily Jacobi" },
+        { ordinal: 40, name: "East Midtown Greenway", type: "Greenway", borough: "Manhattan", address: "East Midtown Greenway, New York, NY", recommender: "Emily Jacobi" },
+        { ordinal: 41, name: "Third Avenue Protected Bike Lane", type: "Protected Bikeway", borough: "Manhattan", address: "Third Avenue, New York, NY", recommender: "Emily Jacobi" },
+        { ordinal: 42, name: "Calvary Cemetery", type: "Cemetery", borough: "Queens", address: "Calvary Cemetery, Queens, NY", recommender: "Peter" },
+        { ordinal: 43, name: "Evergreen Cemetery", type: "Cemetery", borough: "Queens", address: "Evergreen Cemetery, Queens, NY", recommender: "Peter" },
+        { ordinal: 44, name: "Naval Cemetery (Brooklyn Navy Yard)", type: "Cemetery", borough: "Brooklyn", address: "Brooklyn Navy Yard, Brooklyn, NY", recommender: "Peter" },
+        { ordinal: 45, name: "Kent Avenue Bike Lane", type: "Protected Bikeway", borough: "Brooklyn", address: "Kent Avenue, Brooklyn, NY", recommender: "Peter" },
+        { ordinal: 46, name: "Flushing Avenue Bike Lane", type: "Protected Bikeway", borough: "Brooklyn", address: "Flushing Avenue, Brooklyn, NY", recommender: "Peter" },
+        { ordinal: 47, name: "Riverside Drive Bike Path", type: "Bike Path", borough: "Manhattan", address: "Riverside Drive, New York, NY", recommender: "Noah" },
+        { ordinal: 48, name: "Riverside Park", type: "Park", borough: "Manhattan", address: "Riverside Park, New York, NY", recommender: "Noah" },
+        { ordinal: 49, name: "Cassandra Velodrome", type: "Velodrome/Track", borough: "Brooklyn", address: "Cassandra Velodrome, Brooklyn, NY", recommender: "Madeline" }
     ];
 
     function initMap() {
-        map = new google.maps.Map(document.getElementById('map'), {
-            center: { lat: 40.7128, lng: -74.0060 },
-            zoom: 12
-        });
+        map = new google.maps.Map(document.getElementById('map'), { center: { lat: 40.7128, lng: -74.0060 }, zoom: 12 });
         geocoder = new google.maps.Geocoder();
         buildTable();
+        addSorting();
+    }
+
+    function clearTable() {
+        document.querySelector('#localeTable tbody').innerHTML = '';
     }
 
     function buildTable() {
@@ -98,16 +100,11 @@
         locales.forEach((loc, i) => {
             const tr = document.createElement('tr');
             const tdChk = document.createElement('td');
-            const chk = document.createElement('input');
-            chk.type = 'checkbox';
-            chk.dataset.index = i;
+            const chk = document.createElement('input'); chk.type = 'checkbox'; chk.dataset.index = i;
             chk.addEventListener('change', onToggle);
-            tdChk.appendChild(chk);
-            tr.appendChild(tdChk);
-            ['ordinal', 'name', 'type', 'borough'].forEach(key => {
-                const td = document.createElement('td');
-                td.textContent = loc[key];
-                tr.appendChild(td);
+            tdChk.appendChild(chk); tr.appendChild(tdChk);
+            ['ordinal','name','type','borough','recommender'].forEach(key => {
+                const td = document.createElement('td'); td.textContent = loc[key]; tr.appendChild(td);
             });
             tbody.appendChild(tr);
         });
@@ -119,7 +116,7 @@
         if (e.target.checked) {
             geocoder.geocode({ address: loc.address }, (results, status) => {
                 if (status === 'OK' && results[0]) {
-                    const marker = new google.maps.Marker({ map: map, position: results[0].geometry.location, title: loc.name });
+                    const marker = new google.maps.Marker({ map, position: results[0].geometry.location, title: loc.name });
                     markers[i] = marker;
                 } else {
                     alert('Geocode failed for ' + loc.name + ': ' + status);
@@ -129,6 +126,26 @@
         } else {
             if (markers[i]) { markers[i].setMap(null); delete markers[i]; }
         }
+    }
+
+    function addSorting() {
+        const headers = document.querySelectorAll('#localeTable th[data-key]');
+        const sortDir = {};
+        headers.forEach(th => {
+            const key = th.dataset.key;
+            sortDir[key] = true;
+            th.addEventListener('click', () => {
+                locales.sort((a,b) => {
+                    let va = a[key], vb = b[key];
+                    if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+                    if (va < vb) return sortDir[key] ? -1 : 1;
+                    if (va > vb) return sortDir[key] ? 1 : -1;
+                    return 0;
+                });
+                sortDir[key] = !sortDir[key];
+                clearTable(); buildTable();
+            });
+        });
     }
 </script>
 <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBmg5TrcOSMmChnpcbmDgpTON5E0xg3k1Q&callback=initMap"></script>
