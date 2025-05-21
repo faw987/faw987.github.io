@@ -1,7 +1,7 @@
 // server.js
 require("dotenv").config();
 const express = require("express");
-const multer = multer");
+const multer = require("multer");
 const fs = require("fs");
 const fsp = fs.promises; // Using fs.promises for async file operations
 const path = require("path");
