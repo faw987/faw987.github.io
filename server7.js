@@ -9,6 +9,7 @@ const cors = require("cors");
 const { exec } = require("child_process");
 const axios = require("axios");
 const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@google/generative-ai");
+const zlib = require('zlib');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -228,9 +229,108 @@ app.post("/tts", async (req, res) => {
             return res.status(501).json({ error: "TTS not supported by the current Gemini SDK. Consider Google Cloud TTS or ensure PROVIDER is set to 'eleven'." });
         }
 
+        // In server.js, app.post("/tts", ...)
     } catch (err) {
-        console.error("TTS Error:", err.response ? err.response.data : err);
-        res.status(500).json({ error: "TTS failed. " + (err.message || "") });
+        console.error("-----------------------------------------------------");
+        console.error("TTS CATCH BLOCK TRIGGERED");
+        console.error("Initial err.message:", err.message);
+        console.error("Is Axios Error:", err.isAxiosError);
+
+        let detailedErrorMessage = "TTS operation failed.";
+        let responseStatusCode = 500; // Default to our server's 500 error
+
+        if (err.isAxiosError && err.response) {
+            responseStatusCode = err.response.status; // This is the status from ElevenLabs (e.g., 400)
+            console.error(`Axios error from TTS provider! Status: ${err.response.status}`);
+            console.error("Provider Response Headers:", JSON.stringify(err.response.headers, null, 2));
+
+            const errorStream = err.response.data; // This is a Readable stream
+            const contentEncoding = err.response.headers['content-encoding'];
+
+            // Create a promise to handle the asynchronous stream reading
+            const readErrorStreamPromise = new Promise((resolve, reject) => {
+                let bodyChunks = [];
+                let streamToProcess = errorStream;
+
+                if (contentEncoding === 'gzip') {
+                    console.error('Error response from provider is gzipped. Attempting to decompress.');
+                    const gunzip = zlib.createGunzip();
+                    errorStream.pipe(gunzip);
+                    streamToProcess = gunzip;
+                } else if (contentEncoding === 'deflate') {
+                    console.error('Error response from provider is deflated. Attempting to decompress.');
+                    const inflate = zlib.createInflate();
+                    errorStream.pipe(inflate);
+                    streamToProcess = inflate;
+                } else {
+                    console.error('Error response not compressed or unknown encoding.');
+                }
+
+                streamToProcess.on('data', (chunk) => {
+                    bodyChunks.push(chunk);
+                });
+                streamToProcess.on('end', () => {
+                    const fullErrorBody = Buffer.concat(bodyChunks).toString('utf8');
+                    console.error("Successfully read/decompressed full error body from TTS provider:", fullErrorBody);
+                    resolve(fullErrorBody);
+                });
+                streamToProcess.on('error', (streamErr) => {
+                    console.error("Error while reading/decompressing error stream from TTS provider:", streamErr);
+                    reject(streamErr);
+                });
+                errorStream.on('error', (originalStreamErr) => { // Also listen on original stream
+                    console.error("Error on original error stream from TTS provider:", originalStreamErr);
+                    reject(originalStreamErr);
+                });
+            });
+
+            try {
+                const actualErrorPayloadString = await readErrorStreamPromise;
+                // Try to parse it as JSON, as ElevenLabs often sends detailed errors in JSON
+                try {
+                    const parsedError = JSON.parse(actualErrorPayloadString);
+                    if (parsedError.detail) {
+                        if (typeof parsedError.detail === 'string') {
+                            detailedErrorMessage = `TTS Provider Error (${responseStatusCode}): ${parsedError.detail}`;
+                        } else if (Array.isArray(parsedError.detail) && parsedError.detail.length > 0 && parsedError.detail[0].msg) {
+                            detailedErrorMessage = `TTS Provider Error (${responseStatusCode}): ${parsedError.detail.map(d => `${(d.loc || []).join('->')}: ${d.msg}`).join('; ')}`;
+                        } else {
+                            detailedErrorMessage = `TTS Provider Error (${responseStatusCode}): ${actualErrorPayloadString}`;
+                        }
+                    } else {
+                        detailedErrorMessage = `TTS Provider Error (${responseStatusCode}): ${actualErrorPayloadString}`;
+                    }
+                } catch (parseError) {
+                    detailedErrorMessage = `TTS Provider Error (${responseStatusCode}): Received non-JSON error: ${actualErrorPayloadString}`;
+                }
+                // We got the details, so the client should see the actual status from the provider
+                // and this detailed message. For simplicity, we'll still send a 500 from our server
+                // but the detailed message will contain the provider's status.
+                // Alternatively, you could `res.status(responseStatusCode).json(...)` if it's a 4xx.
+                // For now, let's keep it as our server reporting an internal issue (500) because it failed to proxy TTS.
+                res.status(500).json({ error: detailedErrorMessage });
+
+            } catch (streamReadError) {
+                console.error("Failed to get detailed error from provider stream:", streamReadError.message);
+                detailedErrorMessage = `TTS provider returned ${responseStatusCode}, but failed to read error details (Stream Error: ${streamReadError.message}). Original Axios message: ${err.message}`;
+                res.status(500).json({ error: detailedErrorMessage });
+            }
+
+        } else {
+            // Not an Axios error with a response, or some other error (this is where the 'Unzip' object might be logged if 'err' isn't an AxiosError)
+            console.error("TTS Error was not a standard Axios response error. Logging the raw error object:", err);
+            detailedErrorMessage = `TTS failed due to an unexpected server error: ${err.message || 'Unknown error type'}`;
+            if (err && typeof err.pipe === 'function') { // It's a stream-like object
+                detailedErrorMessage += " (Error object appears to be a Stream)";
+            }
+            res.status(500).json({ error: detailedErrorMessage });
+        }
+        console.error("-----------------------------------------------------");
+        // IMPORTANT: Make sure res.status().json() is only called ONCE.
+        // The structure above with await and try/catch for stream reading means response is sent within.
+        // If any path doesn't send a response, Node.js will hang.
+        // The current structure sends response inside the `if (err.isAxiosError && err.response)` block or the final `else`.
+        return; // Ensure no other response is sent.
     }
 });
 
