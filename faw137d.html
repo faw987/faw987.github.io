@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Word Game – FAW138 (Gemini Updated)</title>
+  <style>
+    /* Container & Typography */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f0f0f0;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    /* Form Elements */
+    label {
+      font-weight: bold;
+      display: block;
+      margin-top: 10px;
+    }
+    textarea {
+      width: calc(100% - 16px); /* Account for padding */
+      padding: 8px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    select {
+      width: auto;
+      padding: 8px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+
+    /* Buttons */
+    button {
+      background-color: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
+      margin-top: 5px; /* Added for spacing consistency */
+    }
+    button:hover:not(:disabled) {
+      background-color: #005bb5;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.25);
+    }
+    button:disabled {
+      background-color: #ccc;
+      color: #666;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* Layout Helpers */
+    .controls,
+    .grid-settings {
+      display: flex;
+      gap: 10px; /* Spacing between items */
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 15px;
+      margin-bottom: 10px;
+    }
+    .output-field {
+      margin-top: 5px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #f9f9f9;
+      min-height: 30px;
+      line-height: 1.5;
+      word-wrap: break-word;
+    }
+
+    /* Scrollable practice fields */
+    .scrollable {
+      max-height: 100px; /* Adjusted for better fit */
+      overflow-y: auto;
+      border: 1px solid #e0e0e0;
+    }
+
+    /* Translation grid */
+    .grid-container {
+      display: grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .grid-container button {
+      padding: 10px; /* Slightly larger padding */
+      font-size: 0.95rem;
+      text-align: center;
+      background-color: #f0f0f0; /* Lighter background for options */
+      color: #333;
+      border: 1px solid #ccc;
+    }
+    .grid-container button:hover:not(:disabled) {
+      background-color: #e0e0e0;
+    }
+    .grid-container button:disabled { /* Style for hidden/disabled buttons */
+      background-color: #fff;
+      border-color: #eee;
+      color: #aaa;
+    }
+    .grid-container button.correct-choice {
+      box-shadow: 0 0 0 3px #28a745 !important; /* Ensure visibility */
+      background-color: #d4edda !important;
+      color: #155724 !important;
+    }
+
+
+    /* Practice indicator */
+    .indicator {
+      width: 25px; /* Slightly larger */
+      height: 25px;
+      border-radius: 50%;
+      background-color: #dc3545; /* Red */
+      transition: background-color 0.3s ease;
+      margin-left: 5px; /* Spacing */
+    }
+    .indicator.listening {
+      background-color: #28a745; /* Green */
+    }
+
+    /* Feedback specific styling */
+    #feedback {
+      font-weight: bold;
+      color: #333;
+    }
+    #feedback.error {
+      color: #dc3545; /* Red for errors */
+    }
+    #feedback.success {
+      color: #28a745; /* Green for success */
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Word Game (Gemini API)</h1>
+
+  <div class="controls">
+    <div>
+      <label for="language">Base → Target Language:</label>
+      <select id="language">
+        <option value="de" selected>German</option>
+        <option value="ja">Japanese</option>
+        <option value="es">Spanish</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+    <div>
+      <label for="scoreDisplay">Score:</label>
+      <span id="scoreDisplay" class="output-field" style="display: inline-block; padding: 5px 10px; min-width: 30px; text-align: center;">0</span>
+    </div>
+    <button id="resetScoreBtn">Reset Score</button>
+  </div>
+
+  <div>
+    <label for="wordList">Words/Phrases (one per line):</label>
+    <textarea id="wordList" rows="4">
+Good morning.
+How are you?
+Which way to the exit?
+What time is it?
+Thank you very much.
+I don't understand.
+        </textarea>
+  </div>
+
+  <div class="controls">
+    <button id="newWordBtn">New Word</button>
+    <button id="toggleWordBtn" disabled>Hide Word</button>
+  </div>
+  <div>
+    <label for="selectedWord">Selected (Base Language):</label>
+    <div id="selectedWord" class="output-field"></div>
+  </div>
+
+  <div class="grid-settings">
+    <div>
+      <label for="rowSelect">Rows:</label>
+      <select id="rowSelect">
+        <option>1</option>
+        <option selected>2</option>
+        <option>3</option>
+        <option>4</option>
+      </select>
+    </div>
+    <div>
+      <label for="colSelect">Cols:</label>
+      <select id="colSelect">
+        <option selected>1</option>
+        <option>2</option>
+        <option>3</option>
+        <option>4</option>
+      </select>
+    </div>
+    <div>
+      <label for="charCountSelect">Char Limit:</label>
+      <select id="charCountSelect">
+        <option>5</option><option>8</option><option selected>10</option><option>12</option><option>15</option><option>20</option><option>99</option>
+      </select>
+    </div>
+    <button id="generateGridBtn">Generate Grid</button> </div>
+
+  <div>
+    <label for="translationGrid">Options (Target Language):</label>
+    <div id="translationGrid" class="grid-container"></div>
+  </div>
+  <div>
+    <label for="feedback">Feedback:</label>
+    <div id="feedback" class="output-field"></div>
+  </div>
+
+  <div class="controls">
+    <button id="pronounceBtn" disabled>🔊 Pronounce Target</button>
+  </div>
+
+  <h3>Practice Speaking</h3>
+  <div class="controls">
+    <button id="practiceBtn">🎙️ Record Answer</button>
+    <div id="listeningIndicator" class="indicator"></div>
+    <button id="scoreAttemptBtn" disabled>Evaluate Recording</button>
+    <button id="rescoreBtn" disabled>Re-evaluate</button>
+    <button id="retranslateBtn" disabled>Back-translate My Recording 🔄</button>
+  </div>
+
+  <div>
+    <label for="practiceOutput">Your Spoken Answer (in Target Lang):</label>
+    <div id="practiceOutput" class="output-field scrollable"></div>
+  </div>
+
+  <div>
+    <label for="backTranslation">Back Translation (to Base Lang - English):</label>
+    <div id="backTranslation" class="output-field scrollable"></div>
+  </div>
+
+  <div class="controls" style="margin-top:20px;">
+    <button id="moveOnBtn">✔ I'm right / Next Word</button>
+  </div>
+</div>
+
+<script>
+  // --- CONFIGURATION ---
+  // IMPORTANT: Update this URL to where your Node.js server is running!
+  const SERVER_BASE_URL = "http://localhost:3000"; // Example: "https://your-deployed-server.com" or "http://localhost:3000"
+
+  // --- STATE VARIABLES ---
+  let score = 0;
+  let wordListArray = [], currentWord = "", correctTranslation = "";
+  let practiceRecorder, practiceChunks = [], lastSttText = "", practiceAudioBlob = null;
+  let currentLanguage = "en"; // To store base language for back-translation
+
+  // --- DOM REFERENCES ---
+  const wordListEl        = document.getElementById("wordList");
+  const scoreDisplayEl    = document.getElementById("scoreDisplay");
+  const selectedWordEl    = document.getElementById("selectedWord");
+  const translationGridEl = document.getElementById("translationGrid");
+  const feedbackEl        = document.getElementById("feedback");
+  const pronounceBtn      = document.getElementById("pronounceBtn");
+  const languageSelect    = document.getElementById("language");
+  const toggleWordBtn     = document.getElementById("toggleWordBtn");
+  const rowSelect         = document.getElementById("rowSelect");
+  const colSelect         = document.getElementById("colSelect");
+  const charCountSelect   = document.getElementById("charCountSelect");
+  const generateGridBtn   = document.getElementById("generateGridBtn"); // Updated from gptBtn
+  const resetScoreBtn     = document.getElementById("resetScoreBtn");
+  const newWordBtn        = document.getElementById("newWordBtn");
+  const practiceBtn       = document.getElementById("practiceBtn");
+  const scoreAttemptBtn   = document.getElementById("scoreAttemptBtn");
+  const rescoreBtn        = document.getElementById("rescoreBtn");
+  const retranslateBtn    = document.getElementById("retranslateBtn");
+  const listeningIndicator= document.getElementById("listeningIndicator");
+  const practiceOutputEl  = document.getElementById("practiceOutput");
+  const backTranslationEl = document.getElementById("backTranslation");
+  const moveOnBtn         = document.getElementById("moveOnBtn");
+
+  // --- HELPER FUNCTIONS ---
+  function updateScoreDisplay() {
+    scoreDisplayEl.textContent = score;
+  }
+
+  function displayFeedback(message, type = "info") {
+    feedbackEl.textContent = message;
+    feedbackEl.className = 'output-field'; // Reset classes
+    if (type === "error") {
+      feedbackEl.classList.add("error");
+    } else if (type === "success") {
+      feedbackEl.classList.add("success");
+    }
+  }
+
+  async function apiCall(endpoint, method = "POST", body = null) {
+    try {
+      const options = {
+        method,
+        headers: {}
+      };
+      if (body) {
+        if (body instanceof FormData) {
+          options.body = body; // Let browser set Content-Type for FormData
+        } else {
+          options.headers["Content-Type"] = "application/json";
+          options.body = JSON.stringify(body);
+        }
+      }
+      const response = await fetch(`${SERVER_BASE_URL}${endpoint}`, options);
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          errorData = { error: response.statusText };
+        }
+        throw new Error(errorData.error || `HTTP error ${response.status}`);
+      }
+      // For GET or no content responses, we might not always have JSON
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        return await response.json();
+      }
+      return await response.text(); // Or handle based on expected response type
+
+    } catch (error) {
+      console.error(`API call to ${endpoint} failed:`, error);
+      displayFeedback(error.message || "An unknown error occurred.", "error");
+      throw error; // Re-throw to allow calling function to handle
+    }
+  }
+
+
+  // --- CORE LOGIC ---
+  function loadWordList() {
+    currentLanguage = "en"; // Assuming words in textarea are English (base language)
+    // You could add a select for base language if words are not always English
+    return wordListEl.value
+            .split(/\r?\n/)
+            .map(l => l.trim())
+            .filter(l => l);
+  }
+
+  async function loadNewWord() {
+    // Reset UI
+    selectedWordEl.textContent = "";
+    translationGridEl.innerHTML = "";
+    displayFeedback("Loading new word...", "info");
+    pronounceBtn.disabled = true;
+    toggleWordBtn.disabled = false;
+    toggleWordBtn.textContent = "Hide Word";
+    practiceOutputEl.innerHTML = "";
+    backTranslationEl.innerHTML = "";
+    scoreAttemptBtn.disabled = true;
+    rescoreBtn.disabled = true;
+    retranslateBtn.disabled = true;
+    listeningIndicator.classList.remove("listening");
+
+    wordListArray = loadWordList();
+    if (!wordListArray.length) {
+      displayFeedback("Please enter some words/phrases in the list first.", "error");
+      alert("Enter some words first!");
+      return;
+    }
+    currentWord = wordListArray[Math.floor(Math.random() * wordListArray.length)];
+    selectedWordEl.textContent = currentWord;
+    selectedWordEl.style.display = 'block'; // Ensure it's visible
+
+    try {
+      const data = await apiCall("/translate", "POST", {
+        text: currentWord,
+        targetLang: languageSelect.value
+      });
+      correctTranslation = data.translatedText;
+      displayFeedback(`Word loaded. Target: ${languageSelect.options[languageSelect.selectedIndex].text}. Click "Generate Grid".`, "success");
+      // Automatically fetch distractors or let user click "Generate Grid"
+      // For now, let's keep the explicit button click for Generate Grid
+      generateGridBtn.disabled = false;
+    } catch (err) {
+      // Error already displayed by apiCall helper
+      generateGridBtn.disabled = true;
+    }
+  }
+
+  async function fetchDistractorOptions() {
+    if (!correctTranslation) {
+      displayFeedback("No target translation available to generate distractors.", "error");
+      return;
+    }
+    displayFeedback("Generating options grid...", "info");
+    const rows = +rowSelect.value;
+    const cols = +colSelect.value;
+    const gridSize = rows * cols;
+
+    if (gridSize === 1) {
+      renderTranslationGrid([correctTranslation]);
+      displayFeedback("Grid generated.", "success");
+      pronounceBtn.disabled = false; // Enable pronounce since the correct answer is shown
+      return;
+    }
+
+    try {
+      const data = await apiCall("/gemini_distractors", "POST", { // Updated endpoint
+        baseText: correctTranslation,
+        targetLang: languageSelect.value,
+        distractorCount: gridSize - 1
+      });
+      let options = data.distractors.slice(0, gridSize - 1);
+      options.splice(Math.floor(Math.random() * gridSize), 0, correctTranslation); // Insert correct answer randomly
+      renderTranslationGrid(options);
+      displayFeedback("Grid generated. Select an option.", "success");
+    } catch (err) {
+      // Error displayed by apiCall helper
+      renderTranslationGrid([correctTranslation]); // Fallback: show only correct answer
+      displayFeedback("Could not fetch distractors. Showing correct answer. " + err.message, "error");
+      pronounceBtn.disabled = false; // Enable pronounce
+    }
+  }
+
+  function renderTranslationGrid(options) {
+    translationGridEl.innerHTML = ""; // Clear previous grid
+    translationGridEl.style.gridTemplateColumns = `repeat(${colSelect.value}, 1fr)`;
+    translationGridEl.style.gridTemplateRows = `repeat(${rowSelect.value}, auto)`;
+    const charLimit = +charCountSelect.value;
+
+    options.forEach(opt => {
+      const btn = document.createElement("button");
+      btn.textContent = opt.length > charLimit ? opt.slice(0, charLimit) + "…" : opt;
+      btn.title = opt; // Full text on hover
+      btn.addEventListener("click", () => {
+        displayFeedback(`You selected: "${opt}"`, "info");
+        if (opt === correctTranslation) {
+          score += 10;
+          updateScoreDisplay();
+          displayFeedback(`Correct! "${opt}" is right. Score: ${score}`, "success");
+          pronounceBtn.disabled = false;
+          btn.classList.add("correct-choice");
+          // Disable all buttons in grid after correct choice
+          Array.from(translationGridEl.children).forEach(childBtn => childBtn.disabled = true);
+        } else {
+          score -= 10;
+          updateScoreDisplay();
+          displayFeedback(`Incorrect. Try again or check the word. Score: ${score}`, "error");
+          btn.disabled = true; // Disable wrong choice
+          btn.style.visibility = "hidden"; // Optionally hide wrong choice
+        }
+      });
+      translationGridEl.appendChild(btn);
+    });
+  }
+
+  function toggleWordVisibility() {
+    if (selectedWordEl.style.display === 'none') {
+      selectedWordEl.style.display = 'block';
+      selectedWordEl.textContent = currentWord;
+      toggleWordBtn.textContent = "Hide Word";
+    } else {
+      selectedWordEl.style.display = 'none';
+      // selectedWordEl.textContent = ""; // Keep content for restore
+      toggleWordBtn.textContent = "Show Word";
+    }
+  }
+
+  async function pronounceWord() {
+    if (!correctTranslation) {
+      displayFeedback("No translated text to pronounce.", "error");
+      return;
+    }
+    displayFeedback(`Requesting pronunciation for "${correctTranslation}"...`, "info");
+    try {
+      // TTS request (will use ElevenLabs if server configured, or fail if Gemini)
+      const data = await apiCall("/tts", "POST", {
+        text: correctTranslation,
+        lang: languageSelect.value,
+        // instructions: "Speak clearly." // Example instruction, server side needs to handle
+      });
+
+      if (data && data.audioUrl) {
+        const audio = new Audio(SERVER_BASE_URL + data.audioUrl); // Server returns relative URL
+        audio.play().catch(e => {
+          console.error("Error playing TTS audio:", e);
+          displayFeedback("Error playing audio: " + e.message, "error");
+        });
+        displayFeedback(`Playing audio for "${correctTranslation}"`, "success");
+      } else if (typeof data === 'string' && data.includes("audioUrl")) { // Fallback for just text response with url
+        const parsedData = JSON.parse(data); // Attempt to parse if it's a stringified JSON
+        const audio = new Audio(SERVER_BASE_URL + parsedData.audioUrl);
+        audio.play().catch(e => {
+          console.error("Error playing TTS audio (fallback):", e);
+          displayFeedback("Error playing audio (fallback): " + e.message, "error");
+        });
+        displayFeedback(`Playing audio for "${correctTranslation}"`, "success");
+      }
+      else {
+        // This case might be hit if server responds 200 but no audioUrl (e.g. misconfiguration)
+        // Or if apiCall returns text for non-json 200 response
+        displayFeedback("TTS service did not provide a playable audio URL.", "error");
+      }
+    } catch (err) {
+      // Error already displayed by apiCall helper.
+      // Specific message for TTS not available from Gemini
+      if (err.message && err.message.toLowerCase().includes("tts not supported by the current gemini sdk")) {
+        alert("Text-to-Speech is not available with the current server configuration (Gemini). Try configuring the server to use ElevenLabs for TTS.");
+      } else {
+        alert("TTS Error: " + err.message);
+      }
+    }
+  }
+
+  // --- PRACTICE FLOW (Speech Recognition & Back-translation) ---
+  async function startPracticeRecording() {
+    if (!correctTranslation) {
+      displayFeedback("Load a word and its translation first before practicing.", "error");
+      return;
+    }
+    practiceChunks = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      practiceRecorder = new MediaRecorder(stream);
+      practiceRecorder.ondataavailable = e => practiceChunks.push(e.data);
+      practiceRecorder.onstart = () => {
+        listeningIndicator.classList.add("listening");
+        practiceBtn.textContent = "🛑 Stop Recording";
+        scoreAttemptBtn.disabled = true; // Disable until recording stops
+        rescoreBtn.disabled = true;
+        retranslateBtn.disabled = true;
+        displayFeedback("Recording... Click 'Stop Recording' when done.", "info");
+      };
+      practiceRecorder.onstop = async () => {
+        listeningIndicator.classList.remove("listening");
+        practiceBtn.textContent = "🎙️ Record Answer";
+        if (practiceChunks.length === 0) {
+          displayFeedback("No audio recorded.", "error");
+          return;
+        }
+        practiceAudioBlob = new Blob(practiceChunks, { type: "audio/webm" }); // Server STT expects webm or wav
+        practiceChunks = []; // Reset for next recording
+        scoreAttemptBtn.disabled = false;
+        displayFeedback("Recording stopped. Click 'Evaluate Recording'.", "info");
+        await processPracticeAudio(practiceAudioBlob, "score"); // Automatically score after stopping
+      };
+      practiceRecorder.start();
+    } catch (e) {
+      console.error("MediaRecorder error:", e);
+      displayFeedback("Could not start microphone: " + e.message, "error");
+      alert("Could not start microphone. Please ensure permission is granted and no other app is using it.");
+    }
+  }
+
+  function stopPracticeRecording() {
+    if (practiceRecorder && practiceRecorder.state === "recording") {
+      practiceRecorder.stop();
+      // onstop will handle the rest
+    }
+  }
+
+  async function scorePracticeAttempt() {
+    if (practiceAudioBlob) {
+      await processPracticeAudio(practiceAudioBlob, "score");
+    } else {
+      displayFeedback("No recorded audio to evaluate.", "error");
+    }
+  }
+  async function rescorePracticeAttempt() {
+    if (practiceAudioBlob) {
+      await processPracticeAudio(practiceAudioBlob, "rescore");
+    } else {
+      displayFeedback("No recorded audio to re-evaluate.", "error");
+    }
+  }
+
+  async function retranslatePracticeAttempt() {
+    if (!lastSttText) {
+      displayFeedback("No recognized text from your recording to back-translate.", "error");
+      return;
+    }
+    displayFeedback(`Back-translating "${lastSttText}" to ${currentLanguage}...`, "info");
+    try {
+      const data = await apiCall("/translate", "POST", {
+        text: lastSttText,
+        targetLang: currentLanguage // Use determined base language
+      });
+      const symbol = makeSymbol(normalize(data.translatedText), normalize(currentWord));
+      const newEntry = document.createElement('div');
+      newEntry.innerHTML = `${data.translatedText} ${symbol}`;
+      backTranslationEl.appendChild(newEntry);
+      displayFeedback("Back-translation complete.", "success");
+    } catch (err) {
+      // Error displayed by apiCall
+    }
+  }
+
+  async function processPracticeAudio(blob, actionType = "score") { // actionType: "score" or "rescore"
+    const formData = new FormData();
+    formData.append("audio", blob, "practice_audio.webm"); // Server expects .wav after ffmpeg, but can send webm
+    formData.append("lang", languageSelect.value); // Language of the spoken audio (target language)
+
+    displayFeedback("Processing your recording...", "info");
+    let sttResultText = "";
+    try {
+      const sttData = await apiCall("/stt", "POST", formData);
+      sttResultText = sttData.text;
+      lastSttText = sttResultText; // Save for re-translate
+
+      const symbol = makeSymbol(normalize(sttResultText), normalize(correctTranslation));
+      const newEntry = document.createElement('div');
+      newEntry.innerHTML = `You said: "${sttResultText}" ${symbol}`;
+      practiceOutputEl.appendChild(newEntry);
+      practiceOutputEl.scrollTop = practiceOutputEl.scrollHeight; // Scroll to bottom
+
+      if (actionType === "score") scoreAttemptBtn.disabled = true; // Disable after one attempt, use rescore
+      rescoreBtn.disabled = false;
+      retranslateBtn.disabled = false;
+      displayFeedback("Evaluation complete. Check 'Your Spoken Answer'.", "success");
+
+      // Optional: Automatically back-translate after STT
+      // await retranslatePracticeAttempt();
+
+    } catch (err) {
+      // Error displayed by apiCall helper
+      if (actionType === "score") scoreAttemptBtn.disabled = false; // Re-enable if STT failed
+      practiceOutputEl.innerHTML += `<div>Error in STT: ${err.message}</div>`;
+    }
+  }
+
+  // --- UTILITY FUNCTIONS (Normalization & Comparison) ---
+  function normalize(str) {
+    return (str || "")
+            .trim()
+            .toLowerCase()
+            .normalize("NFD") // Normalize Unicode characters (e.g., accents)
+            .replace(/[\u0300-\u036f]/g, "") // Remove diacritics
+            .replace(/[^\w\s]|_/g, "") // Remove punctuation (keeps word chars and spaces)
+            .replace(/\s+/g, " "); // Normalize multiple spaces to single
+  }
+
+  function makeSymbol(a, b) { // Takes normalized strings
+    return a === b
+            ? '<span style="color:#28a745;font-size:1.2em">✔</span>'
+            : '<span style="color:#dc3545;font-size:1.2em">✘</span>';
+  }
+
+  // --- EVENT LISTENERS ---
+  resetScoreBtn.addEventListener("click", () => {
+    score = 0;
+    updateScoreDisplay();
+    displayFeedback("Score reset.", "info");
+  });
+  newWordBtn.addEventListener("click", loadNewWord);
+  toggleWordBtn.addEventListener("click", toggleWordVisibility);
+  pronounceBtn.addEventListener("click", pronounceWord);
+  generateGridBtn.addEventListener("click", fetchDistractorOptions); // Was gptBtn
+
+  practiceBtn.addEventListener("click", () => {
+    if (practiceRecorder && practiceRecorder.state === "recording") {
+      stopPracticeRecording();
+    } else {
+      startPracticeRecording();
+    }
+  });
+  scoreAttemptBtn.addEventListener("click", scorePracticeAttempt);
+  rescoreBtn.addEventListener("click", rescorePracticeAttempt);
+  retranslateBtn.addEventListener("click", retranslatePracticeAttempt);
+  moveOnBtn.addEventListener("click", loadNewWord); // Or any other "next step" logic
+
+  // --- INITIALIZATION ---
+  function initializeApp() {
+    updateScoreDisplay();
+    displayFeedback("App ready. Load a new word to start.", "info");
+    // Load first word automatically or wait for user
+    // loadNewWord(); // Uncomment to load a word on page load
+    generateGridBtn.disabled = true; // Disabled until a word is loaded
+  }
+
+  // Wait for DOM to be fully loaded before initializing
+  document.addEventListener("DOMContentLoaded", initializeApp);
+
+</script>
+</body>
+</html>
