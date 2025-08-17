@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Weather Highs Table</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        #dropzone {
+            border: 2px dashed #3498db; border-radius: 8px;
+            padding: 2em; text-align: center; color: #3498db; margin-bottom: 2em;
+            transition: background 0.2s;
+        }
+        #dropzone.dragover { background: #eaf6fb; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1em; }
+        th, td { border: 1px solid #ccc; padding: 0.7em; text-align: left; }
+        th { background: #f5f8fa; }
+        .loading { color: #999; }
+    </style>
+</head>
+<body>
+<h1>Weather Highs Table</h1>
+<div id="dropzone">Drag &amp; drop your locations text file here</div>
+<table id="results" style="display:none;">
+    <thead>
+    <tr>
+        <th>Location</th>
+        <th>Hour</th>
+        <th>Temp High (°F)</th>
+        <th>Precip at High Temp (in)</th>
+    </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+<script src="js/util1.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

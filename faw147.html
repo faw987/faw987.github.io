@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Batch Book PDF Searcher</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background: #f0f0f0;
+        }
+        #drop-zone {
+            width: 80%;
+            max-width: 600px;
+            padding: 40px;
+            border: 4px dashed #888;
+            border-radius: 8px;
+            text-align: center;
+            background: white;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        #drop-zone.hover {
+            background: #e8f4ff;
+            border-color: #0052cc;
+        }
+        #status {
+            margin-top: 1rem;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+<div id="drop-zone">
+    <h2>Drop your .txt file here</h2>
+    <p>One book title per line</p>
+    <div id="status">Waiting for file…</div>
+</div>
+
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const status = document.getElementById('status');
+
+    // Prevent default drag behaviors
+    ['dragenter','dragover','dragleave','drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, e => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
+    });
+
+    // Highlight drop area on dragenter / dragover
+    ['dragenter','dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => {
+            dropZone.classList.add('hover');
+        }, false);
+    });
+    ['dragleave','drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => {
+            dropZone.classList.remove('hover');
+        }, false);
+    });
+
+    dropZone.addEventListener('drop', async (e) => {
+        const files = e.dataTransfer.files;
+        if (!files.length) return;
+
+        const file = files[0];
+        if (file.type !== 'text/plain') {
+            status.textContent = 'Please drop a plain text (.txt) file.';
+            return;
+        }
+
+        status.textContent = 'Reading file…';
+        const text = await file.text();
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+        if (!lines.length) {
+            status.textContent = 'No titles found in file.';
+            return;
+        }
+
+        status.textContent = `Found ${lines.length} titles — opening tabs…`;
+        // Open one tab per title
+        lines.forEach(title => {
+            const query = encodeURIComponent(title + ' free pdf');
+            const url = `https://www.google.com/search?q=${query}`;
+            window.open(url, '_blank');
+        });
+
+        status.textContent = 'All tabs opened. You can start reviewing them.';
+    });
+</script>
+
+</body>
+</html>

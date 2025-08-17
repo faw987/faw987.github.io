@@ -1,0 +1,315 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>West Village Sushi Near Village Vanguard</title>
+    <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+            integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+            crossorigin=""
+    />
+    <style>
+        :root {
+            --bg: #0b0c10;
+            --card: #111218;
+            --text: #e6e8ef;
+            --muted: #aab0c0;
+            --accent: #3ea6ff;
+            --gold: #f7c948;
+            --ring: rgba(62,166,255,.35);
+        }
+        html, body {
+            height: 100%;
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Helvetica, Arial, sans-serif;
+        }
+        .wrap {
+            display: grid;
+            grid-template-columns: 1.1fr .9fr;
+            gap: 16px;
+            height: 100%;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,.35);
+            outline: 1px solid rgba(255,255,255,.06);
+        }
+        .panel {
+            background: var(--card);
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,.35);
+            outline: 1px solid rgba(255,255,255,.06);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .panel header {
+            padding: 16px 18px;
+            border-bottom: 1px solid rgba(255,255,255,.08);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .legend-badge {
+            width: 28px; height: 28px;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 999px;
+            border: 2px solid #1e2230;
+            background: #fff;
+            color: #111;
+            font-weight: 700;
+            box-shadow: 0 2px 10px rgba(0,0,0,.25);
+        }
+        .legend-star {
+            width: 28px; height: 28px;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 6px;
+            background: var(--gold);
+            color: #111;
+            font-weight: 900;
+            box-shadow: 0 2px 10px rgba(0,0,0,.25);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(255,255,255,.06);
+            vertical-align: middle;
+        }
+        th { text-align: left; color: var(--muted); font-weight: 600; font-size: 13px; letter-spacing: .02em; }
+        tr:hover { background: rgba(255,255,255,.03); }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .name-cell {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .muted { color: var(--muted); font-size: 12px; }
+        /* Leaflet custom markers (numbered circles) */
+        .num-marker {
+            width: 28px; height: 28px;
+            border-radius: 999px;
+            background: #fff;
+            border: 2px solid #1e2230;
+            color: #111;
+            font-weight: 800;
+            font-size: 14px;
+            line-height: 24px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,.3);
+            display: grid;
+            place-items: center;
+        }
+        .star-marker {
+            width: 28px; height: 28px;
+            border-radius: 6px;
+            background: var(--gold);
+            color: #000;
+            font-weight: 900;
+            font-size: 18px;
+            line-height: 26px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,.35), 0 0 0 4px var(--ring);
+            display: grid;
+            place-items: center;
+        }
+        .foot {
+            padding: 10px 14px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+        @media (max-width: 980px) {
+            .wrap { grid-template-columns: 1fr; grid-template-rows: 55% 45%; }
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div id="map"></div>
+    <aside class="panel">
+        <header>
+            <div class="legend-star">★</div>
+            <div><strong>Village Vanguard</strong> <span class="muted">• 178 7th Ave S</span></div>
+        </header>
+        <div style="padding: 10px 14px; display: flex; gap: 14px; align-items:center;">
+            <div class="legend-badge">1</div><span class="muted">Nami Nori</span>
+            <div class="legend-badge">2</div><span class="muted">Sushi Katsuei</span>
+            <div class="legend-badge">3</div><span class="muted">Sushi 456</span>
+            <div class="legend-badge">4</div><span class="muted">Umami Sushi</span>
+            <div class="legend-badge">5</div><span class="muted">Sushi on Jones</span>
+        </div>
+        <div style="overflow:auto">
+            <table>
+                <thead>
+                <tr>
+                    <th style="width:56px;">#</th>
+                    <th>Name</th>
+                    <th>Focus</th>
+                    <th>Address</th>
+                    <th>Website</th>
+                </tr>
+                </thead>
+                <tbody id="tbl-body">
+                </tbody>
+            </table>
+        </div>
+        <div class="foot">
+            Tip: click a marker or a row to highlight it on the map.
+        </div>
+    </aside>
+</div>
+
+<script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin="">
+</script>
+<script>
+    // Coordinates gathered from reputable sources (Apple Maps, MapQuest, Wikimedia/Wikidata).
+    const vanguard = {
+        name: "Village Vanguard",
+        lat: 40.736111,  // ~ 40°44'10"N
+        lng: -74.001667, // ~ 74°00'06"W
+        addr: "178 7th Ave S, New York, NY 10014"
+    };
+
+    const places = [
+        {
+            n: 1,
+            name: "Nami Nori",
+            focus: "Temaki (hand rolls)",
+            lat: 40.7302426,
+            lng: -74.0032518,
+            addr: "33 Carmine St, New York, NY 10014",
+            url: "https://www.naminori.us/westvillage"
+        },
+        {
+            n: 2,
+            name: "Sushi Katsuei (West Village)",
+            focus: "Sushi, small omakase",
+            lat: 40.7321964,
+            lng: -74.0007826,
+            addr: "357 6th Ave, New York, NY 10014",
+            url: "https://www.sushikatsuei.com/west-village-ny/"
+        },
+        {
+            n: 3,
+            name: "Sushi 456",
+            focus: "Neighborhood sushi",
+            lat: 40.73144,
+            lng: -74.00647,
+            addr: "456 Hudson St, New York, NY 10014",
+            url: "https://sushi456.com/"
+        },
+        {
+            n: 4,
+            name: "Umami Sushi",
+            focus: "Sushi & sashimi sets",
+            lat: 40.7356606,
+            lng: -74.0004044,
+            addr: "50 Greenwich Ave, New York, NY 10011",
+            url: "https://www.umamisushi50.com/"
+        },
+        {
+            n: 5,
+            name: "Sushi on Jones (West Village)",
+            focus: "Quick omakase",
+            lat: 40.7338941,
+            lng: -74.0041528,
+            addr: "210 W 10th St, New York, NY 10014",
+            url: "http://sushionjones.com"
+        }
+    ];
+
+    // Map
+    const map = L.map('map', {
+        zoomControl: true,
+        scrollWheelZoom: true,
+        attributionControl: true
+    });
+
+    // Tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 20,
+        minZoom: 11,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Fit map to markers
+    const bounds = L.latLngBounds();
+    // Vanguard star
+    const starIcon = L.divIcon({
+        className: 'star-marker',
+        html: '★',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+    });
+    const vgMarker = L.marker([vanguard.lat, vanguard.lng], { icon: starIcon })
+        .addTo(map)
+        .bindPopup(`<strong>${vanguard.name}</strong><br>${vanguard.addr}`);
+    bounds.extend([vanguard.lat, vanguard.lng]);
+
+    // Helper to make numbered markers
+    function numIcon(n) {
+        return L.divIcon({
+            className: 'num-marker',
+            html: String(n),
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+        });
+    }
+
+    // Add restaurant markers + build table
+    const tbody = document.getElementById('tbl-body');
+    const rowByIndex = new Map();
+    const markerByIndex = new Map();
+
+    places.forEach(p => {
+        const m = L.marker([p.lat, p.lng], { icon: numIcon(p.n), title: `${p.n}. ${p.name}` })
+            .addTo(map)
+            .bindPopup(`<strong>${p.n}. ${p.name}</strong><br>${p.focus}<br>${p.addr}`);
+        bounds.extend([p.lat, p.lng]);
+        markerByIndex.set(p.n, m);
+
+        // table row
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+        <td><span class="legend-badge">${p.n}</span></td>
+        <td class="name-cell"><a href="${p.url}" target="_blank" rel="noopener">${p.name}</a></td>
+        <td>${p.focus}</td>
+        <td class="muted">${p.addr}</td>
+        <td><a href="${p.url}" target="_blank" rel="noopener">Website</a></td>
+      `;
+        tbody.appendChild(tr);
+        rowByIndex.set(p.n, tr);
+
+        // Row interactions
+        tr.addEventListener('click', () => {
+            map.setView([p.lat, p.lng], 17, { animate: true });
+            m.openPopup();
+            highlightRow(p.n);
+        });
+        // Marker click highlight
+        m.on('click', () => highlightRow(p.n));
+    });
+
+    function highlightRow(n) {
+        document.querySelectorAll('tbody tr').forEach(r => r.style.outline = '');
+        const tr = rowByIndex.get(n);
+        if (tr) tr.style.outline = `2px solid var(--accent)`;
+    }
+
+    map.fitBounds(bounds.pad(0.2));
+</script>
+</body>
+</html>
