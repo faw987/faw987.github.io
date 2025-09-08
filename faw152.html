@@ -1,0 +1,206 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>US Phone Compare — CSV Test Runner</title>
+    <style>
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+        header { margin-bottom: 16px; }
+        .card { border: 1px solid #ddd; border-radius: 14px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+        .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+        label { display: inline-flex; align-items: center; gap: 6px; }
+        input[type="file"] { padding: 8px; }
+        button { padding: 10px 14px; border-radius: 10px; border: 1px solid #333; background: white; cursor: pointer; }
+        button:hover { background: #f5f5f5; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { border: 1px solid #e5e5e5; padding: 8px 10px; text-align: left; }
+        th { background: #fafafa; }
+        .pass { color: #156c35; font-weight: 600; }
+        .fail { color: #b42318; font-weight: 700; }
+        .muted { color: #666; }
+        .small { font-size: 12px; }
+        .nowrap { white-space: nowrap; }
+        .summary { font-size: 15px; }
+        details { margin-top: 8px; }
+        .code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>US Phone Number Comparator — CSV Test Runner</h1>
+    <p class="muted">CSV format (with or without header): <span class="code">#1,#2,expected</span> where expected is <span class="code">true|false|t|f|1|0|yes|no</span>.</p>
+</header>
+
+<div class="card">
+    <div class="row">
+        <input id="csvFile" type="file" accept=".csv,text/csv" />
+        <label><input id="ignoreExt" type="checkbox"> Ignore extensions</label>
+        <label><input id="allowLocal7" type="checkbox"> Allow 7‑digit locals</label>
+        <label><input id="noStrict" type="checkbox"> Disable strict validation</label>
+        <button id="runBtn">Run tests</button>
+    </div>
+    <p class="small muted">Tip: Use the 200‑row sample (<span class="code">phone_tests_200.csv</span>) from earlier.</p>
+</div>
+
+<div class="card summary">
+    <div id="summary">No results yet.</div>
+    <details>
+        <summary>Show failures</summary>
+        <div id="failures"></div>
+    </details>
+</div>
+
+<div class="card">
+    <h3>Results</h3>
+    <table id="resultsTable">
+        <thead>
+        <tr>
+            <th>#</th>
+            <th>#1</th>
+            <th>#2</th>
+            <th>Expected</th>
+            <th>Got</th>
+            <th>Status</th>
+            <th class="nowrap">Norm A (base · ext)</th>
+            <th class="nowrap">Norm B (base · ext)</th>
+            <th class="nowrap">Validity (A/B)</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<!-- Optional util hook per your preference -->
+<!--<script src="js/util1.js"></script>-->
+<script>
+    // Simple robust CSV parser (handles quoted fields, commas, and newlines in quotes)
+    function parseCSV(text) {
+        const rows = [];
+        let cur = '', row = [], inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+            const ch = text[i], next = text[i+1];
+            if (inQuotes) {
+                if (ch === '"' && next === '"') { cur += '"'; i++; continue; }
+                if (ch === '"') { inQuotes = false; continue; }
+                cur += ch;
+            } else {
+                if (ch === '"') { inQuotes = true; continue; }
+                if (ch === ',') { row.push(cur); cur = ''; continue; }
+                if (ch === '\n') { row.push(cur); rows.push(row); row = []; cur = ''; continue; }
+                if (ch === '\r') { if (next === '\n') continue; else { row.push(cur); rows.push(row); row = []; cur = ''; continue; } }
+                cur += ch;
+            }
+        }
+        row.push(cur); rows.push(row);
+        return rows.filter(r => r.some(c => (c ?? '').trim() !== ''));
+    }
+
+    const TRUE_SET = new Set(['true','t','1','yes','y']);
+    const FALSE_SET = new Set(['false','f','0','no','n']);
+    function parseBool(s) {
+        const v = String(s ?? '').trim().toLowerCase();
+        if (TRUE_SET.has(v)) return true;
+        if (FALSE_SET.has(v)) return false;
+        throw new Error('Bad boolean: ' + s);
+    }
+</script>
+<script src="phone_compare.js"></script>
+<script>
+    function hasHeader(cells) {
+        const lc = cells.map(c => String(c ?? '').trim().toLowerCase());
+        return lc.includes('#1') || lc.includes('number1') || lc.includes('num1');
+    }
+
+    function htmlEscape(s) {
+        return String(s).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+    }
+
+    document.getElementById('runBtn').addEventListener('click', async () => {
+        const file = document.getElementById('csvFile').files[0];
+        if (!file) { alert('Choose a CSV file first.'); return; }
+
+        const opts = {
+            matchExtension: !document.getElementById('ignoreExt').checked,
+            allowLocal7: document.getElementById('allowLocal7').checked,
+            strictValidation: !document.getElementById('noStrict').checked
+        };
+
+        const text = await file.text();
+        // alert(text);
+        const rows = parseCSV(text);
+        // alert(rows.length);
+
+        // for (let r = 0; r < rows.length; r++) {
+        //     alert(rows[r]);
+        // };
+
+        const tbody = document.querySelector('#resultsTable tbody');
+        tbody.innerHTML = '';
+
+        let total = 0, failures = 0;
+        let started = false;
+        for (let r = 0; r < rows.length; r++) {
+            const cells = rows[r];
+            // alert(r,cells.length);
+            if (!started) {
+                started = true;
+                if (hasHeader(cells)) continue;
+            }
+            if (cells.length < 3) continue;
+            const n1 = cells[0].trim();
+            const n2 = cells[1].trim();
+            let expected;
+            try { expected = parseBool(cells[2]); } catch { continue; }
+
+            const got = PhoneCompare.sameUsNumber(n1, n2, opts);
+            const na = PhoneCompare.normalizeUsNumber(n1, { allowLocal7: opts.allowLocal7 });
+            const nb = PhoneCompare.normalizeUsNumber(n2, { allowLocal7: opts.allowLocal7 });
+
+            // alert(r,n1,n2,got);
+
+            total++;
+            const ok = got === expected;
+            if (!ok) failures++;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+          <td class="nowrap">${total}</td>
+          <td>${htmlEscape(n1)}</td>
+          <td>${htmlEscape(n2)}</td>
+          <td class="code">${expected}</td>
+          <td class="code">${got}</td>
+          <td class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</td>
+          <td class="code">${htmlEscape(na.base || '—')} · ${htmlEscape(na.ext || '')}</td>
+          <td class="code">${htmlEscape(nb.base || '—')} · ${htmlEscape(nb.ext || '')}</td>
+          <td class="small muted">${na.valid}/${nb.valid}</td>
+        `;
+            tbody.appendChild(tr);
+        }
+
+        const summary = document.getElementById('summary');
+        const pass = total - failures;
+        summary.textContent = `Summary: ${pass}/${total} passed, ${failures} failed.`;
+
+        const failuresDiv = document.getElementById('failures');
+        if (failures === 0) {
+            failuresDiv.innerHTML = '<p class="pass">No failures 🎉</p>';
+        } else {
+            const failingRows = [...tbody.querySelectorAll('tr')].filter(tr => tr.children[5].textContent === 'FAIL');
+            const items = failingRows.map(tr => {
+                const idx = tr.children[0].textContent;
+                const a = tr.children[1].textContent;
+                const b = tr.children[2].textContent;
+                const exp = tr.children[3].textContent;
+                const got = tr.children[4].textContent;
+                const na = tr.children[6].textContent;
+                const nb = tr.children[7].textContent;
+                return `<li><span class="code">#${idx}</span> expected <b>${exp}</b> but got <b>${got}</b> — A: <span class="code">${htmlEscape(a)}</span> (${htmlEscape(na)}), B: <span class="code">${htmlEscape(b)}</span> (${htmlEscape(nb)})</li>`;
+            }).join('');
+            failuresDiv.innerHTML = `<ol>${items}</ol>`;
+        }
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>US Phone Compare — Standalone Diagnostic</title>
+    <style>
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+        header { margin-bottom: 16px; }
+        .card { border: 1px solid #ddd; border-radius: 14px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+        .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+        label { display: inline-flex; align-items: center; gap: 6px; }
+        input[type="file"] { padding: 8px; }
+        button { padding: 10px 14px; border-radius: 10px; border: 1px solid #333; background: white; cursor: pointer; }
+        button:hover { background: #f5f5f5; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { border: 1px solid #e5e5e5; padding: 8px 10px; text-align: left; }
+        th { background: #fafafa; }
+        .pass { color: #156c35; font-weight: 600; }
+        .fail { color: #b42318; font-weight: 700; }
+        .muted { color: #666; }
+        .small { font-size: 12px; }
+        .nowrap { white-space: nowrap; }
+        .summary { font-size: 15px; }
+        details { margin-top: 8px; }
+        .code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+        textarea { width: 100%; height: 160px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>US Phone Number Comparator — Standalone Diagnostic</h1>
+    <p class="muted">This page has all JS inline. If your previous page did nothing, try this one.</p>
+</header>
+
+<div class="card">
+    <div class="row">
+        <input id="csvFile" type="file" accept=".csv,text/csv" />
+        <label><input id="ignoreExt" type="checkbox"> Ignore extensions</label>
+        <label><input id="allowLocal7" type="checkbox"> Allow 7-digit locals</label>
+        <label><input id="noStrict" type="checkbox"> Disable strict validation</label>
+        <button id="runBtn">Run tests</button>
+        <button id="demoBtn" title="Run on sample below">Run sample</button>
+    </div>
+    <p class="small muted">Or paste CSV here and click “Run sample”:</p>
+    <textarea id="sampleArea">#1,#2,expected
+(201) 555-0123,+1 201.555.0123,true
+212-555-0199,1 (212) 555-0199,true
++1 (415) 555-2671,415/555-2671,true
++1 (415) 555-0100 x123,415-555-0100 ext.124,false
+555-1212,212-555-1212,false
+1-800-FLOWERS,18003569377,true
+</textarea>
+</div>
+
+<div class="card summary">
+    <div id="summary">No results yet.</div>
+    <details>
+        <summary>Show failures</summary>
+        <div id="failures"></div>
+    </details>
+    <details>
+        <summary>Debug log</summary>
+        <pre id="debugLog" class="small code"></pre>
+    </details>
+</div>
+
+<div class="card">
+    <h3>Results</h3>
+    <table id="resultsTable">
+        <thead>
+        <tr>
+            <th>#</th>
+            <th>#1</th>
+            <th>#2</th>
+            <th>Expected</th>
+            <th>Got</th>
+            <th>Status</th>
+            <th class="nowrap">Norm A (base · ext)</th>
+            <th class="nowrap">Norm B (base · ext)</th>
+            <th class="nowrap">Validity (A/B)</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script>
+    // ---- Library inline ----
+    (function (global) {
+        'use strict';
+        const LETTER_TO_DIGIT = new Map();
+        [['ABC','2'],['DEF','3'],['GHI','4'],['JKL','5'],['MNO','6'],['PQRS','7'],['TUV','8'],['WXYZ','9']].forEach(([L,d])=>{
+            for (const ch of L){ LETTER_TO_DIGIT.set(ch,d); LETTER_TO_DIGIT.set(ch.toLowerCase(),d); }
+        });
+        const EXT_TRAILING_RE = /(?:^|[\s,.;\-])(?:ext(?:ension)?\.?|x|xt|#)\s*[:\-\.]?\s*([A-Za-z0-9]+)\s*$/i;
+        const EXT_URI_RE = /;\s*ext\s*=\s*([A-Za-z0-9]+)\s*$/i;
+        const LEADING_SCHEME_RE = /^(?:tel:|sip:)/i;
+
+        function transliterateLetters(s){ if(!s) return s; let out=''; for(const ch of s){ if(/[A-Za-z]/.test(ch) && LETTER_TO_DIGIT.has(ch)) out+=LETTER_TO_DIGIT.get(ch); else out+=ch; } return out; }
+        function splitBaseAndExtension(s){
+            s = (s||'').trim().replace(LEADING_SCHEME_RE,'');
+            const mUri = s.match(EXT_URI_RE);
+            let mTrailing=null, re=new RegExp(EXT_TRAILING_RE.source, EXT_TRAILING_RE.flags), tmp;
+            while((tmp=re.exec(s))!==null){ mTrailing=tmp; }
+            if (mUri && (!mTrailing || mUri.index > mTrailing.index)) return [s.slice(0,mUri.index).trim(), mUri[1]];
+            if (mTrailing) return [(s.slice(0,mTrailing.index)+s.slice(mTrailing.index+mTrailing[0].length)).trim(), mTrailing[1]];
+            return [s,null];
+        }
+        function stripIddAndCountry(d){
+            if(!d) return d;
+            if(d.startsWith('011')) d=d.slice(3);
+            if(d.startsWith('00')) d=d.slice(2);
+            d=d.replace(/^\+/,'');
+            if(d.length===11 && d.startsWith('1')) d=d.slice(1);
+            while(d.length>10 && d.startsWith('1')) d=d.slice(1);
+            return d;
+        }
+        function nanpBasicValid(d, allowLocal7){
+            if(!d) return [false,'No digits'];
+            if(allowLocal7 && d.length===7){ if(d[0]==='0'||d[0]==='1') return [false,'Local 7-digit: exchange cannot start with 0/1']; return [true,null]; }
+            if(d.length!==10) return [false,`Expected 10 digits, got ${d.length}`];
+            if(d[0]==='0'||d[0]==='1') return [false,'Area code cannot start with 0/1'];
+            if(d[3]==='0'||d[3]==='1') return [false,'Exchange code cannot start with 0/1'];
+            return [true,null];
+        }
+        function normalizeUsNumber(raw,{allowLocal7=false}={}){
+            const [baseRaw,extRaw]=splitBaseAndExtension(String(raw??''));
+            const baseAlpha=transliterateLetters(baseRaw), extAlpha=transliterateLetters(extRaw);
+            let baseDigits=(baseAlpha.match(/\d/g)||[]).join('');
+            let extDigits=extAlpha?(extAlpha.match(/\d/g)||[]).join(''):null;
+            baseDigits=stripIddAndCountry(baseDigits);
+            const [valid,reason]=nanpBasicValid(baseDigits,allowLocal7);
+            if(extDigits==='') extDigits=null;
+            if(baseDigits==='') return {raw,base:null,ext:extDigits,valid:false,reason:'No digits found'};
+            return {raw,base:baseDigits,ext:extDigits,valid,reason};
+        }
+        function sameUsNumber(a,b,{matchExtension=true,allowLocal7=false,strictValidation=true}={}){
+            const na=normalizeUsNumber(a,{allowLocal7}), nb=normalizeUsNumber(b,{allowLocal7});
+            if(strictValidation && (!na.valid || !nb.valid)) return false;
+            if(!na.base || !nb.base) return false;
+            if(na.base!==nb.base) return false;
+            if(matchExtension){ return (na.ext||'')===(nb.ext||''); }
+            return true;
+        }
+        global.PhoneCompare={normalizeUsNumber,sameUsNumber};
+    })(window);
+
+    // ---- CSV & UI ----
+    function log(msg){ const el=document.getElementById('debugLog'); el.textContent += msg + '\n'; console.log(msg); }
+
+    function parseCSV(text) {
+        const rows = [];
+        let cur = '', row = [], inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+            const ch = text[i], next = text[i+1];
+            if (inQuotes) {
+                if (ch === '"' && next === '"') { cur += '"'; i++; continue; }
+                if (ch === '"') { inQuotes = false; continue; }
+                cur += ch;
+            } else {
+                if (ch === '"') { inQuotes = true; continue; }
+                if (ch === ',') { row.push(cur); cur = ''; continue; }
+                if (ch === '\n') { row.push(cur); rows.push(row); row = []; cur = ''; continue; }
+                if (ch === '\r') { if (next === '\n') continue; else { row.push(cur); rows.push(row); row = []; cur = ''; continue; } }
+                cur += ch;
+            }
+        }
+        row.push(cur); rows.push(row);
+        return rows.filter(r => r.some(c => (c ?? '').trim() !== ''));
+    }
+
+    const TRUE_SET = new Set(['true','t','1','yes','y']);
+    const FALSE_SET = new Set(['false','f','0','no','n']);
+    function parseBool(s) {
+        const v = String(s ?? '').trim().toLowerCase();
+        if (TRUE_SET.has(v)) return true;
+        if (FALSE_SET.has(v)) return false;
+        throw new Error('Bad boolean: ' + s);
+    }
+    function hasHeader(cells) {
+        const lc = cells.map(c => String(c ?? '').trim().toLowerCase());
+        return lc.includes('#1') || lc.includes('number1') || lc.includes('num1');
+    }
+    function htmlEscape(s) {
+        return String(s).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+    }
+
+    async function runFromText(text, opts){
+        log('Starting parse...');
+        const rows = parseCSV(text);
+        log('Parsed rows: ' + rows.length);
+        const tbody = document.querySelector('#resultsTable tbody');
+        tbody.innerHTML = '';
+        let total=0, failures=0, started=false;
+
+        for (let r = 0; r < rows.length; r++) {
+            const cells = rows[r];
+            if (!started) { started = true; if (hasHeader(cells)) { log('Header detected, skipping first row'); continue; } }
+            if (cells.length < 3) { log('Skipping short row: ' + JSON.stringify(cells)); continue; }
+            const n1 = (cells[0]||'').trim();
+            const n2 = (cells[1]||'').trim();
+            let expected; try { expected = parseBool(cells[2]); } catch(e){ log('Bad boolean in row '+(r+1)+': '+cells[2]); continue; }
+
+            const got = PhoneCompare.sameUsNumber(n1, n2, opts);
+            const na = PhoneCompare.normalizeUsNumber(n1, { allowLocal7: opts.allowLocal7 });
+            const nb = PhoneCompare.normalizeUsNumber(n2, { allowLocal7: opts.allowLocal7 });
+
+            total++; const ok = got === expected; if (!ok) failures++;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+          <td class="nowrap">${total}</td>
+          <td>${htmlEscape(n1)}</td>
+          <td>${htmlEscape(n2)}</td>
+          <td class="code">${expected}</td>
+          <td class="code">${got}</td>
+          <td class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</td>
+          <td class="code">${htmlEscape(na.base || '—')} · ${htmlEscape(na.ext || '')}</td>
+          <td class="code">${htmlEscape(nb.base || '—')} · ${htmlEscape(nb.ext || '')}</td>
+          <td class="small muted">${na.valid}/${nb.valid}</td>`;
+            tbody.appendChild(tr);
+        }
+        const summary = document.getElementById('summary');
+        summary.textContent = `Summary: ${total - failures}/${total} passed, ${failures} failed.`;
+        log('Done. Total: '+total+', Failures: '+failures);
+    }
+
+    document.getElementById('runBtn').addEventListener('click', async () => {
+        try {
+            const file = document.getElementById('csvFile').files[0];
+            if (!file) { alert('Choose a CSV file first.'); return; }
+            const opts = {
+                matchExtension: !document.getElementById('ignoreExt').checked,
+                allowLocal7: document.getElementById('allowLocal7').checked,
+                strictValidation: !document.getElementById('noStrict').checked
+            };
+            const text = await file.text();
+            await runFromText(text, opts);
+        } catch (e) { log('ERROR: ' + (e && e.message || e)); alert('Error: ' + e); }
+    });
+
+    document.getElementById('demoBtn').addEventListener('click', async () => {
+        try {
+            const opts = {
+                matchExtension: !document.getElementById('ignoreExt').checked,
+                allowLocal7: document.getElementById('allowLocal7').checked,
+                strictValidation: !document.getElementById('noStrict').checked
+            };
+            const text = document.getElementById('sampleArea').value;
+            await runFromText(text, opts);
+        } catch (e) { log('ERROR: ' + (e && e.message || e)); alert('Error: ' + e); }
+    });
+
+    log('Diagnostic page loaded.');
+</script>
+</body>
+</html>
