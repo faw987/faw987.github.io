@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>7-Day Weather Tables • Color-Coded</title>
+    <style>
+        :root { --bg:#0b1020; --panel:#11172b; --muted:#97a0b3; --text:#e8ecf3; --accent:#6ea8fe; --err:#ff6b6b; --shadow:0 10px 24px rgba(0,0,0,.35); }
+        body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial, "Noto Sans", sans-serif; color:var(--text);
+            background: radial-gradient(1250px 800px at 20% -10%, #1a2340, #0b1020 60%); }
+        .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+        header { display:grid; gap:8px; margin-bottom:16px; }
+        h1 { margin:0; font-size: clamp(22px, 2.8vw, 32px); }
+        .sub { color: var(--muted); }
+        .panel { background:#11172b; border:1px solid #1c2a4d; border-radius:16px; box-shadow: var(--shadow); padding:18px; }
+        .controls { display:grid; gap:12px; }
+        .row { display:grid; gap:12px; grid-template-columns: 1fr 1fr; }
+        @media (max-width: 800px){ .row{ grid-template-columns: 1fr; } }
+        label { font-weight:600; font-size:14px; }
+        input[type="text"], input[type="file"], textarea {
+            width:100%; box-sizing:border-box; padding:10px 12px; border-radius:10px;
+            border:1px solid #2a3a6a; background:#0b142c; color:var(--text); font-family:inherit;
+        }
+        textarea { resize:vertical; min-height:80px; }
+        .btn { border:1px solid #2a3a6a; color:var(--text); background:#0b142c; padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:600; }
+        .btn:hover { background:#12214a; border-color:#3b57a3; }
+        .dropzone { border:2px dashed #2a3a6a; border-radius:16px; padding:22px; text-align:center; color:var(--muted); }
+        .dropzone.dragover { background: rgba(64,105,215,0.12); border-color:#6ea8fe; color: var(--text); }
+        .grid { display:grid; grid-template-columns: 1fr; gap:16px; margin-top:18px; }
+        .card { background:#11172b; border:1px solid #1b2647; border-radius:16px; padding:12px; box-shadow: var(--shadow); }
+        .card h3 { margin:6px 8px 0; font-size:16px; font-weight:700; }
+        .meta { color: var(--muted); font-size:12px; margin: 0 8px 6px; }
+        .bad { color: var(--err); }
+        table.wx { width:100%; border-collapse: collapse; }
+        table.wx th, table.wx td { border-bottom:1px solid #25345f; padding:8px 10px; text-align:left; }
+        table.wx thead th { position: sticky; top: 0; background:#121a33; z-index:1; }
+        table.wx tbody tr:hover { background: rgba(64,105,215,0.08); }
+        .inline { display:flex; align-items:center; gap:12px; }
+        .inline label { display:flex; align-items:center; gap:8px; font-weight:500; }
+    </style>
+
+    <script type="module" defer>
+        // --- Endpoints
+        const GEOCODE = "https://geocoding-api.open-meteo.com/v1/search";
+        const FORECAST = "https://api.open-meteo.com/v1/forecast";
+
+        // --- Minimal WMO -> text mapping
+        const WMO = new Map(Object.entries({
+            0:"Clear",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",
+            45:"Fog",48:"Rime fog",
+            51:"Drizzle light",53:"Drizzle mod",55:"Drizzle heavy",
+            61:"Rain light",63:"Rain mod",65:"Rain heavy",
+            71:"Snow light",73:"Snow mod",75:"Snow heavy",
+            80:"Rain showers",81:"Rain shw mod",82:"Rain shw heavy",
+            95:"Thunderstorm",96:"Tstorm hail",99:"Tstorm heavy hail"
+        }));
+
+        // --- DOM helper
+        function el(tag, attrs={}, children=[]){
+            const e = document.createElement(tag);
+            for (const [k,v] of Object.entries(attrs)) {
+                if (k === "class") e.className = v;
+                else if (k === "text") e.textContent = v;
+                else e.setAttribute(k, v);
+            }
+            for (const c of (Array.isArray(children)?children:[children])) if (c) e.append(c);
+            return e;
+        }
+
+        // --- Parse daily ISO date as LOCAL (avoid UTC shift)
+        function parseLocalISODate(iso) {
+            // iso like "YYYY-MM-DD"
+            const [y, m, d] = iso.split("-").map(Number);
+            return new Date(y, m - 1, d); // local midnight
+        }
+
+        // --- Input line parser
+        // Supports coords and city formats; keeps empty slots for biasing
+        function parseLine(line){
+            const raw = line.split("#")[0].trim();
+            if(!raw) return null;
+
+            // coords?
+            const mc = raw.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)\s*(?:,(.*))?$/);
+            if (mc) {
+                const lat = Number(mc[1]), lon = Number(mc[2]);
+                if (Number.isFinite(lat) && Number.isFinite(lon) && lat>=-90 && lat<=90 && lon>=-180 && lon<=180) {
+                    const desc = (mc[3]||"").trim();
+                    return { type:"coords", lat, lon, label: desc || (lat.toFixed(3)+","+lon.toFixed(3)) };
+                }
+            }
+
+            const partsRaw = raw.split(",").map(s => s.trim()); // keep empties
+            if (partsRaw.length >= 1 && partsRaw.length <= 3) {
+                const [pCity, pState, pCountry] = partsRaw;
+                return { type:"place", raw, city: pCity || "", state: pState || "", country: pCountry || "" };
+            }
+
+            return { type:"place", raw, city: raw };
+        }
+
+        // ---------- Normalization helpers ----------
+        const COUNTRY_ALIASES = new Map([
+            ["us","United States"], ["usa","United States"], ["u.s.","United States"], ["u.s.a.","United States"],
+            ["united states of america","United States"],
+            ["uk","United Kingdom"], ["u.k.","United Kingdom"],
+            ["uae","United Arab Emirates"],
+            ["drc","Democratic Republic of the Congo"], ["congo-kinshasa","Democratic Republic of the Congo"],
+            ["congo-brazzaville","Republic of the Congo"]
+        ]);
+
+        const US_STATES = new Map(Object.entries({
+            "AL":"Alabama","AK":"Alaska","AZ":"Arizona","AR":"Arkansas","CA":"California","CO":"Colorado","CT":"Connecticut",
+            "DE":"Delaware","FL":"Florida","GA":"Georgia","HI":"Hawaii","ID":"Idaho","IL":"Illinois","IN":"Indiana","IA":"Iowa",
+            "KS":"Kansas","KY":"Kentucky","LA":"Louisiana","ME":"Maine","MD":"Maryland","MA":"Massachusetts","MI":"Michigan",
+            "MN":"Minnesota","MS":"Mississippi","MO":"Missouri","MT":"Montana","NE":"Nebraska","NV":"Nevada","NH":"New Hampshire",
+            "NJ":"New Jersey","NM":"New Mexico","NY":"New York","NC":"North Carolina","ND":"North Dakota","OH":"Ohio",
+            "OK":"Oklahoma","OR":"Oregon","PA":"Pennsylvania","RI":"Rhode Island","SC":"South Carolina","SD":"South Dakota",
+            "TN":"Tennessee","TX":"Texas","UT":"Utah","VT":"Vermont","VA":"Virginia","WA":"Washington","WV":"West Virginia",
+            "WI":"Wisconsin","WY":"Wyoming","DC":"District of Columbia"
+        }));
+
+        function normCountry(input){
+            if (!input) return input;
+            const key = input.trim().toLowerCase();
+            return COUNTRY_ALIASES.get(key) || (input.length <= 3 ? input.toUpperCase() : input);
+        }
+
+        function normUSState(input){
+            if (!input) return input;
+            const s = input.trim();
+            if (s.length <= 3) {
+                const key = s.toUpperCase();
+                return US_STATES.get(key) || input;
+            }
+            return s.replace(/\b\w+/g, t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+        }
+
+        function chooseBestResult(results, prefs){
+            const wantCountry = prefs.country && prefs.country.trim();
+            const wantAdmin1  = prefs.admin1 && prefs.admin1.trim();
+            const wantAdmin1LC = wantAdmin1 ? wantAdmin1.toLowerCase() : null;
+            function score(r){
+                let s=0;
+                if (wantCountry && r.country === prefs.country) s += 2;
+                if (wantAdmin1 && r.admin1 && r.admin1.toLowerCase().includes(wantAdmin1LC)) s += 1;
+                return { s, pop: r.population || 0 };
+            }
+            return results.map(r=>({r, ...score(r)})).sort((a,b)=>(b.s-a.s)||(b.pop-a.pop))[0].r;
+        }
+
+        // Normalize color tokens: "light green" -> "lightgreen"
+        function normalizeColorToken(c){
+            if (!c) return c;
+            if (c.startsWith("#") || /\b(?:rgb|hsl)a?\s*\(/i.test(c)) return c;
+            return c.replace(/\s+/g, "");
+        }
+
+        async function geocode(place, globalPrefs){
+            let city = (place.city || "").trim();
+            let state = (place.state || "").trim();
+            let country = normCountry(place.country || "");
+
+            const prefAdmin1 = (globalPrefs.admin1 || "").trim();
+            const prefCountry = normCountry(globalPrefs.country || "");
+
+            const effectiveCountry = country || prefCountry || "";
+            const effectiveAdmin1 =
+                (effectiveCountry === "United States" ? normUSState(state) : (state || "")) || prefAdmin1;
+
+            const effectivePrefs = {
+                admin1: effectiveAdmin1,
+                country: effectiveCountry
+            };
+
+            const nameParts = [city, state, country].filter(Boolean);
+            const name = nameParts.length ? nameParts.join(", ") : (place.raw || "");
+
+            const params = new URLSearchParams({ name, count:"5", language:"en" });
+            const r = await fetch(GEOCODE + "?" + params.toString());
+            if (!r.ok) throw new Error("Geocoding failed " + r.status);
+            const data = await r.json();
+            const results = data.results || [];
+            if (results.length === 0) {
+                if (city) {
+                    const params2 = new URLSearchParams({ name: city, count:"5", language:"en" });
+                    const r2 = await fetch(GEOCODE + "?" + params2.toString());
+                    if (r2.ok) {
+                        const d2 = await r2.json();
+                        const res2 = d2.results || [];
+                        if (res2.length) {
+                            const best2 = (effectivePrefs.country || effectivePrefs.admin1)
+                                ? chooseBestResult(res2, effectivePrefs)
+                                : res2.sort((a,b)=>(b.population||0)-(a.population||0))[0];
+                            const label2 = [best2.name, best2.admin1, best2.country].filter(Boolean).join(", ");
+                            return { lat: best2.latitude, lon: best2.longitude, label: label2 };
+                        }
+                    }
+                }
+                throw new Error('No match for "' + name + '"');
+            }
+
+            const best = (effectivePrefs.country || effectivePrefs.admin1)
+                ? chooseBestResult(results, effectivePrefs)
+                : results.sort((a,b)=>(b.population||0)-(a.population||0))[0];
+
+            const label = [best.name, best.admin1, best.country].filter(Boolean).join(", ");
+            return { lat: best.latitude, lon: best.longitude, label };
+        }
+
+        async function fetchDaily(lat, lon, days=7){
+            const params = new URLSearchParams({
+                latitude:String(lat), longitude:String(lon),
+                timezone:"auto", temperature_unit:"fahrenheit", precipitation_unit:"inch",
+                forecast_days:String(days),
+                daily:["temperature_2m_max","temperature_2m_min","precipitation_sum","uv_index_max","wind_gusts_10m_max","weather_code"].join(",")
+            });
+            const r = await fetch(FORECAST + "?" + params.toString());
+            if(!r.ok){
+                let txt = "";
+                try { txt = await r.text(); } catch(e){}
+                throw new Error("Forecast failed " + r.status + ": " + txt);
+            }
+            const data = await r.json();
+            if (data.error) throw new Error(data.reason || "API error");
+            return data.daily;
+        }
+
+        // =======================
+        // Color-rule engine
+        // =======================
+        function normKey(s){ return (s||"").replace(/[^a-z0-9]+/gi, "").toLowerCase(); }
+
+        // Rules: numeric lo#hi:color OR string text:color
+        function parseRules(text){
+            const rules = new Map();
+            const lines = (text||"").replace(/\r\n?/g, "\n").split("\n");
+            for (const raw of lines) {
+                const line = raw.trim();
+                if (!line || line.startsWith("//") || line.startsWith("#")) continue;
+                const eq = line.indexOf("=");
+                if (eq <= 0) continue;
+                const header = line.slice(0, eq).trim();
+                const specs  = line.slice(eq+1).trim();
+                const key = normKey(header);
+                if (!key || !specs) continue;
+
+                const entries = [];
+                for (const chunk of specs.split(",")) {
+                    const part = chunk.trim();
+                    if (!part) continue;
+
+                    // Numeric range
+                    const m = part.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*#\s*([+-]?\d+(?:\.\d+)?)\s*:\s*([A-Za-z0-9#(),.\s-]+)\s*$/);
+                    if (m) {
+                        const lo = Number(m[1]), hi = Number(m[2]);
+                        let color = normalizeColorToken(m[3].trim());
+                        if (Number.isFinite(lo) && Number.isFinite(hi)) {
+                            entries.push({ type:"range", lo, hi, color });
+                            continue;
+                        }
+                    }
+
+                    // String match
+                    const m2 = part.match(/^(.*?):\s*([A-Za-z0-9#(),.\s-]+)$/);
+                    if (m2) {
+                        const txt = m2[1].trim().toLowerCase();
+                        let color = normalizeColorToken(m2[2].trim());
+                        if (txt) entries.push({ type:"string", text: txt, color });
+                    }
+                }
+                if (entries.length) rules.set(key, entries);
+            }
+            return rules;
+        }
+
+        function colorFor(rules, header, value){
+            if (!rules) return null;
+            const key = normKey(header);
+            const arr = rules.get(key);
+            if (!arr) return null;
+
+            for (const r of arr) {
+                if (r.type === "range") {
+                    if (Number.isFinite(value) && value >= r.lo && value <= r.hi) return r.color;
+                } else if (r.type === "string") {
+                    if (typeof value === "string" && value.toLowerCase() === r.text) return r.color;
+                }
+            }
+            return null;
+        }
+
+        // =======================
+        // Formatting (decimals toggle)
+        // =======================
+        const fmt = {
+            // when showDecimals=false => ints for everything except precip (2)
+            // when showDecimals=true  => temps/uv/gust 1 decimal; precip 2
+            num(n, places) {
+                return Number.isFinite(n) ? n.toFixed(places) : "–";
+            }
+        };
+
+        function buildTable(daily, rules, showDecimals){
+            const tbl = el("table", { class:"wx" });
+            const headers = ["Date","High (°F)","Low (°F)","Precip (in)","UV","Gust (mph)","Conditions"];
+
+            const thead = el("thead");
+            thead.append(el("tr", {}, headers.map(h => el("th", { text: h }))));
+            const tbody = el("tbody");
+
+            const n = daily.time.length;
+            for (let i=0;i<n;i++){
+                const row = el("tr");
+                // FIX: parse local date to avoid UTC off-by-one
+                const dt  = parseLocalISODate(daily.time[i]);
+                const dateStr = dt.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" });
+
+                const hi = daily.temperature_2m_max?.[i];
+                const lo = daily.temperature_2m_min?.[i];
+                const p  = daily.precipitation_sum?.[i];
+                const uv = daily.uv_index_max?.[i];
+                const g  = daily.wind_gusts_10m_max?.[i];
+                const code = daily.weather_code?.[i];
+                const cond = (code==null) ? "—" : (WMO.get(String(code)) || String(code));
+
+                const cDate = el("td", { text: dateStr });
+                const cHi   = el("td", { text: showDecimals ? fmt.num(hi,1) : fmt.num(hi,0) });
+                const cLo   = el("td", { text: showDecimals ? fmt.num(lo,1) : fmt.num(lo,0) });
+                const cP    = el("td", { text: fmt.num(p,2) }); // precip: always 2 decimals
+                const cUV   = el("td", { text: showDecimals ? fmt.num(uv,1) : fmt.num(uv,0) });
+                const cG    = el("td", { text: showDecimals ? fmt.num(g,1)  : fmt.num(g,0) });
+                const cCond = el("td", { text: cond });
+
+                // Apply colors
+                const hiColor   = colorFor(rules, "High (°F)", hi);     if (hiColor) cHi.style.backgroundColor = hiColor;
+                const loColor   = colorFor(rules, "Low (°F)",  lo);     if (loColor) cLo.style.backgroundColor = loColor;
+                const pColor    = colorFor(rules, "Precip (in)", p);    if (pColor)  cP.style.backgroundColor  = pColor;
+                const uvColor   = colorFor(rules, "UV", uv);            if (uvColor) cUV.style.backgroundColor = uvColor;
+                const gColor    = colorFor(rules, "Gust (mph)", g);     if (gColor)  cG.style.backgroundColor  = gColor;
+                const condColor = colorFor(rules, "Conditions", cond);  if (condColor) cCond.style.backgroundColor = condColor;
+
+                row.append(cDate, cHi, cLo, cP, cUV, cG, cCond);
+                tbody.append(row);
+            }
+
+            tbl.append(thead, tbody);
+            return tbl;
+        }
+
+        async function buildCard(target, item, prefs, rules, showDecimals){
+            const card = el("section", { class:"card", role:"region" });
+            const h = el("h3", { text:"Loading..." });
+            const meta = el("p", { class:"meta", text:"Resolving location..." });
+            card.append(h, meta);
+            target.prepend(card);
+
+            try {
+                let coords;
+                if (item.type === "coords") {
+                    coords = { lat:item.lat, lon:item.lon, label:item.label };
+                } else {
+                    coords = await geocode(item, prefs);
+                }
+
+                h.textContent = coords.label;
+                meta.textContent = "Fetching 7-day forecast...";
+                const daily = await fetchDaily(coords.lat, coords.lon, 7);
+
+                const maxUV = Math.max(...(daily.uv_index_max||[0]));
+                const maxG  = Math.max(...(daily.wind_gusts_10m_max||[0]));
+                meta.textContent = "UV max: " + (Number.isFinite(maxUV)? (showDecimals? maxUV.toFixed(1): maxUV.toFixed(0)) : "–")
+                    + " • Gust max: " + (Number.isFinite(maxG)? (showDecimals? maxG.toFixed(1): maxG.toFixed(0)) : "–") + " mph";
+
+                card.append(buildTable(daily, rules, showDecimals));
+            } catch(err){
+                h.textContent = "Failed to load";
+                meta.textContent = String(err && err.message ? err.message : err);
+                meta.classList.add("bad");
+            }
+        }
+
+        // --- State & UI wiring
+        const dz = document.getElementById("drop");
+        const fileInput = document.getElementById("file");
+        const pasteArea = document.getElementById("paste");
+        const runBtn = document.getElementById("run");
+        const grid = document.getElementById("grid");
+        const stateBox = document.getElementById("prefState");
+        const countryBox = document.getElementById("prefCountry");
+        const rulesArea = document.getElementById("rules");
+        const decimalsBox = document.getElementById("showDecimals");
+
+        let lastInputText = ""; // to re-render on decimals toggle
+
+        function clearGrid(){ grid.innerHTML = ""; }
+
+        async function processText(text){
+            clearGrid();
+            lastInputText = text;
+            const items = parseAll(text).slice(0, 24);
+            const prefs = { admin1:(stateBox.value||"").trim(), country:(countryBox.value||"").trim() };
+            const rules = parseRules(rulesArea.value || "");
+            const showDecimals = !!(decimalsBox && decimalsBox.checked);
+            for (const it of items) {
+                await buildCard(grid, it, prefs, rules, showDecimals);
+            }
+        }
+
+        function parseAll(text){
+            const norm = text.replace(/\r\n?/g, "\n");
+            const lines = norm.split("\n");
+            const items = [];
+            for (const ln of lines) {
+                const p = parseLine(ln);
+                if (p) items.push(p);
+            }
+            if (items.length === 0) throw new Error("No valid locations found.");
+            return items;
+        }
+
+        if (dz) {
+            dz.addEventListener("dragover", (e)=>{ e.preventDefault(); dz.classList.add("dragover"); });
+            dz.addEventListener("dragleave", ()=> dz.classList.remove("dragover"));
+            dz.addEventListener("drop", async (e)=>{
+                e.preventDefault(); dz.classList.remove("dragover");
+                const f = e.dataTransfer.files && e.dataTransfer.files[0];
+                if(!f) return;
+                const text = await f.text();
+                await processText(text);
+            });
+        }
+
+        if (fileInput) {
+            fileInput.addEventListener("change", async (e)=>{
+                const f = e.target.files && e.target.files[0];
+                if(!f) return;
+                const text = await f.text();
+                await processText(text);
+                fileInput.value = "";
+            });
+        }
+
+        if (runBtn) {
+            runBtn.addEventListener("click", async ()=>{
+                const text = (pasteArea && pasteArea.value ? pasteArea.value : "").trim();
+                if(!text){ alert("Paste locations first, or drop a file."); return; }
+                await processText(text);
+            });
+        }
+
+        if (decimalsBox) {
+            decimalsBox.addEventListener("change", async ()=>{
+                if (lastInputText) {
+                    await processText(lastInputText); // re-render with new formatting
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <h1>7-Day Weather Tables</h1>
+        <p class="sub">Drag-and-drop a text file of locations (or paste below). Formats: City; City, State; City, State, Country; or lat,lon[,desc].</p>
+        <p class="sub">This page queries Open-Meteo for geocoding & forecasts; nothing is stored.</p>
+    </header>
+
+    <section class="panel controls">
+        <div class="row">
+            <div>
+                <label for="prefState">Preferred State/Province</label>
+                <input id="prefState" type="text" value="New Jersey" />
+            </div>
+            <div>
+                <label for="prefCountry">Preferred Country</label>
+                <input id="prefCountry" type="text" value="United States" />
+            </div>
+        </div>
+
+        <div class="inline">
+            <label><input id="showDecimals" type="checkbox" /> Show decimals</label>
+        </div>
+
+        <div id="drop" class="dropzone" tabindex="0" aria-label="Drop a locations file here">
+            <strong>Drop file here</strong>
+            <div class="sub">One location per line. Lines starting with # are ignored.</div>
+        </div>
+
+        <div class="row">
+            <div>
+                <label for="file">Pick a file</label>
+                <input id="file" type="file" accept=".txt,.csv,text/plain" />
+            </div>
+            <div>
+                <label for="paste">Or paste a list</label>
+                <textarea id="paste" placeholder="Examples:
+Cleveland, Ohio
+Paris,,France
+Piscataway
+High Bridge, New Jersey, United States
+40.728,-73.995,Greenwich Village"></textarea>
+            </div>
+        </div>
+
+        <div>
+            <label for="rules">Color Rules (one per line)</label>
+            <textarea id="rules" spellcheck="false">High(F)=-99#50:blue,51#65:lightgreen,66#85:green,85#110:red
+Low(F)=-99#40:red,41#65:pink,66#85:green
+Precip (In)=0.00#0.10:green,0.10#0.20:pink,0.20#10.0:red
+UV=0#2:lightgreen,3#5:green,6#7:gold,8#11:tomato
+Gust (mph)=0#15:lightgreen,16#25:yellow,26#200:salmon
+Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pink,Drizzle light:red,Drizzle mod:red,Drizzle heavy:red,Rain light:red,Rain mod:red,Rain heavy:red</textarea>
+            <p class="sub">Syntax: &lt;Column&gt;=&lt;low&gt;#&lt;high&gt;:&lt;color&gt;[, ...] for numbers; or &lt;text&gt;:&lt;color&gt; for exact string matches (case-insensitive). Columns match ignoring spaces/symbols. Ranges are inclusive; first match wins.</p>
+        </div>
+
+        <div><button id="run" class="btn" type="button">Generate Tables</button></div>
+    </section>
+
+    <section class="grid" id="grid" aria-live="polite" aria-busy="false"></section>
+</div>
+</body>
+</html>
