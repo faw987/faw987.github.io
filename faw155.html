@@ -96,13 +96,18 @@ Paris,,France
 
         <div>
             <label for="rules">Color Rules (one per line)</label>
+<!--            <textarea id="rules" spellcheck="false">High(F)=-99#50:blue,51#65:lightgreen,66#85:green,85#110:red-->
+<!--Low(F)=-99#40:red,41#65:pink,66#85:green-->
+<!--Precip (In)=0.00#0.10:green,0.10#0.20:pink,0.20#10.0:red-->
+<!--UV=0#2:lightgreen,3#5:green,6#7:gold,8#11:orange-->
+<!--Gust (mph)=0#15:lightgreen,16#25:yellow,26#200:salmon-->
+<!--Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pink,Drizzle light:red,Drizzle mod:red,Drizzle heavy:red,Rain light:red,Rain mod:red,Rain heavy:red</textarea>-->
             <textarea id="rules" spellcheck="false">High(F)=-99#50:blue,51#65:lightgreen,66#85:green,85#110:red
-Low(F)=-99#40:red,41#65:pink,66#85:green
-Precip (In)=0.00#0.10:green,0.10#0.20:pink,0.20#10.0:red
-UV=0#2:lightgreen,3#5:green,6#7:gold,8#11:orange
-Gust (mph)=0#15:lightgreen,16#25:yellow,26#200:salmon
-Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pink,Drizzle light:red,Drizzle mod:red,Drizzle heavy:red,Rain light:red,Rain mod:red,Rain heavy:red</textarea>
-            <p class="sub">Date cell auto-highlights per row: any red → red; else any orange → orange; else any yellow → yellow; else green if only greens/neutral.</p>
+            Low(F)=-99#40:red,41#65:pink,66#85:green
+            Precip (In)=0.00#0.10:green,0.10#0.20:pink,0.20#10.0:red
+            UV=0#2:lightgreen,3#5:green,6#12:green,13#999:red
+            Gust (mph)=0#15:lightgreen,16#29:green,30#200:red
+            Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pink,Drizzle light:red,Drizzle mod:red,Drizzle heavy:red,Rain light:red,Rain mod:red,Rain heavy:red<p class="sub">Date cell auto-highlights per row: any red → red; else any orange → orange; else any yellow → yellow; else green if only greens/neutral.</textarea>
         </div>
     </section>
 
