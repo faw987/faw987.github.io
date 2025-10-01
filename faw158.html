@@ -58,7 +58,26 @@
 </head>
 <body>
 <div class="card" role="application" aria-label="Birthday candle game">
-    <header>Blow out the candles — tap each flame ✨</header>
+    <header
+            style="
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:2px;
+    height:auto;           /* allow two lines */
+    padding:8px 0;
+    margin:0;
+    text-align:center;
+  "
+    >
+        <div style="font-size:28px; line-height:1.2; margin:0;">
+            Carol, Have a great birthday 🎂
+        </div>
+        <div style="font-size:12px; line-height:1.2; margin:0;">
+            Blow out the candles — tap each flame ✨
+        </div>
+    </header>
     <div id="stage">
         <canvas id="confetti"></canvas>
 
