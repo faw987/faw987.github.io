@@ -196,6 +196,8 @@
         return g;
     }
 
+
+
     (function placeCandles(){
         const y=210; const left=300, right=580; const step=(right-left)/(CANDLE_COUNT-1);
         for(let i=0;i<CANDLE_COUNT;i++){const x=Math.round(left+i*step); candleLayer.appendChild(createCandle(x,y));}
