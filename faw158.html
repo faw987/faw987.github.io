@@ -138,46 +138,52 @@
     }
 
     // Improved Option 1: richer synthetic TADA
+    // function playTada(){
+    //     const now=audio.currentTime;
+    //     const chordNotes=[261.63,329.63,392.00,523.25]; // C major chord with high C
+    //     const dur=1.5;
+    //
+    //     chordNotes.forEach((freq,i)=>{
+    //         const osc=audio.createOscillator();
+    //         const g=audio.createGain();
+    //         osc.type='triangle';
+    //         osc.frequency.value=freq;
+    //         osc.connect(g).connect(audio.destination);
+    //
+    //         const start=now;
+    //         const end=now+dur;
+    //         g.gain.setValueAtTime(0.001,start);
+    //         g.gain.exponentialRampToValueAtTime(0.4/(i+1),start+0.05);
+    //         g.gain.exponentialRampToValueAtTime(0.001,end);
+    //
+    //         osc.start(start);
+    //         osc.stop(end);
+    //     });
+    //
+    //     // Add percussive burst (like a cymbal)
+    //     const noiseDur=0.3;
+    //     const bufSize=audio.sampleRate*noiseDur;
+    //     const buf=audio.createBuffer(1,bufSize,audio.sampleRate);
+    //     const data=buf.getChannelData(0);
+    //     for(let i=0;i<bufSize;i++){
+    //         data[i]=(Math.random()*2-1)*Math.pow(1-i/bufSize,2);
+    //     }
+    //     const src=audio.createBufferSource();
+    //     src.buffer=buf;
+    //     const filter=audio.createBiquadFilter();
+    //     filter.type='highpass';
+    //     filter.frequency.value=1200;
+    //     const g=audio.createGain();
+    //     g.gain.setValueAtTime(0.5,now);
+    //     g.gain.exponentialRampToValueAtTime(0.001,now+noiseDur);
+    //     src.connect(filter).connect(g).connect(audio.destination);
+    //     src.start(now);
+    // }
+
+    const tadaAudio = new Audio("tada.mp3");
     function playTada(){
-        const now=audio.currentTime;
-        const chordNotes=[261.63,329.63,392.00,523.25]; // C major chord with high C
-        const dur=1.5;
-
-        chordNotes.forEach((freq,i)=>{
-            const osc=audio.createOscillator();
-            const g=audio.createGain();
-            osc.type='triangle';
-            osc.frequency.value=freq;
-            osc.connect(g).connect(audio.destination);
-
-            const start=now;
-            const end=now+dur;
-            g.gain.setValueAtTime(0.001,start);
-            g.gain.exponentialRampToValueAtTime(0.4/(i+1),start+0.05);
-            g.gain.exponentialRampToValueAtTime(0.001,end);
-
-            osc.start(start);
-            osc.stop(end);
-        });
-
-        // Add percussive burst (like a cymbal)
-        const noiseDur=0.3;
-        const bufSize=audio.sampleRate*noiseDur;
-        const buf=audio.createBuffer(1,bufSize,audio.sampleRate);
-        const data=buf.getChannelData(0);
-        for(let i=0;i<bufSize;i++){
-            data[i]=(Math.random()*2-1)*Math.pow(1-i/bufSize,2);
-        }
-        const src=audio.createBufferSource();
-        src.buffer=buf;
-        const filter=audio.createBiquadFilter();
-        filter.type='highpass';
-        filter.frequency.value=1200;
-        const g=audio.createGain();
-        g.gain.setValueAtTime(0.5,now);
-        g.gain.exponentialRampToValueAtTime(0.001,now+noiseDur);
-        src.connect(filter).connect(g).connect(audio.destination);
-        src.start(now);
+        tadaAudio.currentTime = 0;
+        tadaAudio.play();
     }
 
     const confetti=(function(){const canvas=document.getElementById('confetti');const ctx=canvas.getContext('2d');let W,H,pieces=[],running=false,start=0;function resize(){W=canvas.width=canvas.offsetWidth;H=canvas.height=canvas.offsetHeight;}window.addEventListener('resize',resize);resize();function burst(count=140){pieces=Array.from({length:count},()=>({x:Math.random()*W,y:-10-Math.random()*50,w:6+Math.random()*6,h:8+Math.random()*10,vy:2+Math.random()*3,vx:-1+Math.random()*2,rot:Math.random()*Math.PI,vr:-.2+Math.random()*.4,alpha:1}));start=performance.now();if(!running){running=true;requestAnimationFrame(tick);}}function tick(now){ctx.clearRect(0,0,W,H);const t=(now-start)/1000;pieces.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;p.vy+=.02;p.alpha=Math.max(0,1-t/2.2);ctx.save();ctx.globalAlpha=p.alpha;ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=`hsl(${(p.x+p.y)%360},90%,60%)`;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);ctx.restore();});if(t<2.4)requestAnimationFrame(tick);else{running=false;ctx.clearRect(0,0,W,H);}}return{burst};})();
