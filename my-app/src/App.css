@@ -1,0 +1,315 @@
+/* Birthday Game Styles */
+.App {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Comic Sans MS', cursive, sans-serif;
+}
+
+.birthday-game {
+  text-align: center;
+  max-width: 800px;
+  padding: 20px;
+}
+
+.birthday-title {
+  font-size: 3rem;
+  color: #d63384;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  margin-bottom: 10px;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+.instructions {
+  font-size: 1.2rem;
+  color: #6f42c1;
+  margin-bottom: 30px;
+  font-weight: bold;
+}
+
+.cake-container {
+  perspective: 1000px;
+  margin: 40px 0;
+}
+
+.cake {
+  position: relative;
+  display: inline-block;
+  transform-style: preserve-3d;
+}
+
+.cake-layer {
+  border-radius: 50%;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  position: relative;
+}
+
+.cake-bottom {
+  width: 300px;
+  height: 80px;
+  background: linear-gradient(45deg, #8B4513, #A0522D);
+  border: 3px solid #654321;
+}
+
+.cake-middle {
+  width: 250px;
+  height: 70px;
+  background: linear-gradient(45deg, #FF69B4, #FF1493);
+  border: 3px solid #C71585;
+  margin: -40px auto 0;
+}
+
+.cake-top {
+  width: 200px;
+  height: 60px;
+  background: linear-gradient(45deg, #FFB6C1, #FFC0CB);
+  border: 3px solid #FF69B4;
+  margin: -35px auto 0;
+}
+
+.candles {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.candle {
+  width: 12px;
+  height: 40px;
+  background: linear-gradient(to bottom, #fff, #f0f0f0);
+  border-radius: 6px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid #ddd;
+}
+
+.candle:hover {
+  transform: scale(1.1);
+}
+
+.candle-wick {
+  width: 2px;
+  height: 8px;
+  background: #333;
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 1px;
+}
+
+.flame {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 12px;
+}
+
+.flame-inner {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, #ff6b35 0%, #f7931e 30%, #ffd23f 70%, transparent 100%);
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  animation: flicker 0.5s ease-in-out infinite alternate;
+  box-shadow: 
+    0 0 10px #ff6b35,
+    0 0 20px #f7931e,
+    0 0 30px #ffd23f;
+}
+
+@keyframes flicker {
+  0% {
+    transform: scale(1) rotate(-2deg);
+  }
+  100% {
+    transform: scale(1.1) rotate(2deg);
+  }
+}
+
+.poof {
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20px;
+  animation: poofAnimation 0.5s ease-out forwards;
+  z-index: 10;
+}
+
+@keyframes poofAnimation {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) scale(0.5) translateY(0);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateX(-50%) scale(1.2) translateY(-10px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.8) translateY(-20px);
+  }
+}
+
+.candle.poofing {
+  animation: candleShake 0.5s ease-in-out;
+}
+
+@keyframes candleShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+.celebration {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.tada-message {
+  background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+  text-align: center;
+  animation: celebrationBounce 1s ease-out;
+}
+
+@keyframes celebrationBounce {
+  0% {
+    transform: scale(0.3) rotate(-10deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1) rotate(5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.tada-message h2 {
+  font-size: 3rem;
+  color: white;
+  margin: 0 0 20px 0;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.tada-message p {
+  font-size: 1.5rem;
+  color: white;
+  margin: 0 0 30px 0;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+.reset-button {
+  background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  font-size: 1.2rem;
+  border-radius: 25px;
+  cursor: pointer;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  transition: all 0.3s ease;
+  font-family: 'Comic Sans MS', cursive, sans-serif;
+}
+
+.reset-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
+
+.confetti {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  animation: confettiFall 3s linear infinite;
+}
+
+.confetti-0 { background: #ff6b6b; left: 10%; animation-delay: 0s; }
+.confetti-1 { background: #4ecdc4; left: 20%; animation-delay: 0.2s; }
+.confetti-2 { background: #45b7d1; left: 30%; animation-delay: 0.4s; }
+.confetti-3 { background: #96ceb4; left: 40%; animation-delay: 0.6s; }
+.confetti-4 { background: #ffeaa7; left: 50%; animation-delay: 0.8s; }
+
+@keyframes confettiFall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .birthday-title {
+    font-size: 2rem;
+  }
+  
+  .cake-bottom {
+    width: 250px;
+    height: 60px;
+  }
+  
+  .cake-middle {
+    width: 200px;
+    height: 50px;
+  }
+  
+  .cake-top {
+    width: 150px;
+    height: 40px;
+  }
+  
+  .candles {
+    gap: 15px;
+  }
+  
+  .candle {
+    width: 10px;
+    height: 35px;
+  }
+}

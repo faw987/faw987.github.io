@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Birthday Candle Blowout</title>
+    <style>
+        :root {
+            --bg: #fff7fd;
+            --cake-base: #f7c6d1;
+            --cake-side: #f2a4b6;
+            --frosting: #fff;
+            --plate: #e6e9f0;
+            --candle: #ffdd67;
+            --wick: #333;
+            --flame1: #ffef9f;
+            --flame2: #ffb347;
+            --flame3: #ff6b6b;
+            --text: #402a32;
+            --accent: #7a4de9;
+        }
+
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            margin: 0;
+            display: grid;
+            place-items: center;
+            background: radial-gradient(1200px 600px at 70% -10%, #ffe0fb 0%, transparent 60%),
+            radial-gradient(1000px 500px at -10% 30%, #e8f6ff 0%, transparent 60%),
+            var(--bg);
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+            color: var(--text);
+        }
+
+        .card {
+            position: relative;
+            width: min(92vw, 780px);
+            aspect-ratio: 16 / 10;
+            background: #ffffffcc;
+            backdrop-filter: blur(6px);
+            border: 1px solid #eee5f4;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(60, 22, 72, 0.12);
+            overflow: hidden;
+        }
+
+        header {
+            position: absolute; inset: 0 0 auto 0; height: 60px; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; letter-spacing: .3px; color: var(--accent);
+        }
+
+        #stage {
+            position: absolute; inset: 60px 0 0 0;
+            display: grid; place-items: center; height: calc(100% - 60px);
+        }
+
+        /* SVG scales responsively */
+        svg { width: 92%; height: auto; max-height: 100%; overflow: visible; }
+
+        .age-label {
+            font: 700 72px/1.1 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+            fill: var(--accent);
+            filter: drop-shadow(0 4px 6px rgba(122,77,233,.18));
+            text-anchor: middle;
+        }
+
+        /* Candle interactivity */
+        .candle { cursor: pointer; }
+        .candle[aria-pressed="true"] .flame { display: none; }
+        .candle[aria-pressed="true"] .smoke { display: block; animation: poof 500ms ease-out forwards; }
+
+        .wick { fill: var(--wick); }
+        .flame { transform-origin: 50% 80%; filter: drop-shadow(0 0 8px #ffb347); }
+        .flame .f1 { fill: var(--flame1); }
+        .flame .f2 { fill: var(--flame2); }
+        .flame .f3 { fill: var(--flame3); }
+
+        /* Flicker */
+        @keyframes flicker {
+            0% { transform: translateY(0) scale(1); opacity: .95; }
+            50% { transform: translateY(-.8px) scale(1.04); opacity: 1; }
+            100% { transform: translateY(0) scale(0.98); opacity: .92; }
+        }
+        .flame { animation: flicker .9s ease-in-out infinite alternate; }
+
+        /* Smoke poof */
+        .smoke { display: none; }
+        @keyframes poof {
+            0% { opacity: .9; transform: scale(.2) translateY(0); }
+            100% { opacity: 0; transform: scale(1.4) translateY(-22px); }
+        }
+
+        /* End overlay */
+        .overlay {
+            position: absolute; inset: 0; display: grid; place-items: center; background: rgba(255,255,255,.0);
+            pointer-events: none; opacity: 0; transition: opacity .4s ease;
+        }
+        .overlay.show { opacity: 1; }
+        .overlay h2 {
+            margin: 0; padding: 12px 18px; border-radius: 16px;
+            background: #ffffffee; border: 1px solid #efe6ff;
+            color: var(--accent); font-size: clamp(22px, 3.4vw, 40px); letter-spacing: .3px;
+            box-shadow: 0 20px 40px rgba(122,77,233,.15);
+        }
+
+        /* Confetti canvas sits above SVG */
+        #confetti { position: absolute; inset: 0; pointer-events: none; }
+
+        /* Helper tip */
+        .tip {
+            position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+            font-size: 12px; color: #7b6b7f; opacity: .9;
+        }
+    </style>
+</head>
+<body>
+<div class="card" role="application" aria-label="Birthday candle game">
+    <header>Blow out the candles — tap each flame ✨</header>
+    <div id="stage">
+        <!-- Confetti canvas -->
+        <canvas id="confetti"></canvas>
+
+        <!-- Cake Scene (SVG) -->
+        <svg viewBox="0 0 800 500" aria-labelledby="title desc" role="img">
+            <title id="title">A pink birthday cake with candles</title>
+            <desc id="desc">Tap each candle to blow it out. When all candles are out, you win.</desc>
+
+            <!-- Plate -->
+            <ellipse cx="400" cy="410" rx="320" ry="36" fill="var(--plate)" />
+
+            <!-- Cake shadow -->
+            <ellipse cx="400" cy="395" rx="240" ry="20" fill="#000" opacity=".06" />
+
+            <!-- Cake base -->
+            <g id="cake">
+                <rect x="220" y="220" width="360" height="160" rx="24" fill="var(--cake-side)" />
+                <!-- Frosting drips -->
+                <path d="M220 240 h360 v40
+                   c-30 0 -30 30 -60 30 s-30 -30 -60 -30 s-30 30 -60 30 s-30 -30 -60 -30 s-30 30 -60 30 s-30 -30 -60 -30 v-40z"
+                      fill="var(--frosting)" />
+                <!-- Top -->
+                <rect x="220" y="200" width="360" height="40" rx="20" fill="var(--cake-base)" />
+                <ellipse cx="400" cy="200" rx="180" ry="24" fill="var(--frosting)" />
+            </g>
+
+            <!-- Age number on top -->
+            <text id="ageText" class="age-label" x="400" y="190">8</text>
+
+            <!-- Candle slot container -->
+            <g id="candleLayer"></g>
+
+            <!-- Subtle foreground sparkles -->
+            <g opacity=".25">
+                <circle cx="120" cy="100" r="2" fill="#7a4de9"/>
+                <circle cx="680" cy="90" r="2" fill="#ff7ab6"/>
+                <circle cx="720" cy="160" r="2" fill="#ffd166"/>
+                <circle cx="80" cy="180" r="2" fill="#7a4de9"/>
+            </g>
+        </svg>
+
+        <div class="overlay" id="overlay" aria-live="polite" aria-atomic="true">
+            <h2>🎉 Tada! Happy Birthday! 🎉</h2>
+        </div>
+
+        <div class="tip">Tip: Click or tap a flame to blow it out.</div>
+    </div>
+</div>
+
+<script>
+    // ===== Configuration =====
+    const AGE_NUMBER = 8;      // Number printed on the cake top
+    const CANDLE_COUNT = 8;    // How many candles to render
+
+    // ===== Utility: Simple sound synthesis (Web Audio API) =====
+    const audio = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playPoof() {
+        // quick white noise burst with a short envelope — a cute "poof"
+        const duration = 0.15;
+        const bufferSize = audio.sampleRate * duration;
+        const buffer = audio.createBuffer(1, bufferSize, audio.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.8));
+        const src = audio.createBufferSource(); src.buffer = buffer;
+        const filter = audio.createBiquadFilter(); filter.type = 'highpass'; filter.frequency.value = 800;
+        const gain = audio.createGain();
+        const t = audio.currentTime;
+        gain.gain.setValueAtTime(0.0, t);
+        gain.gain.linearRampToValueAtTime(0.6, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+        src.connect(filter).connect(gain).connect(audio.destination);
+        src.start();
+    }
+
+    function playTada() {
+        // A quick major chord arpeggio: C - E - G, then final chord
+        const now = audio.currentTime;
+        const notes = [261.63, 329.63, 392.00]; // C, E, G
+        const gain = audio.createGain();
+        gain.connect(audio.destination);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.exponentialRampToValueAtTime(0.6, now + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
+
+        // helper to create a short pluck
+        function pluck(freq, start, len = 0.18) {
+            const o = audio.createOscillator();
+            const g = audio.createGain();
+            o.type = 'triangle'; o.frequency.value = freq;
+            o.connect(g).connect(gain);
+            g.gain.setValueAtTime(0.001, start);
+            g.gain.exponentialRampToValueAtTime(0.8, start + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, start + len);
+            o.start(start); o.stop(start + len + 0.02);
+        }
+
+        pluck(notes[0], now);
+        pluck(notes[1], now + 0.12);
+        pluck(notes[2], now + 0.24);
+
+        // sustained final chord
+        notes.forEach((f, i) => {
+            const o = audio.createOscillator();
+            const g = audio.createGain();
+            o.type = 'sine'; o.frequency.value = f;
+            o.connect(g).connect(gain);
+            const t = now + 0.45;
+            g.gain.setValueAtTime(0.001, t);
+            g.gain.exponentialRampToValueAtTime(0.5 / (i + 1), t + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+            o.start(t); o.stop(t + 1.0);
+        });
+    }
+
+    // ===== Confetti =====
+    const confetti = (function() {
+        const canvas = document.getElementById('confetti');
+        const ctx = canvas.getContext('2d');
+        let W, H, pieces = [], running = false, startTime = 0;
+
+        function resize() { W = canvas.width = canvas.offsetWidth; H = canvas.height = canvas.offsetHeight; }
+        window.addEventListener('resize', resize); resize();
+
+        function launchBurst(count = 120) {
+            pieces = Array.from({ length: count }, () => ({
+                x: Math.random() * W,
+                y: -10 - Math.random() * 50,
+                w: 6 + Math.random() * 6,
+                h: 8 + Math.random() * 10,
+                vy: 2 + Math.random() * 3,
+                vx: -1 + Math.random() * 2,
+                rot: Math.random() * Math.PI,
+                vr: -0.2 + Math.random() * 0.4,
+                alpha: 1
+            }));
+            startTime = performance.now();
+            if (!running) { running = true; requestAnimationFrame(tick); }
+        }
+
+        function tick(now) {
+            ctx.clearRect(0,0,W,H);
+            const t = (now - startTime) / 1000;
+            pieces.forEach(p => {
+                p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.vy += 0.02; // gravity
+                p.alpha = Math.max(0, 1 - t/2.2);
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+                ctx.fillStyle = `hsl(${(p.x + p.y) % 360}, 90%, 60%)`;
+                ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+                ctx.restore();
+            });
+            if (t < 2.4) requestAnimationFrame(tick); else { running = false; ctx.clearRect(0,0,W,H); }
+        }
+
+        return { burst: launchBurst };
+    })();
+
+    // ===== Candle Rendering =====
+    const candleLayer = document.getElementById('candleLayer');
+    const ageText = document.getElementById('ageText');
+    ageText.textContent = AGE_NUMBER;
+
+    const state = { blown: 0 };
+
+    function createCandle(x, y) {
+        // group wrapper
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('class', 'candle');
+        g.setAttribute('tabindex', '0');
+        g.setAttribute('role', 'button');
+        g.setAttribute('aria-label', 'Lit candle — click to blow out');
+        g.setAttribute('aria-pressed', 'false');
+
+        // stem
+        const stem = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        stem.setAttribute('x', x - 8); stem.setAttribute('y', y - 52);
+        stem.setAttribute('width', 16); stem.setAttribute('height', 52);
+        stem.setAttribute('rx', 4);
+        stem.setAttribute('fill', 'var(--candle)');
+        // stripes
+        const stripe = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        stripe.setAttribute('d', `M ${x-9} ${y-46} l 18 10 M ${x-9} ${y-30} l 18 10 M ${x-9} ${y-14} l 18 10`);
+        stripe.setAttribute('stroke', '#ffb347'); stripe.setAttribute('stroke-width', '3');
+
+        // wick
+        const wick = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        wick.setAttribute('class', 'wick');
+        wick.setAttribute('x', x - 1); wick.setAttribute('y', y - 58);
+        wick.setAttribute('width', 2); wick.setAttribute('height', 8);
+        wick.setAttribute('rx', 1);
+
+        // flame (group)
+        const flame = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        flame.setAttribute('class', 'flame');
+        flame.setAttribute('transform', `translate(${x}, ${y - 66})`);
+
+        const f1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        f1.setAttribute('class', 'f1');
+        f1.setAttribute('d', 'M0 0 C -5 -14, 5 -14, 0 0 Z');
+        const f2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        f2.setAttribute('class', 'f2');
+        f2.setAttribute('d', 'M0 -2 C -4 -10, 4 -10, 0 -2 Z');
+        const f3 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        f3.setAttribute('class', 'f3');
+        f3.setAttribute('cx', 0); f3.setAttribute('cy', -10); f3.setAttribute('r', 2.2);
+        flame.appendChild(f1); flame.appendChild(f2); flame.appendChild(f3);
+
+        // smoke puff (hidden until blown)
+        const smoke = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        smoke.setAttribute('class', 'smoke');
+        smoke.setAttribute('cx', x); smoke.setAttribute('cy', y - 66);
+        smoke.setAttribute('r', 6); smoke.setAttribute('fill', '#c9d2dd'); smoke.setAttribute('opacity', '.8');
+
+        g.appendChild(stem); g.appendChild(stripe); g.appendChild(wick); g.appendChild(flame); g.appendChild(smoke);
+
+        function blowOut() {
+            if (g.getAttribute('aria-pressed') === 'true') return; // already out
+            g.setAttribute('aria-pressed', 'true');
+            g.setAttribute('aria-label', 'Candle blown out');
+            try { playPoof(); } catch {}
+            state.blown++;
+            checkWin();
+        }
+
+        // Interactions
+        g.addEventListener('click', blowOut);
+        g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); blowOut(); } });
+
+        return g;
+    }
+
+    // Place candles evenly across the cake top ellipse (x range roughly 270..530)
+    (function placeCandles() {
+        const y = 200; // cake top
+        const left = 260, right = 540;
+        const step = (right - left) / (CANDLE_COUNT - 1);
+        for (let i = 0; i < CANDLE_COUNT; i++) {
+            const x = Math.round(left + i * step);
+            candleLayer.appendChild(createCandle(x, y));
+        }
+    })();
+
+    function checkWin() {
+        if (state.blown >= CANDLE_COUNT) {
+            document.getElementById('overlay').classList.add('show');
+            try { playTada(); } catch {}
+            confetti.burst(160);
+        }
+    }
+
+    // On first interaction, resume audio context if needed (mobile policy)
+    function primeAudio() {
+        if (audio.state === 'suspended') { audio.resume(); }
+        window.removeEventListener('pointerdown', primeAudio);
+        window.removeEventListener('keydown', primeAudio);
+    }
+    window.addEventListener('pointerdown', primeAudio, { once: true });
+    window.addEventListener('keydown', primeAudio, { once: true });
+</script>
+</body>
+</html>
