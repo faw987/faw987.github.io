@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Weather Ver 2 • Hour-Window Daily Summaries + Map</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        :root { --bg:#0b1020; --panel:#11172b; --muted:#97a0b3; --text:#e8ecf3; --accent:#6ea8fe; --err:#ff6b6b; --shadow:0 10px 24px rgba(0,0,0,.35); }
+        body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial, "Noto Sans", sans-serif; color:var(--text);
+            background: radial-gradient(1250px 800px at 20% -10%, #1a2340, #0b1020 60%); }
+        .wrap { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { display:grid; gap:8px; margin-bottom:14px; }
+        h1 { margin:0; font-size: clamp(22px, 2.8vw, 32px); }
+        .sub { color: var(--muted); }
+        .panel { background:#11172b; border:1px solid #1c2a4d; border-radius:16px; box-shadow: var(--shadow); padding:14px; }
+        .controls { display:grid; gap:12px; }
+        .row { display:grid; gap:12px; grid-template-columns: 1fr 1fr; }
+        @media (max-width: 900px){ .row{ grid-template-columns: 1fr; } }
+        label { font-weight:600; font-size:14px; }
+        input[type="text"], input[type="number"], input[type="file"], textarea {
+            width:100%; box-sizing:border-box; padding:10px 12px; border-radius:10px;
+            border:1px solid #2a3a6a; background:#0b142c; color:var(--text); font-family:inherit;
+        }
+        textarea { resize:vertical; min-height:80px; }
+        .btn { border:1px solid #2a3a6a; color:var(--text); background:#0b142c; padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:600; }
+        .btn:hover { background:#12214a; border-color:#3b57a3; }
+        .dropzone { border:2px dashed #2a3a6a; border-radius:16px; padding:18px; text-align:center; color:var(--muted); }
+        .dropzone.dragover { background: rgba(64,105,215,0.12); border-color:#6ea8fe; color: var(--text); }
+        .inline { display:flex; align-items:center; gap:12px; flex-wrap: wrap; }
+        .inline label { display:flex; align-items:center; gap:8px; font-weight:500; }
+        .grid { display:grid; grid-template-columns: 1fr; gap:16px; margin-top:16px; }
+        .card { background:#11172b; border:1px solid #1b2647; border-radius:16px; padding:10px; box-shadow: var(--shadow); position: relative; }
+        .card h3 { margin:6px 8px 0; font-size:16px; font-weight:700; padding-right:44px; }
+        .meta { color: var(--muted); font-size:12px; margin: 0 8px 6px; }
+        .bad { color: var(--err); }
+        .close-btn { position:absolute; top:8px; right:8px; background:#0b142c; border:1px solid #2a3a6a; color:#e8ecf3;
+            border-radius:10px; padding:4px 8px; cursor:pointer; font-size:12px; }
+        .close-btn:hover { background:#12214a; border-color:#3b57a3; }
+        table.wx { width:100%; border-collapse: collapse; }
+        table.wx th, table.wx td { border-bottom:1px solid #25345f; padding:8px 10px; text-align:left; }
+        table.wx thead th { position: sticky; top: 0; background:#121a33; z-index:1; }
+        table.wx tbody tr:hover { background: rgba(64,105,215,0.08); }
+        .date-cell { cursor:pointer; }
+        #map { height: 360px; border-radius: 14px; border:1px solid #1c2a4d; box-shadow: var(--shadow); }
+        .spark { display:inline-flex; gap:2px; padding:2px; background:#0b142c; border:1px solid #2a3a6a; border-radius:6px; }
+        .spark .d { width:10px; height:10px; border-radius:2px; cursor:pointer; }
+        .leaflet-div-icon { background: transparent; border: none; }
+        .marker-title { font-size: 11px; color:#e8ecf3; background:#0b142c; border:1px solid #2a3a6a; padding:2px 4px; border-radius:4px; margin-bottom:2px; display:inline-block; }
+        .marker-wrap { display:flex; flex-direction:column; align-items:center; filter: drop-shadow(0 1px 6px rgba(0,0,0,.45)); }
+        .hidden-grid { display: none !important; }
+    </style>
+</head>
+
+<body>
+<div class="wrap">
+    <header>
+        <h1>Weather V2 — Hour-Window Daily Summaries + Map</h1>
+        <p class="sub">Paste or drop locations. Set <strong>Start/End hour</strong> and <strong># Days</strong>. We summarize daily using only hours in your window.</p>
+    </header>
+
+    <section class="panel controls">
+        <div class="row">
+            <div>
+                <label for="prefState">Preferred State/Province</label>
+                <input id="prefState" type="text" value="New Jersey" />
+            </div>
+            <div>
+                <label for="prefCountry">Preferred Country</label>
+                <input id="prefCountry" type="text" value="United States" />
+            </div>
+        </div>
+
+        <div class="row">
+            <div>
+                <label for="startHour">Start hour (0–23)</label>
+                <input id="startHour" type="number" min="0" max="23" step="1" value="8" />
+            </div>
+            <div>
+                <label for="endHour">End hour (0–23)</label>
+                <input id="endHour" type="number" min="0" max="23" step="1" value="17" />
+            </div>
+        </div>
+
+        <div class="row">
+            <div>
+                <label for="numDays"># Days (1–14)</label>
+                <input id="numDays" type="number" min="1" max="14" step="1" value="7" />
+            </div>
+            <div class="inline" style="margin-top: 26px;">
+                <label><input id="showDecimals" type="checkbox" checked /> Show decimals</label>
+                <label><input id="cityOnly" type="checkbox" checked /> City-only map labels</label>
+                <label><input id="onlyIcons" type="checkbox" /> Only icons (hide tables)</label>
+                <button id="run" class="btn" type="button">Generate Tables</button>
+            </div>
+        </div>
+
+        <div id="drop" class="dropzone" tabindex="0" aria-label="Drop a locations file here">
+            <strong>Drop file here</strong>
+            <div class="sub">One location per line. Lines starting with # are ignored. Formats: City; City, State; City, State, Country; or lat,lon[,desc].</div>
+        </div>
+
+        <div class="row">
+            <div>
+                <label for="file">Pick a file</label>
+                <input id="file" type="file" accept=".txt,.csv,text/plain" />
+            </div>
+            <div class="inline" style="margin-top:8px;">
+                <span class="sub">Quick load:</span>
+                <button id="btnNJ" class="btn" type="button">NJ Region</button>
+                <button id="btnOH" class="btn" type="button">OH Region</button>
+            </div>
+            <div>
+                <label for="paste">Or paste a list</label>
+                <textarea id="paste" placeholder="Examples:
+Piscataway
+Cleveland, Ohio
+Paris,,France
+40.728,-73.995,Greenwich Village"></textarea>
+            </div>
+        </div>
+
+        <div>
+            <label for="rules">Color Rules (one per line)</label>
+            <textarea id="rules" spellcheck="false">High(F)=-99#50:blue,51#65:lightgreen,66#85:green,85#110:red
+Low(F)=-99#40:red,41#65:pink,66#85:green
+Temp (°F)=-99#40:red,41#65:pink,66#85:green
+Precip (in)=0.00#0.10:green,0.10#0.20:pink,0.20#10.0:red
+UV=0#2:lightgreen,3#5:green,6#7:gold,8#11:orange
+Wind (mph)=0#15:lightgreen,16#25:yellow,26#200:salmon
+Gust (mph)=0#15:lightgreen,16#25:yellow,26#200:salmon
+RH (%)=0#60:lightgreen,61#75:yellow,76#100:orange
+Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pink,Drizzle light:red,Drizzle mod:red,Drizzle heavy:red,Rain light:red,Rain mod:red,Rain heavy:red</textarea>
+            <p class="sub">Date/Time cells auto-highlight by row severity (red &gt; orange &gt; yellow &gt; green). Daily rows summarize only hours within your window.</p>
+        </div>
+    </section>
+
+    <section style="margin:16px 0;">
+        <div id="map"></div>
+    </section>
+
+    <section class="grid" id="grid" aria-live="polite" aria-busy="false"></section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" defer></script>
+
+<script type="module">
+    function ready(fn){
+        if (document.readyState === "complete" || document.readyState === "interactive") setTimeout(fn, 0);
+        else document.addEventListener("DOMContentLoaded", fn);
+    }
+
+    ready(() => {
+        if (!window.L || typeof L.map !== "function") {
+            const msg = "Leaflet failed to load. Check network/extension blockers.";
+            console.error(msg);
+            alert(msg);
+            return;
+        }
+
+        // ---------- Endpoints
+        const GEOCODE = "https://geocoding-api.open-meteo.com/v1/search";
+        const FORECAST = "https://api.open-meteo.com/v1/forecast";
+
+        // ---------- WMO → text
+        const WMO = new Map(Object.entries({
+            0:"Clear",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",
+            45:"Fog",48:"Rime fog",
+            51:"Drizzle light",53:"Drizzle mod",55:"Drizzle heavy",
+            61:"Rain light",63:"Rain mod",65:"Rain heavy",
+            71:"Snow light",73:"Snow mod",75:"Snow heavy",
+            80:"Rain showers",81:"Rain shw mod",82:"Rain shw heavy",
+            95:"Thunderstorm",96:"Tstorm hail",99:"Tstorm heavy hail"
+        }));
+
+        // ---------- DOM helper
+        function el(tag, attrs={}, children=[]){
+            const e = document.createElement(tag);
+            for (const [k,v] of Object.entries(attrs)) {
+                if (k === "class") e.className = v;
+                else if (k === "text") e.textContent = v;
+                else e.setAttribute(k, v);
+            }
+            for (const c of (Array.isArray(children)?children:[children])) if (c) e.append(c);
+            return e;
+        }
+
+        // ---------- Dates
+        function parseLocalISODate(iso) {
+            const [y, m, d] = iso.split("-").map(Number);
+            return new Date(y, m - 1, d);
+        }
+        function ymd(d){ return d.toISOString().slice(0,10); }
+        function addDays(iso, k){
+            const [y,m,d] = iso.split("-").map(Number);
+            const dt = new Date(y, m-1, d);
+            dt.setDate(dt.getDate()+k);
+            return ymd(dt);
+        }
+
+        // ---------- Input parsing
+        function parseLine(line){
+            const raw = line.split("#")[0].trim();
+            if(!raw) return null;
+            const mc = raw.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)\s*(?:,(.*))?$/);
+            if (mc) {
+                const lat = Number(mc[1]), lon = Number(mc[2]);
+                if (Number.isFinite(lat) && Number.isFinite(lon) && lat>=-90 && lat<=90 && lon>=-180 && lon<=180) {
+                    const desc = (mc[3]||"").trim();
+                    return { type:"coords", lat, lon, label: desc || (lat.toFixed(3)+","+lon.toFixed(3)) };
+                }
+            }
+            const partsRaw = raw.split(",").map(s => s.trim());
+            if (partsRaw.length >= 1 && partsRaw.length <= 3) {
+                const [pCity, pState, pCountry] = partsRaw;
+                return { type:"place", raw, city: pCity || "", state: pState || "", country: pCountry || "" };
+            }
+            return { type:"place", raw, city: raw };
+        }
+
+        // ---------- Normalization helpers
+        const COUNTRY_ALIASES = new Map([
+            ["us","United States"], ["usa","United States"], ["u.s.","United States"], ["u.s.a.","United States"],
+            ["united states of america","United States"],
+            ["uk","United Kingdom"], ["u.k.","United Kingdom"],
+            ["uae","United Arab Emirates"]
+        ]);
+        const US_STATES = new Map(Object.entries({
+            "AL":"Alabama","AK":"Alaska","AZ":"Arizona","AR":"Arkansas","CA":"California","CO":"Colorado","CT":"Connecticut",
+            "DE":"Delaware","FL":"Florida","GA":"Georgia","HI":"Hawaii","ID":"Idaho","IL":"Illinois","IN":"Indiana","IA":"Iowa",
+            "KS":"Kansas","KY":"Kentucky","LA":"Louisiana","ME":"Maine","MD":"Maryland","MA":"Massachusetts","MI":"Michigan",
+            "MN":"Minnesota","MS":"Mississippi","MO":"Missouri","MT":"Montana","NE":"Nebraska","NV":"Nevada","NH":"New Hampshire",
+            "NJ":"New Jersey","NM":"New Mexico","NY":"New York","NC":"North Carolina","ND":"North Dakota","OH":"Ohio",
+            "OK":"Oklahoma","OR":"Oregon","PA":"Pennsylvania","RI":"Rhode Island","SC":"South Carolina","SD":"South Dakota",
+            "TN":"Tennessee","TX":"Texas","UT":"Utah","VT":"Vermont","VA":"Virginia","WA":"Washington","WV":"West Virginia",
+            "WI":"Wisconsin","WY":"Wyoming","DC":"District of Columbia"
+        }));
+        function normCountry(input){
+            if (!input) return input;
+            const key = input.trim().toLowerCase();
+            return COUNTRY_ALIASES.get(key) || (input.length <= 3 ? input.toUpperCase() : input);
+        }
+        function normUSState(input){
+            if (!input) return input;
+            const s = input.trim();
+            if (s.length <= 3) return US_STATES.get(s.toUpperCase()) || input;
+            return s.replace(/\b\w+/g, t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+        }
+
+        function chooseBestResult(results, prefs){
+            const wantCountry = prefs.country && prefs.country.trim();
+            const wantAdmin1  = prefs.admin1 && prefs.admin1.trim();
+            const wantAdmin1LC = wantAdmin1 ? wantAdmin1.toLowerCase() : null;
+            function score(r){
+                let s=0;
+                if (wantCountry && r.country === prefs.country) s += 2;
+                if (wantAdmin1 && r.admin1 && r.admin1.toLowerCase().includes(wantAdmin1LC)) s += 1;
+                return { s, pop: r.population || 0 };
+            }
+            return results.map(r=>({r, ...score(r)})).sort((a,b)=>(b.s-a.s)||(b.pop-a.pop))[0].r;
+        }
+        function cityFromLabel(label){
+            const i = label.indexOf(",");
+            return i >= 0 ? label.slice(0, i) : label;
+        }
+        function normalizeColorToken(c){
+            if (!c) return c;
+            if (c.startsWith("#") || /\b(?:rgb|hsl)a?\s*\(/i.test(c)) return c;
+            return c.replace(/\s+/g, "");
+        }
+
+        // ---------- Geocoding (forward)
+        async function geocode(place, globalPrefs){
+            let city = (place.city || "").trim();
+            let state = (place.state || "").trim();
+            let country = normCountry(place.country || "");
+            const prefAdmin1 = (globalPrefs.admin1 || "").trim();
+            const prefCountry = normCountry(globalPrefs.country || "");
+            const effectiveCountry = country || prefCountry || "";
+            const effectiveAdmin1 =
+                (effectiveCountry === "United States" ? normUSState(state) : (state || "")) || prefAdmin1;
+            const effectivePrefs = { admin1: effectiveAdmin1, country: effectiveCountry };
+            const nameParts = [city, state, country].filter(Boolean);
+            const name = nameParts.length ? nameParts.join(", ") : (place.raw || "");
+            const params = new URLSearchParams({ name, count:"5", language:"en" });
+            const r = await fetch(GEOCODE + "?" + params.toString());
+            if (!r.ok) throw new Error("Geocoding failed " + r.status);
+            const data = await r.json();
+            const results = data.results || [];
+            if (!results.length) {
+                if (city) {
+                    const params2 = new URLSearchParams({ name: city, count:"5", language:"en" });
+                    const r2 = await fetch(GEOCODE + "?" + params2.toString());
+                    if (r2.ok) {
+                        const d2 = await r2.json();
+                        const res2 = d2.results || [];
+                        if (res2.length) {
+                            const best2 = (effectivePrefs.country || effectivePrefs.admin1)
+                                ? chooseBestResult(res2, effectivePrefs)
+                                : res2.sort((a,b)=>(b.population||0)-(a.population||0))[0];
+                            const label2 = [best2.name, best2.admin1, best2.country].filter(Boolean).join(", ");
+                            return { lat: best2.latitude, lon: best2.longitude, label: label2 };
+                        }
+                    }
+                }
+                throw new Error('No match for "' + name + '"');
+            }
+            const best = (effectivePrefs.country || effectivePrefs.admin1)
+                ? chooseBestResult(results, effectivePrefs)
+                : results.sort((a,b)=>(b.population||0)-(a.population||0))[0];
+            const label = [best.name, best.admin1, best.country].filter(Boolean).join(", ");
+            return { lat: best.latitude, lon: best.longitude, label };
+        }
+
+        // ---------- Reverse geocoding (CORS-safe; used on map click additions)
+        async function reverseGeocode(lat, lon) {
+            const params = new URLSearchParams({
+                format: "jsonv2",
+                lat: String(lat),
+                lon: String(lon),
+                zoom: "12",
+                addressdetails: "1"
+            });
+            const ctrl = new AbortController();
+            const t = setTimeout(() => ctrl.abort(), 6000);
+            try {
+                const r = await fetch("https://nominatim.openstreetmap.org/reverse?" + params.toString(), {
+                    signal: ctrl.signal,
+                    headers: { "Accept":"application/json" }
+                });
+                if (!r.ok) throw new Error("Nominatim status " + r.status);
+                const j = await r.json();
+                const a = j.address || {};
+                const label = [
+                    j.name || a.city || a.town || a.village || a.hamlet || a.suburb || a.neighbourhood,
+                    a.state,
+                    a.country
+                ].filter(Boolean).join(", ") || `${lat.toFixed(3)},${lon.toFixed(3)}`;
+                return { name: label };
+            } catch (e) {
+                console.warn("Reverse geocode failed, using coords:", e);
+                return { name: `${lat.toFixed(3)},${lon.toFixed(3)}` };
+            } finally {
+                clearTimeout(t);
+            }
+        }
+
+        // ---------- Fetch hourly for a date range
+        async function fetchHourlyRange(lat, lon, startISO, endISO){
+            const params = new URLSearchParams({
+                latitude:String(lat), longitude:String(lon),
+                timezone:"auto", temperature_unit:"fahrenheit", precipitation_unit:"inch", wind_speed_unit:"mph",
+                start_date: startISO, end_date: endISO,
+                hourly: [
+                    "temperature_2m",
+                    "precipitation",
+                    "uv_index",
+                    "wind_speed_10m",
+                    "wind_gusts_10m",
+                    "relative_humidity_2m",
+                    "weather_code"
+                ].join(",")
+            });
+            const r = await fetch(FORECAST + "?" + params.toString());
+            if(!r.ok){
+                let txt = ""; try { txt = await r.text(); } catch(e){}
+                throw new Error("Hourly failed " + r.status + ": " + txt);
+            }
+            const data = await r.json();
+            if (data.error) throw new Error(data.reason || "API error");
+            return data.hourly;
+        }
+
+        // ---------- Rules & highlighting
+        function normKey(s){ return (s||"").replace(/[^a-z0-9]+/gi, "").toLowerCase(); }
+        function parseRules(text){
+            const rules = new Map();
+            const lines = (text||"").replace(/\r\n?/g, "\n").split("\n");
+            for (const raw of lines) {
+                const line = raw.trim();
+                if (!line || line.startsWith("//") || line.startsWith("#")) continue;
+                const eq = line.indexOf("=");
+                if (eq <= 0) continue;
+                const header = line.slice(0, eq).trim();
+                const specs  = line.slice(eq+1).trim();
+                const key = normKey(header);
+                if (!key || !specs) continue;
+                const entries = [];
+                for (const chunk of specs.split(",")) {
+                    const part = chunk.trim();
+                    if (!part) continue;
+                    const m = part.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*#\s*([+-]?\d+(?:\.\d+)?)\s*:\s*([A-Za-z0-9#(),.\s-]+)\s*$/);
+                    if (m) {
+                        const lo = Number(m[1]), hi = Number(m[2]);
+                        let color = normalizeColorToken(m[3].trim());
+                        if (Number.isFinite(lo) && Number.isFinite(hi)) {
+                            entries.push({ type:"range", lo, hi, color });
+                            continue;
+                        }
+                    }
+                    const m2 = part.match(/^(.*?):\s*([A-Za-z0-9#(),.\s-]+)$/);
+                    if (m2) {
+                        const txt = m2[1].trim().toLowerCase();
+                        let color = normalizeColorToken(m2[2].trim());
+                        if (txt) entries.push({ type:"string", text: txt, color });
+                    }
+                }
+                if (entries.length) rules.set(key, entries);
+            }
+            return rules;
+        }
+        function normalizeColorToken(c){
+            if (!c) return c;
+            if (c.startsWith("#") || /\b(?:rgb|hsl)a?\s*\(/i.test(c)) return c;
+            return c.replace(/\s+/g, "");
+        }
+        const REDS    = new Set(["red","tomato","salmon","crimson","firebrick","indianred"]);
+        const ORANGES = new Set(["orange","darkorange","gold","goldenrod"]);
+        const YELLOWS = new Set(["yellow","khaki","lightyellow"]);
+        const GREENS  = new Set(["green","lightgreen","lime","limegreen","palegreen","forestgreen"]);
+        function normColorName(c){ return c ? c.trim().toLowerCase().replace(/\s+/g,"") : null; }
+        function severityOfColor(c){
+            const n = normColorName(c);
+            if (!n) return -1;
+            if (REDS.has(n))    return 3;
+            if (ORANGES.has(n)) return 2;
+            if (YELLOWS.has(n)) return 1;
+            if (GREENS.has(n))  return 0;
+            return -1;
+        }
+        function colorForSeverity(s){ return s===3?"red":s===2?"orange":s===1?"yellow":s===0?"lightgreen":null; }
+        function colorFor(rules, header, value){
+            if (!rules) return null;
+            const key = normKey(header);
+            const arr = rules.get(key);
+            if (!arr) return null;
+            for (const r of arr) {
+                if (r.type === "range") {
+                    if (Number.isFinite(value) && value >= r.lo && value <= r.hi) return r.color;
+                } else if (r.type === "string") {
+                    if (typeof value === "string" && value.toLowerCase() === r.text) return r.color;
+                }
+            }
+            return null;
+        }
+
+        // ---------- Formatting
+        const fmt = { num(n, places){ return Number.isFinite(n) ? n.toFixed(places) : "–"; } };
+
+        // ---------- Summarize hourly → per-day using [startHour, endHour]
+        function summarizeHourly(hourly, numDays, startHour, endHour, rules){
+            // Build per-day buckets keyed by yyyy-mm-dd
+            const startISO = hourly.time[0].slice(0,10);
+            const days = [];
+            for (let k=0;k<numDays;k++) days.push(addDays(startISO, k));
+
+            const perDay = new Map(days.map(d => [d, []]));
+            for (let i=0; i<hourly.time.length; i++){
+                const tStr = hourly.time[i]; // e.g. "2025-10-02T14:00"
+                const day = tStr.slice(0,10);
+                const hour = Number(tStr.slice(11,13));
+                if (perDay.has(day) && hour >= startHour && hour <= endHour){
+                    perDay.get(day).push({
+                        temp: hourly.temperature_2m?.[i],
+                        precip: hourly.precipitation?.[i],
+                        uv: hourly.uv_index?.[i],
+                        wind: hourly.wind_speed_10m?.[i],
+                        gust: hourly.wind_gusts_10m?.[i],
+                        rh: hourly.relative_humidity_2m?.[i],
+                        code: hourly.weather_code?.[i],
+                        time: tStr
+                    });
+                }
+            }
+
+            const time = [];
+            const hi = [], lo = [], precipSum = [], uvMax = [], gustMax = [], condLabel = [];
+            const dateRowColor = []; // aggregated severity color per day
+
+            for (const day of days){
+                const arr = perDay.get(day) || [];
+                time.push(day);
+
+                if (arr.length === 0){
+                    hi.push(null); lo.push(null); precipSum.push(null); uvMax.push(null); gustMax.push(null); condLabel.push("—");
+                    dateRowColor.push(null);
+                    continue;
+                }
+
+                const temps = arr.map(x=>x.temp).filter(Number.isFinite);
+                const precs = arr.map(x=>x.precip).filter(Number.isFinite);
+                const uvs   = arr.map(x=>x.uv).filter(Number.isFinite);
+                const gusts = arr.map(x=>x.gust).filter(Number.isFinite);
+                const codes = arr.map(x=>x.code);
+
+                const maxT = temps.length? Math.max(...temps) : null;
+                const minT = temps.length? Math.min(...temps) : null;
+                const sumP = precs.length? precs.reduce((a,b)=>a+b,0) : 0;
+                const maxUV= uvs.length? Math.max(...uvs) : null;
+                const maxG = gusts.length? Math.max(...gusts) : null;
+
+                hi.push(maxT); lo.push(minT); precipSum.push(sumP); uvMax.push(maxUV); gustMax.push(maxG);
+
+                // Worst condition by severity (using your rules for "Conditions")
+                let worstCond = "—"; let worstSeverity = -1; let worstColor = null;
+                for (const c of codes){
+                    const name = (c==null)? "—" : (WMO.get(String(c)) || String(c));
+                    const clr = colorFor(rules, "Conditions", name);
+                    const sev = severityOfColor(clr);
+                    if (sev > worstSeverity){
+                        worstSeverity = sev; worstCond = name; worstColor = clr;
+                    }
+                }
+                condLabel.push(worstCond);
+
+                // Aggregate row severity from summarized columns
+                const sColors = [
+                    colorFor(rules, "High (°F)", maxT) || colorFor(rules, "Temp (°F)", maxT),
+                    colorFor(rules, "Low (°F)",  minT) || colorFor(rules, "Temp (°F)", minT),
+                    colorFor(rules, "Precip (in)", sumP),
+                    colorFor(rules, "UV", maxUV),
+                    colorFor(rules, "Gust (mph)", maxG),
+                    worstColor
+                ];
+                const severities = sColors.map(severityOfColor);
+                let rowS = -1;
+                if (severities.some(s => s === 3)) rowS = 3;
+                else if (severities.some(s => s === 2)) rowS = 2;
+                else if (severities.some(s => s === 1)) rowS = 1;
+                else if (severities.every(s => s <= 0) && severities.some(s => s === 0)) rowS = 0;
+                dateRowColor.push(colorForSeverity(rowS));
+            }
+
+            return {
+                time, temperature_2m_max: hi, temperature_2m_min: lo,
+                precipitation_sum: precipSum, uv_index_max: uvMax, wind_gusts_10m_max: gustMax,
+                conditions_label: condLabel, date_colors: dateRowColor
+            };
+        }
+
+        // ---------- Build daily summary table from our synthesized daily object
+        function buildSummaryTable(synthDaily, rules, showDecimals, onDaySelect){
+            const tbl = el("table", { class:"wx" });
+            const headers = ["Date","High (°F)","Low (°F)","Precip (in)","UV","Gust (mph)","Conditions"];
+            const thead = el("thead");
+            thead.append(el("tr", {}, headers.map(h => el("th", { text: h }))));
+            const tbody = el("tbody");
+
+            const n = synthDaily.time.length;
+            for (let i=0;i<n;i++){
+                const row = el("tr");
+                const dt  = parseLocalISODate(synthDaily.time[i]);
+                const dateStr = dt.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" });
+
+                const hi = synthDaily.temperature_2m_max?.[i];
+                const lo = synthDaily.temperature_2m_min?.[i];
+                const p  = synthDaily.precipitation_sum?.[i];
+                const uv = synthDaily.uv_index_max?.[i];
+                const g  = synthDaily.wind_gusts_10m_max?.[i];
+                const cond = synthDaily.conditions_label?.[i] ?? "—";
+
+                const cDate = el("td", { text: dateStr, class:"date-cell", tabindex:"0", title:"Click for hourly details" });
+                const cHi   = el("td", { text: showDecimals ? fmt.num(hi,1) : fmt.num(hi,0) });
+                const cLo   = el("td", { text: showDecimals ? fmt.num(lo,1) : fmt.num(lo,0) });
+                const cP    = el("td", { text: fmt.num(p,2) });
+                const cUV   = el("td", { text: showDecimals ? fmt.num(uv,1) : fmt.num(uv,0) });
+                const cG    = el("td", { text: showDecimals ? fmt.num(g,1)  : fmt.num(g,0) });
+                const cCond = el("td", { text: cond });
+
+                const hiColor   = colorFor(rules, "High (°F)", hi) || colorFor(rules, "Temp (°F)", hi); if (hiColor) cHi.style.backgroundColor = hiColor;
+                const loColor   = colorFor(rules, "Low (°F)",  lo) || colorFor(rules, "Temp (°F)", lo); if (loColor) cLo.style.backgroundColor = loColor;
+                const pColor    = colorFor(rules, "Precip (in)", p);    if (pColor)  cP.style.backgroundColor  = pColor;
+                const uvColor   = colorFor(rules, "UV", uv);            if (uvColor) cUV.style.backgroundColor = uvColor;
+                const gColor    = colorFor(rules, "Gust (mph)", g);     if (gColor)  cG.style.backgroundColor  = gColor;
+                const condColor = colorFor(rules, "Conditions", cond);  if (condColor) cCond.style.backgroundColor = condColor;
+
+                const dateColor = synthDaily.date_colors?.[i] || null;
+                if (dateColor) cDate.style.backgroundColor = dateColor;
+
+                if (typeof onDaySelect === "function") {
+                    const handler = (evt) => { evt.preventDefault(); onDaySelect(i, synthDaily.time[i]); };
+                    cDate.addEventListener("click", handler);
+                    cDate.addEventListener("keydown", (e) => {
+                        if (e.key === "Enter" || e.key === " ") { handler(e); }
+                    });
+                }
+
+                row.append(cDate, cHi, cLo, cP, cUV, cG, cCond);
+                tbody.append(row);
+            }
+
+            tbl.append(thead, tbody);
+            return tbl;
+        }
+
+        // ---------- Hourly table (with rules)
+        function buildHourlyTable(hourly, rules, showDecimals){
+            const tbl = el("table", { class:"wx" });
+            const headers = ["Time","Temp (°F)","Precip (in)","UV","Wind (mph)","Gust (mph)","RH (%)","Conditions"];
+            const thead = el("thead");
+            thead.append(el("tr", {}, headers.map(h => el("th", { text: h }))));
+            const tbody = el("tbody");
+
+            const N = hourly.time.length;
+            for (let i=0;i<N;i++){
+                const t = new Date(hourly.time[i].replace("Z",""));
+                const timeStr = t.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+                const temp   = hourly.temperature_2m?.[i];
+                const precip = hourly.precipitation?.[i];
+                const uv     = hourly.uv_index?.[i];
+                const wind   = hourly.wind_speed_10m?.[i];
+                const gust   = hourly.wind_gusts_10m?.[i];
+                const rh     = hourly.relative_humidity_2m?.[i];
+                const code   = hourly.weather_code?.[i];
+                const cond   = (code==null) ? "—" : (WMO.get(String(code)) || String(code));
+
+                const cTime = el("td", { text: timeStr });
+                const cT    = el("td", { text: showDecimals ? fmt.num(temp,1)   : fmt.num(temp,0) });
+                const cP    = el("td", { text: fmt.num(precip,2) });
+                const cUV   = el("td", { text: showDecimals ? fmt.num(uv,1)     : fmt.num(uv,0) });
+                const cW    = el("td", { text: showDecimals ? fmt.num(wind,1)   : fmt.num(wind,0) });
+                const cG    = el("td", { text: showDecimals ? fmt.num(gust,1)   : fmt.num(gust,0) });
+                const cRH   = el("td", { text: Number.isFinite(rh) ? rh.toFixed(0) : "–" });
+                const cCond = el("td", { text: cond });
+
+                const tColor   = colorFor(rules, "Temp (°F)",     temp);    if (tColor)   cT.style.backgroundColor   = tColor;
+                const pColor   = colorFor(rules, "Precip (in)",   precip);  if (pColor)   cP.style.backgroundColor   = pColor;
+                const uvColor  = colorFor(rules, "UV",            uv);      if (uvColor)  cUV.style.backgroundColor  = uvColor;
+                const wColor   = colorFor(rules, "Wind (mph)",    wind);    if (wColor)   cW.style.backgroundColor   = wColor;
+                const gColor   = colorFor(rules, "Gust (mph)",    gust);    if (gColor)   cG.style.backgroundColor   = gColor;
+                const rhColor  = colorFor(rules, "RH (%)",        rh);      if (rhColor)  cRH.style.backgroundColor  = rhColor;
+                const condColor= colorFor(rules, "Conditions",    cond);    if (condColor)cCond.style.backgroundColor = condColor;
+
+                const severities = [tColor,pColor,uvColor,wColor,gColor,rhColor,condColor].map(severityOfColor);
+                let rowSeverity = -1;
+                if (severities.some(s => s === 3)) rowSeverity = 3;
+                else if (severities.some(s => s === 2)) rowSeverity = 2;
+                else if (severities.some(s => s === 1)) rowSeverity = 1;
+                else if (severities.every(s => s <= 0) && severities.some(s => s === 0)) rowSeverity = 0;
+                const timeColor = colorForSeverity(rowSeverity);
+                if (timeColor) cTime.style.backgroundColor = timeColor;
+
+                const row = el("tr");
+                row.append(cTime, cT, cP, cUV, cW, cG, cRH, cCond);
+                tbody.append(row);
+            }
+
+            tbl.append(thead, tbody);
+            return tbl;
+        }
+
+        // ---------- Map
+        const map = L.map('map', { scrollWheelZoom: true });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        map.setView([39.5, -98.35], 4);
+        const featureGroup = L.featureGroup().addTo(map);
+
+        // ---------- Markers state
+        const markers = [];
+        const markerMeta = new Map(); // leaflet_id -> { cardEl, coords, label, cityOnlyLabel, dayColors, hourly, synthDaily, range: {startHour,endHour,numDays,startISO,endISO} }
+        const cardMeta = new Map();   // cardEl -> { markerId|null }
+
+        function makeSparkIcon(label, dayColors){
+            const squares = dayColors.map((c, idx) => {
+                const b = c ? `background:${c};` : `background:#2a3a6a; opacity:.7;`;
+                return `<span class="d" data-day="${idx}" title="Show hourly for day ${idx+1}" style="${b}"></span>`;
+            }).join("");
+            const html = `
+          <div class="marker-wrap">
+            <span class="marker-title">${label}</span>
+            <div class="spark">${squares}</div>
+          </div>`;
+            return L.divIcon({ html, className: '', iconSize: null, iconAnchor: [30, 22] });
+        }
+        function setMarkerIcon(m, displayLabel, dayColors){
+            const icon = makeSparkIcon(displayLabel, dayColors);
+            m.setIcon(icon);
+            m.off('click');
+            m.on('click', async (e) => {
+                const tgt = e.originalEvent.target;
+                if (tgt && tgt.classList.contains('d')) {
+                    const dayIdx = parseInt(tgt.getAttribute('data-day'), 10);
+                    const meta = markerMeta.get(m._leaflet_id);
+                    if (!meta) return;
+                    await openHourlyCard(meta, dayIdx);
+                    e.originalEvent.preventDefault();
+                    e.originalEvent.stopPropagation();
+                } else {
+                    m.openPopup();
+                }
+            });
+        }
+        function addMarkerWithMeta(coords, fullLabel, dayColors, hourly, synthDaily, cardEl){
+            const showCityOnly = !!document.getElementById("cityOnly").checked;
+            const displayLabel = showCityOnly ? cityFromLabel(fullLabel) : fullLabel;
+            const m = L.marker([coords.lat, coords.lon], { icon: makeSparkIcon(displayLabel, dayColors) }).addTo(featureGroup);
+            m.bindPopup(`<strong>${fullLabel}</strong><br>${coords.lat.toFixed(3)}, ${coords.lon.toFixed(3)}`);
+            markers.push(m);
+            markerMeta.set(m._leaflet_id, {
+                cardEl, coords, label: fullLabel, cityOnlyLabel: cityFromLabel(fullLabel),
+                dayColors, hourly, synthDaily
+            });
+            setMarkerIcon(m, displayLabel, dayColors);
+            try { map.fitBounds(featureGroup.getBounds().pad(0.2)); } catch(e){}
+            return m;
+        }
+        function removeMarkerForCard(cardEl){
+            for (const m of markers) {
+                const meta = markerMeta.get(m._leaflet_id);
+                if (meta && meta.cardEl === cardEl) {
+                    featureGroup.removeLayer(m);
+                    markerMeta.delete(m._leaflet_id);
+                    const idx = markers.indexOf(m);
+                    if (idx >= 0) markers.splice(idx, 1);
+                    return true;
+                }
+            }
+            return false;
+        }
+        function refreshAllMarkerLabels(){
+            const showCityOnly = !!document.getElementById("cityOnly").checked;
+            for (const m of markers) {
+                const meta = markerMeta.get(m._leaflet_id);
+                if (!meta) continue;
+                const labelToShow = showCityOnly ? meta.cityOnlyLabel : meta.label;
+                setMarkerIcon(m, labelToShow, meta.dayColors);
+            }
+        }
+
+        // ---------- Build a card (fetch hourly for range, synthesize daily, build table, add marker)
+        async function buildCard(target, item, prefs, rules, showDecimals, startHour, endHour, numDays){
+            const card = el("section", { class:"card", role:"region" });
+            const title = el("h3", { text:"Loading..." });
+            const close = el("button", { class:"close-btn", type:"button", text:"Close" });
+            const metaP = el("p", { class:"meta", text:"Resolving location..." });
+            close.addEventListener("click", () => {
+                removeMarkerForCard(card);
+                card.remove();
+                cardMeta.delete(card);
+            });
+            card.append(title, close, metaP);
+            target.prepend(card);
+
+            try {
+                let coords;
+                if (item.type === "coords") {
+                    coords = { lat:item.lat, lon:item.lon, label:item.label };
+                } else {
+                    coords = await geocode(item, prefs);
+                }
+
+                const startISO = ymd(new Date());
+                const endISO = addDays(startISO, numDays - 1);
+
+                title.textContent = coords.label;
+                metaP.textContent = `Fetching hourly ${startISO} → ${endISO}…`;
+
+                const hourly = await fetchHourlyRange(coords.lat, coords.lon, startISO, endISO);
+                const synthDaily = summarizeHourly(hourly, numDays, startHour, endHour, rules);
+
+                const stats = `Window ${String(startHour).padStart(2,"0")}:00–${String(endHour).padStart(2,"0")}:00 • ` +
+                    `Max UV: ${Number.isFinite(Math.max(...(synthDaily.uv_index_max||[0])))? Math.max(...synthDaily.uv_index_max).toFixed(showDecimals?1:0) : "–"} • ` +
+                    `Max Gust: ${Number.isFinite(Math.max(...(synthDaily.wind_gusts_10m_max||[0])))? Math.max(...synthDaily.wind_gusts_10m_max).toFixed(showDecimals?1:0) : "–"} mph`;
+                metaP.textContent = stats;
+
+                const onDaySelect = async (dayIdx, dayISO) => {
+                    await openHourlyCard({ coords, label: coords.label, hourly, synthDaily }, dayIdx);
+                };
+                const table = buildSummaryTable(synthDaily, rules, showDecimals, onDaySelect);
+                card.append(table);
+
+                const m = addMarkerWithMeta(coords, coords.label, synthDaily.date_colors.map(c=>c||"#2a3a6a"), hourly, synthDaily, card);
+                cardMeta.set(card, { markerId: m._leaflet_id });
+
+            } catch(err){
+                title.textContent = "Failed to load";
+                metaP.textContent = String(err && err.message ? err.message : err);
+                metaP.classList.add("bad");
+            }
+        }
+
+        // ---------- Open hourly card for a specific day (slice from cached hourly)
+        async function openHourlyCard(meta, dayIdx){
+            const dayISO = meta.synthDaily.time[dayIdx];
+            const wantPrefix = dayISO + "T";
+            const idxList = [];
+            for (let i=0;i<meta.hourly.time.length;i++){
+                if (meta.hourly.time[i].startsWith(wantPrefix)) idxList.push(i);
+            }
+            const hourlySlice = {};
+            for (const key of Object.keys(meta.hourly)){
+                if (!Array.isArray(meta.hourly[key])) continue;
+                hourlySlice[key] = idxList.map(i => meta.hourly[key][i]);
+            }
+
+            const grid = document.getElementById("grid");
+            const showDecimals = !!document.getElementById("showDecimals").checked;
+            const rulesText = (document.getElementById("rules").value || "");
+            const rulesNow = parseRules(rulesText);
+
+            const card = el("section", { class:"card", role:"region" });
+            const dt = parseLocalISODate(dayISO);
+            const dateStr = dt.toLocaleDateString(undefined, { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+            const title = el("h3", { text:`Hourly — ${meta.label} — ${dateStr}` });
+            const close = el("button", { class:"close-btn", type:"button", text:"Close" });
+            close.addEventListener("click", () => {
+                card.remove();
+                cardMeta.delete(card);
+            });
+            const metaP = el("p", { class:"meta", text:"Local time • Click Close to dismiss" });
+            const table = buildHourlyTable(hourlySlice, rulesNow, showDecimals);
+            card.append(title, close, metaP, table);
+            grid.prepend(card);
+            cardMeta.set(card, { markerId: null });
+        }
+
+        // ---------- Bulk runner & UI
+        const dz = document.getElementById("drop");
+        const fileInput = document.getElementById("file");
+        const pasteArea = document.getElementById("paste");
+        const runBtn = document.getElementById("run");
+
+        const btnNJ = document.getElementById("btnNJ");
+        const btnOH = document.getElementById("btnOH");
+
+        const grid = document.getElementById("grid");
+        const stateBox = document.getElementById("prefState");
+        const countryBox = document.getElementById("prefCountry");
+        const rulesArea = document.getElementById("rules");
+        const decimalsBox = document.getElementById("showDecimals");
+        const cityOnlyBox = document.getElementById("cityOnly");
+        const onlyIconsBox = document.getElementById("onlyIcons");
+        const startHourBox = document.getElementById("startHour");
+        const endHourBox = document.getElementById("endHour");
+        const numDaysBox = document.getElementById("numDays");
+
+        let lastInputText = "";
+
+        function clearGrid(){
+            grid.innerHTML = "";
+            featureGroup.clearLayers();
+            markers.length = 0;
+            markerMeta.clear();
+            cardMeta.clear();
+        }
+        function parseAll(text){
+            const norm = text.replace(/\r\n?/g, "\n");
+            const lines = norm.split("\n");
+            const items = [];
+            for (const ln of lines) {
+                const p = parseLine(ln);
+                if (p) items.push(p);
+            }
+            if (!items.length) throw new Error("No valid locations found.");
+            return items;
+        }
+        async function processText(text){
+            clearGrid();
+            lastInputText = text;
+            const items = parseAll(text).slice(0, 24);
+            const prefs = { admin1:(stateBox.value||"").trim(), country:(countryBox.value||"").trim() };
+            const rules = parseRules(rulesArea.value || "");
+            const showDecimals = !!(decimalsBox && decimalsBox.checked);
+            const startHour = Math.max(0, Math.min(23, Number(startHourBox.value)||8));
+            const endHour = Math.max(0, Math.min(23, Number(endHourBox.value)||17));
+            const numDays = Math.max(1, Math.min(14, Number(numDaysBox.value)||7));
+            for (const it of items) {
+                await buildCard(grid, it, prefs, rules, showDecimals, startHour, endHour, numDays);
+            }
+            if (onlyIconsBox.checked) grid.classList.add("hidden-grid"); else grid.classList.remove("hidden-grid");
+        }
+
+        // --- Preset region lists for quick testing
+        const NJ_PRESET = `Piscataway
+High Bridge
+Metuchen`;
+
+        const OH_PRESET = `Cleveland, Ohio
+Medina, Ohio
+Kent, Ohio`;
+
+// Helper: load preset into textarea and process
+        function loadPresetList(text){
+            if (!pasteArea) return;
+            pasteArea.value = text;
+            // Trigger a run with current settings
+            processText(text);
+        }
+
+// Button handlers
+        if (btnNJ) btnNJ.addEventListener("click", () => loadPresetList(NJ_PRESET));
+        if (btnOH) btnOH.addEventListener("click", () => loadPresetList(OH_PRESET));
+
+
+        // Map click to add a place (added as coords line; hourly summary still applies)
+        map.on('click', async (e) => {
+            const clickedMarker = markers.some(m => m.getLatLng().equals(e.latlng));
+            if (clickedMarker) return;
+            const lat = e.latlng.lat, lon = e.latlng.lng;
+            const coordLabel = `${lat.toFixed(3)},${lon.toFixed(3)}`;
+            const prefs = { admin1:(stateBox.value||"").trim(), country:(countryBox.value||"").trim() };
+            const rules = parseRules(rulesArea.value || "");
+            const showDecimals = !!(decimalsBox && decimalsBox.checked);
+            const startHour = Math.max(0, Math.min(23, Number(startHourBox.value)||8));
+            const endHour = Math.max(0, Math.min(23, Number(endHourBox.value)||17));
+            const numDays = Math.max(1, Math.min(14, Number(numDaysBox.value)||7));
+
+            await buildCard(grid, { type:"coords", lat, lon, label: coordLabel }, prefs, rules, showDecimals, startHour, endHour, numDays);
+
+            const current = (pasteArea.value || "").trim();
+            pasteArea.value = current ? (current + "\n" + `${lat.toFixed(3)},${lon.toFixed(3)},${coordLabel}`) : `${lat.toFixed(3)},${lon.toFixed(3)},${coordLabel}`;
+
+            try {
+                const { name } = await reverseGeocode(lat, lon);
+                if (name && name !== coordLabel) {
+                    const lines = pasteArea.value.split(/\r?\n/);
+                    lines[lines.length - 1] = `${lat.toFixed(3)},${lon.toFixed(3)},${name}`;
+                    pasteArea.value = lines.join("\n");
+                }
+            } catch (err) {
+                console.warn("Reverse geocode rename skipped:", err);
+            }
+        });
+
+        // UI wiring
+        if (dz) {
+            dz.addEventListener("dragover", (e)=>{ e.preventDefault(); dz.classList.add("dragover"); });
+            dz.addEventListener("dragleave", ()=> dz.classList.remove("dragover"));
+            dz.addEventListener("drop", async (e)=>{
+                e.preventDefault(); dz.classList.remove("dragover");
+                const f = e.dataTransfer.files && e.dataTransfer.files[0];
+                if(!f) return;
+                const text = await f.text();
+                await processText(text);
+            });
+        }
+        if (fileInput) {
+            fileInput.addEventListener("change", async (e)=>{
+                const f = e.target.files && e.target.files[0];
+                if(!f) return;
+                const text = await f.text();
+                await processText(text);
+                fileInput.value = "";
+            });
+        }
+        if (runBtn) {
+            runBtn.addEventListener("click", async ()=>{
+                const text = (pasteArea && pasteArea.value ? pasteArea.value : "").trim();
+                if(!text){ alert("Paste locations first, or drop a file."); return; }
+                await processText(text);
+            });
+        }
+        document.getElementById("showDecimals").addEventListener("change", async ()=>{
+            if (lastInputText) await processText(lastInputText);
+        });
+        document.getElementById("cityOnly").addEventListener("change", ()=>{
+            refreshAllMarkerLabels();
+        });
+        document.getElementById("onlyIcons").addEventListener("change", ()=>{
+            if (onlyIcons.checked) grid.classList.add("hidden-grid"); else grid.classList.remove("hidden-grid");
+        });
+    }); // ready
+</script>
+</body>
+</html>
