@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy Birthday! Sonnet 4.5 Oct6 </title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        h1 {
+            color: #fff;
+            font-size: 3em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .cake-container {
+            position: relative;
+            margin: 40px 0;
+        }
+
+        .cake {
+            width: 300px;
+            height: 200px;
+            background: linear-gradient(to bottom, #ffb6c1 0%, #ff69b4 50%, #ff1493 100%);
+            border-radius: 20px 20px 0 0;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .cake::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 10%;
+            right: 10%;
+            height: 20px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .cake::after {
+            content: '';
+            position: absolute;
+            bottom: -30px;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(to bottom, #8b4513, #654321);
+            border-radius: 0 0 10px 10px;
+        }
+
+        .candles {
+            position: absolute;
+            top: -60px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-evenly;
+            padding: 0 30px;
+        }
+
+        .candle {
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .candle:hover {
+            transform: scale(1.1);
+        }
+
+        .candle-stick {
+            width: 12px;
+            height: 50px;
+            background: linear-gradient(to right, #4a90e2, #357abd);
+            border-radius: 3px;
+            margin: 0 auto;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .flame {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 30px;
+            background: radial-gradient(ellipse at center, #fff 0%, #ffff00 20%, #ff6600 60%, #ff0000 100%);
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            animation: flicker 0.3s infinite alternate;
+            opacity: 1;
+            transition: opacity 0.3s;
+        }
+
+        .flame.out {
+            opacity: 0;
+        }
+
+        @keyframes flicker {
+            0% { transform: translateX(-50%) scaleY(1); }
+            100% { transform: translateX(-50%) scaleY(1.1); }
+        }
+
+        .poof {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 30px;
+            opacity: 0;
+            animation: poofAnimation 0.5s ease-out;
+            pointer-events: none;
+        }
+
+        @keyframes poofAnimation {
+            0% { opacity: 1; transform: translateX(-50%) translateY(0) scale(0.5); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-30px) scale(1.5); }
+        }
+
+        .counter {
+            color: #fff;
+            font-size: 1.5em;
+            margin-top: 20px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .celebration {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 5em;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .celebration.show {
+            animation: celebrate 2s ease-out;
+        }
+
+        @keyframes celebrate {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            pointer-events: none;
+        }
+
+        @keyframes confettiFall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+<h1>Happy Birthday! 🎉</h1>
+
+<div class="cake-container">
+    <div class="candles" id="candles"></div>
+    <div class="cake"></div>
+</div>
+
+<div class="counter" id="counter">You have 8 candles left.</div>
+
+<div class="celebration" id="celebration">🎉</div>
+
+<script>
+    const totalCandles = 8;
+    let litCandles = totalCandles;
+    const candlesContainer = document.getElementById('candles');
+    const counter = document.getElementById('counter');
+    const celebration = document.getElementById('celebration');
+
+    // Create candles
+    for (let i = 0; i < totalCandles; i++) {
+        const candle = document.createElement('div');
+        candle.className = 'candle';
+        candle.innerHTML = `
+                <div class="flame"></div>
+                <div class="candle-stick"></div>
+            `;
+        candle.addEventListener('click', () => blowOutCandle(candle));
+        candlesContainer.appendChild(candle);
+    }
+
+    function blowOutCandle(candle) {
+        const flame = candle.querySelector('.flame');
+        if (!flame.classList.contains('out')) {
+            flame.classList.add('out');
+            litCandles--;
+
+            // Create poof effect
+            const poof = document.createElement('div');
+            poof.className = 'poof';
+            poof.textContent = '💨';
+            candle.appendChild(poof);
+            setTimeout(() => poof.remove(), 500);
+
+            updateCounter();
+
+            if (litCandles === 0) {
+                setTimeout(celebrateAllOut, 300);
+            }
+        }
+    }
+
+    function updateCounter() {
+        if (litCandles > 0) {
+            counter.textContent = `You have ${litCandles} candle${litCandles !== 1 ? 's' : ''} left.`;
+        } else {
+            counter.textContent = 'All candles blown out! 🎊';
+        }
+    }
+
+    function celebrateAllOut() {
+        celebration.classList.add('show');
+        playBirthdaySong();
+        createConfetti();
+
+        setTimeout(() => {
+            celebration.classList.remove('show');
+        }, 2000);
+    }
+
+    function playBirthdaySong() {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Happy Birthday melody (simplified)
+        const notes = [
+            {freq: 262, duration: 0.3}, // C
+            {freq: 262, duration: 0.15}, // C
+            {freq: 294, duration: 0.45}, // D
+            {freq: 262, duration: 0.45}, // C
+            {freq: 349, duration: 0.45}, // F
+            {freq: 330, duration: 0.9},  // E
+
+            {freq: 262, duration: 0.3},  // C
+            {freq: 262, duration: 0.15}, // C
+            {freq: 294, duration: 0.45}, // D
+            {freq: 262, duration: 0.45}, // C
+            {freq: 392, duration: 0.45}, // G
+            {freq: 349, duration: 0.9}   // F
+        ];
+
+        let time = audioContext.currentTime;
+        notes.forEach(note => {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.frequency.value = note.freq;
+            oscillator.type = 'sine';
+
+            gainNode.gain.setValueAtTime(0.3, time);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, time + note.duration);
+
+            oscillator.start(time);
+            oscillator.stop(time + note.duration);
+
+            time += note.duration;
+        });
+    }
+
+    function createConfetti() {
+        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+
+        for (let i = 0; i < 50; i++) {
+            setTimeout(() => {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + '%';
+                confetti.style.top = '-10px';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animation = `confettiFall ${2 + Math.random() * 2}s linear forwards`;
+                document.body.appendChild(confetti);
+
+                setTimeout(() => confetti.remove(), 4000);
+            }, i * 30);
+        }
+    }
+</script>
+</body>
+</html>

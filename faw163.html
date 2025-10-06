@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Happy Birthday – Blow Out the Candles gpt5 oct6</title>
+    <style>
+        :root{
+            --bg:#fff7fb;            /* soft pink background */
+            --ink:#2d2a32;           /* dark ink */
+            --cake:#ffd9b3;          /* sponge */
+            --frost:#fff;            /* frosting */
+            --plate:#d8e6ff;         /* plate */
+            --wick:#333;
+            --candle1:#71c7ec;      /* candle stripes */
+            --candle2:#ff9ecd;
+            --candle3:#ffd166;
+            --candle4:#95e69e;
+            --shadow:0 10px 30px rgba(0,0,0,.12);
+            --radius:22px;
+            --accent:#ff4d6d;        /* highlight */
+        }
+        *{box-sizing:border-box}
+        html,body{height:100%}
+        body{
+            margin:0; background:radial-gradient(1200px 800px at 50% -20%, #ffe6f2 0%, var(--bg) 60%);
+            color:var(--ink); font:600 18px/1.35 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+            display:grid; place-items:center;
+        }
+        .app{ width:min(900px,94vw); text-align:center; padding:28px; }
+        h1{ font-size: clamp(28px, 5vw, 56px); letter-spacing:.5px; margin:8px 0 10px; }
+        .sub{ opacity:.75; font-weight:500; margin-bottom:22px }
+
+        .card{ position:relative; background:#fff; border-radius:var(--radius); box-shadow:var(--shadow); padding:24px 16px 28px; }
+        .stage{ position:relative; height:420px; display:grid; place-items:center; }
+
+        /* Cake plate shadow */
+        .plate{ position:absolute; bottom:22px; width:520px; height:40px; background:var(--plate); border-radius:60px; box-shadow:inset 0 10px 20px rgba(0,0,0,.08); }
+
+        /* SVG sizes nicely */
+        svg{ width:min(560px, 86vw); height:auto; overflow:visible }
+
+        .cake-number{ font: 800 72px/1 ui-rounded, ui-sans-serif, system-ui; fill: var(--accent); filter: drop-shadow(0 6px 10px rgba(0,0,0,.15)); }
+
+        /* Candle & flame styling */
+        .candle-body{ rx:8; ry:8; filter: drop-shadow(0 2px 2px rgba(0,0,0,.2)); }
+        .wick{ stroke: var(--wick); stroke-width:2.5; stroke-linecap:round; }
+
+        .flame{ transform-origin: center; }
+        .lit .flame{ opacity:1; animation: flicker .35s infinite alternate ease-in-out, floaty 1.8s infinite ease-in-out; }
+        .unlit .flame{ opacity:0; }
+
+        @keyframes flicker{ from{ transform:scale(1) translateY(0) } to{ transform:scale(1.06) translateY(-1px) } }
+        @keyframes floaty{ 0%{ transform: translateY(0) } 50%{ transform: translateY(-1.5px) } 100%{ transform: translateY(0) } }
+
+        /* Poof animation when blown */
+        .poof circle{ opacity:0; }
+        .poof.go circle{ animation: poof 650ms ease-out forwards; }
+        .poof circle:nth-child(2){ animation-delay:60ms }
+        .poof circle:nth-child(3){ animation-delay:120ms }
+        @keyframes poof{
+            0%{ r:0; opacity:.8; }
+            100%{ r:14; opacity:0; }
+        }
+
+        /* Counter + CTA */
+        .counter{ font-size:clamp(16px, 2.7vw, 22px); margin-top:16px }
+        .counter strong{ color:var(--accent) }
+
+        /* Celebration overlay */
+        .celebrate{ position:fixed; inset:0; display:none; place-items:center; backdrop-filter: blur(2px); }
+        .celebrate.show{ display:grid; }
+        .modal{ background:#fff; border-radius:26px; padding:24px 26px; box-shadow:var(--shadow); max-width:640px }
+        .modal h2{ margin:0 0 8px; font-size:clamp(24px,4vw,40px) }
+        .modal p{ margin:0 0 12px; opacity:.8 }
+        .btn{ appearance:none; border:0; background:linear-gradient(135deg, #ff6b6b, #ffd166); color:#222; border-radius:999px; padding:12px 18px; font-weight:700; cursor:pointer; box-shadow:0 10px 16px rgba(0,0,0,.12); }
+
+        /* Confetti */
+        .confetti{ position:fixed; inset:0; pointer-events:none; overflow:hidden }
+        .piece{ position:absolute; width:10px; height:16px; will-change: transform, opacity; }
+    </style>
+</head>
+<body>
+<div class="app">
+    <h1>🎉 Happy Birthday! 🎂</h1>
+    <div class="sub">Blow out all the candles by clicking them.</div>
+
+    <div class="card">
+        <div class="stage">
+            <div class="plate" aria-hidden="true"></div>
+
+            <!-- SVG birthday cake -->
+            <svg viewBox="0 0 560 420" role="img" aria-label="Birthday cake with candles">
+                <!-- Cake body -->
+                <defs>
+                    <linearGradient id="frost" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stop-color="#fff"/>
+                        <stop offset="100%" stop-color="#ffe8f1"/>
+                    </linearGradient>
+                    <linearGradient id="sponge" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stop-color="#ffd9b3"/>
+                        <stop offset="100%" stop-color="#ffcaa1"/>
+                    </linearGradient>
+                </defs>
+
+                <!-- Base layer -->
+                <ellipse cx="280" cy="330" rx="180" ry="26" fill="rgba(0,0,0,.08)"/>
+                <rect x="120" y="180" width="320" height="130" rx="22" fill="url(#sponge)"/>
+                <rect x="110" y="150" width="340" height="60" rx="20" fill="url(#frost)"/>
+
+                <!-- Drips -->
+                <path d="M120 190 q20 24 0 48 v-48 z" fill="#ffe2ee"/>
+                <path d="M193 190 q18 26 0 46 v-46 z" fill="#ffe2ee"/>
+                <path d="M260 190 q18 26 0 46 v-46 z" fill="#ffe2ee"/>
+                <path d="M337 190 q18 26 0 46 v-46 z" fill="#ffe2ee"/>
+                <path d="M410 190 q18 26 0 46 v-46 z" fill="#ffe2ee"/>
+
+                <!-- Number on top of the cake -->
+                <text x="280" y="220" text-anchor="middle" class="cake-number">8</text>
+
+                <!-- Candles group (JS will toggle classes) -->
+                <g id="candles"></g>
+            </svg>
+        </div>
+
+        <div class="counter" id="counter">You have <strong>8</strong> candles left.</div>
+    </div>
+</div>
+
+<!-- Celebration overlay (appears when all candles are out) -->
+<div class="celebrate" id="celebrate">
+    <div class="modal">
+        <h2>Ta-da! ✨</h2>
+        <p>All candles are out — make a wish! 🥳</p>
+        <button class="btn" id="again">Play again</button>
+    </div>
+</div>
+
+<div class="confetti" id="confetti" aria-hidden="true"></div>
+
+<script>
+    // ---- Configuration ----
+    const CANDLE_COUNT = 8;      // Change this number to set how many candles appear
+    const COLORS = [getComputedStyle(document.documentElement).getPropertyValue('--candle1').trim(),
+        getComputedStyle(document.documentElement).getPropertyValue('--candle2').trim(),
+        getComputedStyle(document.documentElement).getPropertyValue('--candle3').trim(),
+        getComputedStyle(document.documentElement).getPropertyValue('--candle4').trim()];
+
+    // ---- Build candles dynamically so it's easy to change the count ----
+    const candleLayer = document.getElementById('candles');
+    const spacing = 320/(CANDLE_COUNT-1 || 1);
+    let litCount = CANDLE_COUNT;
+
+    for(let i=0;i<CANDLE_COUNT;i++){
+        const x = 120 + i*spacing;    // spread across cake top
+        const group = document.createElementNS('http://www.w3.org/2000/svg','g');
+        group.setAttribute('class', 'candle lit');
+        group.setAttribute('data-lit','1');
+        group.style.cursor = 'pointer';
+
+        // Candle body
+        const body = document.createElementNS('http://www.w3.org/2000/svg','rect');
+        body.setAttribute('class','candle-body');
+        body.setAttribute('x', x-10);
+        body.setAttribute('y', 112);
+        body.setAttribute('width', 20);
+        body.setAttribute('height', 52);
+        body.setAttribute('fill', COLORS[i % COLORS.length]);
+
+        // Stripes
+        for(let s=0; s<4; s++){
+            const stripe = document.createElementNS('http://www.w3.org/2000/svg','rect');
+            stripe.setAttribute('x', x-10);
+            stripe.setAttribute('y', 112 + s*13);
+            stripe.setAttribute('width', 20);
+            stripe.setAttribute('height', 6);
+            stripe.setAttribute('fill', 'rgba(255,255,255,.45)');
+            group.appendChild(stripe);
+        }
+
+        // Wick
+        const wick = document.createElementNS('http://www.w3.org/2000/svg','line');
+        wick.setAttribute('class','wick');
+        wick.setAttribute('x1', x);
+        wick.setAttribute('y1', 112);
+        wick.setAttribute('x2', x);
+        wick.setAttribute('y2', 106);
+
+        // Flame
+        const flame = document.createElementNS('http://www.w3.org/2000/svg','g');
+        flame.setAttribute('class','flame');
+        const outer = document.createElementNS('http://www.w3.org/2000/svg','path');
+        outer.setAttribute('d','M '+x+' 100 q 8 -16 0 -26 q -8 10 0 26 z');
+        outer.setAttribute('fill','#ffb703');
+        const inner = document.createElementNS('http://www.w3.org/2000/svg','ellipse');
+        inner.setAttribute('cx', x);
+        inner.setAttribute('cy', 90);
+        inner.setAttribute('rx', 4);
+        inner.setAttribute('ry', 8);
+        inner.setAttribute('fill','#ffd166');
+        flame.appendChild(outer); flame.appendChild(inner);
+
+        // Poof cloud (three circles that expand)
+        const poof = document.createElementNS('http://www.w3.org/2000/svg','g');
+        poof.setAttribute('class','poof');
+        const p1 = document.createElementNS('http://www.w3.org/2000/svg','circle'); p1.setAttribute('cx',x); p1.setAttribute('cy',100); p1.setAttribute('r',0); p1.setAttribute('fill','rgba(200,200,200,.4)');
+        const p2 = document.createElementNS('http://www.w3.org/2000/svg','circle'); p2.setAttribute('cx',x-7); p2.setAttribute('cy',105); p2.setAttribute('r',0); p2.setAttribute('fill','rgba(200,200,200,.3)');
+        const p3 = document.createElementNS('http://www.w3.org/2000/svg','circle'); p3.setAttribute('cx',x+7); p3.setAttribute('cy',105); p3.setAttribute('r',0); p3.setAttribute('fill','rgba(200,200,200,.3)');
+        poof.appendChild(p1); poof.appendChild(p2); poof.appendChild(p3);
+
+        group.appendChild(body);
+        group.appendChild(wick);
+        group.appendChild(flame);
+        group.appendChild(poof);
+        candleLayer.appendChild(group);
+    }
+
+    // Initialize counter
+    const counter = document.getElementById('counter');
+    const updateCounter = () => {
+        counter.innerHTML = `You have <strong>${litCount}</strong> candle${litCount===1?'':'s'} left.`;
+    };
+    updateCounter();
+
+    // Click-to-blow logic
+    candleLayer.addEventListener('click', (e) => {
+        const g = e.target.closest('.candle');
+        if(!g) return;
+        const isLit = g.getAttribute('data-lit') === '1';
+        if(!isLit) return; // already blown
+
+        g.classList.remove('lit');
+        g.classList.add('unlit');
+        g.setAttribute('data-lit','0');
+        const poof = g.querySelector('.poof');
+        poof.classList.remove('go'); // restart if needed
+        // force reflow to restart animation reliably
+        void poof.getBBox();
+        poof.classList.add('go');
+        playBlowSound();
+
+        litCount = Math.max(0, litCount - 1);
+        updateCounter();
+        if(litCount===0){
+            celebrate();
+        }
+    });
+
+    // --- Sounds ---
+    let audioCtx;
+    function getCtx(){
+        if(!audioCtx){ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+        return audioCtx;
+    }
+    function beep(freq=660, dur=0.08, type='sine', gain=0.06){
+        const ctx = getCtx();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = type; o.frequency.value = freq;
+        g.gain.setValueAtTime(gain, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+        o.connect(g).connect(ctx.destination);
+        o.start();
+        o.stop(ctx.currentTime + dur);
+    }
+    function playBlowSound(){
+        // soft puff: filtered noise burst
+        const ctx = getCtx();
+        const bufferSize = 2 * ctx.sampleRate * 0.12;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < buffer.length; i++) { data[i] = (Math.random()*2-1) * Math.pow(1 - i/buffer.length, 2); }
+        const noise = ctx.createBufferSource(); noise.buffer = buffer;
+        const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 600;
+        const g = ctx.createGain(); g.gain.value = 0.35;
+        noise.connect(filter).connect(g).connect(ctx.destination);
+        noise.start();
+    }
+    function playTada(){
+        // quick, happy chord sparkle + short melody (C major-ish)
+        const ctx = getCtx();
+        const now = ctx.currentTime + 0.03;
+        const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+        notes.forEach((f,i)=>{
+            const o = ctx.createOscillator(); o.type='triangle'; o.frequency.setValueAtTime(f, now);
+            const g = ctx.createGain(); g.gain.value = 0.001; g.gain.exponentialRampToValueAtTime(0.2, now+0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, now+0.6);
+            const d = ctx.createDelay(); d.delayTime.value = 0.08 + i*0.02;
+            o.connect(g).connect(d).connect(ctx.destination);
+            o.start(now); o.stop(now+0.7);
+        });
+        // little 3-note tag
+        const tags = [880, 988, 1046.5];
+        tags.forEach((f, idx)=> setTimeout(()=>beep(f, 0.12, 'sine', 0.08), 380 + idx*140));
+    }
+
+    // --- Confetti ---
+    const confettiRoot = document.getElementById('confetti');
+    function confettiBurst(count=120){
+        const w = window.innerWidth, h = window.innerHeight;
+        for(let i=0;i<count;i++){
+            const d = document.createElement('div');
+            d.className = 'piece';
+            d.style.background = `hsl(${Math.random()*360}, 85%, 60%)`;
+            d.style.left = (Math.random()*w) + 'px';
+            d.style.top = (-20 - Math.random()*60) + 'px';
+            const rot = Math.random()*360;
+            const drift = (Math.random()*2-1)*40;
+            const fall = h + 60 + Math.random()*200;
+            const dur = 1800 + Math.random()*1600;
+            d.animate([
+                { transform:`translate(0,0) rotate(${rot}deg)`, opacity:1 },
+                { transform:`translate(${drift}px, ${fall}px) rotate(${rot+360}deg)`, opacity:0.9 }
+            ], { duration: dur, easing:'cubic-bezier(.25,.8,.35,1)', iterations:1, fill:'forwards' });
+            confettiRoot.appendChild(d);
+            setTimeout(()=>d.remove(), dur+100);
+        }
+    }
+
+    // --- Celebration Flow ---
+    const overlay = document.getElementById('celebrate');
+    const againBtn = document.getElementById('again');
+
+    function celebrate(){
+        playTada();
+        confettiBurst();
+        overlay.classList.add('show');
+    }
+
+    againBtn.addEventListener('click', () => {
+        // reset
+        overlay.classList.remove('show');
+        litCount = CANDLE_COUNT;
+        document.querySelectorAll('.candle').forEach(g=>{
+            g.classList.remove('unlit');
+            g.classList.add('lit');
+            g.setAttribute('data-lit','1');
+            const poof = g.querySelector('.poof');
+            poof.classList.remove('go');
+        });
+        updateCounter();
+    });
+</script>
+</body>
+</html>
