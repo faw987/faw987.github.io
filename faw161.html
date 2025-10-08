@@ -135,16 +135,16 @@ Paris,,France
 
         <div>
             <label for="rules">Color Rules (one per line)</label>
-            <textarea id="rules" spellcheck="false">High(F)=-99#50:blue,51#65:lightgreen,66#85:green,85#110:red
-Low(F)=-99#40:red,41#65:pink,66#85:green
-Temp (°F)=-99#40:red,41#65:pink,66#85:green
-Precip (in)=0.00#0.10:green,0.10#0.20:pink,0.20#10.0:red
-UV=0#2:lightgreen,3#5:green,6#7:gold,8#11:orange
-Wind (mph)=0#15:lightgreen,16#25:yellow,26#200:salmon
-Gust (mph)=0#15:lightgreen,16#25:yellow,26#200:salmon
-RH (%)=0#60:lightgreen,61#75:yellow,76#100:orange
-Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pink,Drizzle light:red,Drizzle mod:red,Drizzle heavy:red,Rain light:red,Rain mod:red,Rain heavy:red</textarea>
-            <p class="sub">Date/Time cells auto-highlight by row severity (red &gt; orange &gt; yellow &gt; green). Daily rows summarize only hours within your window.</p>
+            <textarea id="rules" spellcheck="false">High(F)=-99#50.999:blue,51#65.999:lightgreen,66#85.999:green,85#110:red
+Low(F)=-99#40.999:red,41#65.999:pink,66#85:green
+Temp (°F)=-99#40.999:red,41#65.999:yellow,66#85:green
+Precip (in)=0.00#0.0999:green,0.10#0.1999:yellow,0.20#10.0:red
+UV=0#2.999:lightgreen,3#5.999:green,6#7.999:gold,8#11:red
+Wind (mph)=0#15.999:lightgreen,16#25.999:yellow,26#200:red
+Gust (mph)=0#15.999:lightgreen,16#25.999:yellow,26#200:red
+RH (%)=0#60.999:lightgreen,61#75.999:green,76#100:yellow
+Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pink,Drizzle light:red,Drizzle mod:red,Drizzle heavy:red,Rain light:red,Rain mod:red,Rain heavy:red,Overcast:green,Rain showers:red,Rain shw mod:red</textarea>
+                <p class="sub">Date/Time cells auto-highlight by row severity (red &gt; orange &gt; yellow &gt; green). Daily rows summarize only hours within your window.</p>
         </div>
     </section>
 
@@ -928,7 +928,9 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
                         const dot = el("span", { class:"hour-dot", title:`${p.label} — ${dayISO} ${hh}:00` });
                         dot.style.background = c;
                         dot.addEventListener("click", () => {
-                            const url = `https://weather&${encodeURIComponent(p.label)}&${encodeURIComponent(dayISO)}&${encodeURIComponent(hh)}`;
+                            // const url = `https://weather&${encodeURIComponent(p.label)}&${encodeURIComponent(dayISO)}&${encodeURIComponent(hh)}`;
+                            const url = `https://weather.com/hourbyhour/l/${encodeURIComponent(p.label)}`;
+                            // https://weather.com/weather/hourbyhour/l/New+York+NY
                             window.open(url, "_blank", "noopener");
                         });
                         wrap.append(dot);
