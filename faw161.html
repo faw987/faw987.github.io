@@ -61,6 +61,12 @@
         .hour-row { display:flex; gap:4px; flex-wrap:wrap; }
         .hour-dot { width:14px; height:14px; border-radius:4px; background:#2a3a6a; cursor:pointer; display:inline-block; border:1px solid #1f2b4d; }
         .summary-note { color: var(--muted); font-size:12px; margin-top:6px; }
+
+        /* Dark + bold text whenever a cell has an inline background color */
+        table.wx td[style*="background"] {
+            color: #111;
+            font-weight: 600; /* or 700 if you want heavier */
+        }
     </style>
 </head>
 
