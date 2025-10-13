@@ -106,6 +106,7 @@
     const btnSnap = el('snap');
 
     let timer = null;
+    let inFlight = false; // prevent overlapping requests
 
     // Load saved interval
     const saved = Number(localStorage.getItem('geo.updateIntervalSec'));
@@ -127,6 +128,9 @@
       statusEl.textContent = msg;
       statusEl.className = 'status ' + (cls || '');
     }
+
+    // lightweight debug logger visible in console
+    function log(){ try { console.log('[GeoTracker]', ...arguments); } catch(_){} }
 
     function updateUI(pos){
       const { latitude, longitude, accuracy, altitude, speed, heading } = pos.coords;
@@ -154,69 +158,118 @@
 
       accEl.innerHTML = `${fmt(accuracy, 0)} <span class="unit">m</span>`;
       altEl.textContent = `Alt: ${fmt(altitude, 1)} m`;
-      stampEl.textContent = new Date(pos.timestamp).toLocaleString();
+      const ts = new Date(pos.timestamp);
+      stampEl.textContent = ts.toLocaleString();
+
+      setStatus(`Last update succeeded at ${ts.toLocaleTimeString()}.`, 'ok');
+      inFlight = false;
+      log('update ok', {coords: pos.coords, timestamp: ts});
+    } = pos.coords;
+    latEl.textContent = fmt(latitude, 6);
+    lngEl.textContent = fmt(longitude, 6);
+
+    if (speed == null) {
+      speedEl.innerHTML = '— <span class="unit">m/s</span>';
+      speedAuxEl.textContent = '— km/h • — mph';
+    } else {
+      const kmh = speed * 3.6;
+      const mph = speed * 2.236936;
+      speedEl.innerHTML = `${fmt(speed, 2)} <span class="unit">m/s</span>`;
+      speedAuxEl.textContent = `${fmt(kmh, 1)} km/h • ${fmt(mph, 1)} mph`;
     }
 
-    function handleError(err){
-      const map = {
-        1: 'Permission denied. Please allow location access.',
-        2: 'Position unavailable. Try moving to an open area or check your connection.',
-        3: 'Timeout while retrieving position. Try again.'
-      };
-      setStatus(map[err.code] || ('Error: ' + err.message), 'err');
+    if (heading == null) {
+      bearingEl.innerHTML = '— <span class="unit">deg</span>';
+      bearingCardEl.textContent = 'Heading unavailable (stationary or sensor unsupported)';
+    } else {
+      const norm = (heading + 360) % 360;
+      bearingEl.innerHTML = `${fmt(norm, 0)} <span class="unit">deg</span>`;
+      bearingCardEl.textContent = toCardinal(norm);
     }
 
-    function getOnce(){
-      if (!('geolocation' in navigator)){
-        setStatus('Geolocation not supported by this browser.', 'err');
-        return;
-      }
-      setStatus('Updating…', '');
-      navigator.geolocation.getCurrentPosition(updateUI, handleError, {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      });
-    }
+    accEl.innerHTML = `${fmt(accuracy, 0)} <span class="unit">m</span>`;
+    altEl.textContent = `Alt: ${fmt(altitude, 1)} m`;
+    stampEl.textContent = new Date(pos.timestamp).toLocaleString();
+  }
 
-    function start(){
-      const sec = Math.max(1, Number(intervalInput.value) || 5);
-      intervalInput.value = String(sec);
-      localStorage.setItem('geo.updateIntervalSec', String(sec));
-      if (timer) clearInterval(timer);
-      getOnce();
+  function handleError(err){
+    const map = {
+      1: 'Permission denied. Please allow location access.',
+      2: 'Position unavailable. Try moving to an open area or check your connection.',
+      3: 'Timeout while retrieving position. Try again.'
+    };
+    setStatus(map[err.code] || ('Error: ' + err.message), 'err');
+    inFlight = false;
+    log('update error', err);
+  };
+  setStatus(map[err.code] || ('Error: ' + err.message), 'err');
+  }
+
+  function getOnce(){
+    if (!('geolocation' in navigator)){
+      setStatus('Geolocation not supported by this browser.', 'err');
+      return;
+    }
+    if (inFlight) return; // avoid piling up requests
+    inFlight = true;
+    setStatus('Updating…', '');
+    navigator.geolocation.getCurrentPosition(updateUI, handleError, {
+      enableHighAccuracy: true,
+      timeout: 20000,        // allow more time for a GPS fix on iOS
+      maximumAge: 30000      // allow a recent cached position for snappier UX
+    });
+  }
+  setStatus('Updating…', '');
+  navigator.geolocation.getCurrentPosition(updateUI, handleError, {
+    enableHighAccuracy: true,
+    timeout: 10000,
+    maximumAge: 0
+  });
+  }
+
+  function start(){
+    const sec = Math.max(1, Number(intervalInput.value) || 5);
+    intervalInput.value = String(sec);
+    localStorage.setItem('geo.updateIntervalSec', String(sec));
+    if (timer) clearInterval(timer);
+    getOnce();
+    timer = setInterval(getOnce, sec * 1000);
+    btnStart.disabled = true;
+    btnStop.disabled = false;
+    setStatus(`Auto-updating every ${sec} second${sec===1?'':'s'}.`, 'ok');
+    log('auto-update started', {intervalSec: sec});
+  } second${sec===1?'':'s'}.`, 'ok');
+  }
+
+  function stop(){
+    if (timer) clearInterval(timer);
+    timer = null;
+    inFlight = false;
+    btnStart.disabled = false;
+    btnStop.disabled = true;
+    setStatus('Auto-updates paused. Use "Update once" or press Start.', 'warn');
+    log('auto-update stopped');
+  }
+
+  // UI events
+  btnStart.addEventListener('click', start);
+  btnStop.addEventListener('click', stop);
+  btnSnap.addEventListener('click', getOnce);
+  intervalInput.addEventListener('change', () => {
+    const sec = Math.max(1, Number(intervalInput.value) || 5);
+    intervalInput.value = String(sec);
+    localStorage.setItem('geo.updateIntervalSec', String(sec));
+    if (timer) { // if running, apply immediately
+      clearInterval(timer);
       timer = setInterval(getOnce, sec * 1000);
-      btnStart.disabled = true;
-      btnStop.disabled = false;
       setStatus(`Auto-updating every ${sec} second${sec===1?'':'s'}.`, 'ok');
     }
+  });
 
-    function stop(){
-      if (timer) clearInterval(timer);
-      timer = null;
-      btnStart.disabled = false;
-      btnStop.disabled = true;
-      setStatus('Auto-updates paused. Use "Update once" or press Start.', 'warn');
-    }
-
-    // UI events
-    btnStart.addEventListener('click', start);
-    btnStop.addEventListener('click', stop);
-    btnSnap.addEventListener('click', getOnce);
-    intervalInput.addEventListener('change', () => {
-      const sec = Math.max(1, Number(intervalInput.value) || 5);
-      intervalInput.value = String(sec);
-      localStorage.setItem('geo.updateIntervalSec', String(sec));
-      if (timer) { // if running, apply immediately
-        clearInterval(timer);
-        timer = setInterval(getOnce, sec * 1000);
-        setStatus(`Auto-updating every ${sec} second${sec===1?'':'s'}.`, 'ok');
-      }
-    });
-
-    // Try an initial single update on load
-    getOnce();
-  })();
+  // Try an initial single update on load
+  getOnce();
+  log('page ready');
+})();
 </script>
 </body>
 </html>
