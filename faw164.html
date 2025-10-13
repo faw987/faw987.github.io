@@ -31,6 +31,9 @@
     .err { color:#ff9a9a; }
     footer { margin-top:18px; font-size:13px; color:var(--muted); display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
     .pill { border:1px solid rgba(255,255,255,0.1); padding:6px 10px; border-radius:999px; }
+    details { margin-top:14px; }
+    summary { cursor:pointer; }
+    pre { background:#0f1730; color:#e6eef9; border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:12px; overflow:auto; }
     @media (max-width:720px){ .grid, .grid-3{ grid-template-columns:1fr; } header { gap:8px; } }
   </style>
 </head>
@@ -80,6 +83,16 @@
     <div class="status muted">Last update: <span id="stamp">—</span></div>
   </section>
 
+  <details>
+    <summary>Diagnostics & Tests</summary>
+    <div class="row" style="margin:8px 0; gap:8px">
+      <span class="pill">Geolocation supported: <strong id="g-support">?</strong></span>
+      <button id="run-tests" class="secondary">Run tests</button>
+      <button id="mock" class="secondary">Mock update</button>
+    </div>
+    <pre id="test-output" aria-live="polite">(no test output yet)</pre>
+  </details>
+
   <footer>
     <span class="pill">Uses the W3C Geolocation API</span>
     <span class="pill">Best over HTTPS</span>
@@ -104,6 +117,10 @@
     const btnStart = el('start');
     const btnStop = el('stop');
     const btnSnap = el('snap');
+    const runTestsBtn = el('run-tests');
+    const testOut = el('test-output');
+    const mockBtn = el('mock');
+    const gSupport = el('g-support');
 
     let timer = null;
     let inFlight = false; // prevent overlapping requests
@@ -129,8 +146,12 @@
       statusEl.className = 'status ' + (cls || '');
     }
 
-    // lightweight debug logger visible in console
-    function log(){ try { console.log('[GeoTracker]', ...arguments); } catch(_){} }
+    // debug logger (also mirrors to test panel)
+    function log(){
+      try { console.log('[GeoTracker]', ...arguments); } catch(_){/*noop*/}
+      const line = Array.from(arguments).map(v => typeof v === 'string' ? v : JSON.stringify(v)).join(' ');
+      if (testOut) testOut.textContent += (testOut.textContent === '(no test output yet)' ? '' : '\n') + line;
+    }
 
     function updateUI(pos){
       const { latitude, longitude, accuracy, altitude, speed, heading } = pos.coords;
@@ -163,113 +184,129 @@
 
       setStatus(`Last update succeeded at ${ts.toLocaleTimeString()}.`, 'ok');
       inFlight = false;
-      log('update ok', {coords: pos.coords, timestamp: ts});
-    } = pos.coords;
-    latEl.textContent = fmt(latitude, 6);
-    lngEl.textContent = fmt(longitude, 6);
-
-    if (speed == null) {
-      speedEl.innerHTML = '— <span class="unit">m/s</span>';
-      speedAuxEl.textContent = '— km/h • — mph';
-    } else {
-      const kmh = speed * 3.6;
-      const mph = speed * 2.236936;
-      speedEl.innerHTML = `${fmt(speed, 2)} <span class="unit">m/s</span>`;
-      speedAuxEl.textContent = `${fmt(kmh, 1)} km/h • ${fmt(mph, 1)} mph`;
+      log('update ok', {coords: pos.coords, timestamp: ts.toISOString()});
     }
 
-    if (heading == null) {
-      bearingEl.innerHTML = '— <span class="unit">deg</span>';
-      bearingCardEl.textContent = 'Heading unavailable (stationary or sensor unsupported)';
-    } else {
-      const norm = (heading + 360) % 360;
-      bearingEl.innerHTML = `${fmt(norm, 0)} <span class="unit">deg</span>`;
-      bearingCardEl.textContent = toCardinal(norm);
+    function handleError(err){
+      const map = {
+        1: 'Permission denied. Please allow location access.',
+        2: 'Position unavailable. Try moving to an open area or check your connection.',
+        3: 'Timeout while retrieving position. Try again.'
+      };
+      setStatus(map[err.code] || ('Error: ' + err.message), 'err');
+      inFlight = false;
+      log('update error', err);
     }
 
-    accEl.innerHTML = `${fmt(accuracy, 0)} <span class="unit">m</span>`;
-    altEl.textContent = `Alt: ${fmt(altitude, 1)} m`;
-    stampEl.textContent = new Date(pos.timestamp).toLocaleString();
-  }
-
-  function handleError(err){
-    const map = {
-      1: 'Permission denied. Please allow location access.',
-      2: 'Position unavailable. Try moving to an open area or check your connection.',
-      3: 'Timeout while retrieving position. Try again.'
-    };
-    setStatus(map[err.code] || ('Error: ' + err.message), 'err');
-    inFlight = false;
-    log('update error', err);
-  };
-  setStatus(map[err.code] || ('Error: ' + err.message), 'err');
-  }
-
-  function getOnce(){
-    if (!('geolocation' in navigator)){
-      setStatus('Geolocation not supported by this browser.', 'err');
-      return;
+    function getOnce(){
+      if (!('geolocation' in navigator)){
+        setStatus('Geolocation not supported by this browser.', 'err');
+        return;
+      }
+      if (inFlight) return; // avoid piling up requests
+      inFlight = true;
+      setStatus('Updating…', '');
+      navigator.geolocation.getCurrentPosition(updateUI, handleError, {
+        enableHighAccuracy: true,
+        timeout: 20000,        // allow more time for a GPS fix on iOS
+        maximumAge: 30000      // allow a recent cached position for snappier UX
+      });
     }
-    if (inFlight) return; // avoid piling up requests
-    inFlight = true;
-    setStatus('Updating…', '');
-    navigator.geolocation.getCurrentPosition(updateUI, handleError, {
-      enableHighAccuracy: true,
-      timeout: 20000,        // allow more time for a GPS fix on iOS
-      maximumAge: 30000      // allow a recent cached position for snappier UX
-    });
-  }
-  setStatus('Updating…', '');
-  navigator.geolocation.getCurrentPosition(updateUI, handleError, {
-    enableHighAccuracy: true,
-    timeout: 10000,
-    maximumAge: 0
-  });
-  }
 
-  function start(){
-    const sec = Math.max(1, Number(intervalInput.value) || 5);
-    intervalInput.value = String(sec);
-    localStorage.setItem('geo.updateIntervalSec', String(sec));
-    if (timer) clearInterval(timer);
-    getOnce();
-    timer = setInterval(getOnce, sec * 1000);
-    btnStart.disabled = true;
-    btnStop.disabled = false;
-    setStatus(`Auto-updating every ${sec} second${sec===1?'':'s'}.`, 'ok');
-    log('auto-update started', {intervalSec: sec});
-  } second${sec===1?'':'s'}.`, 'ok');
-  }
-
-  function stop(){
-    if (timer) clearInterval(timer);
-    timer = null;
-    inFlight = false;
-    btnStart.disabled = false;
-    btnStop.disabled = true;
-    setStatus('Auto-updates paused. Use "Update once" or press Start.', 'warn');
-    log('auto-update stopped');
-  }
-
-  // UI events
-  btnStart.addEventListener('click', start);
-  btnStop.addEventListener('click', stop);
-  btnSnap.addEventListener('click', getOnce);
-  intervalInput.addEventListener('change', () => {
-    const sec = Math.max(1, Number(intervalInput.value) || 5);
-    intervalInput.value = String(sec);
-    localStorage.setItem('geo.updateIntervalSec', String(sec));
-    if (timer) { // if running, apply immediately
-      clearInterval(timer);
+    function start(){
+      const sec = Math.max(1, Number(intervalInput.value) || 5);
+      intervalInput.value = String(sec);
+      localStorage.setItem('geo.updateIntervalSec', String(sec));
+      if (timer) clearInterval(timer);
+      getOnce();
       timer = setInterval(getOnce, sec * 1000);
+      btnStart.disabled = true;
+      btnStop.disabled = false;
       setStatus(`Auto-updating every ${sec} second${sec===1?'':'s'}.`, 'ok');
+      log('auto-update started', {intervalSec: sec});
     }
-  });
 
-  // Try an initial single update on load
-  getOnce();
-  log('page ready');
-})();
+    function stop(){
+      if (timer) clearInterval(timer);
+      timer = null;
+      inFlight = false;
+      btnStart.disabled = false;
+      btnStop.disabled = true;
+      setStatus('Auto-updates paused. Use "Update once" or press Start.', 'warn');
+      log('auto-update stopped');
+    }
+
+    // UI events
+    btnStart.addEventListener('click', start);
+    btnStop.addEventListener('click', stop);
+    btnSnap.addEventListener('click', getOnce);
+    intervalInput.addEventListener('change', () => {
+      const sec = Math.max(1, Number(intervalInput.value) || 5);
+      intervalInput.value = String(sec);
+      localStorage.setItem('geo.updateIntervalSec', String(sec));
+      if (timer) { // if running, apply immediately
+        clearInterval(timer);
+        timer = setInterval(getOnce, sec * 1000);
+        setStatus(`Auto-updating every ${sec} second${sec===1?'':'s'}.`, 'ok');
+        log('interval changed', {intervalSec: sec});
+      }
+    });
+
+    // ---- Minimal test suite ----
+    function assertEq(actual, expected, label){
+      const ok = Object.is(actual, expected);
+      log((ok ? '✅' : '❌') + ' ' + (label||'assert'), '\n   expected:', expected, '\n   actual  :', actual);
+      return ok;
+    }
+
+    function runTests(){
+      testOut.textContent = '';
+      let pass = true;
+      // fmt tests
+      pass &= assertEq(fmt(null), '—', 'fmt(null) is em dash');
+      pass &= assertEq(fmt(1.2345678, 2), '1.23', 'fmt rounds to 2 dp');
+
+      // toCardinal tests
+      pass &= assertEq(toCardinal(0), 'N', '0° = N');
+      pass &= assertEq(toCardinal(90), 'E', '90° = E');
+      pass &= assertEq(toCardinal(180), 'S', '180° = S');
+      pass &= assertEq(toCardinal(270), 'W', '270° = W');
+      pass &= assertEq(toCardinal(225), 'SW', '225° = SW');
+
+      // updateUI tests with mock positions
+      const now = Date.now();
+      updateUI({ coords:{ latitude:12.3456789, longitude:-98.7654321, accuracy:5, altitude:10, speed:null, heading:null }, timestamp: now });
+      pass &= assertEq(latEl.textContent, '12.345679', 'lat rounded to 6 dp');
+      pass &= assertEq(lngEl.textContent, '-98.765432', 'lng rounded to 6 dp');
+      pass &= assertEq(/—/.test(speedEl.textContent), true, 'speed placeholder when null');
+
+      updateUI({ coords:{ latitude:0, longitude:0, accuracy:3, altitude:0, speed:10, heading:90 }, timestamp: now });
+      pass &= assertEq(/36\.0 km\/h/.test(speedAuxEl.textContent), true, 'km/h computed from m/s');
+      pass &= assertEq(/22\.4 mph/.test(speedAuxEl.textContent), true, 'mph computed from m/s');
+      pass &= assertEq(bearingCardEl.textContent, 'E', 'heading 90° → E');
+
+      // start/stop button state
+      start();
+      pass &= assertEq(btnStart.disabled, true, 'start disables Start button');
+      pass &= assertEq(btnStop.disabled, false, 'start enables Stop button');
+      stop();
+      pass &= assertEq(btnStart.disabled, false, 'stop re-enables Start');
+
+      log(pass ? '🎉 All tests passed' : '⚠️ Some tests failed');
+    }
+
+    // diagnostics
+    gSupport.textContent = ('geolocation' in navigator) ? 'yes' : 'no';
+    runTestsBtn.addEventListener('click', runTests);
+    mockBtn.addEventListener('click', () => {
+      const ts = Date.now();
+      updateUI({ coords:{ latitude: 37.4219999, longitude: -122.0840575, accuracy: 8, altitude: 12.3, speed: 0, heading: null }, timestamp: ts });
+    });
+
+    // Try an initial single update on load
+    getOnce();
+    log('page ready');
+  })();
 </script>
 </body>
 </html>
