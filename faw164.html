@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Geo Tracker v1</title>
+  <style>
+    :root { --bg:#0b1020; --panel:#121a33; --muted:#9fb0c5; --text:#e6eef9; --accent:#6cc4ff; }
+    html,body { height:100%; }
+    body { margin:0; font:16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:radial-gradient(1200px 600px at 20% 0%, #101a38, #0b1020 60%); color:var(--text); }
+    .wrap { max-width:920px; margin:0 auto; padding:24px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    h1 { font-size:clamp(20px, 3vw, 28px); margin:0; letter-spacing:0.2px; }
+    .card { background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)); border:1px solid rgba(255,255,255,0.08); border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.25); padding:18px; backdrop-filter: blur(6px); }
+    .grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; }
+    .grid-3 { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    label { font-size:14px; color:var(--muted); }
+    input[type="number"] { width:110px; background:#0f1730; color:var(--text); border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:10px 12px; outline:none; }
+    input[type="number"]:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(108,196,255,0.25); }
+    button { cursor:pointer; background:linear-gradient(180deg, #1d2a56, #152043); color:#dff2ff; border:1px solid rgba(108,196,255,0.35); border-radius:12px; padding:10px 14px; font-weight:600; letter-spacing:0.2px; }
+    button.secondary { background:#101834; border-color:rgba(255,255,255,0.15); color:#cfe3fb; }
+    button:disabled { opacity:.6; cursor:not-allowed; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .muted { color:var(--muted); }
+    .value { font-size:clamp(18px, 2.2vw, 22px); font-weight:700; }
+    .unit { font-size:12px; color:var(--muted); margin-left:6px; }
+    .status { margin-top:10px; font-size:14px; }
+    .ok { color:#9af5b1; }
+    .warn { color:#ffd27a; }
+    .err { color:#ff9a9a; }
+    footer { margin-top:18px; font-size:13px; color:var(--muted); display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    .pill { border:1px solid rgba(255,255,255,0.1); padding:6px 10px; border-radius:999px; }
+    @media (max-width:720px){ .grid, .grid-3{ grid-template-columns:1fr; } header { gap:8px; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Geo Tracker <span class="muted">v1</span></h1>
+    <div class="row" role="group" aria-label="Controls">
+      <label for="interval">Update every</label>
+      <input id="interval" type="number" min="1" step="1" value="5" aria-label="Update interval in seconds" />
+      <span class="muted">seconds</span>
+      <button id="start">Start</button>
+      <button id="stop" class="secondary" disabled>Stop</button>
+      <button id="snap" class="secondary">Update once</button>
+    </div>
+  </header>
+
+  <section class="card" aria-live="polite" aria-atomic="true">
+    <div class="grid">
+      <div>
+        <div class="muted">Latitude</div>
+        <div class="value mono" id="lat">—</div>
+      </div>
+      <div>
+        <div class="muted">Longitude</div>
+        <div class="value mono" id="lng">—</div>
+      </div>
+    </div>
+    <div class="grid-3" style="margin-top:12px">
+      <div>
+        <div class="muted">Speed</div>
+        <div class="value mono" id="speed">— <span class="unit">m/s</span></div>
+        <div class="muted" id="speed-aux">— km/h • — mph</div>
+      </div>
+      <div>
+        <div class="muted">Bearing</div>
+        <div class="value mono" id="bearing">— <span class="unit">deg</span></div>
+        <div class="muted" id="bearing-card">—</div>
+      </div>
+      <div>
+        <div class="muted">Accuracy</div>
+        <div class="value mono" id="acc">— <span class="unit">m</span></div>
+        <div class="muted" id="alt">Alt: — m</div>
+      </div>
+    </div>
+    <div class="status" id="status">Waiting for location…</div>
+    <div class="status muted">Last update: <span id="stamp">—</span></div>
+  </section>
+
+  <footer>
+    <span class="pill">Uses the W3C Geolocation API</span>
+    <span class="pill">Best over HTTPS</span>
+    <span class="pill">High accuracy: on</span>
+  </footer>
+</div>
+
+<script>
+  (function(){
+    const el = id => document.getElementById(id);
+    const latEl = el('lat');
+    const lngEl = el('lng');
+    const speedEl = el('speed');
+    const speedAuxEl = el('speed-aux');
+    const bearingEl = el('bearing');
+    const bearingCardEl = el('bearing-card');
+    const accEl = el('acc');
+    const altEl = el('alt');
+    const stampEl = el('stamp');
+    const statusEl = el('status');
+    const intervalInput = el('interval');
+    const btnStart = el('start');
+    const btnStop = el('stop');
+    const btnSnap = el('snap');
+
+    let timer = null;
+
+    // Load saved interval
+    const saved = Number(localStorage.getItem('geo.updateIntervalSec'));
+    if (!Number.isNaN(saved) && saved > 0) intervalInput.value = String(saved);
+
+    function fmt(n, digits=6){
+      if (n == null || Number.isNaN(n)) return '—';
+      return Number(n).toFixed(digits);
+    }
+
+    function toCardinal(deg){
+      if (deg == null || Number.isNaN(deg)) return 'Heading unavailable (stationary?)';
+      const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+      const ix = Math.round(((deg % 360) / 22.5)) % 16;
+      return dirs[ix];
+    }
+
+    function setStatus(msg, cls){
+      statusEl.textContent = msg;
+      statusEl.className = 'status ' + (cls || '');
+    }
+
+    function updateUI(pos){
+      const { latitude, longitude, accuracy, altitude, speed, heading } = pos.coords;
+      latEl.textContent = fmt(latitude, 6);
+      lngEl.textContent = fmt(longitude, 6);
+
+      if (speed == null) {
+        speedEl.innerHTML = '— <span class="unit">m/s</span>';
+        speedAuxEl.textContent = '— km/h • — mph';
+      } else {
+        const kmh = speed * 3.6;
+        const mph = speed * 2.236936;
+        speedEl.innerHTML = `${fmt(speed, 2)} <span class="unit">m/s</span>`;
+        speedAuxEl.textContent = `${fmt(kmh, 1)} km/h • ${fmt(mph, 1)} mph`;
+      }
+
+      if (heading == null) {
+        bearingEl.innerHTML = '— <span class="unit">deg</span>';
+        bearingCardEl.textContent = 'Heading unavailable (stationary or sensor unsupported)';
+      } else {
+        const norm = (heading + 360) % 360;
+        bearingEl.innerHTML = `${fmt(norm, 0)} <span class="unit">deg</span>`;
+        bearingCardEl.textContent = toCardinal(norm);
+      }
+
+      accEl.innerHTML = `${fmt(accuracy, 0)} <span class="unit">m</span>`;
+      altEl.textContent = `Alt: ${fmt(altitude, 1)} m`;
+      stampEl.textContent = new Date(pos.timestamp).toLocaleString();
+    }
+
+    function handleError(err){
+      const map = {
+        1: 'Permission denied. Please allow location access.',
+        2: 'Position unavailable. Try moving to an open area or check your connection.',
+        3: 'Timeout while retrieving position. Try again.'
+      };
+      setStatus(map[err.code] || ('Error: ' + err.message), 'err');
+    }
+
+    function getOnce(){
+      if (!('geolocation' in navigator)){
+        setStatus('Geolocation not supported by this browser.', 'err');
+        return;
+      }
+      setStatus('Updating…', '');
+      navigator.geolocation.getCurrentPosition(updateUI, handleError, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      });
+    }
+
+    function start(){
+      const sec = Math.max(1, Number(intervalInput.value) || 5);
+      intervalInput.value = String(sec);
+      localStorage.setItem('geo.updateIntervalSec', String(sec));
+      if (timer) clearInterval(timer);
+      getOnce();
+      timer = setInterval(getOnce, sec * 1000);
+      btnStart.disabled = true;
+      btnStop.disabled = false;
+      setStatus(`Auto-updating every ${sec} second${sec===1?'':'s'}.`, 'ok');
+    }
+
+    function stop(){
+      if (timer) clearInterval(timer);
+      timer = null;
+      btnStart.disabled = false;
+      btnStop.disabled = true;
+      setStatus('Auto-updates paused. Use "Update once" or press Start.', 'warn');
+    }
+
+    // UI events
+    btnStart.addEventListener('click', start);
+    btnStop.addEventListener('click', stop);
+    btnSnap.addEventListener('click', getOnce);
+    intervalInput.addEventListener('change', () => {
+      const sec = Math.max(1, Number(intervalInput.value) || 5);
+      intervalInput.value = String(sec);
+      localStorage.setItem('geo.updateIntervalSec', String(sec));
+      if (timer) { // if running, apply immediately
+        clearInterval(timer);
+        timer = setInterval(getOnce, sec * 1000);
+        setStatus(`Auto-updating every ${sec} second${sec===1?'':'s'}.`, 'ok');
+      }
+    });
+
+    // Try an initial single update on load
+    getOnce();
+  })();
+</script>
+</body>
+</html>
