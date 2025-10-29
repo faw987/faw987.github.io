@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>GPX Track Interpolator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+        :root { --border:#cbd5e1; --muted:#64748b; --bg:#f8fafc; }
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; }
+        #controls { padding: 12px 16px; background: var(--bg); border-bottom: 1px solid var(--border); display:grid; gap:8px; }
+        .row { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+        label { display:flex; align-items:center; gap:6px; }
+        input[type="number"] { width:120px; padding:6px 8px; }
+        button { padding:8px 10px; cursor:pointer; }
+        #drop-zone {
+            width: 100%; height: 100px; border: 2px dashed var(--muted); border-radius: 10px;
+            text-align: center; line-height: 100px; color: var(--muted);
+            transition: border-color .15s, color .15s, background .15s;
+        }
+        #drop-zone.active { border-color:#0ea5e9; color:#0ea5e9; background:#e0f2fe; }
+        #map { height: 80vh; width: 100%; }
+        #debug { padding:10px; background:#eef; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; display:none; }
+    </style>
+</head>
+<body>
+<div id="controls">
+    <div class="row">
+        <label for="distance">Desired spacing (meters):</label>
+        <input type="number" id="distance" min="1" step="1" value="50" />
+        <label><input type="checkbox" id="showOriginal" checked />Show original</label>
+        <label><input type="checkbox" id="showInterpolated" />Show interpolated</label>
+        <button id="refreshBtn" type="button">Refresh</button>
+        <input id="fileInput" type="file" accept=".gpx" style="margin-left:auto" />
+    </div>
+    <div id="drop-zone">Drag &amp; drop GPX file(s) here, or use the file picker →</div>
+</div>
+
+<div id="map" role="region" aria-label="Route map"></div>
+<div id="debug"></div>
+
+<script>
+    // ---- Configuration -------------------------------------------------------
+    const DEBUG_MODE = false; // toggle to see debug table
+    const MAPS_API_KEY = "AIzaSyDR5rMYIyXpgAIe32xU_1vOEkPG6uLQ-nk"; // referrer & API-restricted
+
+    // ---- State (kept private in an IIFE) ------------------------------------
+    (() => {
+        /** @type {google.maps.Map} */       let map;
+        /** @type {{lat:number,lng:number}[]} */ let track = [];
+        /** @type {google.maps.Polyline|null} */  let originalLine = null;
+        /** @type {google.maps.Polyline|null} */  let interpLine = null;
+        /** @type {google.maps.Marker[]} */  let originalMarkers = [];
+        /** @type {google.maps.Marker[]} */  let interpMarkers = [];
+
+        const $ = (id) => document.getElementById(id);
+        const el = {
+            drop: $("drop-zone"),
+            input: $("fileInput"),
+            distance: $("distance"),
+            showOriginal: $("showOriginal"),
+            showInterpolated: $("showInterpolated"),
+            refresh: $("refreshBtn"),
+            debug: $("debug"),
+            map: $("map"),
+        };
+
+        // ---- Loading Maps API safely (async + callback) -----------------------
+        function loadMaps() {
+            return new Promise((resolve, reject) => {
+                if (window.google?.maps) return resolve();
+                const s = document.createElement("script");
+                const params = new URLSearchParams({
+                    key: MAPS_API_KEY,
+                    libraries: "geometry",  // use spherical utils for accuracy
+                    v: "weekly",
+                    callback: "initMap",
+                });
+                s.src = "https://maps.googleapis.com/maps/api/js?" + params.toString();
+                s.async = true;
+                s.defer = true;
+                window.initMap = () => resolve();
+                s.onerror = () => reject(new Error("Failed to load Maps JS API"));
+                document.head.appendChild(s);
+            });
+        }
+
+        // ---- Map init ----------------------------------------------------------
+        function createMap() {
+            map = new google.maps.Map(el.map, {
+                center: { lat: 0, lng: 0 },
+                zoom: 2,
+                mapId: "DEMO_MAP_ID", // optional if you use Map Styles
+                gestureHandling: "greedy",
+                fullscreenControl: true,
+            });
+        }
+
+        // ---- GPX parsing (robust to namespaces & multi-segments) ---------------
+        async function parseGPX(text) {
+            const xml = new DOMParser().parseFromString(text, "application/xml");
+            // collect all <trkpt> from all <trkseg> in all <trk> elements
+            const pts = Array.from(xml.getElementsByTagName("trkpt")).map(pt => ({
+                lat: parseFloat(pt.getAttribute("lat")),
+                lng: parseFloat(pt.getAttribute("lon")),
+            })).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+            return pts;
+        }
+
+        // ---- Geometry helpers (using Maps geometry library) --------------------
+        const S = google.maps.geometry.spherical;
+        function polylineLengthMeters(points) {
+            if (points.length < 2) return 0;
+            // compute total length via successive edges
+            let total = 0;
+            for (let i = 1; i < points.length; i++) {
+                total += S.computeDistanceBetween(
+                    new google.maps.LatLng(points[i - 1]),
+                    new google.maps.LatLng(points[i])
+                );
+            }
+            return total;
+        }
+
+        /**
+         * Interpolates a new polyline with ~equal spacing along the original path.
+         * Does not mutate the input array. Robust against short segments.
+         */
+        function interpolatePolyline(points, spacingMeters) {
+            if (!points.length || spacingMeters <= 0) return [];
+            const out = [ points[0] ];
+            let carry = 0; // distance accumulated since last emitted point
+
+            for (let i = 1; i < points.length; i++) {
+                const a = new google.maps.LatLng(points[i - 1]);
+                const b = new google.maps.LatLng(points[i]);
+                const segLen = S.computeDistanceBetween(a, b);
+                let distAlong = spacingMeters - carry;
+
+                while (segLen >= distAlong) {
+                    const t = distAlong / segLen; // 0..1 along segment
+                    const p = S.interpolate(a, b, t);
+                    out.push({ lat: p.lat(), lng: p.lng() });
+                    // start measuring next spacing from this new point
+                    // remaining along current segment becomes new "a"
+                    // but we keep geometry stable by advancing distAlong
+                    distAlong += spacingMeters;
+                }
+                carry = segLen - (distAlong - spacingMeters);
+                if (carry < 0 || !Number.isFinite(carry)) carry = 0;
+            }
+            return out;
+        }
+
+        // ---- Rendering ---------------------------------------------------------
+        function clearOverlays() {
+            if (originalLine) originalLine.setMap(null);
+            if (interpLine)   interpLine.setMap(null);
+            originalLine = interpLine = null;
+            originalMarkers.forEach(m => m.setMap(null));
+            interpMarkers.forEach(m => m.setMap(null));
+            originalMarkers = []; interpMarkers = [];
+        }
+
+        function draw() {
+            if (!track.length) return;
+            clearOverlays();
+
+            const spacing = Math.max(1, Number(el.distance.value) || 50);
+            const showOrig = el.showOriginal.checked;
+            const showInterp = el.showInterpolated.checked;
+
+            // Original polyline
+            originalLine = new google.maps.Polyline({
+                path: track,
+                geodesic: true,
+                strokeColor: "#ef4444",
+                strokeOpacity: 1,
+                strokeWeight: 2,
+                map,
+            });
+
+            // Interpolated polyline
+            const interp = interpolatePolyline(track, spacing);
+            interpLine = new google.maps.Polyline({
+                path: interp,
+                geodesic: true,
+                strokeColor: "#3b82f6",
+                strokeOpacity: 1,
+                strokeWeight: 2,
+                map,
+            });
+
+            // Optional markers (note: for very dense data, marker clustering is advised)
+            if (showOrig) {
+                const icon = { path: google.maps.SymbolPath.CIRCLE, scale: 3, fillColor: "#ef4444", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 1 };
+                originalMarkers = track.map(p => new google.maps.Marker({ position: p, icon, map }));
+            }
+            if (showInterp) {
+                const icon = { path: google.maps.SymbolPath.CIRCLE, scale: 3, fillColor: "#3b82f6", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 1 };
+                interpMarkers = interp.map(p => new google.maps.Marker({ position: p, icon, map }));
+            }
+
+            // Fit bounds once
+            const bounds = new google.maps.LatLngBounds();
+            track.forEach(p => bounds.extend(p));
+            if (!bounds.isEmpty()) map.fitBounds(bounds);
+
+            // Debug
+            if (DEBUG_MODE) {
+                const toRows = (pts) => pts.map((p,i)=>`<tr><td>${i}</td><td>${p.lat.toFixed(6)}</td><td>${p.lng.toFixed(6)}</td></tr>`).join("");
+                el.debug.innerHTML =
+                    `<h3>Summary</h3>
+             <p>Original points: ${track.length} &nbsp;|&nbsp;
+                Length ≈ ${polylineLengthMeters(track).toFixed(0)} m &nbsp;|&nbsp;
+                Interpolated points: ${interp.length} @ ${spacing} m
+             </p>
+             <h3>Interpolated Points</h3>
+             <table><thead><tr><th>#</th><th>Lat</th><th>Lng</th></tr></thead><tbody>${toRows(interp)}</tbody></table>`;
+                el.debug.style.display = "block";
+            } else {
+                el.debug.style.display = "none";
+            }
+        }
+
+        // ---- File handling (drag & drop + input) -------------------------------
+        function handleFiles(fileList) {
+            [...fileList].forEach(file => {
+                if (!file.name.toLowerCase().endsWith(".gpx")) {
+                    alert("Unsupported file type. Only .gpx is supported.");
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const pts = await parseGPX(e.target.result);
+                        if (!pts.length) {
+                            alert("No <trkpt> points found in the GPX.");
+                            return;
+                        }
+                        track = pts;
+                        draw();
+                    } catch (err) {
+                        console.error(err);
+                        alert("Failed to parse GPX file.");
+                    }
+                };
+                reader.readAsText(file);
+            });
+        }
+
+        // UI events
+        ["dragenter","dragover"].forEach(ev => el.drop.addEventListener(ev, e => { e.preventDefault(); el.drop.classList.add("active"); }));
+        ["dragleave","drop"].forEach(ev => el.drop.addEventListener(ev, e => { e.preventDefault(); el.drop.classList.remove("active"); }));
+        el.drop.addEventListener("drop", e => handleFiles(e.dataTransfer.files));
+        el.input.addEventListener("change", e => handleFiles(e.target.files));
+        el.refresh.addEventListener("click", () => track.length ? draw() : alert("Please load a GPX file first."));
+        el.distance.addEventListener("change", () => track.length && draw());
+        el.showOriginal.addEventListener("change", () => track.length && draw());
+        el.showInterpolated.addEventListener("change", () => track.length && draw());
+
+        // ---- Boot --------------------------------------------------------------
+        loadMaps()
+            .then(createMap)
+            .catch(err => {
+                console.error(err);
+                alert("Could not load Google Maps. Check your API key and referrer restrictions.");
+            });
+    })();
+</script>
+</body>
+</html>

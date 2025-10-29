@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Klondike Solitaire</title>
+    <style>
+        :root {
+            --card-w: 86px;
+            --card-h: 122px;
+            --radius: 10px;
+            --gap: 14px;
+            --stack-overlap: 24px;
+            --z: 10;
+            --green: #0b6b3a;
+            --felt: #075c34;
+            --light: #f5f5f5;
+            --shadow: 0 6px 20px rgba(0,0,0,0.25);
+        }
+        * { box-sizing: border-box; user-select: none; }
+        html, body { height: 100%; }
+        body {
+            margin: 0;
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+            background: radial-gradient(1000px 600px at 70% -200px, #118a4a, var(--felt));
+            color: #fff;
+        }
+        header {
+            display: flex; gap: 12px; align-items: center; justify-content: space-between;
+            padding: 12px 16px; background: rgba(0,0,0,0.25); backdrop-filter: blur(4px);
+            border-bottom: 1px solid rgba(255,255,255,0.12);
+        }
+        .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        button, .seg {
+            background: #ffffff; color: #0b3b23; border: none; padding: 8px 12px; border-radius: 999px;
+            font-weight: 600; box-shadow: var(--shadow); cursor: pointer;
+        }
+        button:active { transform: translateY(1px); }
+        .seg { display: inline-flex; gap: 2px; padding: 3px; }
+        .seg input { display: none; }
+        .seg label {
+            padding: 6px 10px; border-radius: 999px; cursor: pointer; background: transparent; color: #fff; font-weight: 700;
+        }
+        .seg input:checked + label { background: #fff; color: #083120; }
+        .hud { opacity: 0.9; font-size: 14px; }
+
+        .board { padding: 16px; display: grid; gap: var(--gap); grid-template-rows: auto 1fr; }
+        .top-row, .bottom-row { display: grid; gap: var(--gap); }
+        .top-row { grid-template-columns: repeat(7, var(--card-w)); align-items: start; min-height: var(--card-h); }
+        .bottom-row { grid-template-columns: repeat(7, var(--card-w)); align-items: start; min-height: calc(var(--card-h) + 12*var(--stack-overlap)); }
+
+        .pile { width: var(--card-w); min-height: var(--card-h); position: relative; border-radius: var(--radius);
+            box-shadow: inset 0 0 0 2px rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.06);
+        }
+        .pile.drop-ok { outline: 3px dashed rgba(255,255,255,0.6); outline-offset: 4px; }
+
+        .slot-label { position: absolute; inset: 0; display: grid; place-items: center; color: rgba(255,255,255,0.5); font-size: 18px; pointer-events: none; }
+
+        .card { width: var(--card-w); height: var(--card-h); border-radius: var(--radius); background: #fff; color: #111;
+            position: absolute; top: 0; left: 0; box-shadow: var(--shadow); overflow: hidden; border: 1px solid #cfcfcf;
+        }
+        .card.face-down { background: repeating-linear-gradient(45deg, #0e4a8a 0, #0e4a8a 8px, #1b64b5 8px, #1b64b5 16px);
+            border-color: #0d3d70; }
+        .card .inner { position: absolute; inset: 0; padding: 6px; display: grid; grid-template-rows: auto 1fr auto; }
+        .rank { font-weight: 800; font-size: 20px; }
+        .suit { font-size: 20px; }
+        .pips { display: grid; place-items: center; font-size: 36px; opacity: 0.9; }
+        .br { justify-self: end; align-self: end; transform: rotate(180deg); }
+
+        .red { color: #c1121f; }
+        .black { color: #111; }
+
+        /* spacing of tableau stacks */
+        .pile.tableau .card { position: absolute; }
+
+        .ghost { opacity: 0.6; }
+        .dragging { outline: 2px solid #ffd166; }
+
+        .toast { position: fixed; right: 12px; bottom: 12px; background: rgba(0,0,0,0.65); padding: 10px 12px; border-radius: 10px; backdrop-filter: blur(6px); }
+    </style>
+</head>
+<body>
+<header>
+    <div class="controls">
+        <button id="dealBtn" title="New game / Shuffle">🔄 Shuffle / New Game</button>
+        <div class="seg" role="group" aria-label="Draw count">
+            <input type="radio" name="draw" id="draw1" value="1" checked>
+            <label for="draw1">Draw 1</label>
+            <input type="radio" name="draw" id="draw3" value="3">
+            <label for="draw3">Draw 3</label>
+        </div>
+        <button id="drawBtn" title="Draw from stock">🂠 Draw</button>
+        <button id="recycleBtn" title="Recycle waste to stock">♻️ Recycle</button>
+    </div>
+    <div class="hud" id="hud">Moves: 0</div>
+</header>
+
+<main class="board" id="board">
+    <section class="top-row">
+        <div class="pile" id="stock" aria-label="Stock" data-pile="stock">
+            <div class="slot-label">Stock</div>
+        </div>
+        <div class="pile" id="waste" aria-label="Waste" data-pile="waste">
+            <div class="slot-label">Waste</div>
+        </div>
+        <div class="pile foundation" id="f0" data-pile="foundation-0"><div class="slot-label">A ♣︎</div></div>
+        <div class="pile foundation" id="f1" data-pile="foundation-1"><div class="slot-label">A ♦︎</div></div>
+        <div class="pile foundation" id="f2" data-pile="foundation-2"><div class="slot-label">A ♥︎</div></div>
+        <div class="pile foundation" id="f3" data-pile="foundation-3"><div class="slot-label">A ♠︎</div></div>
+        <div class="pile" aria-hidden="true"></div>
+    </section>
+
+    <section class="bottom-row" id="tableauRow">
+        <div class="pile tableau" id="t0" data-pile="tableau-0"></div>
+        <div class="pile tableau" id="t1" data-pile="tableau-1"></div>
+        <div class="pile tableau" id="t2" data-pile="tableau-2"></div>
+        <div class="pile tableau" id="t3" data-pile="tableau-3"></div>
+        <div class="pile tableau" id="t4" data-pile="tableau-4"></div>
+        <div class="pile tableau" id="t5" data-pile="tableau-5"></div>
+        <div class="pile tableau" id="t6" data-pile="tableau-6"></div>
+    </section>
+</main>
+
+<div class="toast" id="toast" style="display:none"></div>
+
+<script>
+    /**
+     * Klondike Solitaire — Vanilla JS (single file)
+     * Features: 52-card deck, shuffle/new deal, draw 1 or 3, drag & drop (mouse),
+     * tableau building (descending, alternating colors), kings to empty, foundations A→K by suit,
+     * auto-flip exposed facedown cards, recycle waste, double-click to send to foundation, win check.
+     */
+
+    const SUITS = ["♣", "♦", "♥", "♠"]; // order used only for foundations; can be any
+    const COLORS = {"♣":"black", "♠":"black", "♦":"red", "♥":"red"};
+    const RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+
+    const state = {
+        stock: [], // facedown
+        waste: [], // faceup, last is top
+        foundations: [[],[],[],[]], // each: bottom A to top K
+        tableau: [[],[],[],[],[],[],[]], // each is array bottom→top
+        drawCount: 1,
+        moves: 0,
+    };
+
+    const el = {
+        board: document.getElementById('board'),
+        stock: document.getElementById('stock'),
+        waste: document.getElementById('waste'),
+        f: [document.getElementById('f0'),document.getElementById('f1'),document.getElementById('f2'),document.getElementById('f3')],
+        t: [document.getElementById('t0'),document.getElementById('t1'),document.getElementById('t2'),document.getElementById('t3'),document.getElementById('t4'),document.getElementById('t5'),document.getElementById('t6')],
+        hud: document.getElementById('hud'),
+        toast: document.getElementById('toast'),
+        drawBtn: document.getElementById('drawBtn'),
+        recycleBtn: document.getElementById('recycleBtn'),
+        dealBtn: document.getElementById('dealBtn'),
+    };
+
+    function toast(msg, ms=1200){
+        el.toast.textContent = msg;
+        el.toast.style.display = 'block';
+        clearTimeout(el.toast._t);
+        el.toast._t = setTimeout(()=> el.toast.style.display = 'none', ms);
+    }
+
+    function newDeck(){
+        const deck = [];
+        for(const s of SUITS){
+            for(let i=0;i<RANKS.length;i++){
+                const r = RANKS[i];
+                deck.push({suit:s, rank:r, value:i+1, color: COLORS[s], faceUp:false, id:`${s}${r}-${Math.random().toString(36).slice(2,8)}`});
+            }
+        }
+        return deck;
+    }
+    function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()* (i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+
+    function deal(){
+        // reset
+        state.stock = []; state.waste=[]; state.foundations=[[],[],[],[]]; state.tableau=[[],[],[],[],[],[],[]]; state.moves=0;
+        const deck = shuffle(newDeck());
+        // tableau: 1..7 cards, last faceUp
+        for(let col=0; col<7; col++){
+            for(let r=0; r<=col; r++){
+                const c = deck.pop();
+                c.faceUp = (r===col);
+                state.tableau[col].push(c);
+            }
+        }
+        // remaining to stock facedown
+        while(deck.length) state.stock.push(deck.pop());
+        renderAll();
+    }
+
+    // ------- RENDERING -------
+    function cardEl(card){
+        const div = document.createElement('div');
+        div.className = 'card' + (card.faceUp ? '' : ' face-down') + ' ' + (card.faceUp ? (card.color) : '');
+        div.draggable = card.faceUp; // only face-up cards draggable
+        div.dataset.cardId = card.id;
+        if(card.faceUp){
+            div.innerHTML = `<div class="inner">
+        <div class="tl"><span class="rank">${card.rank}</span> <span class="suit">${card.suit}</span></div>
+        <div class="pips">${card.suit}</div>
+        <div class="br"><span class="rank">${card.rank}</span> <span class="suit">${card.suit}</span></div>
+      </div>`;
+        }
+        return div;
+    }
+
+    function clearPile(elPile){ while(elPile.firstChild) elPile.removeChild(elPile.firstChild); }
+
+    function renderStock(){
+        clearPile(el.stock);
+        // show only a face-down back if any
+        if(state.stock.length){
+            const top = document.createElement('div');
+            top.className='card face-down';
+            el.stock.appendChild(top);
+        }
+    }
+
+    function renderWaste(){
+        clearPile(el.waste);
+        const n = state.waste.length;
+        // fan up to last 3 for visibility
+        const start = Math.max(0, n-3);
+        for(let i=start;i<n;i++){
+            const c = state.waste[i]; c.faceUp = true; // waste is faceUp
+            const e = cardEl(c);
+            e.style.left = `${(i-start)*12}px`;
+            e.style.zIndex = 100 + i;
+            e.dataset.from = 'waste';
+            attachDragHandlers(e);
+            el.waste.appendChild(e);
+        }
+    }
+
+    function renderFoundations(){
+        for(let fi=0; fi<4; fi++){
+            const pileEl = el.f[fi];
+            clearPile(pileEl);
+            const arr = state.foundations[fi];
+            if(arr.length){
+                const top = arr[arr.length-1];
+                const e = cardEl({...top, faceUp:true});
+                e.dataset.from = `foundation-${fi}`;
+                e.draggable = true; // allow pulling back? Many rules forbid; we'll disable actual drops from foundation to tableau.
+                attachDragHandlers(e);
+                pileEl.appendChild(e);
+            }
+        }
+    }
+
+    function renderTableau(){
+        for(let col=0; col<7; col++){
+            const pileEl = el.t[col];
+            clearPile(pileEl);
+            const arr = state.tableau[col];
+            arr.forEach((c, idx)=>{
+                const e = cardEl(c);
+                e.style.top = `${idx * parseInt(getComputedStyle(document.documentElement).getPropertyValue('--stack-overlap'))}px`;
+                e.style.zIndex = 10 + idx;
+                e.dataset.from = `tableau-${col}`;
+                // allow dragging stacks starting at this card if it's a valid descending alternating sequence from here
+                attachDragHandlers(e);
+                // dblclick to foundation
+                e.addEventListener('dblclick', ()=>{
+                    tryAutoToFoundation(c.id);
+                });
+                pileEl.appendChild(e);
+            });
+        }
+    }
+
+    function renderAll(){
+        renderStock();
+        renderWaste();
+        renderFoundations();
+        renderTableau();
+        el.hud.textContent = `Moves: ${state.moves}`;
+        checkWin();
+    }
+
+    // ------- GAMEPLAY HELPERS -------
+    function getCardLocation(cardId){
+        // returns {zone:"stock|waste|foundation|tableau", index, subIndex}
+        for(let i=0;i<state.waste.length;i++){ if(state.waste[i].id===cardId) return {zone:'waste', index:i}; }
+        for(let f=0;f<4;f++){
+            const a=state.foundations[f]; for(let i=0;i<a.length;i++){ if(a[i].id===cardId) return {zone:'foundation', index:f, subIndex:i}; }
+        }
+        for(let t=0;t<7;t++){
+            const a=state.tableau[t]; for(let i=0;i<a.length;i++){ if(a[i].id===cardId) return {zone:'tableau', index:t, subIndex:i}; }
+        }
+        for(let i=0;i<state.stock.length;i++){ if(state.stock[i].id===cardId) return {zone:'stock', index:i}; }
+        return null;
+    }
+
+    function canDropOnTableau(targetCard, movingCard){
+        if(!targetCard) return movingCard.rank === 'K';
+        // must be opposite color and one rank lower than target
+        return (targetCard.color !== movingCard.color) && (rankValue(targetCard.rank) === rankValue(movingCard.rank)+1);
+    }
+    function canDropOnFoundation(fIdx, movingCard){
+        const pile = state.foundations[fIdx];
+        if(!pile.length) return movingCard.rank==='A';
+        const top = pile[pile.length-1];
+        return (top.suit===movingCard.suit) && (rankValue(movingCard.rank)+1 === rankValue(top.rank));
+    }
+    function rankValue(r){ return RANKS.indexOf(r)+1; }
+
+    function takeStackFromTableau(tIdx, startIdx){
+        const src = state.tableau[tIdx];
+        const moving = src.slice(startIdx);
+        state.tableau[tIdx] = src.slice(0, startIdx);
+        // flip if needed
+        const last = state.tableau[tIdx][state.tableau[tIdx].length-1];
+        if(last && !last.faceUp){ last.faceUp = true; }
+        return moving;
+    }
+
+    function tryAutoToFoundation(cardId){
+        const loc = getCardLocation(cardId);
+        if(!loc) return;
+        let card;
+        if(loc.zone==='waste'){ card = state.waste[state.waste.length-1]; if(!card || card.id!==cardId) return; }
+        if(loc.zone==='tableau'){ const pile = state.tableau[loc.index]; card = pile[pile.length-1]; if(!card || card.id!==cardId) return; }
+        if(!card) return;
+        for(let f=0; f<4; f++){
+            if(canDropOnFoundation(f, card)){
+                // move card
+                if(loc.zone==='waste') state.waste.pop();
+                else state.tableau[loc.index].pop();
+                state.foundations[f].push({...card, faceUp:true});
+                state.moves++;
+                renderAll();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ------- DRAG & DROP -------
+    function attachDragHandlers(cardElem){
+        cardElem.addEventListener('dragstart', (e)=>{
+            const id = cardElem.dataset.cardId;
+            const loc = getCardLocation(id);
+            if(!loc) { e.preventDefault(); return; }
+            // allow dragging only face-up
+            const cardObj = getCardById(id);
+            if(!cardObj || !cardObj.faceUp){ e.preventDefault(); return; }
+            e.dataTransfer.setData('text/plain', id);
+            e.dataTransfer.effectAllowed = 'move';
+            // If from tableau, mark the stack starting at this card for visual feedback
+            if(loc.zone==='tableau'){
+                const arr = state.tableau[loc.index];
+                for(let i=loc.subIndex;i<arr.length;i++){
+                    const cid = arr[i].id;
+                    const el = document.querySelector(`[data-card-id="${CSS.escape(cid)}"]`);
+                    if(el) el.classList.add('dragging');
+                }
+            } else {
+                cardElem.classList.add('dragging');
+            }
+        });
+        cardElem.addEventListener('dragend', ()=>{
+            document.querySelectorAll('.dragging').forEach(n=> n.classList.remove('dragging'));
+        });
+    }
+
+    // Pile-level dragover / drop
+    document.querySelectorAll('.pile').forEach(p=>{
+        p.addEventListener('dragover', (e)=>{
+            e.preventDefault();
+            p.classList.add('drop-ok');
+        });
+        p.addEventListener('dragleave', ()=> p.classList.remove('drop-ok'));
+        p.addEventListener('drop', (e)=>{
+            e.preventDefault(); p.classList.remove('drop-ok');
+            const id = e.dataTransfer.getData('text/plain');
+            if(!id) return;
+            const targetPile = p.dataset.pile; // e.g., tableau-3, foundation-1, stock, waste
+            handleDrop(id, targetPile);
+        });
+    });
+
+    function getCardById(id){
+        for(const c of state.waste){ if(c.id===id) return c; }
+        for(const f of state.foundations){ for(const c of f){ if(c.id===id) return c; } }
+        for(const t of state.tableau){ for(const c of t){ if(c.id===id) return c; } }
+        for(const c of state.stock){ if(c.id===id) return c; }
+        return null;
+    }
+
+    function handleDrop(cardId, targetStr){
+        const loc = getCardLocation(cardId);
+        if(!loc) return;
+
+        if(targetStr.startsWith('tableau-')){
+            const tIdx = parseInt(targetStr.split('-')[1]);
+            const targetArr = state.tableau[tIdx];
+            const targetTop = targetArr[targetArr.length-1];
+
+            if(loc.zone==='waste'){
+                const moving = state.waste[state.waste.length-1];
+                if(!moving || moving.id!==cardId) return; // only top of waste can move
+                if(!canDropOnTableau(targetTop, moving)) return;
+                state.waste.pop();
+                targetArr.push(moving);
+                state.moves++;
+                renderAll();
+                return;
+            }
+            if(loc.zone==='tableau'){
+                // moving stack starting from subIndex
+                const movingTop = state.tableau[loc.index][loc.subIndex];
+                if(!movingTop.faceUp) return;
+                // ensure the stack from subIndex down is a valid descending alternating sequence
+                const stack = state.tableau[loc.index].slice(loc.subIndex);
+                if(!isValidSequence(stack)) return;
+                if(!canDropOnTableau(targetTop, movingTop)) return;
+                // move stack
+                const moving = takeStackFromTableau(loc.index, loc.subIndex);
+                state.tableau[tIdx].push(...moving);
+                state.moves++;
+                renderAll();
+                return;
+            }
+            // from foundation → tableau: disabled (classic often disallows). We'll ignore.
+            return;
+        }
+
+        if(targetStr.startsWith('foundation-')){
+            const fIdx = parseInt(targetStr.split('-')[1]);
+            if(loc.zone==='waste'){
+                const c = state.waste[state.waste.length-1];
+                if(!c || c.id!==cardId) return;
+                if(!canDropOnFoundation(fIdx, c)) return;
+                state.waste.pop(); state.foundations[fIdx].push({...c, faceUp:true}); state.moves++; renderAll(); return;
+            }
+            if(loc.zone==='tableau'){
+                const pile = state.tableau[loc.index];
+                const c = pile[pile.length-1];
+                if(!c || c.id!==cardId) return; // only top can go to foundation
+                if(!canDropOnFoundation(fIdx, c)) return;
+                state.tableau[loc.index].pop();
+                // flip underlying if needed
+                const last = state.tableau[loc.index][state.tableau[loc.index].length-1];
+                if(last && !last.faceUp) last.faceUp = true;
+                state.foundations[fIdx].push({...c, faceUp:true});
+                state.moves++;
+                renderAll();
+                return;
+            }
+            return;
+        }
+    }
+
+    function isValidSequence(cards){
+        // check cards[0] can go on top of target elsewhere; here only internal validity: descending, alternating colors, all faceUp
+        for(let i=0; i<cards.length-1; i++){
+            const a = cards[i], b = cards[i+1];
+            if(!a.faceUp || !b.faceUp) return false;
+            if(a.color === b.color) return false;
+            if(rankValue(a.rank) !== rankValue(b.rank)+1) return false;
+        }
+        return true;
+    }
+
+    // ------- STOCK / WASTE -------
+    el.drawBtn.addEventListener('click', drawFromStock);
+    function drawFromStock(){
+        const n = state.drawCount;
+        if(!state.stock.length){ toast('Stock is empty'); return; }
+        const count = Math.min(n, state.stock.length);
+        for(let i=0;i<count;i++){
+            const c = state.stock.pop();
+            c.faceUp = true; // in waste face up
+            state.waste.push(c);
+        }
+        state.moves++;
+        renderAll();
+    }
+
+    el.recycleBtn.addEventListener('click', ()=>{
+        if(state.stock.length) { toast('Stock not empty'); return; }
+        if(!state.waste.length) { toast('Nothing to recycle'); return; }
+        // move waste back to stock, reversing order, all face-down
+        while(state.waste.length){ const c = state.waste.pop(); c.faceUp=false; state.stock.push(c); }
+        state.moves++;
+        renderAll();
+    });
+
+    // clicking stock also draws
+    el.stock.addEventListener('click', drawFromStock);
+
+    // draw-count toggle
+    document.getElementById('draw1').addEventListener('change', (e)=>{ if(e.target.checked){ state.drawCount=1; }});
+    document.getElementById('draw3').addEventListener('change', (e)=>{ if(e.target.checked){ state.drawCount=3; }});
+
+    // new deal
+    el.dealBtn.addEventListener('click', ()=>{ deal(); toast('New game!'); });
+
+    function checkWin(){
+        const total = state.foundations.reduce((a,p)=> a+p.length, 0);
+        if(total===52){ toast('🎉 You won!'); }
+    }
+
+    // keyboard niceties
+    window.addEventListener('keydown', (e)=>{
+        if(e.key==='n') deal();
+        if(e.key==='d') drawFromStock();
+        if(e.key==='r') el.recycleBtn.click();
+    });
+
+    // initial deal
+    deal();
+</script>
+</body>
+</html>

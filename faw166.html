@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM Tokenization Explorer</title>
+    <style>
+        :root {
+            --bg: #0b1220;
+            --panel: #131c2b;
+            --ink: #e6eefc;
+            --muted: #93a2b8;
+            --accent: #53b6ff;
+            --chip: #1d2a40;
+            --chip-border: #314869;
+            --green: #00d18f;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+            background: linear-gradient(180deg, #0b1220, #0b1220 60%, #0f1626);
+            color: var(--ink);
+        }
+        header { padding: 20px 24px; border-bottom: 1px solid #1e2740; position: sticky; top: 0; background: rgba(11,18,32,0.9); backdrop-filter: blur(6px); }
+        header h1 { margin: 0 0 4px; font-size: 20px; font-weight: 700; }
+        header p { margin: 0; color: var(--muted); font-size: 13px; }
+
+        .layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; padding: 16px; }
+        .card { background: var(--panel); border: 1px solid #1e2740; border-radius: 16px; padding: 14px; }
+        .card h2 { margin: 0 0 8px; font-size: 14px; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
+
+        textarea { width: 100%; height: 180px; resize: vertical; border-radius: 12px; border: 1px solid #2a3958; background: #0e1729; color: var(--ink); padding: 12px; line-height: 1.4; }
+
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; align-items: start; }
+        .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        select, button, input[type="number"] {
+            background: #0e1729; color: var(--ink); border: 1px solid #2a3958; border-radius: 10px; padding: 8px 10px; font-size: 13px;
+        }
+        button { cursor: pointer; }
+        button.primary { background: #0e2238; border-color: #34598a; }
+        button:disabled { opacity: .6; cursor: not-allowed; }
+
+        .stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; margin-top: 10px; }
+        .stat { background: #0e1729; border: 1px dashed #314869; border-radius: 10px; padding: 8px; font-size: 12px; text-align: center; }
+        .stat b { display: block; font-size: 18px; margin-top: 4px; color: var(--green); }
+
+        .tokens { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; min-height: 52px; background: #0e1729; border: 1px solid #2a3958; border-radius: 12px; }
+        .chip { border: 1px solid var(--chip-border); border-radius: 999px; padding: 6px 10px; background: var(--chip); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; display: inline-flex; align-items: center; gap: 8px; }
+        .chip .id { font-size: 10px; color: var(--muted); background: #0d1626; padding: 2px 6px; border-radius: 999px; border: 1px solid #22304a; }
+
+        .table-wrap { max-height: 320px; overflow: auto; border-radius: 12px; border: 1px solid #2a3958; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 8px 10px; border-bottom: 1px solid #1f2a46; vertical-align: top; }
+        th { position: sticky; top: 0; background: #0f1a2d; text-align: left; color: var(--muted); }
+        td code { font-family: ui-monospace, Menlo, Consolas, monospace; }
+        .foot { color: var(--muted); font-size: 12px; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>LLM Tokenization Explorer</h1>
+    <p>This educational tool demonstrates several <em>tokenization</em> strategies used in modern language models. Enter a prompt, choose a tokenizer, and inspect the resulting tokens.</p>
+</header>
+
+<main class="layout">
+    <section class="card">
+        <h2>1) Enter prompt</h2>
+        <textarea id="input" placeholder="Type your prompt here…">Tokenization turns text into pieces (tokens) that models can understand. Let's explore how different strategies split the same sentence!</textarea>
+
+        <div class="controls">
+            <div class="row">
+                <label for="mode">Tokenizer:</label>
+                <select id="mode" title="Choose a tokenization strategy">
+                    <option value="whitespace">Whitespace</option>
+                    <option value="punct">Punctuation-aware</option>
+                    <option value="bytes">Byte-level (UTF‑8)</option>
+                    <option value="toyBPE">Toy BPE (merge list)</option>
+                </select>
+            </div>
+            <div class="row">
+                <button id="run" class="primary">Tokenize ▶</button>
+                <button id="copyJson">Copy tokens as JSON</button>
+                <button id="clear">Clear</button>
+            </div>
+        </div>
+
+        <div class="stats" aria-live="polite">
+            <div class="stat">Characters<b id="charCount">0</b></div>
+            <div class="stat">Tokens<b id="tokCount">0</b></div>
+            <div class="stat">Unique token IDs<b id="idCount">0</b></div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>2) Token stream</h2>
+        <div id="tokens" class="tokens" title="Each chip shows a token and its integer ID."></div>
+    </section>
+
+    <section class="card" style="grid-column: 1 / -1;">
+        <h2>3) Inspect tokens</h2>
+        <div class="table-wrap">
+            <table id="tokTable">
+                <thead>
+                <tr><th>#</th><th>Token</th><th>Code points</th><th>UTF‑8 bytes (hex)</th><th>ID</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <p class="foot">Notes: <em>Whitespace</em> simply splits on spaces. <em>Punctuation‑aware</em> separates words, numbers, and punctuation. <em>Byte‑level</em> shows the raw bytes a model like GPT uses internally (with a learned mapping to integers). <em>Toy BPE</em> demonstrates the idea of merging frequent pairs into larger subwords using a tiny hand‑crafted merge list; it is only for intuition and not a real model's tokenizer.</p>
+    </section>
+</main>
+
+<script>
+    /**
+     * Tokenization in LLMs: overview
+     * ------------------------------
+     * Models operate over integer IDs, not raw characters. A tokenizer maps text → tokens → IDs.
+     * Different strategies exist; production tokenizers (e.g., byte‑pair encoding / BPE) are
+     * trained to balance vocabulary size with coverage of real‑world text. Below we implement
+     * several approachable strategies, plus a tiny BPE demo, and visualize the outputs.
+     */
+
+        // Small, human‑chosen merge list to *illustrate* BPE‑style merging.
+        //
+        // Real BPE uses thousands of merges learned from data. Here we encode spaces as
+        // a visible prefix 'Ġ' to mark word starts (similar to GPT‑2's byte‑level BPE),
+        // then greedily merge adjacent pairs found in this list (earlier entries have higher priority).
+    const TOY_BPE_MERGES = [
+            'Ġt h','Ġw h','t h','h e','e r','Ġth','th e','e n','i n','Ġa','Ġan','Ġand','Ġto','Ġof','Ġfor',
+            'ĠToken','Token ization','ization','Ġmodel','model s','’ s','Ġlet','let’ s',
+            'Ġcan','can ' // intentionally playful; this list is only for intuition
+        ];
+
+    // Helper: UTF‑8 encoding to bytes (as numbers 0..255)
+    function utf8Bytes(str) { return new TextEncoder().encode(str); }
+
+    // Helper: format bytes as hex pairs
+    function toHexBytes(uint8) {
+        return Array.from(uint8, b => b.toString(16).padStart(2, '0')).join(' ');
+    }
+
+    // Whitespace tokenizer: split on spaces/newlines, keep spaces as separate tokens for visibility
+    function tokenizeWhitespace(text) {
+        // Split while preserving delimiters: we capture the spaces so they appear in the result
+        const parts = text.split(/(\s+)/).filter(p => p.length > 0);
+        return parts;
+    }
+
+    // Punctuation‑aware tokenizer: words, numbers, punctuation and whitespace as their own tokens
+    function tokenizePunct(text) {
+        const re = /([A-Za-z]+(?:'[A-Za-z]+)?)|(\d+(?:[.,]\d+)*)|(\s+)|([^A-Za-z\d\s]+)/g;
+        const out = []; let m;
+        while ((m = re.exec(text)) !== null) {
+            out.push(m[0]);
+        }
+        return out;
+    }
+
+    // Byte‑level: return an array of single‑byte strings (not typical for display, but instructive)
+    function tokenizeBytes(text) {
+        const bytes = utf8Bytes(text);
+        // Represent each byte as a one‑byte string using code point 0..255 via Latin‑1 mapping
+        return Array.from(bytes, b => String.fromCharCode(b));
+    }
+
+    // --- Toy BPE implementation ---
+    // Convert text to a sequence of "word pieces" starting from characters with a leading space marker
+    function textToWordStarts(text) {
+        // Replace each space with a visible marker prefix 'Ġ' and keep other whitespace as is
+        // Collapse runs of spaces to a single space for clarity in this demo.
+        const normalized = text.replace(/\s+/g, ' ');
+        const pieces = [];
+        for (const token of normalized.split(' ')) {
+            if (token === '') { pieces.push(' '); continue; }
+            // Prefix non‑first tokens with 'Ġ' to denote word start
+            if (pieces.length > 0) pieces.push(' ');
+            const chars = Array.from(token);
+            pieces.push('Ġ' + chars[0]);
+            for (let i = 1; i < chars.length; i++) pieces.push(chars[i]);
+        }
+        return pieces.filter(p => p !== '');
+    }
+
+    function tokenizeToyBPE(text) {
+        // Start from character‑level with word‑start marker
+        let tokens = textToWordStarts(text);
+        if (tokens.length === 0) return [];
+        // Build a merge lookup with priority by index
+        const mergeRank = new Map(TOY_BPE_MERGES.map((p, i) => [p, i]));
+
+        // Greedy merging: repeatedly merge best pair present in the sequence
+        function getPairs(arr) {
+            const pairs = new Set();
+            for (let i = 0; i < arr.length - 1; i++) {
+                if (arr[i] === ' ' || arr[i+1] === ' ') continue; // don't merge across spaces
+                pairs.add(arr[i] + ' ' + arr[i+1]);
+            }
+            return pairs;
+        }
+
+        while (true) {
+            const pairs = getPairs(tokens);
+            let candidate = null;
+            for (const p of pairs) {
+                if (mergeRank.has(p)) {
+                    if (candidate === null || mergeRank.get(p) < mergeRank.get(candidate)) candidate = p;
+                }
+            }
+            if (candidate === null) break; // no more merges to apply
+            const [a, b] = candidate.split(' ');
+            const merged = [];
+            for (let i = 0; i < tokens.length; i++) {
+                if (i < tokens.length - 1 && tokens[i] === a && tokens[i+1] === b) {
+                    merged.push(a + b);
+                    i += 1; // skip the next one (we merged it)
+                } else {
+                    merged.push(tokens[i]);
+                }
+            }
+            tokens = merged;
+        }
+
+        // Remove explicit space tokens; keep the 'Ġ' marker within tokens for visibility
+        return tokens.filter(t => t !== ' ');
+    }
+
+    // Map tokens → integer IDs (deterministic per session). In real LLMs, this is a fixed vocabulary mapping.
+    const vocab = new Map();
+    let nextId = 1000; // arbitrary offset so IDs look like IDs
+
+    function idForToken(tok) {
+        if (!vocab.has(tok)) { vocab.set(tok, nextId++); }
+        return vocab.get(tok);
+    }
+
+    // Render helpers
+    function render(tokens) {
+        const input = document.getElementById('input').value;
+        document.getElementById('charCount').textContent = [...input].length.toString();
+
+        // Assign IDs and build rows
+        const ids = tokens.map(idForToken);
+        document.getElementById('tokCount').textContent = tokens.length.toString();
+        document.getElementById('idCount').textContent = new Set(ids).size.toString();
+
+        const tokWrap = document.getElementById('tokens');
+        tokWrap.innerHTML = '';
+        tokens.forEach((t, i) => {
+            const chip = document.createElement('span');
+            chip.className = 'chip';
+            const label = document.createElement('span');
+            // Make spaces and control characters visible for learning
+            label.textContent = visualize(t);
+            const id = document.createElement('span');
+            id.className = 'id';
+            id.textContent = '#' + ids[i];
+            chip.appendChild(label); chip.appendChild(id);
+            chip.title = `index ${i}`;
+            tokWrap.appendChild(chip);
+        });
+
+        // Table rows with code points and bytes
+        const tbody = document.querySelector('#tokTable tbody');
+        tbody.innerHTML = '';
+        tokens.forEach((t, i) => {
+            const tr = document.createElement('tr');
+            const tdIdx = document.createElement('td'); tdIdx.textContent = i;
+            const tdTok = document.createElement('td'); tdTok.innerHTML = '<code>' + escapeHtml(visualize(t)) + '</code>';
+            const tdCp = document.createElement('td'); tdCp.innerHTML = '<code>' + codePoints(t) + '</code>';
+            const tdBytes = document.createElement('td'); tdBytes.innerHTML = '<code>' + toHexBytes(utf8Bytes(t)) + '</code>';
+            const tdId = document.createElement('td'); tdId.textContent = ids[i];
+            tr.append(tdIdx, tdTok, tdCp, tdBytes, tdId);
+            tbody.appendChild(tr);
+        });
+
+        // Expose tokens for the copy button
+        window.__TOKENS__ = tokens;
+    }
+
+    function visualize(s) {
+        // Show whitespace/punctuation clearly without losing information
+        if (s === ' ') return '␠'; // space symbol
+        return s
+            .replace(/\n/g, '⏎')
+            .replace(/\t/g, '⇥')
+            ;
+    }
+
+    function codePoints(s) {
+        return Array.from(s, ch => 'U+' + ch.codePointAt(0).toString(16).toUpperCase().padStart(4,'0')).join(' ');
+    }
+
+    function escapeHtml(str) {
+        return str.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+    }
+
+    function run() {
+        const text = document.getElementById('input').value;
+        const mode = document.getElementById('mode').value;
+        let tokens = [];
+        if (mode === 'whitespace') tokens = tokenizeWhitespace(text);
+        else if (mode === 'punct') tokens = tokenizePunct(text);
+        else if (mode === 'bytes') tokens = tokenizeBytes(text);
+        else if (mode === 'toyBPE') tokens = tokenizeToyBPE(text);
+        render(tokens);
+    }
+
+    // Wire up UI
+    document.getElementById('run').addEventListener('click', run);
+    document.getElementById('clear').addEventListener('click', () => {
+        document.getElementById('input').value = '';
+        render([]);
+    });
+    document.getElementById('copyJson').addEventListener('click', async () => {
+        const tokens = window.__TOKENS__ || [];
+        try {
+            await navigator.clipboard.writeText(JSON.stringify(tokens, null, 2));
+            const btn = document.getElementById('copyJson');
+            const old = btn.textContent; btn.textContent = 'Copied ✓';
+            setTimeout(() => (btn.textContent = old), 900);
+        } catch (e) { alert('Copy failed: ' + e.message); }
+    });
+
+    // First render
+    run();
+</script>
+</body>
+</html>
