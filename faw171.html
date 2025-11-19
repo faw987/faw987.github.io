@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Visualizer</title>
+
+    <link href="https://unpkg.com/vis-timeline/styles/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --bg-color: #f8f9fa;
+            --panel-bg: #ffffff;
+            --border-color: #dee2e6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 { margin: 0; font-size: 1.5rem; }
+        p.subtitle { margin: 0.5rem 0 0; opacity: 0.8; font-size: 0.9rem; }
+
+        /* Layout */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar Controls */
+        .controls {
+            width: 300px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--primary-color);
+        }
+
+        select, input[type="date"], input[type="text"] {
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+
+        button {
+            padding: 0.6rem 1rem;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        button:hover { background-color: #2980b9; }
+        button.secondary { background-color: #95a5a6; }
+        button.secondary:hover { background-color: #7f8c8d; }
+
+        /* File Upload Area */
+        #drop-zone {
+            border: 2px dashed var(--accent-color);
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            background-color: rgba(52, 152, 219, 0.05);
+            transition: all 0.3s;
+        }
+
+        #drop-zone:hover {
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+
+        #drop-zone.dragover {
+            background-color: rgba(52, 152, 219, 0.2);
+            border-color: #2980b9;
+        }
+
+        /* Timeline Area */
+        .timeline-wrapper {
+            flex: 1;
+            padding: 1rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #visualization {
+            flex: 1;
+            border: 1px solid var(--border-color);
+            background: white;
+            border-radius: 4px;
+        }
+
+        /* Custom Item Styles */
+        .vis-item {
+            border-color: var(--accent-color);
+            background-color: #eaf6ff;
+            font-size: 14px;
+            border-radius: 4px;
+        }
+
+        .vis-item.vis-selected {
+            border-color: #2c3e50;
+            background-color: #d6eaf8;
+            z-index: 2;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            padding: 0.5rem 1rem;
+            background: #fff;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+
+    <script src="https://unpkg.com/papaparse@5.3.2/papaparse.min.js"></script>
+    <script src="https://unpkg.com/vis-timeline/standalone/umd/vis-timeline-graph2d.min.js"></script>
+</head>
+<body>
+
+<header>
+    <h1>My Timelines</h1>
+    <p class="subtitle">Interactive CSV Visualization Tool</p>
+</header>
+
+<div class="main-container">
+    <div class="controls">
+
+        <div class="control-group">
+            <div id="drop-zone">
+                <p>Drop CSV file here<br>or click to upload</p>
+                <input type="file" id="fileInput" accept=".csv" style="display: none;">
+            </div>
+        </div>
+
+        <div id="filter-controls" style="display:none; flex-direction: column; gap: 1.5rem;">
+            <div class="control-group">
+                <label>Date Range</label>
+                <input type="date" id="filter-start" placeholder="Start Date">
+                <input type="date" id="filter-end" placeholder="End Date">
+            </div>
+
+            <div class="control-group">
+                <label for="filter-tag">Filter by Tag</label>
+                <select id="filter-tag">
+                    <option value="all">All Tags</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="filter-location">Filter by Location</label>
+                <select id="filter-location">
+                    <option value="all">All Locations</option>
+                </select>
+            </div>
+
+            <div class="control-group" style="flex-direction: row;">
+                <button id="apply-filters" style="flex:1;">Apply</button>
+                <button id="reset-filters" class="secondary" style="flex:1;">Reset</button>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="timeline-wrapper">
+        <div id="visualization"></div>
+    </div>
+</div>
+
+<div class="status-bar">
+    <span id="item-count">0 items loaded</span>
+    <span>Use scroll wheel to zoom, click and drag to pan.</span>
+</div>
+
+<script>
+    // State
+    let rawData = [];
+    let timeline = null;
+    let items = new vis.DataSet();
+
+    // DOM Elements
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('fileInput');
+    const filterControls = document.getElementById('filter-controls');
+    const tagSelect = document.getElementById('filter-tag');
+    const locationSelect = document.getElementById('filter-location');
+    const startDateInput = document.getElementById('filter-start');
+    const endDateInput = document.getElementById('filter-end');
+    const itemCountLabel = document.getElementById('item-count');
+
+    // Event Listeners
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length) handleFile(files[0]);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+
+    document.getElementById('apply-filters').addEventListener('click', applyFilters);
+    document.getElementById('reset-filters').addEventListener('click', resetFilters);
+
+    function handleFile(file) {
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                processData(results.data);
+                filterControls.style.display = 'flex';
+            },
+            error: function(err) {
+                alert("Error parsing CSV: " + err.message);
+            }
+        });
+    }
+
+    function normalizeHeader(header) {
+        // Handles "date\nfrom" -> "date from"
+        return header.replace(/[\r\n]+/g, " ").trim().toLowerCase();
+    }
+
+    function processData(data) {
+        rawData = [];
+        const tagsSet = new Set();
+        const locationSet = new Set();
+
+        data.forEach((row, index) => {
+            // Normalize keys to handle the newlines in CSV headers
+            const normRow = {};
+            Object.keys(row).forEach(k => {
+                normRow[normalizeHeader(k)] = row[k];
+            });
+
+            // Extract core fields
+            const start = normRow['date from'];
+            const end = normRow['date to']; // Optional
+            const content = normRow['description'] || 'Untitled';
+            const location = normRow['location'];
+            const tags = normRow['tags']; // Primary tags
+            // Notes/Links could be added to a tooltip or details view
+
+            if (!start) return; // Skip if no start date
+
+            // Build item object
+            const item = {
+                id: index,
+                content: content,
+                start: new Date(start),
+                // Store original data for filtering
+                _location: location ? location.trim() : null,
+                _tags: tags ? tags.trim() : null,
+                title: `
+                    <b>${content}</b><br>
+                    Start: ${start}<br>
+                    ${end ? 'End: ' + end + '<br>' : ''}
+                    ${location ? 'Location: ' + location + '<br>' : ''}
+                    ${tags ? 'Tags: ' + tags : ''}
+                `
+            };
+
+            if (end) {
+                item.end = new Date(end);
+                // If end is same as start or invalid, treat as point
+                if (item.end.getTime() === item.start.getTime()) {
+                    delete item.end;
+                }
+            }
+
+            rawData.push(item);
+
+            // Collect filter values
+            if (item._tags) tagsSet.add(item._tags);
+            if (item._location) locationSet.add(item._location);
+        });
+
+        populateDropdown(tagSelect, tagsSet);
+        populateDropdown(locationSelect, locationSet);
+
+        renderTimeline(rawData);
+    }
+
+    function populateDropdown(selectElement, valuesSet) {
+        // Keep the first "All" option and remove others
+        while (selectElement.options.length > 1) {
+            selectElement.remove(1);
+        }
+
+        const sortedValues = Array.from(valuesSet).sort();
+        sortedValues.forEach(val => {
+            const opt = document.createElement('option');
+            opt.value = val;
+            opt.textContent = val;
+            selectElement.appendChild(opt);
+        });
+    }
+
+    function renderTimeline(dataItems) {
+        items.clear();
+        items.add(dataItems);
+
+        itemCountLabel.textContent = `${dataItems.length} items displayed`;
+
+        if (!timeline) {
+            const container = document.getElementById('visualization');
+            const options = {
+                height: '100%',
+                verticalScroll: true,
+                zoomKey: 'ctrlKey', // Zoom with Ctrl + Scroll to avoid accidental zooming
+                start: new Date('1950-01-01'), // Default view
+                end: new Date('2025-01-01'),
+                orientation: { axis: 'top', item: 'top' }
+            };
+            timeline = new vis.Timeline(container, items, options);
+        } else {
+            timeline.fit();
+        }
+    }
+
+    function applyFilters() {
+        const tagVal = tagSelect.value;
+        const locVal = locationSelect.value;
+        const startVal = startDateInput.value ? new Date(startDateInput.value) : null;
+        const endVal = endDateInput.value ? new Date(endDateInput.value) : null;
+
+        const filtered = rawData.filter(item => {
+            // Tag Filter
+            if (tagVal !== 'all' && item._tags !== tagVal) return false;
+
+            // Location Filter
+            if (locVal !== 'all' && item._location !== locVal) return false;
+
+            // Date Range Filter (Show items that overlap or are contained)
+            // Logic: Item isn't purely before the range AND Item isn't purely after the range
+            if (startVal || endVal) {
+                const itemStart = item.start;
+                const itemEnd = item.end || item.start; // treat point as range of 0 length
+
+                // If filter start exists, item must end after filter start
+                if (startVal && itemEnd < startVal) return false;
+
+                // If filter end exists, item must start before filter end
+                if (endVal && itemStart > endVal) return false;
+            }
+
+            return true;
+        });
+
+        items.clear();
+        items.add(filtered);
+        itemCountLabel.textContent = `${filtered.length} items displayed`;
+        timeline.fit();
+    }
+
+    function resetFilters() {
+        tagSelect.value = 'all';
+        locationSelect.value = 'all';
+        startDateInput.value = '';
+        endDateInput.value = '';
+        applyFilters();
+    }
+</script>
+
+</body>
+</html>

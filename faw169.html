@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; color: #333; }
+        .container { background-color: #f8f9fa; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #2c3e50; margin-top: 0; }
+        .input-section { margin-bottom: 25px; }
+        label { display: block; margin-top: 8px; font-weight: 500; color: #2c3e50; }
+        input[type="file"] { width: 100%; padding: 8px; border: 2px solid #ddd; border-radius: 4px; margin-bottom: 10px; }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 5px;
+        }
+        button:hover { background-color: #2980b9; }
+        .results { margin-top: 20px; }
+        .result-section { margin-bottom: 15px; }
+        .result-title { font-weight: bold; color: #2c3e50; margin-bottom: 5px; }
+        .category-item { margin: 3px 0; padding-left: 15px; border-left: 2px solid #eee; }
+        .error { color: #e74c3c; background-color: #f8d7da; padding: 8px 12px; border-radius: 4px; margin-top: 10px; }
+        .success { color: #27ae60; background-color: #e8f4d7; padding: 8px 12px; border-radius: 4px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Expense Tracker</h1>
+
+    <div class="input-section">
+        <label for="fileInput">Upload CSV File (expenses.csv)</label>
+        <input type="file" id="fileInput" accept=".csv">
+        <button id="importBtn">Import Expenses</button>
+    </div>
+
+    <div id="results" class="results">
+        <p id="statusMessage" class="success">Ready to import expenses</p>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileInput = document.getElementById('fileInput');
+        const importBtn = document.getElementById('importBtn');
+        const results = document.getElementById('results');
+        const statusMessage = document.getElementById('statusMessage');
+
+        // Clear previous results
+        function clearResults() {
+            results.innerHTML = '';
+            statusMessage.className = 'success';
+            statusMessage.textContent = 'Ready to import expenses';
+        }
+
+        // Handle file import
+        importBtn.addEventListener('click', function() {
+            const file = fileInput.files[0];
+
+            if (!file) {
+                statusMessage.textContent = 'Please select a file first';
+                statusMessage.className = 'error';
+                return;
+            }
+
+            // Show loading state
+            statusMessage.textContent = 'Processing file...';
+            statusMessage.className = 'success';
+
+            // Check if file is CSV
+            if (!file.name.endsWith('.csv')) {
+                statusMessage.textContent = 'Invalid file format. Please use .csv';
+                statusMessage.className = 'error';
+                return;
+            }
+
+            try {
+                // Read file as text
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    const lines = content.split('\n');
+
+                    // Process CSV lines
+                    const expenses = [];
+                    lines.forEach(line => {
+                        const [date, amount, description] = line.split(',').map(part => part.trim());
+
+                        // Validate required fields
+                        if (date && amount && description) {
+                            // Convert amount to number
+                            const amountNum = parseFloat(amount);
+                            if (!isNaN(amountNum) && amountNum > 0) {
+                                expenses.push({
+                                    date: date,
+                                    amount: amountNum,
+                                    description: description
+                                });
+                            }
+                        }
+                    });
+
+                    // Show results
+                    clearResults();
+                    displayResults(expenses);
+                };
+
+                reader.onerror = function(error) {
+                    statusMessage.textContent = `File error: ${error.message}`;
+                    statusMessage.className = 'error';
+                };
+
+                reader.readAsText(file);
+            } catch (error) {
+                statusMessage.textContent = `Processing error: ${error.message}`;
+                statusMessage.className = 'error';
+            }
+        });
+
+        // Display results
+        function displayResults(expenses) {
+            if (expenses.length === 0) {
+                statusMessage.textContent = 'No expenses found';
+                statusMessage.className = 'error';
+                return;
+            }
+
+            // Calculate monthly totals
+            const monthlyTotals = {};
+            expenses.forEach(expense => {
+                const date = new Date(expense.date);
+                const monthYear = `${date.getMonth()+1}/${date.getFullYear()}`;
+
+                if (!monthlyTotals[monthYear]) {
+                    monthlyTotals[monthYear] = 0;
+                }
+                monthlyTotals[monthYear] += expense.amount;
+            });
+
+            // Group by month
+            const groupedResults = {};
+            Object.keys(monthlyTotals).forEach(monthYear => {
+                const total = monthlyTotals[monthYear];
+                const [month, year] = monthYear.split('/');
+                groupedResults[year] = groupedResults[year] || {};
+                groupedResults[year][month] = {
+                    total: total,
+                    items: []
+                };
+            });
+
+            // Build HTML results
+            const htmlResults = `
+                    <div class="result-section">
+                        <h2 class="result-title">Monthly Totals</h2>
+                        <ul>
+                            ${Object.keys(groupedResults).map(year => `
+                                <li>
+                                    <strong>${year}</strong>
+                                    <ul>
+                                        ${Object.keys(groupedResults[year]).map(month => `
+                                            <li>
+                                                <span class="category-item">${month}</span>
+                                                <span class="amount">Total: $${groupedResults[year][month].total.toFixed(2)}</span>
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+
+            results.innerHTML = htmlResults;
+            statusMessage.textContent = `Successfully processed ${expenses.length} expenses`;
+            statusMessage.className = 'success';
+        }
+    });
+</script>
+</body>
+</html>

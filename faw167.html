@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Tennis for Two (Oscilloscope Style)</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: #9fef9f;
+            font-family: system-ui, sans-serif;
+            height: 100%;a
+        display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        #frame {
+            position: relative;
+            padding: 16px;
+            border-radius: 24px;
+            border: 4px solid #0f3;
+            box-shadow: 0 0 20px #0f3, 0 0 40px rgba(0,255,128,0.4);
+            background: radial-gradient(circle at 50% 0%, #033, #000 70%);
+        }
+        canvas {
+            display: block;
+            border-radius: 12px;
+            background: #000;
+            box-shadow: 0 0 12px rgba(0,255,128,0.3), 0 0 30px rgba(0,255,128,0.2);
+        }
+        #hud {
+            margin-top: 12px;
+            font-size: 14px;
+            text-align: center;
+            text-shadow: 0 0 6px #0f3;
+        }
+        .score { font-weight: 600; letter-spacing: 0.08em; }
+        .hint { opacity: 0.8; margin-top: 4px; }
+    </style>
+</head>
+<body>
+<div id="frame"><canvas id="game" width="800" height="400"></canvas></div>
+<div id="hud">
+    <div class="score">Player 1: <span id="score1">0</span> | Player 2: <span id="score2">0</span></div>
+    <div class="hint">Player 1: A/D • Player 2: J/L</div>
+</div>
+
+<script>
+    (function () {
+        "use strict";
+
+        const canvas = document.getElementById("game");
+        const ctx = canvas.getContext("2d");
+
+        const width = canvas.width;
+        const height = canvas.height;
+
+        const groundY = height - 60;
+        const netX = width / 2;
+        const netWidth = 6;
+        const netHeight = 120;
+
+        const gravity = 0.25;
+        const ballRadius = 6;
+
+        const paddleWidth = 70;
+        const paddleHeight = 10;
+        const paddleY = groundY - paddleHeight;
+        const paddleSpeed = 4;
+
+        const leftLimit = 40;
+        const rightLimit = width - 40;
+
+        const scoreEl1 = document.getElementById("score1");
+        const scoreEl2 = document.getElementById("score2");
+
+        let score1 = 0;
+        let score2 = 0;
+
+        const keys = {};
+
+        // Simple beep using Web Audio API
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+        function beep() {
+            if (!AudioContext) return; // fail silently if not supported
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+
+            const now = audioCtx.currentTime;
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.type = "sine";
+            oscillator.frequency.setValueAtTime(550, now);
+
+            gainNode.gain.setValueAtTime(0.0, now);
+            gainNode.gain.linearRampToValueAtTime(0.3, now + 0.01);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.start(now);
+            oscillator.stop(now + 0.15);
+        }
+
+        const ball = {
+            x: width * 0.25,
+            y: groundY - 80,
+            vx: 3,
+            vy: -4
+        };
+
+        const paddle1 = {
+            x: width * 0.25,
+            y: paddleY
+        };
+
+        const paddle2 = {
+            x: width * 0.75,
+            y: paddleY
+        };
+
+        function resetBall(lastWinner) {
+            ball.y = groundY - 80;
+            ball.vy = -4 - Math.random() * 2;
+
+            if (lastWinner === 1) {
+                ball.x = width * 0.25;
+                ball.vx = 3 + Math.random() * 2;
+            } else if (lastWinner === 2) {
+                ball.x = width * 0.75;
+                ball.vx = -3 - Math.random() * 2;
+            } else {
+                ball.x = Math.random() < 0.5 ? width * 0.25 : width * 0.75;
+                ball.vx = ball.x < width / 2
+                    ? 3 + Math.random() * 2
+                    : -3 - Math.random() * 2;
+            }
+        }
+
+        function updatePaddles() {
+            // Player 1: A / D
+            if (keys["a"] || keys["A"]) {
+                paddle1.x -= paddleSpeed;
+            }
+            if (keys["d"] || keys["D"]) {
+                paddle1.x += paddleSpeed;
+            }
+
+            // Player 2: J / L
+            if (keys["j"] || keys["J"]) {
+                paddle2.x -= paddleSpeed;
+            }
+            if (keys["l"] || keys["L"]) {
+                paddle2.x += paddleSpeed;
+            }
+
+            // Constrain paddles
+            paddle1.x = Math.max(leftLimit, Math.min(netX - 40, paddle1.x));
+            paddle2.x = Math.max(netX + 40, Math.min(rightLimit, paddle2.x));
+        }
+
+        function updateBall() {
+            const prevX = ball.x;
+            const prevY = ball.y;
+
+            ball.vy += gravity;
+            ball.x += ball.vx;
+            ball.y += ball.vy;
+
+            // Ground bounce
+            if (ball.y + ballRadius > groundY) {
+                ball.y = groundY - ballRadius;
+                ball.vy *= -0.75;
+                ball.vx *= 0.99;
+            }
+
+            // Top boundary
+            if (ball.y - ballRadius < 40) {
+                ball.y = 40 + ballRadius;
+                ball.vy *= -1;
+            }
+
+            // Net collision (simple rectangle)
+            const netLeft = netX - netWidth / 2;
+            const netRight = netX + netWidth / 2;
+            const netTop = groundY - netHeight;
+
+            const wasLeftOfNet = prevX + ballRadius <= netLeft;
+            const wasRightOfNet = prevX - ballRadius >= netRight;
+
+            if (
+                ball.y + ballRadius > netTop &&
+                ball.y - ballRadius < groundY
+            ) {
+                if (ball.x + ballRadius > netLeft && ball.x < netLeft && ball.vx > 0 && wasLeftOfNet) {
+                    ball.x = netLeft - ballRadius;
+                    ball.vx *= -0.9;
+                    beep();
+                } else if (ball.x - ballRadius < netRight && ball.x > netRight && ball.vx < 0 && wasRightOfNet) {
+                    ball.x = netRight + ballRadius;
+                    ball.vx *= -0.9;
+                    beep();
+                }
+            }
+
+            // Paddle collisions (side-view "racket" at ground)
+            checkPaddleHit(paddle1);
+            checkPaddleHit(paddle2);
+
+            // Out of bounds (score)
+            if (ball.x < 0 - 40) {
+                // Player 2 scores
+                score2++;
+                scoreEl2.textContent = score2;
+                resetBall(2);
+            } else if (ball.x > width + 40) {
+                // Player 1 scores
+                score1++;
+                scoreEl1.textContent = score1;
+                resetBall(1);
+            }
+        }
+
+        function checkPaddleHit(paddle) {
+            const withinX =
+                ball.x > paddle.x - paddleWidth / 2 &&
+                ball.x < paddle.x + paddleWidth / 2;
+
+            const closeToTop =
+                ball.y + ballRadius >= paddle.y &&
+                ball.y + ballRadius <= paddle.y + paddleHeight;
+
+            if (withinX && closeToTop && ball.vy > 0) {
+                ball.y = paddle.y - ballRadius;
+                // Give the ball an upward kick and slight horizontal tweak based on hit position
+                const offset = (ball.x - paddle.x) / (paddleWidth / 2);
+                ball.vy = -Math.abs(ball.vy) * 1.05 - 3;
+                ball.vx += offset * 2;
+                beep();
+            }
+        }
+
+        function drawScopeBackground() {
+            // Faint fade for phosphor trail
+            ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+            ctx.fillRect(0, 0, width, height);
+
+            // Subtle grid
+            ctx.save();
+            ctx.globalAlpha = 0.12;
+            ctx.beginPath();
+            for (let x = 0; x <= width; x += 40) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+            }
+            for (let y = 0; y <= height; y += 40) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+            }
+            ctx.strokeStyle = "#0f3";
+            ctx.lineWidth = 0.4;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawCourt() {
+            ctx.save();
+            ctx.strokeStyle = "#0f6";
+            ctx.lineWidth = 2;
+            ctx.shadowColor = "#0f6";
+            ctx.shadowBlur = 8;
+
+            // Ground
+            ctx.beginPath();
+            ctx.moveTo(40, groundY);
+            ctx.lineTo(width - 40, groundY);
+            ctx.stroke();
+
+            // Net
+            ctx.beginPath();
+            ctx.moveTo(netX, groundY);
+            ctx.lineTo(netX, groundY - netHeight);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawPaddle(paddle) {
+            ctx.save();
+            ctx.fillStyle = "#9fef9f";
+            ctx.shadowColor = "#9fef9f";
+            ctx.shadowBlur = 10;
+            ctx.fillRect(
+                paddle.x - paddleWidth / 2,
+                paddle.y,
+                paddleWidth,
+                paddleHeight
+            );
+            ctx.restore();
+        }
+
+        function drawBall() {
+            ctx.save();
+            const gradient = ctx.createRadialGradient(
+                ball.x, ball.y, 0,
+                ball.x, ball.y, ballRadius * 3
+            );
+            gradient.addColorStop(0, "#ffffff");
+            gradient.addColorStop(0.3, "#9fef9f");
+            gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ballRadius * 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.fillStyle = "#ffffff";
+            ctx.shadowColor = "#ffffff";
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ballRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function loop() {
+            updatePaddles();
+            updateBall();
+
+            drawScopeBackground();
+            drawCourt();
+            drawPaddle(paddle1);
+            drawPaddle(paddle2);
+            drawBall();
+
+            requestAnimationFrame(loop);
+        }
+
+        // Input handling
+        window.addEventListener("keydown", (e) => {
+            keys[e.key] = true;
+        });
+
+        window.addEventListener("keyup", (e) => {
+            keys[e.key] = false;
+        });
+
+        // Start
+        resetBall();
+        drawScopeBackground();
+        drawCourt();
+        drawPaddle(paddle1);
+        drawPaddle(paddle2);
+        drawBall();
+        requestAnimationFrame(loop);
+    })();
+</script>
+</body>
+</html>

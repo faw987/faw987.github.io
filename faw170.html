@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>AX CSV Expense Summary</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- CSV parsing library (battle-tested and robust) -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+    <style>
+        :root {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.5;
+            color: #1f2933;
+            background-color: #f5f7fa;
+        }
+
+        body {
+            margin: 0;
+            padding: 1.5rem;
+        }
+
+        h1, h2 {
+            margin: 0 0 0.75rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 0.75rem;
+            padding: 1.25rem 1.5rem;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            margin-bottom: 1.5rem;
+        }
+
+        .drop-zone {
+            border: 2px dashed #cbd2e1;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            text-align: center;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+            cursor: pointer;
+            background-color: #f9fafb;
+        }
+
+        .drop-zone.dragover {
+            background-color: #e6f0ff;
+            border-color: #4f46e5;
+        }
+
+        .drop-zone p {
+            margin: 0.35rem 0;
+        }
+
+        .muted {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        button {
+            border: none;
+            border-radius: 999px;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            background-color: #4f46e5;
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        button.secondary {
+            background-color: #e5e7eb;
+            color: #111827;
+        }
+
+        .results-section {
+            margin-top: 1rem;
+        }
+
+        .results-section h2 {
+            font-size: 1.05rem;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        th, td {
+            padding: 0.4rem 0.5rem;
+            text-align: right;
+            border-bottom: 1px solid #e5e7eb;
+            white-space: nowrap;
+        }
+
+        th {
+            background-color: #f3f4f6;
+            font-weight: 600;
+        }
+
+        th:first-child,
+        td:first-child {
+            text-align: left;
+        }
+
+        tr:nth-child(even) td {
+            background-color: #f9fafb;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            background-color: #eef2ff;
+            color: #4338ca;
+            font-size: 0.75rem;
+        }
+
+        .error {
+            color: #b91c1c;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 0.75rem;
+            font-size: 0.85rem;
+        }
+
+        .stat-pill {
+            background-color: #f3f4f6;
+            border-radius: 999px;
+            padding: 0.3rem 0.8rem;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            .card {
+                padding: 1rem 1.1rem;
+            }
+            table {
+                display: block;
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h1>AX Expense CSV Summary</h1>
+        <p class="muted">
+            Drop your American Express CSV export here. This will compute:
+            monthly totals, monthly by description, and annual totals by description.
+        </p>
+
+        <div id="dropZone" class="drop-zone">
+            <p><strong>Drop CSV file here</strong></p>
+            <p class="muted">or</p>
+            <label for="fileInput">
+                <button type="button">
+                    <span>Choose CSV file</span>
+                </button>
+            </label>
+            <input id="fileInput" type="file" accept=".csv,text/csv" />
+            <p class="muted" style="margin-top: 0.75rem;">
+                Expected columns: <code>Date</code>, <code>Description</code>, <code>Amount</code>.
+                <br />Example: <code>08/03/2025, TESLA INC SUPERCHARG, 9.17</code>
+            </p>
+            <div id="error" class="error"></div>
+        </div>
+
+        <div id="summaryStats" class="stats" style="display:none;"></div>
+    </div>
+
+    <div id="results" class="card" style="display:none;">
+        <h2>Results</h2>
+        <div class="results-section" id="monthlyTotalsSection"></div>
+        <div class="results-section" id="monthlyByDescriptionSection"></div>
+        <div class="results-section" id="annualByDescriptionSection"></div>
+    </div>
+</div>
+
+<script>
+    // ---- Configuration (adaptable if your headers change) ----
+    const DATE_COLUMN = "Date";
+    const DESC_COLUMN = "Description";
+    const AMOUNT_COLUMN = "Amount";
+
+    const dropZone = document.getElementById("dropZone");
+    const fileInput = document.getElementById("fileInput");
+    const errorEl = document.getElementById("error");
+
+    const resultsCard = document.getElementById("results");
+    const monthlyTotalsSection = document.getElementById("monthlyTotalsSection");
+    const monthlyByDescriptionSection = document.getElementById("monthlyByDescriptionSection");
+    const annualByDescriptionSection = document.getElementById("annualByDescriptionSection");
+    const summaryStats = document.getElementById("summaryStats");
+
+    // ---- Utility functions ----
+
+    function setError(msg) {
+        errorEl.textContent = msg || "";
+    }
+
+    function formatCurrency(value) {
+        if (!isFinite(value)) return "";
+        return value.toLocaleString(undefined, {
+            style: "currency",
+            currency: "USD",
+            minimumFractionDigits: 2
+        });
+    }
+
+    function parseAxDate(dateStr) {
+        // Expecting MM/DD/YYYY
+        if (!dateStr) return null;
+        const parts = dateStr.split("/");
+        if (parts.length !== 3) return null;
+        const [mm, dd, yyyy] = parts.map(p => parseInt(p, 10));
+        if (!mm || !dd || !yyyy) return null;
+        // JS months are 0-based
+        const d = new Date(yyyy, mm - 1, dd);
+        // Basic sanity check
+        if (isNaN(d.getTime())) return null;
+        return d;
+    }
+
+    function getMonthKey(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, "0");
+        return `${y}-${m}`;
+    }
+
+    function getYearKey(date) {
+        return String(date.getFullYear());
+    }
+
+    function createTable(headers, rows) {
+        const table = document.createElement("table");
+        const thead = document.createElement("thead");
+        const trHead = document.createElement("tr");
+        headers.forEach(h => {
+            const th = document.createElement("th");
+            th.textContent = h;
+            trHead.appendChild(th);
+        });
+        thead.appendChild(trHead);
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+        rows.forEach(row => {
+            const tr = document.createElement("tr");
+            row.forEach(cell => {
+                const td = document.createElement("td");
+                td.innerHTML = cell;
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+
+        return table;
+    }
+
+    function summarize(records) {
+        const monthlyTotals = {};          // monthKey -> total
+        const monthlyByDesc = {};          // monthKey -> { desc -> total }
+        const annualByDesc = {};           // yearKey -> { desc -> total }
+
+        let totalAmount = 0;
+        let minDate = null;
+        let maxDate = null;
+
+        for (const rec of records) {
+            const date = parseAxDate(rec[DATE_COLUMN]);
+            if (!date) continue;
+
+            const desc = (rec[DESC_COLUMN] || "").trim();
+            const rawAmount = rec[AMOUNT_COLUMN];
+
+            if (rawAmount === undefined || rawAmount === null || rawAmount === "") continue;
+
+            const amount = parseFloat(String(rawAmount).replace(/,/g, ""));
+            if (!isFinite(amount)) continue;
+
+            totalAmount += amount;
+
+            if (!minDate || date < minDate) minDate = date;
+            if (!maxDate || date > maxDate) maxDate = date;
+
+            const monthKey = getMonthKey(date);
+            const yearKey = getYearKey(date);
+
+            // Monthly totals
+            monthlyTotals[monthKey] = (monthlyTotals[monthKey] || 0) + amount;
+
+            // Monthly by description
+            if (!monthlyByDesc[monthKey]) monthlyByDesc[monthKey] = {};
+            monthlyByDesc[monthKey][desc] = (monthlyByDesc[monthKey][desc] || 0) + amount;
+
+            // Annual by description
+            if (!annualByDesc[yearKey]) annualByDesc[yearKey] = {};
+            annualByDesc[yearKey][desc] = (annualByDesc[yearKey][desc] || 0) + amount;
+        }
+
+        return { monthlyTotals, monthlyByDesc, annualByDesc, totalAmount, minDate, maxDate };
+    }
+
+    function renderSummaryStats(totalAmount, minDate, maxDate, rowCount) {
+        if (!rowCount) {
+            summaryStats.style.display = "none";
+            return;
+        }
+        summaryStats.innerHTML = "";
+        summaryStats.style.display = "flex";
+
+        const addPill = (label) => {
+            const pill = document.createElement("div");
+            pill.className = "stat-pill";
+            pill.textContent = label;
+            summaryStats.appendChild(pill);
+        };
+
+        addPill(`Rows processed: ${rowCount}`);
+        addPill(`Total amount: ${formatCurrency(totalAmount)}`);
+        if (minDate && maxDate) {
+            addPill(`Date range: ${minDate.toLocaleDateString()} – ${maxDate.toLocaleDateString()}`);
+        }
+    }
+
+    function renderResults(summary) {
+        const { monthlyTotals, monthlyByDesc, annualByDescription, annualByDesc } = summary;
+
+        resultsCard.style.display = "block";
+
+        // ---- Monthly totals ----
+        monthlyTotalsSection.innerHTML = "";
+        const hMonthly = document.createElement("h2");
+        hMonthly.textContent = "1. Monthly Totals (All Descriptions)";
+        monthlyTotalsSection.appendChild(hMonthly);
+
+        const monthlyRows = Object.entries(summary.monthlyTotals)
+            .sort((a, b) => a[0].localeCompare(b[0])) // sort by month key
+            .map(([month, total]) => [month, formatCurrency(total)]);
+
+        monthlyTotalsSection.appendChild(
+            createTable(["Month", "Total Amount"], monthlyRows)
+        );
+
+        // ---- Monthly by description ----
+        monthlyByDescriptionSection.innerHTML = "";
+        const hMonthlyDesc = document.createElement("h2");
+        hMonthlyDesc.textContent = "2. Monthly Breakdown by Description";
+        monthlyByDescriptionSection.appendChild(hMonthlyDesc);
+
+        const monthlyDetails = [];
+        const monthKeys = Object.keys(summary.monthlyByDesc).sort();
+
+        monthKeys.forEach(monthKey => {
+            const descMap = summary.monthlyByDesc[monthKey];
+            const rows = Object.entries(descMap)
+                .sort((a, b) => b[1] - a[1]) // highest spend first
+                .map(([desc, total]) => [monthKey, desc || "(no description)", formatCurrency(total)]);
+            monthlyDetails.push(...rows);
+        });
+
+        monthlyByDescriptionSection.appendChild(
+            createTable(["Month", "Description", "Total Amount"], monthlyDetails)
+        );
+
+        // ---- Annual by description ----
+        annualByDescriptionSection.innerHTML = "";
+        const hAnnualDesc = document.createElement("h2");
+        hAnnualDesc.textContent = "3. Annual Breakdown by Description";
+        annualByDescriptionSection.appendChild(hAnnualDesc);
+
+        const annualDetails = [];
+        const yearKeys = Object.keys(summary.annualByDesc).sort();
+
+        yearKeys.forEach(yearKey => {
+            const descMap = summary.annualByDesc[yearKey];
+            const rows = Object.entries(descMap)
+                .sort((a, b) => b[1] - a[1])
+                .map(([desc, total]) => [yearKey, desc || "(no description)", formatCurrency(total)]);
+            annualDetails.push(...rows);
+        });
+
+        annualByDescriptionSection.appendChild(
+            createTable(["Year", "Description", "Total Amount"], annualDetails)
+        );
+    }
+
+    // ---- File handling ----
+
+    function handleFile(file) {
+        if (!file) return;
+        setError("");
+        resultsCard.style.display = "none";
+        summaryStats.style.display = "none";
+
+        if (!file.name.toLowerCase().endsWith(".csv")) {
+            setError("Please provide a CSV file.");
+            return;
+        }
+
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: "greedy",
+            complete: function (results) {
+                if (results.errors && results.errors.length > 0) {
+                    console.warn(results.errors);
+                }
+
+                const rows = results.data || [];
+
+                if (!rows.length) {
+                    setError("The CSV appears to be empty.");
+                    return;
+                }
+
+                const firstRow = rows[0];
+                const requiredCols = [DATE_COLUMN, DESC_COLUMN, AMOUNT_COLUMN];
+                const missing = requiredCols.filter(c => !(c in firstRow));
+
+                if (missing.length) {
+                    setError("Missing required columns: " + missing.join(", "));
+                    return;
+                }
+
+                const summary = summarize(rows);
+                renderSummaryStats(
+                    summary.totalAmount,
+                    summary.minDate,
+                    summary.maxDate,
+                    rows.length
+                );
+                renderResults(summary);
+            },
+            error: function (err) {
+                console.error(err);
+                setError("Failed to parse CSV: " + (err.message || String(err)));
+            }
+        });
+    }
+
+    // Drag & drop events
+    dropZone.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        dropZone.classList.add("dragover");
+    });
+
+    dropZone.addEventListener("dragleave", () => {
+        dropZone.classList.remove("dragover");
+    });
+
+    dropZone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        dropZone.classList.remove("dragover");
+        const file = event.dataTransfer.files[0];
+        handleFile(file);
+    });
+
+    // File picker
+    fileInput.addEventListener("change", (event) => {
+        const file = event.target.files[0];
+        handleFile(file);
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Browser macOS Environment</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+        :root {
+            --menu-height: 26px;
+            --dock-height: 70px;
+            --window-radius: 8px;
+            --window-header-height: 28px;
+            --shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.35);
+            --accent: #007aff;
+            --bg: #0b1524;
+            --bg-secondary: rgba(255, 255, 255, 0.06);
+            --border-subtle: rgba(255, 255, 255, 0.15);
+            --text-primary: #f9fafb;
+            --text-secondary: #d1d5db;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+            "Segoe UI", sans-serif;
+            color: var(--text-primary);
+            background: radial-gradient(circle at top, #1e293b, #020617 55%, #000 100%);
+        }
+
+        body {
+            position: relative;
+        }
+
+        /* Desktop background and subtle glow */
+        #desktop {
+            position: absolute;
+            inset: 0;
+            padding-top: var(--menu-height);
+            padding-bottom: var(--dock-height);
+            overflow: hidden;
+            background:
+                    radial-gradient(circle at 15% 15%, rgba(96, 165, 250, 0.18), transparent 55%),
+                    radial-gradient(circle at 85% 75%, rgba(52, 211, 153, 0.16), transparent 55%);
+        }
+
+        /* MAC STYLE MENU BAR */
+        .menu-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--menu-height);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            background: linear-gradient(
+                    to bottom,
+                    rgba(15, 23, 42, 0.92),
+                    rgba(15, 23, 42, 0.85)
+            );
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+            font-size: 12px;
+            z-index: 1000;
+            color: var(--text-secondary);
+        }
+
+        .menu-left,
+        .menu-center,
+        .menu-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .menu-left {
+            font-weight: 500;
+        }
+
+        .menu-item {
+            padding: 2px 6px;
+            border-radius: 4px;
+            cursor: default;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .menu-item.active,
+        .menu-item:hover {
+            background: rgba(148, 163, 184, 0.2);
+            color: var(--text-primary);
+        }
+
+        .apple-logo {
+            font-size: 14px;
+            margin-right: 4px;
+        }
+
+        /* DESKTOP ICONS */
+        .desktop-icons {
+            position: absolute;
+            top: 40px;
+            left: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            z-index: 1;
+        }
+
+        .desktop-icon {
+            width: 70px;
+            text-align: center;
+            cursor: default;
+            user-select: none;
+            color: var(--text-secondary);
+            font-size: 11px;
+        }
+
+        .desktop-icon-inner {
+            padding: 6px 4px;
+            border-radius: 10px;
+            transition: background 0.15s ease;
+        }
+
+        .desktop-icon-inner:hover {
+            background: rgba(15, 23, 42, 0.45);
+        }
+
+        .desktop-icon-graphic {
+            width: 42px;
+            height: 42px;
+            margin: 0 auto 4px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #38bdf8, #6366f1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: white;
+            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.5);
+        }
+
+        /* DOCK */
+        .dock-wrapper {
+            position: fixed;
+            left: 50%;
+            bottom: 10px;
+            transform: translateX(-50%);
+            height: var(--dock-height);
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        .dock {
+            display: flex;
+            gap: 10px;
+            padding: 8px 14px;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(18px);
+            border-radius: 22px;
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+            pointer-events: auto;
+        }
+
+        .dock-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at 25% 0%, #fff, #e5e7eb 40%, #9ca3af);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.5);
+            transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+            overflow: hidden;
+        }
+
+        .dock-icon span {
+            font-size: 22px;
+        }
+
+        .dock-icon:hover {
+            transform: translateY(-4px) scale(1.06);
+            box-shadow: 0 18px 35px rgba(0, 0, 0, 0.7);
+            filter: saturate(1.1);
+        }
+
+        .dock-indicator {
+            position: absolute;
+            bottom: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 4px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.85);
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+
+        .dock-icon.active .dock-indicator {
+            opacity: 1;
+        }
+
+        /* WINDOWS */
+        .window {
+            position: absolute;
+            min-width: 320px;
+            min-height: 200px;
+            max-width: calc(100vw - 80px);
+            max-height: calc(100vh - 120px);
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: var(--window-radius);
+            box-shadow: var(--shadow-soft);
+            border: 1px solid var(--border-subtle);
+            backdrop-filter: blur(18px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        .window.hidden {
+            display: none;
+        }
+
+        .window-header {
+            height: var(--window-header-height);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 8px;
+            background: linear-gradient(
+                    to bottom,
+                    rgba(15, 23, 42, 0.98),
+                    rgba(15, 23, 42, 0.92)
+            );
+            border-bottom: 1px solid rgba(148, 163, 184, 0.4);
+            cursor: move;
+            user-select: none;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .window-dot {
+            width: 11px;
+            height: 11px;
+            border-radius: 999px;
+            border: 0.5px solid rgba(0, 0, 0, 0.35);
+            box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.35);
+        }
+
+        .window-dot.close {
+            background: radial-gradient(circle at 30% 20%, #ff8a8a, #ff5f57);
+        }
+
+        .window-dot.minimize {
+            background: radial-gradient(circle at 30% 20%, #ffe29e, #febc2e);
+        }
+
+        .window-dot.maximize {
+            background: radial-gradient(circle at 30% 20%, #bef9c7, #28c840);
+        }
+
+        .window-title {
+            flex: 1;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+            pointer-events: none;
+        }
+
+        .window-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 10px 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            overflow: auto;
+        }
+
+        .window-body h1,
+        .window-body h2,
+        .window-body h3 {
+            margin: 0 0 8px;
+            color: var(--text-primary);
+        }
+
+        .window-body p {
+            margin: 4px 0 10px;
+            line-height: 1.5;
+        }
+
+        .window-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .toolbar-pill {
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.5);
+            background: rgba(15, 23, 42, 0.85);
+            font-size: 11px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease,
+            color 0.15s ease;
+        }
+
+        .toolbar-pill.active,
+        .toolbar-pill:hover {
+            background: rgba(37, 99, 235, 0.25);
+            border-color: rgba(59, 130, 246, 0.9);
+            color: var(--text-primary);
+        }
+
+        .window-body textarea {
+            flex: 1;
+            resize: none;
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.5);
+            padding: 8px 10px;
+            background: rgba(15, 23, 42, 0.85);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .window-body textarea::placeholder {
+            color: rgba(148, 163, 184, 0.8);
+        }
+
+        .fake-terminal {
+            flex: 1;
+            border-radius: 8px;
+            background: #020617;
+            padding: 10px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+            "Liberation Mono", "Courier New", monospace;
+            font-size: 12px;
+            overflow-y: auto;
+            border: 1px solid rgba(75, 85, 99, 0.85);
+        }
+
+        .fake-terminal-line {
+            margin-bottom: 4px;
+            white-space: pre-wrap;
+        }
+
+        .fake-terminal-prompt {
+            color: #4ade80;
+        }
+
+        .fake-terminal-input {
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            outline: none;
+            font: inherit;
+            width: 80%;
+        }
+
+        .fake-browser-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .fake-browser-btn {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.7);
+            background: rgba(15, 23, 42, 0.8);
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .fake-browser-url {
+            flex: 1;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            padding: 3px 8px;
+            background: rgba(15, 23, 42, 0.9);
+            font-size: 11px;
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .fake-browser-content {
+            flex: 1;
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.5);
+            padding: 10px;
+            background: radial-gradient(circle at top, #1e293b, #020617);
+            font-size: 13px;
+            overflow-y: auto;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 7px;
+            border-radius: 999px;
+            font-size: 11px;
+            border: 1px solid rgba(96, 165, 250, 0.8);
+            background: rgba(15, 23, 42, 0.9);
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .badge-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 999px;
+            background: #22c55e;
+        }
+
+        /* Simple scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 7px;
+            height: 7px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.5);
+            border-radius: 999px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.8);
+        }
+
+        @media (max-width: 640px) {
+            .desktop-icons {
+                display: none;
+            }
+            .window {
+                min-width: 280px;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- MENU BAR -->
+<div class="menu-bar">
+    <div class="menu-left">
+        <span class="apple-logo"></span>
+        <span class="menu-item active">Finder</span>
+        <span class="menu-item">File</span>
+        <span class="menu-item">Edit</span>
+        <span class="menu-item">View</span>
+        <span class="menu-item">Go</span>
+        <span class="menu-item">Window</span>
+        <span class="menu-item">Help</span>
+    </div>
+    <div class="menu-center">
+        <span class="menu-item">Browser macOS Demo</span>
+    </div>
+    <div class="menu-right">
+        <span class="menu-item" id="menu-clock">--:--</span>
+    </div>
+</div>
+
+<!-- DESKTOP AREA -->
+<div id="desktop">
+    <!-- Desktop icons -->
+    <div class="desktop-icons">
+        <div class="desktop-icon" data-window="finder">
+            <div class="desktop-icon-inner">
+                <div class="desktop-icon-graphic">😊</div>
+                <div>Finder</div>
+            </div>
+        </div>
+        <div class="desktop-icon" data-window="notes">
+            <div class="desktop-icon-inner">
+                <div class="desktop-icon-graphic" style="background:linear-gradient(135deg,#f97316,#facc15);">📝</div>
+                <div>Notes</div>
+            </div>
+        </div>
+        <div class="desktop-icon" data-window="browser">
+            <div class="desktop-icon-inner">
+                <div class="desktop-icon-graphic" style="background:linear-gradient(135deg,#22c55e,#0ea5e9);">🌐</div>
+                <div>Browser</div>
+            </div>
+        </div>
+        <div class="desktop-icon" data-window="terminal">
+            <div class="desktop-icon-inner">
+                <div class="desktop-icon-graphic" style="background:linear-gradient(135deg,#0f172a,#111827);">⌘</div>
+                <div>Terminal</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WINDOWS -->
+
+    <!-- Finder -->
+    <div class="window hidden" id="window-finder" data-app="finder" style="top:60px; left:100px; width:420px; height:260px;">
+        <div class="window-header">
+            <div class="window-controls">
+                <div class="window-dot close"></div>
+                <div class="window-dot minimize"></div>
+                <div class="window-dot maximize"></div>
+            </div>
+            <div class="window-title">Finder</div>
+        </div>
+        <div class="window-body">
+            <div class="window-toolbar">
+                <div class="toolbar-pill active">Recents</div>
+                <div class="toolbar-pill">Desktop</div>
+                <div class="toolbar-pill">Documents</div>
+            </div>
+            <p>Welcome to your <strong>browser-based macOS-style desktop</strong>.</p>
+            <ul>
+                <li>Use the Dock to open apps (Finder, Notes, Browser, Terminal).</li>
+                <li>Drag windows by their title bar to move them around.</li>
+                <li>Click the red / yellow / green buttons to close, minimize, or maximize.</li>
+            </ul>
+            <p style="margin-top: 12px; font-size: 12px; color: var(--text-secondary);">
+                This is just a front-end recreation – no real OS capabilities,
+                but it behaves like a mini window manager running in your browser.
+            </p>
+        </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="window hidden" id="window-notes" data-app="notes" style="top:90px; left:160px; width:380px; height:260px;">
+        <div class="window-header">
+            <div class="window-controls">
+                <div class="window-dot close"></div>
+                <div class="window-dot minimize"></div>
+                <div class="window-dot maximize"></div>
+            </div>
+            <div class="window-title">Notes</div>
+        </div>
+        <div class="window-body">
+            <p style="margin-bottom: 4px;">Quick note</p>
+            <textarea placeholder="Type anything here... This lives only in memory and will reset when you refresh the page."></textarea>
+        </div>
+    </div>
+
+    <!-- Browser -->
+    <div class="window hidden" id="window-browser" data-app="browser" style="top:130px; left:220px; width:500px; height:320px;">
+        <div class="window-header">
+            <div class="window-controls">
+                <div class="window-dot close"></div>
+                <div class="window-dot minimize"></div>
+                <div class="window-dot maximize"></div>
+            </div>
+            <div class="window-title">Safari (Demo)</div>
+        </div>
+        <div class="window-body">
+            <div class="fake-browser-toolbar">
+                <button class="fake-browser-btn" title="Back">‹</button>
+                <button class="fake-browser-btn" title="Forward">›</button>
+                <button class="fake-browser-btn" title="Refresh">⟳</button>
+                <div class="fake-browser-url">https://chatgpt-mac-demo.local</div>
+            </div>
+            <div class="fake-browser-content">
+                <div class="badge">
+                    <span class="badge-dot"></span>
+                    <span>macOS-style UI running in your browser</span>
+                </div>
+                <h2 style="margin-top: 0;">Hello from your fake browser 👋</h2>
+                <p>
+                    This is a static “browser” view baked into the demo. In a real project,
+                    you could wire this up to an iframe, a custom renderer, or other
+                    interactive content.
+                </p>
+                <p>
+                    Try opening multiple windows and dragging them around. The app manages:
+                </p>
+                <ul>
+                    <li>Window focus and z-index</li>
+                    <li>Basic close / minimize / maximize behavior</li>
+                    <li>A live clock in the menu bar</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terminal -->
+    <div class="window hidden" id="window-terminal" data-app="terminal" style="top:170px; left:260px; width:460px; height:260px;">
+        <div class="window-header">
+            <div class="window-controls">
+                <div class="window-dot close"></div>
+                <div class="window-dot minimize"></div>
+                <div class="window-dot maximize"></div>
+            </div>
+            <div class="window-title">Terminal</div>
+        </div>
+        <div class="window-body">
+            <div class="fake-terminal" id="terminal-output">
+                <div class="fake-terminal-line">
+                    <span class="fake-terminal-prompt">mac-demo% </span>Welcome to the in-browser terminal mock.
+                </div>
+                <div class="fake-terminal-line">
+                    <span class="fake-terminal-prompt">mac-demo% </span>Type anything and hit Enter – it will just echo back.
+                </div>
+            </div>
+            <div class="fake-terminal-line" style="margin-top:6px;">
+                <span class="fake-terminal-prompt">mac-demo% </span>
+                <input class="fake-terminal-input" id="terminal-input" autocomplete="off" />
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const desktop = document.getElementById("desktop");
+        const windows = Array.from(document.querySelectorAll(".window"));
+        const dockIcons = Array.from(document.querySelectorAll(".dock-icon"));
+        const desktopIcons = Array.from(document.querySelectorAll(".desktop-icon"));
+        const clockEl = document.getElementById("menu-clock");
+        let zCounter = 20;
+
+        // Create Dock programmatically so we can map icons to windows
+        const dockWrapper = document.querySelector(".dock-wrapper");
+        if (!dockWrapper) {
+            const dw = document.createElement("div");
+            dw.className = "dock-wrapper";
+            dw.innerHTML = `
+          <div class="dock">
+            <button class="dock-icon" data-window="finder" title="Finder">
+              <span>😊</span>
+              <div class="dock-indicator"></div>
+            </button>
+            <button class="dock-icon" data-window="notes" title="Notes">
+              <span>📝</span>
+              <div class="dock-indicator"></div>
+            </button>
+            <button class="dock-icon" data-window="browser" title="Browser">
+              <span>🌐</span>
+              <div class="dock-indicator"></div>
+            </button>
+            <button class="dock-icon" data-window="terminal" title="Terminal">
+              <span>⌘</span>
+              <div class="dock-indicator"></div>
+            </button>
+          </div>
+        `;
+            document.body.appendChild(dw);
+        }
+
+        const dock = document.querySelector(".dock");
+        const dockButtons = Array.from(dock.querySelectorAll(".dock-icon"));
+
+        function bringToFront(win) {
+            zCounter += 1;
+            win.style.zIndex = zCounter;
+        }
+
+        function toggleDockIndicator(appId, active) {
+            dockButtons.forEach((btn) => {
+                if (btn.dataset.window === appId) {
+                    btn.classList.toggle("active", active);
+                }
+            });
+        }
+
+        function openWindow(appId) {
+            const win = document.getElementById(`window-${appId}`);
+            if (!win) return;
+            if (win.classList.contains("hidden")) {
+                win.classList.remove("hidden");
+            }
+            win.classList.remove("minimized");
+            win.style.display = "flex";
+            bringToFront(win);
+            toggleDockIndicator(appId, true);
+        }
+
+        function closeWindow(appId) {
+            const win = document.getElementById(`window-${appId}`);
+            if (!win) return;
+            win.classList.add("hidden");
+            toggleDockIndicator(appId, false);
+        }
+
+        function minimizeWindow(appId) {
+            const win = document.getElementById(`window-${appId}`);
+            if (!win) return;
+            if (win.classList.contains("minimized")) {
+                // restore
+                win.classList.remove("minimized");
+                win.style.display = "flex";
+                bringToFront(win);
+            } else {
+                win.classList.add("minimized");
+                win.style.display = "none";
+            }
+        }
+
+        function maximizeWindow(appId) {
+            const win = document.getElementById(`window-${appId}`);
+            if (!win) return;
+            const isMax = win.dataset.maximized === "true";
+            if (isMax) {
+                // Restore previous size/pos
+                const { x, y, w, h } = JSON.parse(win.dataset.previousRect || "{}");
+                if (w && h) {
+                    win.style.left = x + "px";
+                    win.style.top = y + "px";
+                    win.style.width = w + "px";
+                    win.style.height = h + "px";
+                }
+                win.dataset.maximized = "false";
+            } else {
+                // Store current rect
+                const rect = win.getBoundingClientRect();
+                win.dataset.previousRect = JSON.stringify({
+                    x: rect.left,
+                    y: rect.top,
+                    w: rect.width,
+                    h: rect.height,
+                });
+                const margin = 18;
+                win.style.left = margin + "px";
+                win.style.top = margin + 12 + "px";
+                win.style.width = window.innerWidth - margin * 2 + "px";
+                win.style.height =
+                    window.innerHeight - margin * 2 - parseInt(getComputedStyle(document.body).getPropertyValue('--dock-height') || 70) + "px";
+                win.dataset.maximized = "true";
+            }
+            bringToFront(win);
+        }
+
+        // Dock icon click behavior
+        dockButtons.forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const appId = btn.dataset.window;
+                const win = document.getElementById(`window-${appId}`);
+                if (!win) return;
+
+                if (win.classList.contains("hidden") || win.style.display === "none") {
+                    openWindow(appId);
+                } else {
+                    // If already visible, just focus
+                    bringToFront(win);
+                }
+            });
+        });
+
+        // Desktop icon double-click to open
+        desktopIcons.forEach((icon) => {
+            icon.addEventListener("dblclick", () => {
+                const appId = icon.dataset.window;
+                openWindow(appId);
+            });
+        });
+
+        // Window control buttons
+        windows.forEach((win) => {
+            const appId = win.dataset.app;
+            const dots = win.querySelectorAll(".window-dot");
+            dots.forEach((dot) => {
+                if (dot.classList.contains("close")) {
+                    dot.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        closeWindow(appId);
+                    });
+                }
+                if (dot.classList.contains("minimize")) {
+                    dot.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        minimizeWindow(appId);
+                    });
+                }
+                if (dot.classList.contains("maximize")) {
+                    dot.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        maximizeWindow(appId);
+                    });
+                }
+            });
+
+            win.addEventListener("mousedown", () => bringToFront(win));
+        });
+
+        // Dragging windows
+        windows.forEach((win) => {
+            const header = win.querySelector(".window-header");
+            if (!header) return;
+
+            let dragging = false;
+            let offsetX = 0;
+            let offsetY = 0;
+
+            header.addEventListener("mousedown", (e) => {
+                // Only left button
+                if (e.button !== 0) return;
+                dragging = true;
+                bringToFront(win);
+                const rect = win.getBoundingClientRect();
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top;
+                document.body.style.userSelect = "none";
+            });
+
+            document.addEventListener("mousemove", (e) => {
+                if (!dragging) return;
+                const maxX = window.innerWidth - 80;
+                const maxY = window.innerHeight - 120;
+                let x = e.clientX - offsetX;
+                let y = e.clientY - offsetY;
+                x = Math.min(Math.max(x, 10), maxX);
+                y = Math.min(Math.max(y, 30), maxY);
+                win.style.left = x + "px";
+                win.style.top = y + "px";
+            });
+
+            document.addEventListener("mouseup", () => {
+                dragging = false;
+                document.body.style.userSelect = "";
+            });
+        });
+
+        // Simple clock
+        function updateClock() {
+            const now = new Date();
+            const options = {
+                hour: "numeric",
+                minute: "2-digit",
+            };
+            const time = now.toLocaleTimeString(undefined, options);
+            const date = now.toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+            });
+            clockEl.textContent = `${date} ${time}`;
+        }
+
+        updateClock();
+        setInterval(updateClock, 30_000);
+
+        // Terminal behavior
+        const termOutput = document.getElementById("terminal-output");
+        const termInput = document.getElementById("terminal-input");
+
+        function appendTerminalLine(text) {
+            if (!termOutput) return;
+            const line = document.createElement("div");
+            line.className = "fake-terminal-line";
+            line.textContent = text;
+            termOutput.appendChild(line);
+            termOutput.scrollTop = termOutput.scrollHeight;
+        }
+
+        if (termInput) {
+            termInput.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    const cmd = termInput.value.trim();
+                    appendTerminalLine(`mac-demo% ${cmd}`);
+                    if (cmd) {
+                        appendTerminalLine(`You typed: "${cmd}" (echoed by the demo)`);
+                    }
+                    termInput.value = "";
+                    e.preventDefault();
+                }
+            });
+        }
+
+        // Open Finder by default on load
+        openWindow("finder");
+    })();
+</script>
+</body>
+</html>
