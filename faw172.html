@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Eyeglass Try-On (2D Canvas, BG-Removed Frames)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <style>
+        :root {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+            sans-serif;
+            color-scheme: light dark;
+            --bg: #020617;
+            --border-subtle: #1f2937;
+            --accent: #22c55e;
+            --accent-soft: rgba(34, 197, 94, 0.18);
+            --text-main: #e5e7eb;
+            --text-muted: #9ca3af;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            background: radial-gradient(circle at top, #020617 0, #020617 40%, #000 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            background: linear-gradient(to bottom, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.7));
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        header h1 {
+            font-size: 1.1rem;
+            margin: 0;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: #f9fafb;
+        }
+
+        header span { font-size: 0.8rem; color: var(--text-muted); }
+
+        .debug-flag {
+            font-size: 0.7rem;
+            color: #f97316;
+            opacity: 0.8;
+        }
+
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 260px minmax(0, 1.5fr) 260px;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem 1rem;
+        }
+
+        @media (max-width: 1024px) {
+            main { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: radial-gradient(circle at top left, rgba(148, 163, 184, 0.06), transparent 55%),
+            linear-gradient(to bottom right, #020617, #020617);
+            border-radius: 1rem;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            box-shadow:
+                    0 18px 45px rgba(0, 0, 0, 0.75),
+                    0 0 0 1px rgba(15, 23, 42, 0.9);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 0.5rem;
+        }
+
+        .panel-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #e5e7eb;
+        }
+
+        .panel-subtitle { font-size: 0.75rem; color: var(--text-muted); }
+
+        .file-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .file-input-label { font-size: 0.8rem; color: var(--text-muted); }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .btn {
+            border-radius: 999px;
+            border: 1px solid var(--border-subtle);
+            background: radial-gradient(circle at top left, rgba(248, 250, 252, 0.05), rgba(15, 23, 42, 0.95));
+            color: var(--text-main);
+            padding: 0.4rem 0.9rem;
+            font-size: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition:
+                    background 0.2s ease,
+                    border-color 0.2s ease,
+                    transform 0.08s ease,
+                    box-shadow 0.08s ease;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.9);
+        }
+
+        .btn:hover {
+            border-color: rgba(148, 163, 184, 0.9);
+            background: radial-gradient(circle at top left, rgba(248, 250, 252, 0.09), rgba(15, 23, 42, 0.98));
+            transform: translateY(-0.5px);
+        }
+
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: default;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .btn-primary {
+            border-color: rgba(34, 197, 94, 0.7);
+            background: radial-gradient(circle at top left, rgba(34, 197, 94, 0.25), rgba(15, 23, 42, 0.98));
+        }
+
+        .btn-danger {
+            border-color: rgba(239, 68, 68, 0.7);
+            background: radial-gradient(circle at top left, rgba(239, 68, 68, 0.2), rgba(15, 23, 42, 0.98));
+            color: #fee2e2;
+        }
+
+        .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.75rem; }
+
+        .thumb-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            gap: 0.4rem;
+            max-height: 280px;
+            overflow: auto;
+            padding: 0.1rem;
+            border-radius: 0.75rem;
+            border: 1px dashed rgba(148, 163, 184, 0.4);
+            background: radial-gradient(circle at top, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.6));
+        }
+
+        .thumb {
+            position: relative;
+            border-radius: 0.6rem;
+            overflow: hidden;
+            border: 1px solid transparent;
+            cursor: pointer;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #020617;
+            transition:
+                    border-color 0.15s ease,
+                    transform 0.1s ease,
+                    box-shadow 0.15s ease,
+                    background 0.15s ease;
+        }
+
+        .thumb img {
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
+            object-fit: cover;
+        }
+
+        .thumb:hover {
+            border-color: rgba(148, 163, 184, 0.9);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.9);
+        }
+
+        .thumb.selected {
+            border-color: rgba(34, 197, 94, 0.9);
+            box-shadow:
+                    0 0 0 1px rgba(34, 197, 94, 0.5),
+                    0 0 0 8px rgba(34, 197, 94, 0.08);
+        }
+
+        .thumb-label {
+            position: absolute;
+            inset-inline: 0.2rem;
+            bottom: 0.2rem;
+            padding: 0.07rem 0.3rem;
+            border-radius: 999px;
+            background: linear-gradient(to right, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.85));
+            font-size: 0.68rem;
+            color: #e5e7eb;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .canvas-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            min-height: 0;
+        }
+
+        .canvas-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.55rem;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.7);
+            color: var(--text-muted);
+            background: radial-gradient(circle at top left, rgba(148, 163, 184, 0.2), rgba(15, 23, 42, 0.95));
+        }
+
+        .badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: var(--accent);
+            display: inline-block;
+            margin-right: 0.3rem;
+            box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
+        }
+
+        .canvas-shell {
+            flex: 1;
+            min-height: 300px;
+            border-radius: 0.9rem;
+            border: 1px solid rgba(148, 163, 184, 0.4);
+            background: radial-gradient(circle at top, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.9));
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+            padding: 0.4rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow:
+                    0 16px 40px rgba(15, 23, 42, 1),
+                    inset 0 0 0 1px rgba(15, 23, 42, 0.95);
+        }
+
+        canvas {
+            border-radius: 0.7rem;
+            background: #020617;
+            box-shadow: 0 18px 35px rgba(15, 23, 42, 0.95);
+        }
+
+        .chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            align-items: center;
+        }
+
+        .controls-block {
+            border-radius: 0.9rem;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            padding: 0.5rem 0.6rem;
+            background: radial-gradient(circle at top, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.9));
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .control-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+
+        .control-row label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .control-row label span.value {
+            color: var(--accent);
+            font-variant-numeric: tabular-nums;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+        }
+
+        .status-text {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+
+        .status-text .ok { color: #4ade80; }
+        .status-text .warn { color: #f97316; }
+        .status-text .err { color: #fca5a5; }
+
+        .divider { border-top: 1px dashed rgba(148, 163, 184, 0.35); margin: 0.3rem 0; }
+
+        .hint { font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; }
+        .hint strong { color: #e5e7eb; }
+    </style>
+</head>
+<body>
+<header>
+    <div>
+        <h1>Eyeglass Try-On <span class="debug-flag">(2D canvas + BG removal)</span></h1>
+        <span>Faces left, controls center, frames right</span>
+    </div>
+    <button id="exportBtnHeader" class="btn btn-primary btn-sm">
+        ⬇ Export PNG
+    </button>
+</header>
+
+<main>
+    <!-- Left: Face images -->
+    <section class="panel">
+        <div class="panel-header">
+            <div>
+                <div class="panel-title">Face Images</div>
+                <div class="panel-subtitle">Upload several poses</div>
+            </div>
+        </div>
+
+        <div class="file-input-group">
+            <span class="file-input-label">Upload face photos</span>
+            <div class="file-input-wrapper">
+                <button class="btn btn-sm">📷 Choose face images</button>
+                <input type="file" id="faceInput" accept="image/*" multiple />
+            </div>
+        </div>
+
+        <div class="thumb-grid" id="faceThumbs"></div>
+
+        <p class="hint">
+            <strong>Tip:</strong> Faces with clear eye and nose areas make alignment easier.
+        </p>
+    </section>
+
+    <!-- Center: Canvas + controls -->
+    <section class="panel">
+        <div class="canvas-wrapper">
+            <div class="canvas-toolbar">
+          <span class="badge">
+            <span class="badge-dot"></span>
+            Drag on canvas to move frame
+          </span>
+                <div class="chip-row">
+                    <button id="saveAlignmentBtn" class="btn btn-sm btn-primary">💾 Save alignment for this face</button>
+                    <button id="clearFrameBtn" class="btn btn-sm btn-danger">✕ Remove frame overlay</button>
+                </div>
+            </div>
+
+            <div class="canvas-shell">
+                <canvas id="faceCanvas" width="800" height="600"></canvas>
+            </div>
+
+            <div class="controls-block">
+                <div class="control-row">
+                    <label>
+                        Scale
+                        <span class="value" id="scaleValue">1.00×</span>
+                    </label>
+                    <input type="range" id="scaleSlider" min="0.3" max="3" step="0.01" value="1" />
+                </div>
+                <div class="control-row">
+                    <label>
+                        Rotation
+                        <span class="value" id="rotationValue">0°</span>
+                    </label>
+                    <input type="range" id="rotationSlider" min="-45" max="45" step="0.5" value="0" />
+                </div>
+                <div class="control-row">
+                    <label>
+                        Horizontal offset
+                        <span class="value" id="offsetXValue">0 px</span>
+                    </label>
+                    <input type="range" id="offsetXSlider" min="-200" max="200" step="1" value="0" />
+                </div>
+                <div class="control-row">
+                    <label>
+                        Vertical offset
+                        <span class="value" id="offsetYValue">0 px</span>
+                    </label>
+                    <input type="range" id="offsetYSlider" min="-200" max="200" step="1" value="0" />
+                </div>
+
+                <div class="chip-row">
+                    <button id="resetOverlayBtn" class="btn btn-sm">⟳ Reset overlay</button>
+                    <button id="exportBtn" class="btn btn-sm btn-primary">⬇ Export PNG</button>
+                </div>
+            </div>
+
+            <p class="status-text" id="statusText">
+                No face selected yet. Upload and pick a face on the left, then pick a frame on the right.
+            </p>
+
+            <div class="divider"></div>
+
+            <p class="hint">
+                Once you’ve aligned one frame to a face, click <strong>“Save alignment for this face”</strong>.
+                When you click other frames (for that same face), they’ll snap into the same pose and size.
+            </p>
+        </div>
+    </section>
+
+    <!-- Right: Frame images -->
+    <section class="panel">
+        <div class="panel-header">
+            <div>
+                <div class="panel-title">Eyeglass Frames</div>
+                <div class="panel-subtitle">Solid backgrounds will be made transparent</div>
+            </div>
+        </div>
+
+        <div class="file-input-group">
+            <span class="file-input-label">Upload eyeglass images</span>
+            <div class="file-input-wrapper">
+                <button class="btn btn-sm">👓 Choose frame images</button>
+                <input type="file" id="frameInput" accept="image/*" multiple />
+            </div>
+        </div>
+
+        <div class="thumb-grid" id="frameThumbs"></div>
+
+        <p class="hint">
+            Frames are pre-processed to remove a solid background (based on the corner colors),
+            so the eyes and skin show through.
+        </p>
+    </section>
+</main>
+
+<script>
+    // ===== Debug flag & helper =====
+    const DEBUG = true; // set to false to silence logs
+    function debugLog(...args) {
+        if (DEBUG) console.log("[DEBUG]", ...args);
+    }
+
+    debugLog("Script starting…");
+
+    const canvas = document.getElementById("faceCanvas");
+    const ctx = canvas.getContext("2d");
+    window.ctx = ctx; // exposed for manual poking
+
+    debugLog("Canvas size:", canvas.width, canvas.height);
+
+    const faceThumbsEl = document.getElementById("faceThumbs");
+    const frameThumbsEl = document.getElementById("frameThumbs");
+    const faceInputEl = document.getElementById("faceInput");
+    const frameInputEl = document.getElementById("frameInput");
+    const statusTextEl = document.getElementById("statusText");
+
+    const scaleSlider = document.getElementById("scaleSlider");
+    const rotationSlider = document.getElementById("rotationSlider");
+    const offsetXSlider = document.getElementById("offsetXSlider");
+    const offsetYSlider = document.getElementById("offsetYSlider");
+    const scaleValue = document.getElementById("scaleValue");
+    const rotationValue = document.getElementById("rotationValue");
+    const offsetXValue = document.getElementById("offsetXValue");
+    const offsetYValue = document.getElementById("offsetYValue");
+
+    const exportBtn = document.getElementById("exportBtn");
+    const exportBtnHeader = document.getElementById("exportBtnHeader");
+    const resetOverlayBtn = document.getElementById("resetOverlayBtn");
+    const saveAlignmentBtn = document.getElementById("saveAlignmentBtn");
+    const clearFrameBtn = document.getElementById("clearFrameBtn");
+
+    // ===== State =====
+    const state = {
+        faces: [],   // { img, url, name }
+        frames: [],  // { img, url, name } (frame img has background removed)
+        selectedFaceIndex: null,
+        selectedFrameIndex: null,
+        faceImg: null,
+        frameImg: null,
+        faceTransform: {
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0,
+            width: 0,
+            height: 0,
+        },
+        overlay: {
+            scale: 1,
+            rotationRad: 0,
+            offsetX: 0,
+            offsetY: 0,
+        },
+        // per-face saved alignment
+        alignments: new Map(), // key: faceIndex, value: {scale, rotationRad, offsetX, offsetY}
+        dragging: false,
+        dragStart: { x: 0, y: 0 },
+        dragOverlayStart: { x: 0, y: 0 },
+    };
+
+    function setStatus(text, level = "info") {
+        const classes = { info: "", ok: "ok", warn: "warn", err: "err" };
+        debugLog("Status:", level, text);
+        statusTextEl.innerHTML = `<span class="${classes[level]}">${text}</span>`;
+    }
+
+    // --- Image helpers ---
+
+    function createImageFromFile(file) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = URL.createObjectURL(file);
+        });
+    }
+
+    function makeFrameBackgroundTransparent(baseImg, tolerance = 50) {
+        // Simple chroma-key-ish approach: sample corners, treat similar colors as background.
+        const w = baseImg.width;
+        const h = baseImg.height;
+
+        const off = document.createElement("canvas");
+        off.width = w;
+        off.height = h;
+        const ictx = off.getContext("2d");
+        ictx.drawImage(baseImg, 0, 0);
+
+        const imgData = ictx.getImageData(0, 0, w, h);
+        const d = imgData.data;
+
+        function getPixel(x, y) {
+            const idx = (y * w + x) * 4;
+            return [
+                d[idx],
+                d[idx + 1],
+                d[idx + 2],
+                d[idx + 3],
+            ];
+        }
+
+        // Sample corners
+        const samples = [
+            getPixel(0, 0),
+            getPixel(w - 1, 0),
+            getPixel(0, h - 1),
+            getPixel(w - 1, h - 1),
+        ];
+
+        // If corners already mostly transparent, just return original
+        const transparentCorners = samples.filter(([r,g,b,a]) => a < 10).length;
+        if (transparentCorners >= 3) {
+            debugLog("makeFrameBackgroundTransparent: corners already transparent; skipping keying");
+            return baseImg;
+        }
+
+        // Average background color
+        let rSum = 0, gSum = 0, bSum = 0, count = 0;
+        for (const [r, g, b, a] of samples) {
+            if (a > 0) {
+                rSum += r; gSum += g; bSum += b; count++;
+            }
+        }
+        if (count === 0) {
+            debugLog("makeFrameBackgroundTransparent: no opaque corner samples; skipping");
+            return baseImg;
+        }
+        const bgR = rSum / count;
+        const bgG = gSum / count;
+        const bgB = bSum / count;
+
+        const tolSq = tolerance * tolerance;
+
+        for (let i = 0; i < d.length; i += 4) {
+            const r = d[i];
+            const g = d[i + 1];
+            const b = d[i + 2];
+            const a = d[i + 3];
+
+            if (a === 0) continue;
+
+            const dr = r - bgR;
+            const dg = g - bgG;
+            const db = b - bgB;
+            const distSq = dr * dr + dg * dg + db * db;
+
+            if (distSq <= tolSq) {
+                d[i + 3] = 0; // make transparent
+            }
+        }
+
+        ictx.putImageData(imgData, 0, 0);
+
+        const resultImg = new Image();
+        resultImg.src = off.toDataURL("image/png");
+        return resultImg;
+    }
+
+    async function createTransparentFrameFromFile(file) {
+        const baseImg = await createImageFromFile(file);
+        const processed = makeFrameBackgroundTransparent(baseImg, 50);
+        return new Promise((resolve) => {
+            if (processed.complete) {
+                resolve(processed);
+            } else {
+                processed.onload = () => resolve(processed);
+            }
+        });
+    }
+
+    // --- Thumbnails ---
+
+    function addThumb(listEl, item, type) {
+        const thumb = document.createElement("div");
+        thumb.className = "thumb";
+        const img = document.createElement("img");
+        img.src = item.url;
+        img.alt = item.name || (type + " " + (item.index + 1));
+        const label = document.createElement("div");
+        label.className = "thumb-label";
+        label.textContent = type + " " + (item.index + 1);
+        thumb.appendChild(img);
+        thumb.appendChild(label);
+
+        thumb.addEventListener("click", () => {
+            debugLog("Thumbnail clicked", { type, index: item.index });
+            if (type === "Face") {
+                selectFace(item.index);
+            } else {
+                selectFrame(item.index, true); // reuse alignment if available
+            }
+        });
+
+        listEl.appendChild(thumb);
+    }
+
+    function refreshThumbSelection(container, selectedIndex) {
+        Array.from(container.children).forEach((child, idx) => {
+            if (idx === selectedIndex) child.classList.add("selected");
+            else child.classList.remove("selected");
+        });
+    }
+
+    // --- File handling ---
+
+    async function handleFaceFiles(files) {
+        const arr = Array.from(files).filter(f => f.type.startsWith("image/"));
+        for (const file of arr) {
+            const img = await createImageFromFile(file);
+            state.faces.push({ img, url: img.src, name: file.name });
+        }
+        faceThumbsEl.innerHTML = "";
+        state.faces.forEach((f, i) => addThumb(faceThumbsEl, { ...f, index: i }, "Face"));
+        debugLog("Faces loaded:", state.faces.length);
+        setStatus("Faces loaded. Click a face thumbnail.", "ok");
+        if (state.selectedFaceIndex === null && state.faces.length > 0) {
+            selectFace(0);
+        }
+    }
+
+    async function handleFrameFiles(files) {
+        const arr = Array.from(files).filter(f => f.type.startsWith("image/"));
+        for (const file of arr) {
+            const processedImg = await createTransparentFrameFromFile(file);
+            state.frames.push({ img: processedImg, url: processedImg.src, name: file.name });
+            debugLog("Frame processed:", file.name, {
+                width: processedImg.width,
+                height: processedImg.height
+            });
+        }
+        frameThumbsEl.innerHTML = "";
+        state.frames.forEach((f, i) => addThumb(frameThumbsEl, { ...f, index: i }, "Frame"));
+        debugLog("Frames loaded (with BG removed):", state.frames.length);
+        setStatus("Frames loaded & background cleaned. Click a frame thumbnail.", "ok");
+    }
+
+    faceInputEl.addEventListener("change", (e) => {
+        handleFaceFiles(e.target.files).catch(err => {
+            console.error(err);
+            setStatus("Error loading face images.", "err");
+        });
+        faceInputEl.value = "";
+    });
+
+    frameInputEl.addEventListener("change", (e) => {
+        handleFrameFiles(e.target.files).catch(err => {
+            console.error(err);
+            setStatus("Error loading frame images.", "err");
+        });
+        frameInputEl.value = "";
+    });
+
+    // --- Face & frame selection ---
+
+    function selectFace(index) {
+        const face = state.faces[index];
+        if (!face) return;
+        state.selectedFaceIndex = index;
+        state.faceImg = face.img;
+
+        // Fit face into canvas
+        const cw = canvas.width;
+        const ch = canvas.height;
+        const iw = face.img.width;
+        const ih = face.img.height;
+        const scale = Math.min(cw / iw, ch / ih);
+        const drawWidth = iw * scale;
+        const drawHeight = ih * scale;
+        const offsetX = (cw - drawWidth) / 2;
+        const offsetY = (ch - drawHeight) / 2;
+
+        state.faceTransform = {
+            scale,
+            offsetX,
+            offsetY,
+            width: drawWidth,
+            height: drawHeight,
+        };
+
+        // Reset overlay transforms for this face
+        resetOverlay(true);
+
+        refreshThumbSelection(faceThumbsEl, index);
+        debugLog("selectFace:", {
+            index,
+            iw,
+            ih,
+            scale,
+            offsetX,
+            offsetY,
+            width: drawWidth,
+            height: drawHeight
+        });
+        redraw();
+        setStatus("Face selected. Now choose a frame.", "ok");
+
+        // If we already had a frame selected, re-apply it with any saved alignment
+        if (state.selectedFrameIndex !== null) {
+            selectFrame(state.selectedFrameIndex, true);
+        }
+    }
+
+    function selectFrame(index, reuseAlignment) {
+        const frame = state.frames[index];
+        if (!frame) {
+            debugLog("selectFrame: no frame at index", index);
+            return;
+        }
+        if (!state.faceImg) {
+            setStatus("Select a face first, then choose a frame.", "warn");
+            return;
+        }
+
+        state.selectedFrameIndex = index;
+        state.frameImg = frame.img;
+
+        // If we have a saved alignment for this face, reuse it
+        const alignment = reuseAlignment ? state.alignments.get(state.selectedFaceIndex) : null;
+        if (alignment) {
+            state.overlay.scale = alignment.scale;
+            state.overlay.rotationRad = alignment.rotationRad;
+            state.overlay.offsetX = alignment.offsetX;
+            state.overlay.offsetY = alignment.offsetY;
+            debugLog("selectFrame: using saved alignment", alignment);
+        } else {
+            resetOverlay(false);
+            debugLog("selectFrame: using default overlay", { ...state.overlay });
+        }
+
+        refreshThumbSelection(frameThumbsEl, index);
+        debugLog("selectFrame:", {
+            index,
+            fw: frame.img.width,
+            fh: frame.img.height
+        });
+        redraw();
+        setStatus("Frame selected. Drag / rotate / scale on canvas.", "info");
+    }
+
+    // --- Overlay & controls ---
+
+    function resetOverlay(full = true) {
+        if (full) {
+            state.overlay.offsetX = 0;
+            state.overlay.offsetY = 0;
+        }
+        state.overlay.scale = 1;
+        state.overlay.rotationRad = 0;
+        debugLog("resetOverlay:", { ...state.overlay });
+        syncControlsFromOverlay();
+        redraw();
+    }
+
+    function syncControlsFromOverlay() {
+        scaleSlider.value = state.overlay.scale.toFixed(2);
+        rotationSlider.value = (state.overlay.rotationRad * 180 / Math.PI).toFixed(1);
+        offsetXSlider.value = state.overlay.offsetX.toFixed(0);
+        offsetYSlider.value = state.overlay.offsetY.toFixed(0);
+
+        scaleValue.textContent = state.overlay.scale.toFixed(2) + "×";
+        rotationValue.textContent =
+            (state.overlay.rotationRad * 180 / Math.PI).toFixed(1) + "°";
+        offsetXValue.textContent = state.overlay.offsetX.toFixed(0) + " px";
+        offsetYValue.textContent = state.overlay.offsetY.toFixed(0) + " px";
+    }
+
+    function updateControlsEnabled() {
+        const on = !!(state.faceImg && state.frameImg);
+        scaleSlider.disabled = !on;
+        rotationSlider.disabled = !on;
+        offsetXSlider.disabled = !on;
+        offsetYSlider.disabled = !on;
+        resetOverlayBtn.disabled = !on;
+        saveAlignmentBtn.disabled = !on;
+        clearFrameBtn.disabled = !state.frameImg;
+        exportBtn.disabled = !state.faceImg;
+        exportBtnHeader.disabled = !state.faceImg;
+    }
+
+    function redraw() {
+        const { faceImg, frameImg, faceTransform, overlay } = state;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Background
+        ctx.fillStyle = "#020617";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        if (faceImg) {
+            ctx.save();
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.drawImage(
+                faceImg,
+                faceTransform.offsetX,
+                faceTransform.offsetY,
+                faceTransform.width,
+                faceTransform.height
+            );
+            ctx.restore();
+        }
+
+        if (frameImg) {
+            const cw = canvas.width;
+            const ch = canvas.height;
+            const baseX = cw / 2 + overlay.offsetX;
+            const baseY = ch / 2 + overlay.offsetY;
+
+            ctx.save();
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.translate(baseX, baseY);
+            ctx.rotate(overlay.rotationRad);
+
+            const frameDrawWidth = frameImg.width * overlay.scale;
+            const frameDrawHeight = frameImg.height * overlay.scale;
+
+            ctx.drawImage(
+                frameImg,
+                -frameDrawWidth / 2,
+                -frameDrawHeight / 2,
+                frameDrawWidth,
+                frameDrawHeight
+            );
+            ctx.restore();
+        }
+
+        updateControlsEnabled();
+    }
+
+    // Sliders -> overlay
+    scaleSlider.addEventListener("input", () => {
+        state.overlay.scale = parseFloat(scaleSlider.value) || 1;
+        syncControlsFromOverlay();
+        redraw();
+    });
+
+    rotationSlider.addEventListener("input", () => {
+        const deg = parseFloat(rotationSlider.value) || 0;
+        state.overlay.rotationRad = deg * Math.PI / 180;
+        syncControlsFromOverlay();
+        redraw();
+    });
+
+    offsetXSlider.addEventListener("input", () => {
+        state.overlay.offsetX = parseFloat(offsetXSlider.value) || 0;
+        syncControlsFromOverlay();
+        redraw();
+    });
+
+    offsetYSlider.addEventListener("input", () => {
+        state.overlay.offsetY = parseFloat(offsetYSlider.value) || 0;
+        syncControlsFromOverlay();
+        redraw();
+    });
+
+    // --- Canvas interaction: drag to move frame ---
+
+    function getCanvasPoint(evt) {
+        const rect = canvas.getBoundingClientRect();
+        const x = (evt.clientX - rect.left) * (canvas.width / rect.width);
+        const y = (evt.clientY - rect.top) * (canvas.height / rect.height);
+        return { x, y };
+    }
+
+    canvas.addEventListener("mousedown", (evt) => {
+        if (!state.frameImg) return;
+        state.dragging = true;
+        const pt = getCanvasPoint(evt);
+        state.dragStart = pt;
+        state.dragOverlayStart = { x: state.overlay.offsetX, y: state.overlay.offsetY };
+        debugLog("drag start", pt, state.dragOverlayStart);
+    });
+
+    window.addEventListener("mousemove", (evt) => {
+        if (!state.dragging) return;
+        const pt = getCanvasPoint(evt);
+        const dx = pt.x - state.dragStart.x;
+        const dy = pt.y - state.dragStart.y;
+        state.overlay.offsetX = state.dragOverlayStart.x + dx;
+        state.overlay.offsetY = state.dragOverlayStart.y + dy;
+        syncControlsFromOverlay();
+        redraw();
+    });
+
+    window.addEventListener("mouseup", () => {
+        if (state.dragging) {
+            debugLog("drag end", {
+                offsetX: state.overlay.offsetX,
+                offsetY: state.overlay.offsetY
+            });
+        }
+        state.dragging = false;
+    });
+
+    canvas.addEventListener("mouseleave", () => {
+        state.dragging = false;
+    });
+
+    resetOverlayBtn.addEventListener("click", () => {
+        resetOverlay(true);
+        setStatus("Overlay reset.", "info");
+    });
+
+    clearFrameBtn.addEventListener("click", () => {
+        state.frameImg = null;
+        state.selectedFrameIndex = null;
+        refreshThumbSelection(frameThumbsEl, -1);
+        redraw();
+        setStatus("Frame overlay removed. Select another frame to continue.", "info");
+    });
+
+    // --- Save alignment for current face ---
+    saveAlignmentBtn.addEventListener("click", () => {
+        if (state.selectedFaceIndex === null) {
+            setStatus("No face selected. Pick a face first.", "warn");
+            return;
+        }
+        if (!state.frameImg) {
+            setStatus("No frame on the canvas. Add a frame first.", "warn");
+            return;
+        }
+
+        const al = {
+            scale: state.overlay.scale,
+            rotationRad: state.overlay.rotationRad,
+            offsetX: state.overlay.offsetX,
+            offsetY: state.overlay.offsetY,
+        };
+        state.alignments.set(state.selectedFaceIndex, al);
+        debugLog("Alignment saved for face", state.selectedFaceIndex, al);
+        setStatus("Alignment saved for this face. New frames will snap into position.", "ok");
+    });
+
+    // --- Export PNG ---
+    function exportCanvas() {
+        if (!state.faceImg) {
+            setStatus("No face to export.", "warn");
+            return;
+        }
+        const dataURL = canvas.toDataURL("image/png");
+        const faceName = (state.faces[state.selectedFaceIndex]?.name || "face").replace(/\.[^.]+$/, "");
+        const frameName = (state.frames[state.selectedFrameIndex]?.name || "frame").replace(/\.[^.]+$/, "");
+        const link = document.createElement("a");
+        link.href = dataURL;
+        link.download = `glasses-${faceName}-${frameName}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setStatus("PNG exported.", "ok");
+    }
+
+    exportBtn.addEventListener("click", exportCanvas);
+    exportBtnHeader.addEventListener("click", exportCanvas);
+
+    // Initial state
+    syncControlsFromOverlay();
+    updateControlsEnabled();
+    setStatus("Ready. Load a face and a frame to begin.", "info");
+
+    debugLog("Script setup done.");
+</script>
+</body>
+</html>
