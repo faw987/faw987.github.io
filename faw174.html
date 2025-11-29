@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pic-a-Pix Puzzle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+        }
+
+        .instructions {
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 20px;
+            text-align: center;
+            max-width: 500px;
+        }
+
+        .game-container {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .new-game-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .check-btn {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .clear-btn {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+        }
+
+        .puzzle-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .puzzle-area {
+            display: flex;
+        }
+
+        .row-clues-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .row-clue {
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+            gap: 4px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .row-clue span {
+            min-width: 16px;
+            text-align: center;
+        }
+
+        .main-area {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .col-clues-container {
+            display: flex;
+        }
+
+        .col-clue {
+            width: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            padding-bottom: 4px;
+            gap: 2px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .col-clue span {
+            min-height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .grid {
+            display: grid;
+            gap: 1px;
+            background: #333;
+            border: 2px solid #333;
+            border-radius: 4px;
+        }
+
+        .cell {
+            width: 30px;
+            height: 30px;
+            background: #f0f0f0;
+            cursor: pointer;
+            transition: background-color 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cell:hover {
+            background: #ddd;
+        }
+
+        .cell.filled {
+            background: #333;
+        }
+
+        .cell.marked {
+            background: #f0f0f0;
+        }
+
+        .cell.marked::after {
+            content: '×';
+            color: #999;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .cell.filled.marked::after {
+            display: none;
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+        }
+
+        .message.success {
+            display: block;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .message.error {
+            display: block;
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+        }
+
+        .mode-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            justify-content: center;
+        }
+
+        .mode-btn {
+            padding: 8px 16px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        .mode-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .puzzle-name {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 18px;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+<h1>🎨 Pic-a-Pix</h1>
+<p class="instructions">
+    Use the number clues to fill in the correct cells and reveal the hidden picture!<br>
+    Left-click to fill a cell, right-click to mark it as empty (×).
+</p>
+
+<div class="game-container">
+    <div class="controls">
+        <button class="new-game-btn" onclick="newGame()">🎲 New Puzzle</button>
+        <button class="check-btn" onclick="checkSolution()">✓ Check Solution</button>
+        <button class="clear-btn" onclick="clearGrid()">🗑 Clear Grid</button>
+        <button class="debug-btn" onclick="debugGrid()" style="background: #666; color: white;">🔍 Debug</button>
+    </div>
+
+    <div class="mode-toggle">
+        <button class="mode-btn active" id="fill-mode" onclick="setMode('fill')">✏️ Fill</button>
+        <button class="mode-btn" id="mark-mode" onclick="setMode('mark')">× Mark</button>
+    </div>
+
+    <div class="puzzle-name" id="puzzle-name"></div>
+
+    <div class="puzzle-wrapper">
+        <div class="puzzle-area">
+            <div class="row-clues-container" id="row-clues"></div>
+            <div class="main-area">
+                <div class="col-clues-container" id="col-clues"></div>
+                <div class="grid" id="grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="message" id="message"></div>
+</div>
+
+<script>
+    // Puzzle definitions - each puzzle has a name and a 2D array where 1 = filled, 0 = empty
+    const puzzles = [
+        {
+            name: "Heart",
+            grid: [
+                [0, 1, 0, 1, 0],
+                [1, 1, 1, 1, 1],
+                [1, 1, 1, 1, 1],
+                [0, 1, 1, 1, 0],
+                [0, 0, 1, 0, 0]
+            ]
+        },
+        {
+            name: "Smiley Face",
+            grid: [
+                [0, 1, 1, 1, 0],
+                [1, 0, 0, 0, 1],
+                [1, 1, 0, 1, 1],
+                [1, 0, 0, 0, 1],
+                [0, 1, 1, 1, 0]
+            ]
+        },
+        {
+            name: "Arrow",
+            grid: [
+                [0, 0, 1, 0, 0],
+                [0, 1, 1, 0, 0],
+                [1, 1, 1, 1, 1],
+                [0, 1, 1, 0, 0],
+                [0, 0, 1, 0, 0]
+            ]
+        },
+        {
+            name: "House",
+            grid: [
+                [0, 0, 1, 0, 0],
+                [0, 1, 1, 1, 0],
+                [1, 1, 1, 1, 1],
+                [1, 1, 0, 1, 1],
+                [1, 1, 0, 1, 1]
+            ]
+        },
+        {
+            name: "Star",
+            grid: [
+                [0, 0, 1, 0, 0],
+                [0, 1, 1, 1, 0],
+                [1, 1, 1, 1, 1],
+                [0, 1, 1, 1, 0],
+                [0, 1, 0, 1, 0]
+            ]
+        },
+        {
+            name: "Boat",
+            grid: [
+                [0, 0, 1, 0, 0],
+                [0, 0, 1, 1, 0],
+                [0, 0, 1, 0, 0],
+                [1, 1, 1, 1, 1],
+                [0, 1, 1, 1, 0]
+            ]
+        },
+        {
+            name: "Tree",
+            grid: [
+                [0, 0, 1, 0, 0],
+                [0, 1, 1, 1, 0],
+                [1, 1, 1, 1, 1],
+                [0, 0, 1, 0, 0],
+                [0, 0, 1, 0, 0]
+            ]
+        },
+        {
+            name: "Cup",
+            grid: [
+                [1, 1, 1, 1, 1],
+                [1, 0, 0, 0, 1],
+                [1, 0, 0, 0, 1],
+                [1, 1, 1, 1, 1],
+                [0, 1, 1, 1, 0]
+            ]
+        }
+    ];
+
+    let currentPuzzle = null;
+    let playerGrid = [];
+    let currentMode = 'fill';
+    let isMouseDown = false;
+    let dragMode = null;
+
+    // Calculate clues for a row or column
+    function calculateClues(line) {
+        const clues = [];
+        let count = 0;
+
+        for (let cell of line) {
+            if (cell === 1) {
+                count++;
+            } else if (count > 0) {
+                clues.push(count);
+                count = 0;
+            }
+        }
+
+        if (count > 0) {
+            clues.push(count);
+        }
+
+        return clues.length > 0 ? clues : [0];
+    }
+
+    // Get row clues
+    function getRowClues(grid) {
+        return grid.map(row => calculateClues(row));
+    }
+
+    // Get column clues
+    function getColClues(grid) {
+        const cols = [];
+        const numCols = grid[0].length;
+
+        for (let c = 0; c < numCols; c++) {
+            const column = grid.map(row => row[c]);
+            cols.push(calculateClues(column));
+        }
+
+        return cols;
+    }
+
+    // Initialize a new game
+    function newGame() {
+        // Pick a random puzzle
+        const randomIndex = Math.floor(Math.random() * puzzles.length);
+        currentPuzzle = puzzles[randomIndex];
+
+        const rows = currentPuzzle.grid.length;
+        const cols = currentPuzzle.grid[0].length;
+
+        // Initialize player grid (0 = empty, 1 = filled, 2 = marked)
+        playerGrid = Array(rows).fill(null).map(() => Array(cols).fill(0));
+
+        // Clear message
+        const messageEl = document.getElementById('message');
+        messageEl.className = 'message';
+        messageEl.textContent = '';
+
+        // Display puzzle name (hidden until solved)
+        document.getElementById('puzzle-name').textContent = '???';
+
+        renderPuzzle();
+    }
+
+    // Render the puzzle
+    function renderPuzzle() {
+        const rowClues = getRowClues(currentPuzzle.grid);
+        const colClues = getColClues(currentPuzzle.grid);
+
+        const rows = currentPuzzle.grid.length;
+        const cols = currentPuzzle.grid[0].length;
+
+        // Render row clues
+        const rowCluesContainer = document.getElementById('row-clues');
+        rowCluesContainer.innerHTML = '';
+
+        for (let clue of rowClues) {
+            const clueDiv = document.createElement('div');
+            clueDiv.className = 'row-clue';
+            clueDiv.innerHTML = clue.map(n => `<span>${n}</span>`).join('');
+            rowCluesContainer.appendChild(clueDiv);
+        }
+
+        // Render column clues
+        const colCluesContainer = document.getElementById('col-clues');
+        colCluesContainer.innerHTML = '';
+
+        for (let clue of colClues) {
+            const clueDiv = document.createElement('div');
+            clueDiv.className = 'col-clue';
+            clueDiv.innerHTML = clue.map(n => `<span>${n}</span>`).join('');
+            colCluesContainer.appendChild(clueDiv);
+        }
+
+        // Render grid
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        grid.style.gridTemplateColumns = `repeat(${cols}, 30px)`;
+        grid.style.gridTemplateRows = `repeat(${rows}, 30px)`;
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.row = r;
+                cell.dataset.col = c;
+
+                // Mouse events for click and drag
+                cell.addEventListener('mousedown', handleMouseDown);
+                cell.addEventListener('mouseenter', handleMouseEnter);
+                cell.addEventListener('contextmenu', (e) => e.preventDefault());
+
+                grid.appendChild(cell);
+            }
+        }
+    }
+
+    // Handle mouse down on cell
+    function handleMouseDown(e) {
+        e.preventDefault();
+        isMouseDown = true;
+
+        const row = parseInt(e.target.dataset.row);
+        const col = parseInt(e.target.dataset.col);
+
+        // Right click always marks
+        if (e.button === 2) {
+            toggleMark(row, col);
+            dragMode = 'mark';
+        } else {
+            // Left click uses current mode
+            if (currentMode === 'fill') {
+                toggleFill(row, col);
+                dragMode = 'fill';
+            } else {
+                toggleMark(row, col);
+                dragMode = 'mark';
+            }
+        }
+
+        updateCellDisplay(row, col);
+    }
+
+    // Handle mouse enter (for drag)
+    function handleMouseEnter(e) {
+        if (!isMouseDown) return;
+
+        const row = parseInt(e.target.dataset.row);
+        const col = parseInt(e.target.dataset.col);
+
+        if (dragMode === 'fill') {
+            if (playerGrid[row][col] !== 1) {
+                playerGrid[row][col] = 1;
+            }
+        } else if (dragMode === 'mark') {
+            if (playerGrid[row][col] !== 2) {
+                playerGrid[row][col] = 2;
+            }
+        }
+
+        updateCellDisplay(row, col);
+    }
+
+    // Toggle fill state
+    function toggleFill(row, col) {
+        if (playerGrid[row][col] === 1) {
+            playerGrid[row][col] = 0;
+        } else {
+            playerGrid[row][col] = 1;
+        }
+    }
+
+    // Toggle mark state
+    function toggleMark(row, col) {
+        if (playerGrid[row][col] === 2) {
+            playerGrid[row][col] = 0;
+        } else {
+            playerGrid[row][col] = 2;
+        }
+    }
+
+    // Update cell display
+    function updateCellDisplay(row, col) {
+        const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+        cell.className = 'cell';
+
+        if (playerGrid[row][col] === 1) {
+            cell.classList.add('filled');
+        } else if (playerGrid[row][col] === 2) {
+            cell.classList.add('marked');
+        }
+    }
+
+    // Set mode
+    function setMode(mode) {
+        currentMode = mode;
+        document.getElementById('fill-mode').classList.toggle('active', mode === 'fill');
+        document.getElementById('mark-mode').classList.toggle('active', mode === 'mark');
+    }
+
+    // Check solution
+    function checkSolution() {
+        const messageEl = document.getElementById('message');
+
+        // Compare player grid with solution (only check filled cells)
+        let correct = true;
+        const rows = currentPuzzle.grid.length;
+        const cols = currentPuzzle.grid[0].length;
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const playerFilled = playerGrid[r][c] === 1;
+                const solutionFilled = currentPuzzle.grid[r][c] === 1;
+
+                if (playerFilled !== solutionFilled) {
+                    correct = false;
+                    break;
+                }
+            }
+            if (!correct) break;
+        }
+
+        if (correct) {
+            messageEl.className = 'message success';
+            messageEl.textContent = `🎉 Correct! You revealed: ${currentPuzzle.name}!`;
+            document.getElementById('puzzle-name').textContent = currentPuzzle.name;
+        } else {
+            messageEl.className = 'message error';
+            messageEl.textContent = '❌ Not quite right. Keep trying!';
+        }
+    }
+
+    // Clear grid
+    function clearGrid() {
+        const rows = playerGrid.length;
+        const cols = playerGrid[0].length;
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                playerGrid[r][c] = 0;
+                updateCellDisplay(r, c);
+            }
+        }
+
+        const messageEl = document.getElementById('message');
+        messageEl.className = 'message';
+        messageEl.textContent = '';
+
+        document.getElementById('puzzle-name').textContent = '???';
+    }
+
+    // Global mouse up listener
+    document.addEventListener('mouseup', () => {
+        isMouseDown = false;
+        dragMode = null;
+    });
+
+    // Debug function to compare grids
+    function debugGrid() {
+        console.log("=== DEBUG INFO ===");
+        console.log("Current Puzzle:", currentPuzzle.name);
+        console.log("\nSOLUTION grid:");
+        currentPuzzle.grid.forEach((row, i) => {
+            console.log(`Row ${i}: [${row.join(',')}]`);
+        });
+
+        console.log("\nPLAYER grid (0=empty, 1=filled, 2=marked):");
+        playerGrid.forEach((row, i) => {
+            console.log(`Row ${i}: [${row.join(',')}]`);
+        });
+
+        console.log("\nCOMPARISON (player filled vs solution):");
+        const rows = currentPuzzle.grid.length;
+        const cols = currentPuzzle.grid[0].length;
+        let differences = [];
+
+        for (let r = 0; r < rows; r++) {
+            let rowComparison = [];
+            for (let c = 0; c < cols; c++) {
+                const playerFilled = playerGrid[r][c] === 1;
+                const solutionFilled = currentPuzzle.grid[r][c] === 1;
+
+                if (playerFilled === solutionFilled) {
+                    rowComparison.push('✓');
+                } else {
+                    rowComparison.push('✗');
+                    differences.push(`Row ${r}, Col ${c}: You have ${playerFilled ? 'FILLED' : 'EMPTY'}, should be ${solutionFilled ? 'FILLED' : 'EMPTY'}`);
+                }
+            }
+            console.log(`Row ${r}: [${rowComparison.join(' ')}]`);
+        }
+
+        if (differences.length > 0) {
+            console.log("\nDIFFERENCES FOUND:");
+            differences.forEach(d => console.log(d));
+        } else {
+            console.log("\nNO DIFFERENCES - Should be correct!");
+        }
+
+        // Also show in an alert for easy viewing
+        let alertMsg = `Puzzle: ${currentPuzzle.name}\n\nYour grid (1=filled):\n`;
+        playerGrid.forEach((row, i) => {
+            alertMsg += row.map(c => c === 1 ? '■' : '·').join('') + '\n';
+        });
+        alertMsg += `\nSolution:\n`;
+        currentPuzzle.grid.forEach((row, i) => {
+            alertMsg += row.map(c => c === 1 ? '■' : '·').join('') + '\n';
+        });
+
+        if (differences.length > 0) {
+            alertMsg += `\n${differences.length} cell(s) different`;
+        } else {
+            alertMsg += `\nPERFECT MATCH!`;
+        }
+
+        alert(alertMsg);
+    }
+
+    // Start the game
+    newGame();
+</script>
+</body>
+</html>
