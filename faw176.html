@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Timeline + Selected Table + Map</title>
+
+    <!-- vis-timeline (standalone UMD) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vis-timeline@8.5.0/styles/vis-timeline-graph2d.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/vis-timeline@8.5.0/standalone/umd/vis-timeline-graph2d.min.js"></script>
+
+    <!-- PapaParse -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        :root { color-scheme: light dark; }
+        body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+        header { padding: 14px 16px; border-bottom: 1px solid rgba(127,127,127,.25); }
+        header h1 { margin: 0; font-size: 18px; }
+        header p { margin: 6px 0 0; opacity: .8; }
+
+        .app {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 12px;
+            padding: 12px;
+        }
+
+        .panel {
+            border: 1px solid rgba(127,127,127,.25);
+            border-radius: 10px;
+            padding: 12px;
+            height: fit-content;
+            position: sticky;
+            top: 12px;
+        }
+
+        .panel h2 { font-size: 14px; margin: 0 0 10px; opacity: .9; }
+        .row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+        label { font-size: 12px; opacity: .85; }
+        input[type="date"], select, button {
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(127,127,127,.35);
+            background: transparent;
+            color: inherit;
+        }
+        button { cursor: pointer; }
+        .btnrow { display: flex; gap: 8px; }
+
+        .dropzone {
+            border: 2px dashed rgba(127,127,127,.45);
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+            margin-bottom: 12px;
+            user-select: none;
+        }
+        .dropzone strong { display: block; margin-bottom: 6px; }
+        .dropzone small { opacity: .8; }
+        .dropzone.dragover { border-color: rgba(80,160,255,.9); }
+
+        .main {
+            display: grid;
+            grid-template-rows: 420px auto 360px;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .box {
+            border: 1px solid rgba(127,127,127,.25);
+            border-radius: 10px;
+            overflow: hidden;
+            background: transparent;
+            min-width: 0;
+        }
+
+        #timeline { height: 420px; }
+        .boxhead {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(127,127,127,.25);
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: baseline;
+        }
+        .boxhead h3 { margin: 0; font-size: 14px; }
+        .boxhead .meta { font-size: 12px; opacity: .75; }
+
+        .tablewrap { overflow: auto; max-height: 320px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 8px 10px; border-bottom: 1px solid rgba(127,127,127,.2); vertical-align: top; }
+        th { position: sticky; top: 0; background: rgba(127,127,127,.08); text-align: left; }
+        tr:hover { background: rgba(127,127,127,.08); }
+        .muted { opacity: .75; }
+
+        #map { height: 360px; }
+
+        .pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border: 1px solid rgba(127,127,127,.35);
+            border-radius: 999px;
+            margin-right: 6px;
+            margin-bottom: 4px;
+            font-size: 12px;
+            opacity: .9;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 980px) {
+            .app { grid-template-columns: 1fr; }
+            .panel { position: static; }
+            .main { grid-template-rows: 420px auto 320px; }
+        }
+    </style>
+</head>
+
+<body>
+<header>
+    <h1>My Timelines</h1>
+    <p>Drop a CSV, filter, select items on the timeline (Ctrl/Cmd/Shift), see details in the table, and locations on the map.</p>
+</header>
+
+<div class="app">
+    <aside class="panel">
+        <div id="dropzone" class="dropzone" tabindex="0">
+            <strong>Drop CSV file here</strong>
+            <small>or click to upload</small>
+            <input id="fileInput" type="file" accept=".csv,text/csv" style="display:none" />
+        </div>
+
+        <h2>Filters</h2>
+
+        <div class="row">
+            <label>Date range</label>
+            <input id="fromDate" type="date" />
+            <input id="toDate" type="date" />
+        </div>
+
+        <div class="row">
+            <label>Filter by tag</label>
+            <select id="tagFilter">
+                <option value="">All tags</option>
+            </select>
+        </div>
+
+        <div class="row">
+            <label>Filter by location</label>
+            <select id="locFilter">
+                <option value="">All locations</option>
+            </select>
+        </div>
+
+        <div class="btnrow">
+            <button id="applyBtn">Apply</button>
+            <button id="resetBtn">Reset</button>
+        </div>
+
+        <p class="muted" style="margin-top:12px;font-size:12px">
+            Tip: Ctrl/Cmd+click selects multiple items. Shift+click selects a range (timeline-dependent).
+        </p>
+    </aside>
+
+    <main class="main">
+        <section class="box">
+            <div class="boxhead">
+                <h3>Timeline</h3>
+                <div class="meta"><span id="countLabel">0</span> items loaded</div>
+            </div>
+            <div id="timeline"></div>
+        </section>
+
+        <section class="box">
+            <div class="boxhead">
+                <h3>Selected items</h3>
+                <div class="meta"><span id="selectedCount">0</span> selected</div>
+            </div>
+            <div class="tablewrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th style="min-width:140px">When</th>
+                        <th style="min-width:180px">Title</th>
+                        <th style="min-width:220px">Details</th>
+                        <th style="min-width:160px">Tags</th>
+                        <th style="min-width:180px">Location</th>
+                        <th style="min-width:160px">Coordinates</th>
+                    </tr>
+                    </thead>
+                    <tbody id="selectedTbody">
+                    <tr><td colspan="6" class="muted">Select timeline items to populate this table.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="box">
+            <div class="boxhead">
+                <h3>Map</h3>
+                <div class="meta">Plots selected items that have lat/lon</div>
+            </div>
+            <div id="map"></div>
+        </section>
+    </main>
+</div>
+
+<script>
+    // ---------- Utilities ----------
+    function normKey(s) {
+        return String(s || "").trim().toLowerCase().replace(/\s+/g, "_");
+    }
+
+    function parseTags(raw) {
+        if (!raw) return [];
+        // split on comma/semicolon/pipe
+        return String(raw)
+            .split(/[,;|]/g)
+            .map(t => t.trim())
+            .filter(Boolean);
+    }
+
+    function safeDate(d) {
+        const x = new Date(d);
+        return isNaN(x.getTime()) ? null : x;
+    }
+
+    function fmtWhen(item) {
+        const s = item.start ? new Date(item.start) : null;
+        const e = item.end ? new Date(item.end) : null;
+        if (s && e) return `${s.toISOString().slice(0,10)} → ${e.toISOString().slice(0,10)}`;
+        if (s) return s.toISOString().slice(0,10);
+        return "";
+    }
+
+    function findCol(headers, candidates) {
+        // headers are normalized
+        for (const c of candidates) {
+            const want = normKey(c);
+            const idx = headers.indexOf(want);
+            if (idx !== -1) return idx;
+        }
+        return -1;
+    }
+
+    // ---------- State ----------
+    let allRows = [];          // parsed CSV rows (objects keyed by original header)
+    let allItems = [];         // normalized items for timeline + table + map
+    let itemsById = new Map(); // id -> item
+
+    let timeline = null;
+    let visData = null;
+
+    let map = null;
+    let markerLayer = null;
+
+    // ---------- DOM ----------
+    const dropzone = document.getElementById("dropzone");
+    const fileInput = document.getElementById("fileInput");
+
+    const fromDate = document.getElementById("fromDate");
+    const toDate = document.getElementById("toDate");
+    const tagFilter = document.getElementById("tagFilter");
+    const locFilter = document.getElementById("locFilter");
+
+    const applyBtn = document.getElementById("applyBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    const countLabel = document.getElementById("countLabel");
+    const selectedCount = document.getElementById("selectedCount");
+    const selectedTbody = document.getElementById("selectedTbody");
+
+    // ---------- Init timeline ----------
+    function initTimeline() {
+        const container = document.getElementById("timeline");
+        visData = new vis.DataSet([]);
+
+        const options = {
+            stack: true,
+            multiselect: true,
+            selectable: true,
+            zoomKey: "ctrlKey",
+            // If you want SHIFT to always add, vis-timeline uses ctrl/meta; shift is for range selection.
+            // This still meets your requirement: ctrl/cmd + click selects multiple.
+        };
+
+        timeline = new vis.Timeline(container, visData, options);
+
+        timeline.on("select", (props) => {
+            // props.items is an array of selected item ids
+            updateSelectedUI(props.items || []);
+        });
+    }
+
+    // ---------- Init map ----------
+    function initMap() {
+        map = L.map("map", { zoomControl: true });
+        // OpenStreetMap tiles
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(map);
+
+        markerLayer = L.layerGroup().addTo(map);
+
+        // start somewhere sensible
+        map.setView([20, 0], 2);
+    }
+
+    // ---------- Selection -> Table + Map ----------
+    function updateSelectedUI(selectedIds) {
+        selectedCount.textContent = String(selectedIds.length);
+
+        // Table
+        selectedTbody.innerHTML = "";
+        if (selectedIds.length === 0) {
+            selectedTbody.innerHTML = `<tr><td colspan="6" class="muted">Select timeline items to populate this table.</td></tr>`;
+        } else {
+            for (const id of selectedIds) {
+                const it = itemsById.get(id);
+                if (!it) continue;
+
+                const tagsHtml = (it.tags || []).length
+                    ? it.tags.map(t => `<span class="pill">${escapeHtml(t)}</span>`).join("")
+                    : `<span class="muted">—</span>`;
+
+                const loc = it.location ? escapeHtml(it.location) : "—";
+                const coords = (isFinite(it.lat) && isFinite(it.lon))
+                    ? `${it.lat.toFixed(5)}, ${it.lon.toFixed(5)}`
+                    : "—";
+
+                const details = it.details ? escapeHtml(it.details) : "—";
+
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+          <td>${escapeHtml(fmtWhen(it))}</td>
+          <td>${escapeHtml(it.title || "")}</td>
+          <td>${details}</td>
+          <td>${tagsHtml}</td>
+          <td>${loc}</td>
+          <td>${escapeHtml(coords)}</td>
+        `;
+                selectedTbody.appendChild(tr);
+            }
+        }
+
+        // Map
+        markerLayer.clearLayers();
+        const bounds = [];
+        for (const id of selectedIds) {
+            const it = itemsById.get(id);
+            if (!it) continue;
+            if (isFinite(it.lat) && isFinite(it.lon)) {
+                const m = L.marker([it.lat, it.lon])
+                    .bindPopup(`<strong>${escapeHtml(it.title || "Item")}</strong><br>${escapeHtml(it.location || "")}<br><span class="muted">${escapeHtml(fmtWhen(it))}</span>`);
+                markerLayer.addLayer(m);
+                bounds.push([it.lat, it.lon]);
+            }
+        }
+        if (bounds.length === 1) map.setView(bounds[0], 10);
+        if (bounds.length > 1) map.fitBounds(bounds, { padding: [20, 20] });
+    }
+
+    function escapeHtml(s) {
+        return String(s ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    // ---------- Filtering ----------
+    function rebuildFilterOptions(items) {
+        const tags = new Set();
+        const locs = new Set();
+
+        for (const it of items) {
+            (it.tags || []).forEach(t => tags.add(t));
+            if (it.location) locs.add(it.location);
+        }
+
+        const currentTag = tagFilter.value;
+        const currentLoc = locFilter.value;
+
+        tagFilter.innerHTML = `<option value="">All tags</option>` +
+            Array.from(tags).sort((a,b)=>a.localeCompare(b)).map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join("");
+
+        locFilter.innerHTML = `<option value="">All locations</option>` +
+            Array.from(locs).sort((a,b)=>a.localeCompare(b)).map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join("");
+
+        // restore if still present
+        tagFilter.value = Array.from(tags).includes(currentTag) ? currentTag : "";
+        locFilter.value = Array.from(locs).includes(currentLoc) ? currentLoc : "";
+    }
+
+    function applyFilters() {
+        const fd = fromDate.value ? safeDate(fromDate.value) : null;
+        const td = toDate.value ? safeDate(toDate.value) : null;
+        const tag = tagFilter.value || "";
+        const loc = locFilter.value || "";
+
+        const filtered = allItems.filter(it => {
+            const s = it.start ? new Date(it.start) : null;
+            const e = it.end ? new Date(it.end) : null;
+            const anchor = s || e; // choose something for filtering; prefer start
+            if (fd && anchor && anchor < fd) return false;
+            if (td && anchor && anchor > td) return false;
+
+            if (tag) {
+                const has = (it.tags || []).includes(tag);
+                if (!has) return false;
+            }
+            if (loc) {
+                if ((it.location || "") !== loc) return false;
+            }
+            return true;
+        });
+
+        // replace timeline dataset
+        visData.clear();
+        visData.add(filtered.map(it => ({
+            id: it.id,
+            start: it.start,
+            end: it.end || undefined,
+            content: it.content,
+            title: it.tooltip
+        })));
+
+        countLabel.textContent = String(filtered.length);
+
+        // Clear selection when filters change to avoid mismatches
+        timeline.setSelection([]);
+        updateSelectedUI([]);
+    }
+
+    function resetFilters() {
+        fromDate.value = "";
+        toDate.value = "";
+        tagFilter.value = "";
+        locFilter.value = "";
+
+        visData.clear();
+        visData.add(allItems.map(it => ({
+            id: it.id,
+            start: it.start,
+            end: it.end || undefined,
+            content: it.content,
+            title: it.tooltip
+        })));
+
+        countLabel.textContent = String(allItems.length);
+
+        timeline.setSelection([]);
+        updateSelectedUI([]);
+    }
+
+    // ---------- CSV -> items ----------
+    function buildItemsFromCsv(parsed) {
+        const rows = parsed.data || [];
+        const fields = (parsed.meta && parsed.meta.fields) ? parsed.meta.fields : [];
+        const headersNorm = fields.map(normKey);
+
+        // Try to find best-guess columns
+        const idxStart = findCol(headersNorm, ["start", "date", "when", "begin", "timestamp", "time"]);
+        const idxEnd   = findCol(headersNorm, ["end", "finish", "stop", "until"]);
+        const idxTitle = findCol(headersNorm, ["title", "name", "event", "summary"]);
+        const idxDetails = findCol(headersNorm, ["details", "description", "content", "notes", "text", "body"]);
+        const idxTags = findCol(headersNorm, ["tags", "tag", "labels", "label"]);
+        const idxLoc = findCol(headersNorm, ["location", "place", "where", "city"]);
+        const idxLat = findCol(headersNorm, ["lat", "latitude"]);
+        const idxLon = findCol(headersNorm, ["lon", "lng", "longitude", "long"]);
+
+        const now = Date.now();
+        const items = [];
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || Object.keys(row).length === 0) continue;
+
+            const startVal = idxStart >= 0 ? row[fields[idxStart]] : null;
+            const endVal   = idxEnd >= 0 ? row[fields[idxEnd]] : null;
+
+            const start = safeDate(startVal);
+            const end = safeDate(endVal);
+
+            // if no start date, skip (timeline needs it)
+            if (!start) continue;
+
+            const title = idxTitle >= 0 ? String(row[fields[idxTitle]] || "").trim() : "";
+            const details = idxDetails >= 0 ? String(row[fields[idxDetails]] || "").trim() : "";
+            const tags = idxTags >= 0 ? parseTags(row[fields[idxTags]]) : [];
+            const location = idxLoc >= 0 ? String(row[fields[idxLoc]] || "").trim() : "";
+
+            const lat = idxLat >= 0 ? Number(row[fields[idxLat]]) : NaN;
+            const lon = idxLon >= 0 ? Number(row[fields[idxLon]]) : NaN;
+
+            const id = `${now}-${i}`;
+
+            const content = `<div><strong>${escapeHtml(title || "Item")}</strong><div class="muted" style="font-size:12px">${escapeHtml(location || "")}</div></div>`;
+            const tooltipParts = [];
+            tooltipParts.push(title || "Item");
+            tooltipParts.push(fmtWhen({ start, end }));
+            if (location) tooltipParts.push(location);
+            if (tags.length) tooltipParts.push(`Tags: ${tags.join(", ")}`);
+            if (details) tooltipParts.push(details);
+
+            items.push({
+                id,
+                start,
+                end,
+                title,
+                details,
+                tags,
+                location,
+                lat,
+                lon,
+                // for vis:
+                content,
+                tooltip: tooltipParts.filter(Boolean).join("\n")
+            });
+        }
+
+        return items;
+    }
+
+    function loadCsvFile(file) {
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            dynamicTyping: false,
+            complete: (results) => {
+                allRows = results.data || [];
+                allItems = buildItemsFromCsv(results);
+                itemsById = new Map(allItems.map(it => [it.id, it]));
+
+                rebuildFilterOptions(allItems);
+                resetFilters();
+            },
+            error: (err) => {
+                console.error(err);
+                alert("Failed to parse CSV. Check console for details.");
+            }
+        });
+    }
+
+    // ---------- Drag/drop + click upload ----------
+    dropzone.addEventListener("click", () => fileInput.click());
+
+    dropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropzone.classList.add("dragover");
+    });
+
+    dropzone.addEventListener("dragleave", () => {
+        dropzone.classList.remove("dragover");
+    });
+
+    dropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("dragover");
+        const file = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) loadCsvFile(file);
+    });
+
+    fileInput.addEventListener("change", () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (file) loadCsvFile(file);
+    });
+
+    // ---------- Buttons ----------
+    applyBtn.addEventListener("click", applyFilters);
+    resetBtn.addEventListener("click", () => {
+        rebuildFilterOptions(allItems);
+        resetFilters();
+    });
+
+    // ---------- Boot ----------
+    initTimeline();
+    initMap();
+</script>
+</body>
+</html>

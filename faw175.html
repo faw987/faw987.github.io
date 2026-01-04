@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Spin Wheel (Roulette-like)</title>
+    <style>
+        :root { color-scheme: dark; }
+        html, body { height: 100%; margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+        body {
+            display: grid;
+            place-items: center;
+            background: radial-gradient(1200px 800px at 50% 35%, #1b2230 0%, #0b0f16 60%, #070a10 100%);
+            overflow: hidden;
+        }
+        .wrap {
+            width: min(760px, 92vw);
+            display: grid;
+            gap: 12px;
+            justify-items: center;
+        }
+        .hud {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.06);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+            backdrop-filter: blur(10px);
+        }
+        .hud .title {
+            display: grid;
+            gap: 4px;
+            line-height: 1.15;
+        }
+        .hud .title strong { font-size: 14px; letter-spacing: 0.2px; }
+        .hud .title span { font-size: 12px; opacity: 0.85; }
+        .pill {
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(0,0,0,0.35);
+            border: 1px solid rgba(255,255,255,0.12);
+            white-space: nowrap;
+        }
+        canvas {
+            width: min(720px, 92vw);
+            aspect-ratio: 1 / 1;
+            border-radius: 24px;
+            background: rgba(255,255,255,0.03);
+            box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+            touch-action: none; /* enable pointer events on touch devices */
+            cursor: grab;
+        }
+        canvas.dragging { cursor: grabbing; }
+        .footer {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            opacity: 0.85;
+        }
+        .btn {
+            appearance: none;
+            border: 1px solid rgba(255,255,255,0.16);
+            background: rgba(255,255,255,0.08);
+            color: inherit;
+            padding: 8px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+        .btn:hover { background: rgba(255,255,255,0.12); }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="hud">
+        <div class="title">
+            <strong>Roulette-like Spin Wheel (drag to spin)</strong>
+            <span>Drag around the wheel and release. Faster mouse = faster spin. Friction slows it down.</span>
+        </div>
+        <div class="pill" id="resultPill">Result: —</div>
+    </div>
+
+    <canvas id="c"></canvas>
+
+    <div class="footer">
+        <div class="pill" id="speedPill">ω: 0.00 rad/s</div>
+        <button class="btn" id="resetBtn">Reset</button>
+    </div>
+</div>
+
+<script>
+    (() => {
+        const canvas = document.getElementById("c");
+        const ctx = canvas.getContext("2d");
+        const resultPill = document.getElementById("resultPill");
+        const speedPill = document.getElementById("speedPill");
+        const resetBtn = document.getElementById("resetBtn");
+
+        // --- Wheel definition (easy to swap later) ---
+        // Traditional-ish roulette feel: alternating colors + 0 in green.
+        // You can replace labels with anything later (strings, icons, etc.).
+        const labels = [
+            "0","32","15","19","4","21","2","25","17","34","6","27","13","36","11","30",
+            "8","23","10","5","24","16","33","1","20","14","31","9","22","18","29","7",
+            "28","12","35","3","26"
+        ];
+        const N = labels.length;
+        const colors = labels.map((_, i) => {
+            if (i === 0) return "#1bb36b";        // green 0
+            return (i % 2 === 0) ? "#c83c3c" : "#2a2a2a"; // red / black-ish
+        });
+
+        // --- Physics / feel tuning ---
+        const MAX_OMEGA = 18;         // cap angular velocity (rad/s)
+        const FRICTION = 0.985;       // per-frame multiplier at ~60fps (closer to 1 => longer spin)
+        const STOP_EPS = 0.08;        // below this angular speed, start "settle" behavior
+        const SETTLE_FRICTION = 0.94; // stronger friction when very slow to stop decisively
+
+        // --- State ---
+        let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        let W = 0, H = 0, cx = 0, cy = 0, R = 0;
+
+        let angle = 0;     // wheel angle (radians). 0 means label 0 is at reference position.
+        let omega = 0;     // angular velocity (rad/s)
+        let animating = true;
+
+        // Drag interaction
+        let dragging = false;
+        let lastPointerAngle = 0;
+        let lastT = 0;
+
+        // Smoothed "flick" estimate from drag
+        let omegaFromDrag = 0;
+
+        function resize() {
+            const rect = canvas.getBoundingClientRect();
+            W = Math.floor(rect.width * dpr);
+            H = Math.floor(rect.height * dpr);
+            canvas.width = W;
+            canvas.height = H;
+            cx = W / 2;
+            cy = H / 2;
+            R = Math.min(W, H) * 0.42;
+            draw();
+        }
+        window.addEventListener("resize", resize);
+
+        function normAngle(a) {
+            // normalize to (-pi, pi]
+            a = (a + Math.PI) % (2*Math.PI);
+            if (a < 0) a += 2*Math.PI;
+            return a - Math.PI;
+        }
+
+        function pointerToAngle(px, py) {
+            return Math.atan2(py - cy, px - cx);
+        }
+
+        function drawWheel() {
+            const slice = (2 * Math.PI) / N;
+
+            // Outer shadow ring
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            // Outer ring
+            ctx.beginPath();
+            ctx.arc(0, 0, R * 1.08, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(0,0,0,0.35)";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(0, 0, R * 1.05, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(255,255,255,0.06)";
+            ctx.fill();
+
+            // Wheel slices
+            for (let i = 0; i < N; i++) {
+                const a0 = angle + i * slice;
+                const a1 = a0 + slice;
+
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, R, a0, a1);
+                ctx.closePath();
+                ctx.fillStyle = colors[i];
+                ctx.fill();
+
+                // slice separators
+                ctx.strokeStyle = "rgba(255,255,255,0.10)";
+                ctx.lineWidth = Math.max(1, R * 0.01);
+                ctx.stroke();
+
+                // labels
+                const mid = (a0 + a1) / 2;
+                const tx = Math.cos(mid) * (R * 0.72);
+                const ty = Math.sin(mid) * (R * 0.72);
+
+                ctx.save();
+                ctx.translate(tx, ty);
+                ctx.rotate(mid + Math.PI / 2);
+                ctx.fillStyle = (i === 0) ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.92)";
+                ctx.font = `600 ${Math.round(R * 0.12)}px system-ui, sans-serif`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(labels[i], 0, 0);
+                ctx.restore();
+            }
+
+            // Inner hub
+            ctx.beginPath();
+            ctx.arc(0, 0, R * 0.20, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(0,0,0,0.55)";
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(0, 0, R * 0.17, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(255,255,255,0.07)";
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawPointer() {
+            // Pointer at top (12 o'clock)
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            const tipY = -R * 1.08;
+            const w = R * 0.12;
+            const h = R * 0.16;
+
+            ctx.beginPath();
+            ctx.moveTo(0, tipY);
+            ctx.lineTo(-w/2, tipY + h);
+            ctx.lineTo(w/2, tipY + h);
+            ctx.closePath();
+            ctx.fillStyle = "rgba(255,255,255,0.92)";
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(0, tipY + h + R * 0.03, R * 0.03, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(255,255,255,0.65)";
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function clear() {
+            ctx.clearRect(0, 0, W, H);
+        }
+
+        function draw() {
+            clear();
+
+            // soft vignette
+            const g = ctx.createRadialGradient(cx, cy, R*0.1, cx, cy, R*1.4);
+            g.addColorStop(0, "rgba(255,255,255,0.04)");
+            g.addColorStop(1, "rgba(0,0,0,0.35)");
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, W, H);
+
+            drawWheel();
+            drawPointer();
+        }
+
+        function getResultIndex() {
+            // Pointer is at angle -pi/2 in canvas coordinates (top).
+            const slice = (2 * Math.PI) / N;
+            const pointerAngle = -Math.PI / 2;
+
+            let rel = pointerAngle - angle;
+            rel = (rel % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
+            const i = Math.floor(rel / slice);
+            return i;
+        }
+
+        function updateResultUI() {
+            const idx = getResultIndex();
+            resultPill.textContent = `Result: ${labels[idx]}`;
+        }
+
+        function clamp(v, lo, hi) {
+            return Math.max(lo, Math.min(hi, v));
+        }
+
+        function tick(tms) {
+            if (!animating) return;
+            requestAnimationFrame(tick);
+
+            const t = tms / 1000;
+            const dt = lastT ? Math.min(0.05, (t - lastT)) : 1/60;
+            lastT = t;
+
+            if (!dragging) {
+                angle += omega * dt;
+
+                if (Math.abs(omega) < STOP_EPS) {
+                    omega *= Math.pow(SETTLE_FRICTION, dt * 60);
+                    if (Math.abs(omega) < 0.01) omega = 0;
+                } else {
+                    omega *= Math.pow(FRICTION, dt * 60);
+                }
+
+                if (omega === 0) updateResultUI();
+            } else {
+                omega = omegaFromDrag;
+            }
+
+            speedPill.textContent = `ω: ${omega.toFixed(2)} rad/s`;
+            draw();
+        }
+
+        function onPointerDown(e) {
+            const rect = canvas.getBoundingClientRect();
+            const px = (e.clientX - rect.left) * dpr;
+            const py = (e.clientY - rect.top) * dpr;
+
+            const dx = px - cx, dy = py - cy;
+            if (Math.hypot(dx, dy) > R * 1.05) return;
+
+            dragging = true;
+            canvas.classList.add("dragging");
+            canvas.setPointerCapture(e.pointerId);
+
+            omegaFromDrag = omega;
+
+            lastPointerAngle = pointerToAngle(px, py);
+            lastT = performance.now() / 1000;
+        }
+
+        function onPointerMove(e) {
+            if (!dragging) return;
+            const rect = canvas.getBoundingClientRect();
+            const px = (e.clientX - rect.left) * dpr;
+            const py = (e.clientY - rect.top) * dpr;
+
+            const now = performance.now() / 1000;
+            const dt = Math.max(0.001, now - lastT);
+
+            const a = pointerToAngle(px, py);
+            let da = normAngle(a - lastPointerAngle);
+
+            angle += da;
+
+            const instOmega = da / dt;
+
+            omegaFromDrag = 0.75 * omegaFromDrag + 0.25 * instOmega;
+            omegaFromDrag = clamp(omegaFromDrag, -MAX_OMEGA, MAX_OMEGA);
+
+            lastPointerAngle = a;
+            lastT = now;
+
+            updateResultUI();
+        }
+
+        function onPointerUp(e) {
+            if (!dragging) return;
+            dragging = false;
+            canvas.classList.remove("dragging");
+
+            omega = clamp(omegaFromDrag, -MAX_OMEGA, MAX_OMEGA);
+            if (Math.abs(omega) < 0.15) omega = 0;
+
+            updateResultUI();
+        }
+
+        resetBtn.addEventListener("click", () => {
+            angle = 0;
+            omega = 0;
+            omegaFromDrag = 0;
+            updateResultUI();
+            draw();
+        });
+
+        canvas.addEventListener("pointerdown", onPointerDown);
+        canvas.addEventListener("pointermove", onPointerMove);
+        canvas.addEventListener("pointerup", onPointerUp);
+        canvas.addEventListener("pointercancel", onPointerUp);
+
+        resize();
+        updateResultUI();
+        requestAnimationFrame(tick);
+    })();
+</script>
+</body>
+</html>
