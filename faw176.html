@@ -3,9 +3,9 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Timeline + Selected Table + Map</title>
+    <title>Timeline + Selected Table + Map (Debug)</title>
 
-    <!-- vis-timeline (standalone UMD) -->
+    <!-- vis-timeline -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vis-timeline@8.5.0/styles/vis-timeline-graph2d.min.css">
     <script src="https://cdn.jsdelivr.net/npm/vis-timeline@8.5.0/standalone/umd/vis-timeline-graph2d.min.js"></script>
 
@@ -23,26 +23,13 @@
         header h1 { margin: 0; font-size: 18px; }
         header p { margin: 6px 0 0; opacity: .8; }
 
-        .app {
-            display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 12px;
-            padding: 12px;
-        }
-
-        .panel {
-            border: 1px solid rgba(127,127,127,.25);
-            border-radius: 10px;
-            padding: 12px;
-            height: fit-content;
-            position: sticky;
-            top: 12px;
-        }
-
+        .app { display: grid; grid-template-columns: 340px 1fr; gap: 12px; padding: 12px; }
+        .panel { border: 1px solid rgba(127,127,127,.25); border-radius: 10px; padding: 12px; height: fit-content; position: sticky; top: 12px; }
         .panel h2 { font-size: 14px; margin: 0 0 10px; opacity: .9; }
+
         .row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
         label { font-size: 12px; opacity: .85; }
-        input[type="date"], select, button {
+        input[type="date"], select, button, input[type="text"] {
             padding: 8px;
             border-radius: 8px;
             border: 1px solid rgba(127,127,127,.35);
@@ -50,7 +37,7 @@
             color: inherit;
         }
         button { cursor: pointer; }
-        .btnrow { display: flex; gap: 8px; }
+        .btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
 
         .dropzone {
             border: 2px dashed rgba(127,127,127,.45);
@@ -64,30 +51,22 @@
         .dropzone small { opacity: .8; }
         .dropzone.dragover { border-color: rgba(80,160,255,.9); }
 
-        .main {
-            display: grid;
-            grid-template-rows: 420px auto 360px;
-            gap: 12px;
-            min-width: 0;
-        }
-
-        .box {
+        .status {
             border: 1px solid rgba(127,127,127,.25);
             border-radius: 10px;
-            overflow: hidden;
-            background: transparent;
-            min-width: 0;
+            padding: 10px;
+            font-size: 12px;
+            line-height: 1.35;
+            white-space: pre-wrap;
+            max-height: 220px;
+            overflow: auto;
+            background: rgba(127,127,127,.06);
         }
 
+        .main { display: grid; grid-template-rows: 420px auto 360px; gap: 12px; min-width: 0; }
+        .box { border: 1px solid rgba(127,127,127,.25); border-radius: 10px; overflow: hidden; background: transparent; min-width: 0; }
         #timeline { height: 420px; }
-        .boxhead {
-            padding: 10px 12px;
-            border-bottom: 1px solid rgba(127,127,127,.25);
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            align-items: baseline;
-        }
+        .boxhead { padding: 10px 12px; border-bottom: 1px solid rgba(127,127,127,.25); display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
         .boxhead h3 { margin: 0; font-size: 14px; }
         .boxhead .meta { font-size: 12px; opacity: .75; }
 
@@ -100,17 +79,52 @@
 
         #map { height: 360px; }
 
-        .pill {
-            display: inline-block;
-            padding: 2px 8px;
-            border: 1px solid rgba(127,127,127,.35);
-            border-radius: 999px;
-            margin-right: 6px;
-            margin-bottom: 4px;
-            font-size: 12px;
-            opacity: .9;
-            white-space: nowrap;
+        .pill { display: inline-block; padding: 2px 8px; border: 1px solid rgba(127,127,127,.35); border-radius: 999px; margin-right: 6px; margin-bottom: 4px; font-size: 12px; opacity: .9; white-space: nowrap; }
+
+        /* Floating debug overlay */
+        #dbgOverlay {
+            position: fixed;
+            bottom: 12px;
+            right: 12px;
+            z-index: 999999;
+            width: min(520px, 92vw);
+            max-height: 46vh;
+            overflow: auto;
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(180,180,180,.55);
+            background: rgba(0,0,0,.72);
+            color: #fff;
+            font: 12px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            white-space: pre-wrap;
+            box-shadow: 0 10px 30px rgba(0,0,0,.3);
         }
+        #dbgOverlay .hdr {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            position: sticky;
+            top: 0;
+            background: rgba(0,0,0,.72);
+            padding-bottom: 6px;
+        }
+        #dbgOverlay .hdr strong { font-size: 12px; }
+        #dbgOverlay .hdr button {
+            padding: 6px 8px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,.25);
+            background: rgba(255,255,255,.06);
+            color: #fff;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        #dbgOverlay .hdr button:hover { background: rgba(255,255,255,.12); }
+        #dbgOverlay .line { opacity: .95; }
+        #dbgOverlay .warn { color: #ffd37a; }
+        #dbgOverlay .err { color: #ff9aa2; }
+        #dbgOverlay .ok { color: #a7ffb0; }
 
         @media (max-width: 980px) {
             .app { grid-template-columns: 1fr; }
@@ -122,47 +136,61 @@
 
 <body>
 <header>
-    <h1>My Timelines</h1>
-    <p>Drop a CSV, filter, select items on the timeline (Ctrl/Cmd/Shift), see details in the table, and locations on the map.</p>
+    <h1>My Timelines (Debug Build)</h1>
+    <p>Upload a CSV → timeline. Select items → table + map pins. This build includes a debug overlay and status panel.</p>
 </header>
 
 <div class="app">
     <aside class="panel">
         <div id="dropzone" class="dropzone" tabindex="0">
-            <strong>Drop CSV file here</strong>
-            <small>or click to upload</small>
+            <strong>Click to upload CSV</strong>
+            <small>(drag/drop also works)</small>
             <input id="fileInput" type="file" accept=".csv,text/csv" style="display:none" />
         </div>
 
-        <h2>Filters</h2>
+        <h2>Status</h2>
+        <div id="status" class="status">Waiting for a CSV…</div>
+
+        <h2 style="margin-top:12px">Debug controls</h2>
+        <div class="row">
+            <label>Debug mode</label>
+            <select id="debugMode">
+                <option value="on" selected>On (overlay + verbose logs)</option>
+                <option value="overlayOnly">Overlay only</option>
+                <option value="off">Off</option>
+            </select>
+        </div>
+        <div class="btnrow">
+            <button id="selfTestBtn" type="button">Run self-test (fake data)</button>
+            <button id="dumpBtn" type="button">Dump state to console</button>
+            <button id="clearDbgBtn" type="button">Clear debug log</button>
+        </div>
+
+        <h2 style="margin-top:12px">Filters</h2>
 
         <div class="row">
-            <label>Date range</label>
+            <label>Date range (YYYY-MM-DD)</label>
             <input id="fromDate" type="date" />
             <input id="toDate" type="date" />
         </div>
 
         <div class="row">
             <label>Filter by tag</label>
-            <select id="tagFilter">
-                <option value="">All tags</option>
-            </select>
+            <select id="tagFilter"><option value="">All tags</option></select>
         </div>
 
         <div class="row">
             <label>Filter by location</label>
-            <select id="locFilter">
-                <option value="">All locations</option>
-            </select>
+            <select id="locFilter"><option value="">All locations</option></select>
         </div>
 
         <div class="btnrow">
-            <button id="applyBtn">Apply</button>
-            <button id="resetBtn">Reset</button>
+            <button id="applyBtn" type="button">Apply</button>
+            <button id="resetBtn" type="button">Reset</button>
         </div>
 
         <p class="muted" style="margin-top:12px;font-size:12px">
-            Tip: Ctrl/Cmd+click selects multiple items. Shift+click selects a range (timeline-dependent).
+            Tip: Ctrl/Cmd+click selects multiple. Shift+click attempts range selection (timeline dependent).
         </p>
     </aside>
 
@@ -209,156 +237,356 @@
     </main>
 </div>
 
+<!-- Floating debug overlay -->
+<div id="dbgOverlay" aria-live="polite">
+    <div class="hdr">
+        <strong>DBG overlay</strong>
+        <div style="display:flex;gap:8px;align-items:center">
+            <button id="toggleDbgBtn" type="button">Hide</button>
+            <button id="copyDbgBtn" type="button">Copy</button>
+        </div>
+    </div>
+    <div id="dbgLog"></div>
+</div>
+
 <script>
-    alert("JS is running: " + new Date().toISOString());
-
+    /* =========================================================
+       DEBUG FRAMEWORK (overlay + status + global error traps)
+       ========================================================= */
     (function () {
-        const dbg = document.createElement("div");
-        dbg.id = "dbg";
-        dbg.style.cssText = "position:fixed;bottom:10px;right:10px;z-index:999999;padding:10px;max-width:50vw;border:1px solid #999;border-radius:10px;background:rgba(0,0,0,.7);color:#fff;font:12px/1.3 system-ui;white-space:pre-wrap";
-        dbg.textContent = "DBG: script loaded\n";
-        document.addEventListener("DOMContentLoaded", () => {
-            dbg.textContent += "DBG: DOMContentLoaded\n";
-        });
-        window.addEventListener("error", (e) => {
-            dbg.textContent += "ERROR: " + (e.message || e.type) + "\n";
-        });
-        window.addEventListener("unhandledrejection", (e) => {
-            dbg.textContent += "PROMISE: " + (e.reason?.message || String(e.reason)) + "\n";
-        });
-        document.documentElement.appendChild(dbg);
+        const statusEl = document.getElementById("status");
+        const dbgOverlay = document.getElementById("dbgOverlay");
+        const dbgLog = document.getElementById("dbgLog");
+        const debugModeSel = document.getElementById("debugMode");
+        const toggleDbgBtn = document.getElementById("toggleDbgBtn");
+        const copyDbgBtn = document.getElementById("copyDbgBtn");
 
-        window.__dbg = (msg) => { dbg.textContent += msg + "\n"; console.log("[DBG]", msg); };
-    })();
-
-
-    // ---------- Utilities ----------
-    function normKey(s) {
-        return String(s || "").trim().toLowerCase().replace(/\s+/g, "_");
-    }
-
-    function parseTags(raw) {
-        if (!raw) return [];
-        // split on comma/semicolon/pipe
-        return String(raw)
-            .split(/[,;|]/g)
-            .map(t => t.trim())
-            .filter(Boolean);
-    }
-
-    function safeDate(d) {
-        const x = new Date(d);
-        return isNaN(x.getTime()) ? null : x;
-    }
-
-    function fmtWhen(item) {
-        const s = item.start ? new Date(item.start) : null;
-        const e = item.end ? new Date(item.end) : null;
-        if (s && e) return `${s.toISOString().slice(0,10)} → ${e.toISOString().slice(0,10)}`;
-        if (s) return s.toISOString().slice(0,10);
-        return "";
-    }
-
-    function findCol(headers, candidates) {
-        // headers are normalized
-        for (const c of candidates) {
-            const want = normKey(c);
-            const idx = headers.indexOf(want);
-            if (idx !== -1) return idx;
-        }
-        return -1;
-    }
-
-    // ---------- State ----------
-    let allRows = [];          // parsed CSV rows (objects keyed by original header)
-    let allItems = [];         // normalized items for timeline + table + map
-    let itemsById = new Map(); // id -> item
-
-    let timeline = null;
-    let visData = null;
-
-    let map = null;
-    let markerLayer = null;
-
-    // ---------- DOM ----------
-    const dropzone = document.getElementById("dropzone");
-    const fileInput = document.getElementById("fileInput");
-
-    const fromDate = document.getElementById("fromDate");
-    const toDate = document.getElementById("toDate");
-    const tagFilter = document.getElementById("tagFilter");
-    const locFilter = document.getElementById("locFilter");
-
-    const applyBtn = document.getElementById("applyBtn");
-    const resetBtn = document.getElementById("resetBtn");
-
-    const countLabel = document.getElementById("countLabel");
-    const selectedCount = document.getElementById("selectedCount");
-    const selectedTbody = document.getElementById("selectedTbody");
-
-    // ---------- Init timeline ----------
-    function initTimeline() {
-        const container = document.getElementById("timeline");
-        visData = new vis.DataSet([]);
-
-        const options = {
-            stack: true,
-            multiselect: true,
-            selectable: true,
-            zoomKey: "ctrlKey",
-            // If you want SHIFT to always add, vis-timeline uses ctrl/meta; shift is for range selection.
-            // This still meets your requirement: ctrl/cmd + click selects multiple.
+        const DBG = {
+            enabled: true,
+            overlayEnabled: true,
+            consoleEnabled: true,
+            lines: [],
+            maxLines: 400
         };
 
-        timeline = new vis.Timeline(container, visData, options);
+        function ts() {
+            const d = new Date();
+            return d.toISOString().replace("T", " ").replace("Z", "");
+        }
 
-        timeline.on("select", (props) => {
-            // props.items is an array of selected item ids
-            updateSelectedUI(props.items || []);
+        function setMode(mode) {
+            if (mode === "off") {
+                DBG.enabled = false;
+                DBG.overlayEnabled = false;
+                DBG.consoleEnabled = false;
+                dbgOverlay.style.display = "none";
+                statusEl.textContent = "Debug mode is OFF.";
+                return;
+            }
+            if (mode === "overlayOnly") {
+                DBG.enabled = true;
+                DBG.overlayEnabled = true;
+                DBG.consoleEnabled = false;
+                dbgOverlay.style.display = "";
+                return;
+            }
+            DBG.enabled = true;
+            DBG.overlayEnabled = true;
+            DBG.consoleEnabled = true;
+            dbgOverlay.style.display = "";
+        }
+
+        function renderOverlay() {
+            if (!DBG.overlayEnabled) return;
+            dbgLog.innerHTML = DBG.lines.map(l => {
+                const cls = l.level === "err" ? "err" : (l.level === "warn" ? "warn" : (l.level === "ok" ? "ok" : "line"));
+                return `<div class="${cls}">${escapeHtml(l.text)}</div>`;
+            }).join("");
+            dbgOverlay.scrollTop = dbgOverlay.scrollHeight;
+        }
+
+        function escapeHtml(s) {
+            return String(s ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        function pushLine(level, msg) {
+            const text = `[${ts()}] ${msg}`;
+            DBG.lines.push({ level, text });
+            if (DBG.lines.length > DBG.maxLines) DBG.lines.splice(0, DBG.lines.length - DBG.maxLines);
+            if (DBG.consoleEnabled) {
+                const tag = "[APP]";
+                if (level === "err") console.error(tag, msg);
+                else if (level === "warn") console.warn(tag, msg);
+                else console.log(tag, msg);
+            }
+            renderOverlay();
+        }
+
+        function setStatus(msg) {
+            statusEl.textContent = msg;
+            pushLine("line", `STATUS: ${msg}`);
+        }
+        function appendStatus(msg) {
+            statusEl.textContent += "\n" + msg;
+            pushLine("line", msg);
+        }
+
+        // Expose helpers globally
+        window.__DBG = {
+            setMode,
+            setStatus,
+            appendStatus,
+            log: (m) => pushLine("line", m),
+            ok: (m) => pushLine("ok", m),
+            warn: (m) => pushLine("warn", m),
+            err: (m) => pushLine("err", m),
+            clear: () => {
+                DBG.lines = [];
+                renderOverlay();
+                statusEl.textContent = "Debug cleared.";
+            },
+            dumpOverlayText: () => DBG.lines.map(l => l.text).join("\n")
+        };
+
+        // Global error traps (very useful on GitHub Pages when something fails silently)
+        window.addEventListener("error", (e) => {
+            window.__DBG.err(`WINDOW ERROR: ${e.message || e.type} @ ${e.filename || "?"}:${e.lineno || "?"}:${e.colno || "?"}`);
         });
-    }
+        window.addEventListener("unhandledrejection", (e) => {
+            const reason = e.reason?.message || String(e.reason);
+            window.__DBG.err(`UNHANDLED PROMISE: ${reason}`);
+        });
 
-    // ---------- Init map ----------
-    function initMap() {
-        map = L.map("map", { zoomControl: true });
-        // OpenStreetMap tiles
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            maxZoom: 19,
-            attribution: "&copy; OpenStreetMap contributors"
-        }).addTo(map);
+        // UI controls
+        debugModeSel.addEventListener("change", () => setMode(debugModeSel.value));
+        toggleDbgBtn.addEventListener("click", () => {
+            const isHidden = dbgLog.style.display === "none";
+            dbgLog.style.display = isHidden ? "" : "none";
+            toggleDbgBtn.textContent = isHidden ? "Hide" : "Show";
+        });
+        copyDbgBtn.addEventListener("click", async () => {
+            try {
+                await navigator.clipboard.writeText(window.__DBG.dumpOverlayText());
+                window.__DBG.ok("Copied debug log to clipboard.");
+            } catch {
+                window.__DBG.warn("Clipboard copy failed (browser permissions).");
+            }
+        });
 
-        markerLayer = L.layerGroup().addTo(map);
+        // Initial mode
+        setMode(debugModeSel.value);
+        pushLine("ok", "Debug overlay initialized.");
+        appendStatus("Debug overlay initialized.");
 
-        // start somewhere sensible
-        map.setView([20, 0], 2);
-    }
+        // Quick “library presence” check
+        setTimeout(() => {
+            const libs = {
+                vis: typeof window.vis !== "undefined",
+                Papa: typeof window.Papa !== "undefined",
+                Leaflet: typeof window.L !== "undefined"
+            };
+            pushLine(libs.vis && libs.Papa && libs.Leaflet ? "ok" : "warn",
+                `Library check: vis=${libs.vis}, PapaParse=${libs.Papa}, Leaflet=${libs.Leaflet}`);
+            if (!libs.vis || !libs.Papa || !libs.Leaflet) {
+                appendStatus("WARNING: One or more CDN libraries failed to load. Check Network tab for 404/blocked requests.");
+            }
+        }, 0);
+    })();
 
-    // ---------- Selection -> Table + Map ----------
-    function updateSelectedUI(selectedIds) {
-        selectedCount.textContent = String(selectedIds.length);
+    /* =========================================================
+       APP CODE
+       ========================================================= */
+    (function () {
+        // ---------- Utilities ----------
+        function normKey(s) { return String(s || "").trim().toLowerCase().replace(/\s+/g, "_"); }
 
-        // Table
-        selectedTbody.innerHTML = "";
-        if (selectedIds.length === 0) {
-            selectedTbody.innerHTML = `<tr><td colspan="6" class="muted">Select timeline items to populate this table.</td></tr>`;
-        } else {
-            for (const id of selectedIds) {
-                const it = itemsById.get(id);
-                if (!it) continue;
+        function parseTags(raw) {
+            if (!raw) return [];
+            return String(raw).split(/[,;|]/g).map(t => t.trim()).filter(Boolean);
+        }
 
-                const tagsHtml = (it.tags || []).length
-                    ? it.tags.map(t => `<span class="pill">${escapeHtml(t)}</span>`).join("")
-                    : `<span class="muted">—</span>`;
+        function safeDate(val) {
+            if (val === null || val === undefined) return null;
+            const s = String(val).trim();
+            if (!s) return null;
 
-                const loc = it.location ? escapeHtml(it.location) : "—";
-                const coords = (isFinite(it.lat) && isFinite(it.lon))
-                    ? `${it.lat.toFixed(5)}, ${it.lon.toFixed(5)}`
-                    : "—";
+            // Try native parse first
+            let d = new Date(s);
+            if (!isNaN(d.getTime())) return d;
 
-                const details = it.details ? escapeHtml(it.details) : "—";
+            // Try YYYY-MM-DD or YYYY/MM/DD with optional time
+            const m1 = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+            if (m1) {
+                const [_, Y, M, D, hh="0", mm="0", ss="0"] = m1;
+                d = new Date(Number(Y), Number(M)-1, Number(D), Number(hh), Number(mm), Number(ss));
+                if (!isNaN(d.getTime())) return d;
+            }
 
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
+            // Try MM/DD/YYYY (US) optionally with HH:MM
+            const m2 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/);
+            if (m2) {
+                const [_, M, D, Y, hh="0", mm="0"] = m2;
+                d = new Date(Number(Y), Number(M)-1, Number(D), Number(hh), Number(mm), 0);
+                if (!isNaN(d.getTime())) return d;
+            }
+
+            return null;
+        }
+
+        function fmtWhen(item) {
+            const s = item.start ? new Date(item.start) : null;
+            const e = item.end ? new Date(item.end) : null;
+            const fmt = (x) => x.toISOString().slice(0,10);
+            if (s && e) return `${fmt(s)} → ${fmt(e)}`;
+            if (s) return fmt(s);
+            return "";
+        }
+
+        function escapeHtml(s) {
+            return String(s ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        function findCol(headersNorm, candidates) {
+            for (const c of candidates) {
+                const want = normKey(c);
+                const idx = headersNorm.indexOf(want);
+                if (idx !== -1) return idx;
+            }
+            return -1;
+        }
+
+        // Heuristic: find the column with the most parsable dates in first N rows
+        function guessDateCol(fields, rows, sampleN = 50) {
+            if (!fields.length) return -1;
+            const N = Math.min(sampleN, rows.length);
+            const scores = fields.map(() => 0);
+
+            for (let i = 0; i < N; i++) {
+                const r = rows[i];
+                if (!r) continue;
+                for (let c = 0; c < fields.length; c++) {
+                    const v = r[fields[c]];
+                    if (safeDate(v)) scores[c] += 1;
+                }
+            }
+            let best = -1, bestScore = 0;
+            for (let c = 0; c < scores.length; c++) {
+                if (scores[c] > bestScore) { bestScore = scores[c]; best = c; }
+            }
+            return bestScore >= Math.max(3, Math.floor(N * 0.2)) ? best : -1;
+        }
+
+        // ---------- State ----------
+        let allItems = [];
+        let itemsById = new Map();
+
+        let timeline = null;
+        let visData = null;
+
+        let map = null;
+        let markerLayer = null;
+
+        // ---------- DOM ----------
+        const dropzone = document.getElementById("dropzone");
+        const fileInput = document.getElementById("fileInput");
+
+        const fromDate = document.getElementById("fromDate");
+        const toDate = document.getElementById("toDate");
+        const tagFilter = document.getElementById("tagFilter");
+        const locFilter = document.getElementById("locFilter");
+
+        const applyBtn = document.getElementById("applyBtn");
+        const resetBtn = document.getElementById("resetBtn");
+
+        const countLabel = document.getElementById("countLabel");
+        const selectedCount = document.getElementById("selectedCount");
+        const selectedTbody = document.getElementById("selectedTbody");
+
+        const selfTestBtn = document.getElementById("selfTestBtn");
+        const dumpBtn = document.getElementById("dumpBtn");
+        const clearDbgBtn = document.getElementById("clearDbgBtn");
+
+        // ---------- Timeline ----------
+        function initTimeline() {
+            __DBG.log("initTimeline() called");
+            const container = document.getElementById("timeline");
+
+            if (!window.vis) {
+                __DBG.err("vis-timeline library not available (window.vis is undefined).");
+                return;
+            }
+
+            visData = new vis.DataSet([]);
+            timeline = new vis.Timeline(container, visData, {
+                stack: true,
+                multiselect: true,
+                selectable: true,
+                zoomKey: "ctrlKey"
+            });
+
+            timeline.on("select", (props) => {
+                __DBG.log(`Timeline select event: ${JSON.stringify(props.items || [])}`);
+                updateSelectedUI(props.items || []);
+            });
+
+            __DBG.ok("Timeline initialized.");
+        }
+
+        // ---------- Map ----------
+        function initMap() {
+            __DBG.log("initMap() called");
+            if (!window.L) {
+                __DBG.err("Leaflet library not available (window.L is undefined).");
+                return;
+            }
+
+            map = L.map("map", { zoomControl: true });
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                maxZoom: 19,
+                attribution: "&copy; OpenStreetMap contributors"
+            }).addTo(map);
+
+            markerLayer = L.layerGroup().addTo(map);
+            map.setView([20, 0], 2);
+
+            __DBG.ok("Map initialized.");
+        }
+
+        // ---------- Selection -> Table + Map ----------
+        function updateSelectedUI(selectedIds) {
+            selectedCount.textContent = String(selectedIds.length);
+
+            selectedTbody.innerHTML = "";
+            if (selectedIds.length === 0) {
+                selectedTbody.innerHTML = `<tr><td colspan="6" class="muted">Select timeline items to populate this table.</td></tr>`;
+            } else {
+                for (const id of selectedIds) {
+                    const it = itemsById.get(id);
+                    if (!it) continue;
+
+                    const tagsHtml = (it.tags || []).length
+                        ? it.tags.map(t => `<span class="pill">${escapeHtml(t)}</span>`).join("")
+                        : `<span class="muted">—</span>`;
+
+                    const loc = it.location ? escapeHtml(it.location) : "—";
+                    const coords = (isFinite(it.lat) && isFinite(it.lon))
+                        ? `${it.lat.toFixed(5)}, ${it.lon.toFixed(5)}`
+                        : "—";
+
+                    const details = it.details ? escapeHtml(it.details) : "—";
+
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
           <td>${escapeHtml(fmtWhen(it))}</td>
           <td>${escapeHtml(it.title || "")}</td>
           <td>${details}</td>
@@ -366,244 +594,395 @@
           <td>${loc}</td>
           <td>${escapeHtml(coords)}</td>
         `;
-                selectedTbody.appendChild(tr);
+                    selectedTbody.appendChild(tr);
+                }
             }
+
+            if (!markerLayer || !map) return;
+
+            markerLayer.clearLayers();
+            const bounds = [];
+            for (const id of selectedIds) {
+                const it = itemsById.get(id);
+                if (!it) continue;
+                if (isFinite(it.lat) && isFinite(it.lon)) {
+                    const m = L.marker([it.lat, it.lon])
+                        .bindPopup(`<strong>${escapeHtml(it.title || "Item")}</strong><br>${escapeHtml(it.location || "")}<br><span class="muted">${escapeHtml(fmtWhen(it))}</span>`);
+                    markerLayer.addLayer(m);
+                    bounds.push([it.lat, it.lon]);
+                }
+            }
+            if (bounds.length === 1) map.setView(bounds[0], 10);
+            if (bounds.length > 1) map.fitBounds(bounds, { padding: [20, 20] });
         }
 
-        // Map
-        markerLayer.clearLayers();
-        const bounds = [];
-        for (const id of selectedIds) {
-            const it = itemsById.get(id);
-            if (!it) continue;
-            if (isFinite(it.lat) && isFinite(it.lon)) {
-                const m = L.marker([it.lat, it.lon])
-                    .bindPopup(`<strong>${escapeHtml(it.title || "Item")}</strong><br>${escapeHtml(it.location || "")}<br><span class="muted">${escapeHtml(fmtWhen(it))}</span>`);
-                markerLayer.addLayer(m);
-                bounds.push([it.lat, it.lon]);
+        // ---------- Filters ----------
+        function rebuildFilterOptions(items) {
+            const tags = new Set();
+            const locs = new Set();
+            for (const it of items) {
+                (it.tags || []).forEach(t => tags.add(t));
+                if (it.location) locs.add(it.location);
             }
-        }
-        if (bounds.length === 1) map.setView(bounds[0], 10);
-        if (bounds.length > 1) map.fitBounds(bounds, { padding: [20, 20] });
-    }
 
-    function escapeHtml(s) {
-        return String(s ?? "")
-            .replaceAll("&", "&amp;")
-            .replaceAll("<", "&lt;")
-            .replaceAll(">", "&gt;")
-            .replaceAll('"', "&quot;")
-            .replaceAll("'", "&#039;");
-    }
+            const curTag = tagFilter.value;
+            const curLoc = locFilter.value;
 
-    // ---------- Filtering ----------
-    function rebuildFilterOptions(items) {
-        const tags = new Set();
-        const locs = new Set();
+            tagFilter.innerHTML = `<option value="">All tags</option>` +
+                Array.from(tags).sort((a,b)=>a.localeCompare(b)).map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join("");
 
-        for (const it of items) {
-            (it.tags || []).forEach(t => tags.add(t));
-            if (it.location) locs.add(it.location);
+            locFilter.innerHTML = `<option value="">All locations</option>` +
+                Array.from(locs).sort((a,b)=>a.localeCompare(b)).map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join("");
+
+            tagFilter.value = Array.from(tags).includes(curTag) ? curTag : "";
+            locFilter.value = Array.from(locs).includes(curLoc) ? curLoc : "";
         }
 
-        const currentTag = tagFilter.value;
-        const currentLoc = locFilter.value;
+        function applyFilters() {
+            __DBG.log("applyFilters() clicked");
+            const fd = fromDate.value ? safeDate(fromDate.value) : null;
+            const td = toDate.value ? safeDate(toDate.value) : null;
+            const tag = tagFilter.value || "";
+            const loc = locFilter.value || "";
 
-        tagFilter.innerHTML = `<option value="">All tags</option>` +
-            Array.from(tags).sort((a,b)=>a.localeCompare(b)).map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join("");
+            const filtered = allItems.filter(it => {
+                const s = it.start ? new Date(it.start) : null;
+                const e = it.end ? new Date(it.end) : null;
+                const anchor = s || e;
+                if (fd && anchor && anchor < fd) return false;
+                if (td && anchor && anchor > td) return false;
+                if (tag && !(it.tags || []).includes(tag)) return false;
+                if (loc && (it.location || "") !== loc) return false;
+                return true;
+            });
 
-        locFilter.innerHTML = `<option value="">All locations</option>` +
-            Array.from(locs).sort((a,b)=>a.localeCompare(b)).map(l => `<option value="${escapeHtml(l)}">${escapeHtml(l)}</option>`).join("");
-
-        // restore if still present
-        tagFilter.value = Array.from(tags).includes(currentTag) ? currentTag : "";
-        locFilter.value = Array.from(locs).includes(currentLoc) ? currentLoc : "";
-    }
-
-    function applyFilters() {
-        const fd = fromDate.value ? safeDate(fromDate.value) : null;
-        const td = toDate.value ? safeDate(toDate.value) : null;
-        const tag = tagFilter.value || "";
-        const loc = locFilter.value || "";
-
-        const filtered = allItems.filter(it => {
-            const s = it.start ? new Date(it.start) : null;
-            const e = it.end ? new Date(it.end) : null;
-            const anchor = s || e; // choose something for filtering; prefer start
-            if (fd && anchor && anchor < fd) return false;
-            if (td && anchor && anchor > td) return false;
-
-            if (tag) {
-                const has = (it.tags || []).includes(tag);
-                if (!has) return false;
+            if (!visData) {
+                __DBG.err("applyFilters(): visData not initialized.");
+                return;
             }
-            if (loc) {
-                if ((it.location || "") !== loc) return false;
+
+            visData.clear();
+            visData.add(filtered.map(it => ({
+                id: it.id,
+                start: it.start,
+                end: it.end || undefined,
+                content: it.content,
+                title: it.tooltip
+            })));
+
+            countLabel.textContent = String(filtered.length);
+
+            if (timeline) timeline.setSelection([]);
+            updateSelectedUI([]);
+
+            __DBG.appendStatus(`Applied filters. Showing ${filtered.length} / ${allItems.length} items.`);
+        }
+
+        function resetFilters() {
+            __DBG.log("resetFilters() called");
+            fromDate.value = "";
+            toDate.value = "";
+            tagFilter.value = "";
+            locFilter.value = "";
+
+            if (!visData) {
+                __DBG.err("resetFilters(): visData not initialized.");
+                return;
             }
-            return true;
-        });
 
-        // replace timeline dataset
-        visData.clear();
-        visData.add(filtered.map(it => ({
-            id: it.id,
-            start: it.start,
-            end: it.end || undefined,
-            content: it.content,
-            title: it.tooltip
-        })));
+            visData.clear();
+            visData.add(allItems.map(it => ({
+                id: it.id,
+                start: it.start,
+                end: it.end || undefined,
+                content: it.content,
+                title: it.tooltip
+            })));
 
-        countLabel.textContent = String(filtered.length);
+            countLabel.textContent = String(allItems.length);
 
-        // Clear selection when filters change to avoid mismatches
-        timeline.setSelection([]);
-        updateSelectedUI([]);
-    }
+            if (timeline) timeline.setSelection([]);
+            updateSelectedUI([]);
 
-    function resetFilters() {
-        fromDate.value = "";
-        toDate.value = "";
-        tagFilter.value = "";
-        locFilter.value = "";
+            __DBG.appendStatus(`Reset filters. Showing all ${allItems.length} items.`);
+        }
 
-        visData.clear();
-        visData.add(allItems.map(it => ({
-            id: it.id,
-            start: it.start,
-            end: it.end || undefined,
-            content: it.content,
-            title: it.tooltip
-        })));
+        // ---------- CSV -> items ----------
+        function buildItemsFromParsed(fields, rows) {
+            const headersNorm = fields.map(normKey);
 
-        countLabel.textContent = String(allItems.length);
+            let idxStart = findCol(headersNorm, ["start", "date", "when", "begin", "timestamp", "time"]);
+            const idxEnd = findCol(headersNorm, ["end", "finish", "stop", "until"]);
+            const idxTitle = findCol(headersNorm, ["title", "name", "event", "summary"]);
+            const idxDetails = findCol(headersNorm, ["details", "description", "content", "notes", "text", "body"]);
+            const idxTags = findCol(headersNorm, ["tags", "tag", "labels", "label"]);
+            const idxLoc = findCol(headersNorm, ["location", "place", "where", "city"]);
+            const idxLat = findCol(headersNorm, ["lat", "latitude"]);
+            const idxLon = findCol(headersNorm, ["lon", "lng", "longitude", "long"]);
 
-        timeline.setSelection([]);
-        updateSelectedUI([]);
-    }
+            if (idxStart === -1) {
+                const guess = guessDateCol(fields, rows);
+                idxStart = guess;
+                __DBG.warn(`No obvious date column by name. Guessed start column = ${idxStart >= 0 ? fields[idxStart] : "NONE"}`);
+            }
 
-    // ---------- CSV -> items ----------
-    function buildItemsFromCsv(parsed) {
-        const rows = parsed.data || [];
-        const fields = (parsed.meta && parsed.meta.fields) ? parsed.meta.fields : [];
-        const headersNorm = fields.map(normKey);
+            __DBG.appendStatus(
+                `Detected columns:\n` +
+                `  start=${idxStart >= 0 ? fields[idxStart] : "NONE"}\n` +
+                `  end=${idxEnd >= 0 ? fields[idxEnd] : "NONE"}\n` +
+                `  title=${idxTitle >= 0 ? fields[idxTitle] : "NONE"}\n` +
+                `  details=${idxDetails >= 0 ? fields[idxDetails] : "NONE"}\n` +
+                `  tags=${idxTags >= 0 ? fields[idxTags] : "NONE"}\n` +
+                `  location=${idxLoc >= 0 ? fields[idxLoc] : "NONE"}\n` +
+                `  lat=${idxLat >= 0 ? fields[idxLat] : "NONE"}\n` +
+                `  lon=${idxLon >= 0 ? fields[idxLon] : "NONE"}`
+            );
 
-        // Try to find best-guess columns
-        const idxStart = findCol(headersNorm, ["start", "date", "when", "begin", "timestamp", "time"]);
-        const idxEnd   = findCol(headersNorm, ["end", "finish", "stop", "until"]);
-        const idxTitle = findCol(headersNorm, ["title", "name", "event", "summary"]);
-        const idxDetails = findCol(headersNorm, ["details", "description", "content", "notes", "text", "body"]);
-        const idxTags = findCol(headersNorm, ["tags", "tag", "labels", "label"]);
-        const idxLoc = findCol(headersNorm, ["location", "place", "where", "city"]);
-        const idxLat = findCol(headersNorm, ["lat", "latitude"]);
-        const idxLon = findCol(headersNorm, ["lon", "lng", "longitude", "long"]);
+            if (idxStart === -1) {
+                __DBG.err("Could not find any date/start column. No items can be plotted.");
+                return { items: [], skipped: rows.length };
+            }
 
-        const now = Date.now();
-        const items = [];
+            const now = Date.now();
+            const items = [];
+            let skipped = 0;
+            let badDateSamples = 0;
 
-        for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            if (!row || Object.keys(row).length === 0) continue;
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                if (!row || Object.keys(row).length === 0) { skipped++; continue; }
 
-            const startVal = idxStart >= 0 ? row[fields[idxStart]] : null;
-            const endVal   = idxEnd >= 0 ? row[fields[idxEnd]] : null;
+                const startVal = row[fields[idxStart]];
+                const endVal = (idxEnd >= 0) ? row[fields[idxEnd]] : null;
 
-            const start = safeDate(startVal);
-            const end = safeDate(endVal);
+                const start = safeDate(startVal);
+                const end = safeDate(endVal);
 
-            // if no start date, skip (timeline needs it)
-            if (!start) continue;
+                if (!start) {
+                    skipped++;
+                    if (badDateSamples < 5) {
+                        badDateSamples++;
+                        __DBG.warn(`Row ${i+1}: unparseable start date: "${startVal}"`);
+                    }
+                    continue;
+                }
 
-            const title = idxTitle >= 0 ? String(row[fields[idxTitle]] || "").trim() : "";
-            const details = idxDetails >= 0 ? String(row[fields[idxDetails]] || "").trim() : "";
-            const tags = idxTags >= 0 ? parseTags(row[fields[idxTags]]) : [];
-            const location = idxLoc >= 0 ? String(row[fields[idxLoc]] || "").trim() : "";
+                const title = (idxTitle >= 0 ? String(row[fields[idxTitle]] || "").trim() : "") || "Item";
+                const details = idxDetails >= 0 ? String(row[fields[idxDetails]] || "").trim() : "";
+                const tags = idxTags >= 0 ? parseTags(row[fields[idxTags]]) : [];
+                const location = idxLoc >= 0 ? String(row[fields[idxLoc]] || "").trim() : "";
 
-            const lat = idxLat >= 0 ? Number(row[fields[idxLat]]) : NaN;
-            const lon = idxLon >= 0 ? Number(row[fields[idxLon]]) : NaN;
+                const lat = idxLat >= 0 ? Number(row[fields[idxLat]]) : NaN;
+                const lon = idxLon >= 0 ? Number(row[fields[idxLon]]) : NaN;
 
-            const id = `${now}-${i}`;
+                const id = `${now}-${i}`;
 
-            const content = `<div><strong>${escapeHtml(title || "Item")}</strong><div class="muted" style="font-size:12px">${escapeHtml(location || "")}</div></div>`;
-            const tooltipParts = [];
-            tooltipParts.push(title || "Item");
-            tooltipParts.push(fmtWhen({ start, end }));
-            if (location) tooltipParts.push(location);
-            if (tags.length) tooltipParts.push(`Tags: ${tags.join(", ")}`);
-            if (details) tooltipParts.push(details);
+                const content = `<div><strong>${escapeHtml(title)}</strong><div class="muted" style="font-size:12px">${escapeHtml(location || "")}</div></div>`;
 
-            items.push({
-                id,
-                start,
-                end,
+                const tooltipParts = [];
+                tooltipParts.push(title);
+                tooltipParts.push(fmtWhen({ start, end }));
+                if (location) tooltipParts.push(location);
+                if (tags.length) tooltipParts.push(`Tags: ${tags.join(", ")}`);
+                if (details) tooltipParts.push(details);
+
+                items.push({
+                    id,
+                    start,
+                    end,
+                    title,
+                    details,
+                    tags,
+                    location,
+                    lat,
+                    lon,
+                    content,
+                    tooltip: tooltipParts.filter(Boolean).join("\n")
+                });
+            }
+
+            return { items, skipped };
+        }
+
+        function loadCsvFile(file) {
+            if (!window.Papa) {
+                __DBG.err("PapaParse library not available (window.Papa is undefined).");
+                return;
+            }
+            __DBG.setStatus(`Reading: ${file.name} (${file.size} bytes)…`);
+            __DBG.log("Starting Papa.parse(file)…");
+
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                dynamicTyping: false,
+                complete: (results) => {
+                    __DBG.ok("Papa.parse complete.");
+                    const fields = (results.meta && results.meta.fields) ? results.meta.fields : [];
+                    const rows = results.data || [];
+
+                    __DBG.appendStatus(`PapaParse: fields=${fields.length}, rows=${rows.length}`);
+
+                    if (results.errors && results.errors.length) {
+                        __DBG.warn(`PapaParse reported ${results.errors.length} issues. Showing first 5:`);
+                        for (const e of results.errors.slice(0, 5)) {
+                            __DBG.warn(`  ${e.message || JSON.stringify(e)}`);
+                        }
+                    }
+
+                    if (!fields.length) {
+                        __DBG.err("No headers detected. If your CSV has no header row, we need header:false mode.");
+                        allItems = [];
+                        itemsById = new Map();
+                        if (visData) visData.clear();
+                        countLabel.textContent = "0";
+                        return;
+                    }
+
+                    const { items, skipped } = buildItemsFromParsed(fields, rows);
+
+                    allItems = items;
+                    itemsById = new Map(allItems.map(it => [it.id, it]));
+
+                    rebuildFilterOptions(allItems);
+                    resetFilters();
+
+                    __DBG.appendStatus(`Built ${items.length} timeline items. Skipped ${skipped} rows.`);
+                    if (items.length === 0) {
+                        __DBG.warn("No timeline items were built. Most likely: date column mismatch or date format not recognized.");
+                        __DBG.warn("Paste your header row + one sample row and we’ll hard-map columns and add a date parser for your format.");
+                    } else {
+                        __DBG.ok("Timeline data loaded.");
+                        // Auto-fit the timeline view to loaded data
+                        try {
+                            timeline && timeline.fit({ animation: false });
+                            __DBG.log("timeline.fit() executed");
+                        } catch (e) {
+                            __DBG.warn("timeline.fit() failed: " + (e?.message || String(e)));
+                        }
+                    }
+                },
+                error: (err) => {
+                    __DBG.err("Papa.parse failed: " + (err?.message || String(err)));
+                }
+            });
+        }
+
+        // ---------- Upload handling ----------
+        function attachUploadHandlers() {
+            __DBG.log("Attaching upload handlers…");
+
+            dropzone.addEventListener("click", () => {
+                __DBG.log("Dropzone clicked -> fileInput.click()");
+                fileInput.click();
+            });
+
+            fileInput.addEventListener("change", () => {
+                __DBG.log("File input change fired");
+                const file = fileInput.files && fileInput.files[0];
+                __DBG.log("Picked file = " + (file ? `${file.name} (${file.size} bytes)` : "NONE"));
+                if (file) loadCsvFile(file);
+            });
+
+            // drag/drop (optional)
+            dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("dragover"); });
+            dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+            dropzone.addEventListener("drop", (e) => {
+                e.preventDefault(); dropzone.classList.remove("dragover");
+                const file = e.dataTransfer.files && e.dataTransfer.files[0];
+                __DBG.log("Dropzone drop: " + (file ? `${file.name} (${file.size} bytes)` : "NONE"));
+                if (file) loadCsvFile(file);
+            });
+
+            __DBG.ok("Upload handlers attached.");
+        }
+
+        // ---------- Debug controls ----------
+        function attachDebugControls() {
+            selfTestBtn.addEventListener("click", () => runSelfTest());
+            dumpBtn.addEventListener("click", () => dumpState());
+            clearDbgBtn.addEventListener("click", () => __DBG.clear());
+        }
+
+        function dumpState() {
+            __DBG.log("Dumping state to console…");
+            console.log("[APP] STATE:", {
+                items: allItems.length,
+                hasTimeline: !!timeline,
+                hasVisData: !!visData,
+                hasMap: !!map,
+                hasMarkerLayer: !!markerLayer
+            });
+            if (allItems.length) console.log("[APP] First item:", allItems[0]);
+            __DBG.ok("State dumped to console.");
+        }
+
+        function runSelfTest() {
+            __DBG.log("Running self-test with fake items…");
+            const now = new Date();
+            const make = (daysAgo, title, location, lat, lon, tags) => ({
+                id: "self-" + Math.random().toString(16).slice(2),
+                start: new Date(now.getTime() - daysAgo * 86400000),
+                end: null,
                 title,
-                details,
+                details: "Self-test generated item",
                 tags,
                 location,
                 lat,
                 lon,
-                // for vis:
-                content,
-                tooltip: tooltipParts.filter(Boolean).join("\n")
+                content: `<div><strong>${escapeHtml(title)}</strong><div class="muted" style="font-size:12px">${escapeHtml(location || "")}</div></div>`,
+                tooltip: `${title}\n${location}\n${tags.join(", ")}`
             });
+
+            allItems = [
+                make(10, "Test Event A", "Boston, MA", 42.3601, -71.0589, ["alpha","east"]),
+                make(50, "Test Event B", "San Francisco, CA", 37.7749, -122.4194, ["beta","west"]),
+                make(120, "Test Event C", "No Coords Place", NaN, NaN, ["gamma"])
+            ];
+            itemsById = new Map(allItems.map(it => [it.id, it]));
+
+            rebuildFilterOptions(allItems);
+            resetFilters();
+
+            try {
+                timeline && timeline.fit({ animation: false });
+                __DBG.log("timeline.fit() executed (self-test)");
+            } catch (e) {
+                __DBG.warn("timeline.fit() failed (self-test): " + (e?.message || String(e)));
+            }
+
+            __DBG.ok("Self-test complete. You should see 3 items on the timeline.");
         }
 
-        return items;
-    }
+        // ---------- Boot (DOMContentLoaded) ----------
+        document.addEventListener("DOMContentLoaded", () => {
+            __DBG.setStatus("Booting app… (DOMContentLoaded)");
+            attachUploadHandlers();
+            attachDebugControls();
 
-    function loadCsvFile(file) {
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            dynamicTyping: false,
-            complete: (results) => {
-                allRows = results.data || [];
-                allItems = buildItemsFromCsv(results);
-                itemsById = new Map(allItems.map(it => [it.id, it]));
-
-                rebuildFilterOptions(allItems);
-                resetFilters();
-            },
-            error: (err) => {
-                console.error(err);
-                alert("Failed to parse CSV. Check console for details.");
+            // Safety check: if elements missing, say so loudly.
+            const missing = [];
+            if (!dropzone) missing.push("dropzone");
+            if (!fileInput) missing.push("fileInput");
+            if (!document.getElementById("timeline")) missing.push("timeline");
+            if (!document.getElementById("map")) missing.push("map");
+            if (missing.length) {
+                __DBG.err("Missing critical DOM elements: " + missing.join(", "));
+                return;
             }
+
+            initTimeline();
+            initMap();
+
+            __DBG.ok("Boot complete. Try uploading a CSV, or click self-test.");
         });
-    }
 
-    // ---------- Drag/drop + click upload ----------
-    dropzone.addEventListener("click", () => fileInput.click());
+        // Filter buttons
+        applyBtn.addEventListener("click", applyFilters);
+        resetBtn.addEventListener("click", () => { rebuildFilterOptions(allItems); resetFilters(); });
 
-    dropzone.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        dropzone.classList.add("dragover");
-    });
-
-    dropzone.addEventListener("dragleave", () => {
-        dropzone.classList.remove("dragover");
-    });
-
-    dropzone.addEventListener("drop", (e) => {
-        e.preventDefault();
-        dropzone.classList.remove("dragover");
-        const file = e.dataTransfer.files && e.dataTransfer.files[0];
-        if (file) loadCsvFile(file);
-    });
-
-    fileInput.addEventListener("change", () => {
-        const file = fileInput.files && fileInput.files[0];
-        if (file) loadCsvFile(file);
-    });
-
-    // ---------- Buttons ----------
-    applyBtn.addEventListener("click", applyFilters);
-    resetBtn.addEventListener("click", () => {
-        rebuildFilterOptions(allItems);
-        resetFilters();
-    });
-
-    // ---------- Boot ----------
-    initTimeline();
-    initMap();
+    })();
 </script>
+
 </body>
 </html>
