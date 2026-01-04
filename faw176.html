@@ -63,12 +63,40 @@
             background: rgba(127,127,127,.06);
         }
 
-        .main { display: grid; grid-template-rows: 420px auto 360px; gap: 12px; min-width: 0; }
+        .main { display: grid; grid-template-rows: auto auto 360px; gap: 12px; min-width: 0; }
+
         .box { border: 1px solid rgba(127,127,127,.25); border-radius: 10px; overflow: hidden; background: transparent; min-width: 0; }
         #timeline { height: 420px; }
-        .boxhead { padding: 10px 12px; border-bottom: 1px solid rgba(127,127,127,.25); display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+
+        .boxhead {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(127,127,127,.25);
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
         .boxhead h3 { margin: 0; font-size: 14px; }
-        .boxhead .meta { font-size: 12px; opacity: .75; }
+        .boxhead .meta { font-size: 12px; opacity: .75; display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+
+        .timeline-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .timeline-controls button {
+            padding: 6px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(127,127,127,.35);
+            background: rgba(127,127,127,.08);
+        }
+        .timeline-controls .hint {
+            font-size: 12px;
+            opacity: .75;
+            margin-left: 4px;
+        }
 
         .tablewrap { overflow: auto; max-height: 320px; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -80,56 +108,10 @@
         #map { height: 360px; }
         .pill { display: inline-block; padding: 2px 8px; border: 1px solid rgba(127,127,127,.35); border-radius: 999px; margin-right: 6px; margin-bottom: 4px; font-size: 12px; opacity: .9; white-space: nowrap; }
 
-        /* Floating debug overlay (hidden unless enabled) */
-        #dbgOverlay {
-            position: fixed;
-            bottom: 12px;
-            right: 12px;
-            z-index: 999999;
-            width: min(520px, 92vw);
-            max-height: 46vh;
-            overflow: auto;
-            padding: 10px;
-            border-radius: 12px;
-            border: 1px solid rgba(180,180,180,.55);
-            background: rgba(0,0,0,.72);
-            color: #fff;
-            font: 12px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-            white-space: pre-wrap;
-            box-shadow: 0 10px 30px rgba(0,0,0,.3);
-            display: none;
-        }
-        #dbgOverlay .hdr {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
-            position: sticky;
-            top: 0;
-            background: rgba(0,0,0,.72);
-            padding-bottom: 6px;
-        }
-        #dbgOverlay .hdr strong { font-size: 12px; }
-        #dbgOverlay .hdr button {
-            padding: 6px 8px;
-            border-radius: 10px;
-            border: 1px solid rgba(255,255,255,.25);
-            background: rgba(255,255,255,.06);
-            color: #fff;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        #dbgOverlay .hdr button:hover { background: rgba(255,255,255,.12); }
-        #dbgOverlay .line { opacity: .95; }
-        #dbgOverlay .warn { color: #ffd37a; }
-        #dbgOverlay .err { color: #ff9aa2; }
-        #dbgOverlay .ok { color: #a7ffb0; }
-
         @media (max-width: 980px) {
             .app { grid-template-columns: 1fr; }
             .panel { position: static; }
-            .main { grid-template-rows: 420px auto 320px; }
+            #timeline { height: 380px; }
         }
     </style>
 </head>
@@ -137,7 +119,7 @@
 <body>
 <header>
     <h1>My Timelines</h1>
-    <p>Upload a CSV → timeline. Select items → table + map pins. (Geocoding: location ⇄ lat/lon.)</p>
+    <p>Upload a CSV → timeline. Select items → table + map pins.</p>
 </header>
 
 <div class="app">
@@ -150,20 +132,6 @@
 
         <h2>Status</h2>
         <div id="status" class="status">Waiting for a CSV…</div>
-
-        <h2 style="margin-top:12px">Debug</h2>
-        <div class="row">
-            <label>Debug mode</label>
-            <select id="debugMode">
-                <option value="off" selected>Off</option>
-                <option value="overlayOnly">Overlay only</option>
-                <option value="on">On (overlay + console)</option>
-            </select>
-        </div>
-        <div class="btnrow">
-            <button id="clearDbgBtn" type="button">Clear debug log</button>
-            <button id="copyDbgBtn" type="button">Copy debug log</button>
-        </div>
 
         <h2 style="margin-top:12px">Filters</h2>
 
@@ -189,12 +157,7 @@
         </div>
 
         <p class="muted" style="margin-top:12px;font-size:12px">
-            Tip: Ctrl/Cmd+click selects multiple. Shift+click attempts range selection (timeline dependent).
-        </p>
-
-        <p class="muted" style="margin-top:12px;font-size:12px">
-            Geocoding uses the public OpenStreetMap Nominatim service. If you plan heavy classroom usage, consider hosting your
-            own geocoder or adding an API key–based provider.
+            Selection: Ctrl/Cmd+click multi-select; Shift+click range select.
         </p>
     </aside>
 
@@ -202,7 +165,17 @@
         <section class="box">
             <div class="boxhead">
                 <h3>Timeline</h3>
-                <div class="meta"><span id="countLabel">0</span> items loaded</div>
+                <div class="meta">
+                    <span><span id="countLabel">0</span> items loaded</span>
+                    <div class="timeline-controls">
+                        <button id="zoomInBtn" type="button" title="Zoom in">＋</button>
+                        <button id="zoomOutBtn" type="button" title="Zoom out">－</button>
+                        <button id="fitBtn" type="button" title="Fit to all items">Fit</button>
+                        <button id="leftBtn" type="button" title="Pan left">◀</button>
+                        <button id="rightBtn" type="button" title="Pan right">▶</button>
+                        <span class="hint">Mouse wheel = zoom • Shift+wheel = pan</span>
+                    </div>
+                </div>
             </div>
             <div id="timeline"></div>
         </section>
@@ -234,275 +207,14 @@
         <section class="box">
             <div class="boxhead">
                 <h3>Map</h3>
-                <div class="meta">Plots selected items (lat/lon inferred from location if needed)</div>
+                <div class="meta">Plots selected items that have lat/lon</div>
             </div>
             <div id="map"></div>
         </section>
     </main>
 </div>
 
-<!-- Debug overlay -->
-<div id="dbgOverlay" aria-live="polite">
-    <div class="hdr">
-        <strong>DBG overlay</strong>
-        <div style="display:flex;gap:8px;align-items:center">
-            <button id="toggleDbgBtn" type="button">Hide</button>
-        </div>
-    </div>
-    <div id="dbgLog"></div>
-</div>
-
 <script>
-    /* =========================================================
-       DEBUG HELPERS (default OFF)
-       ========================================================= */
-    (function () {
-        const statusEl = document.getElementById("status");
-        const dbgOverlay = document.getElementById("dbgOverlay");
-        const dbgLog = document.getElementById("dbgLog");
-        const debugModeSel = document.getElementById("debugMode");
-        const toggleDbgBtn = document.getElementById("toggleDbgBtn");
-        const clearDbgBtn = document.getElementById("clearDbgBtn");
-        const copyDbgBtn = document.getElementById("copyDbgBtn");
-
-        const DBG = {
-            enabled: false,
-            overlayEnabled: false,
-            consoleEnabled: false,
-            lines: [],
-            maxLines: 400
-        };
-
-        function ts() {
-            const d = new Date();
-            return d.toISOString().replace("T", " ").replace("Z", "");
-        }
-        function escapeHtml(s) {
-            return String(s ?? "")
-                .replaceAll("&", "&amp;")
-                .replaceAll("<", "&lt;")
-                .replaceAll(">", "&gt;")
-                .replaceAll('"', "&quot;")
-                .replaceAll("'", "&#039;");
-        }
-
-        function renderOverlay() {
-            if (!DBG.overlayEnabled) return;
-            dbgLog.innerHTML = DBG.lines.map(l => {
-                const cls = l.level === "err" ? "err" : (l.level === "warn" ? "warn" : (l.level === "ok" ? "ok" : "line"));
-                return `<div class="${cls}">${escapeHtml(l.text)}</div>`;
-            }).join("");
-            dbgOverlay.scrollTop = dbgOverlay.scrollHeight;
-        }
-
-        function pushLine(level, msg) {
-            const text = `[${ts()}] ${msg}`;
-            DBG.lines.push({ level, text });
-            if (DBG.lines.length > DBG.maxLines) DBG.lines.splice(0, DBG.lines.length - DBG.maxLines);
-            if (DBG.consoleEnabled) {
-                const tag = "[APP]";
-                if (level === "err") console.error(tag, msg);
-                else if (level === "warn") console.warn(tag, msg);
-                else console.log(tag, msg);
-            }
-            renderOverlay();
-        }
-
-        function setMode(mode) {
-            if (mode === "off") {
-                DBG.enabled = false;
-                DBG.overlayEnabled = false;
-                DBG.consoleEnabled = false;
-                dbgOverlay.style.display = "none";
-                pushLine("line", "Debug mode OFF.");
-                return;
-            }
-            if (mode === "overlayOnly") {
-                DBG.enabled = true;
-                DBG.overlayEnabled = true;
-                DBG.consoleEnabled = false;
-                dbgOverlay.style.display = "";
-                pushLine("ok", "Debug mode OVERLAY ONLY.");
-                return;
-            }
-            DBG.enabled = true;
-            DBG.overlayEnabled = true;
-            DBG.consoleEnabled = true;
-            dbgOverlay.style.display = "";
-            pushLine("ok", "Debug mode ON.");
-        }
-
-        function setStatus(msg) {
-            statusEl.textContent = msg;
-            pushLine("line", `STATUS: ${msg}`);
-        }
-        function appendStatus(msg) {
-            statusEl.textContent += "\n" + msg;
-            pushLine("line", msg);
-        }
-
-        window.__DBG = {
-            setMode,
-            setStatus,
-            appendStatus,
-            log: (m) => pushLine("line", m),
-            ok: (m) => pushLine("ok", m),
-            warn: (m) => pushLine("warn", m),
-            err: (m) => pushLine("err", m),
-            clear: () => { DBG.lines = []; renderOverlay(); },
-            dumpText: () => DBG.lines.map(l => l.text).join("\n"),
-            enabled: () => DBG.enabled
-        };
-
-        // Error traps (only visible if debug enabled)
-        window.addEventListener("error", (e) => {
-            if (!DBG.enabled) return;
-            window.__DBG.err(`WINDOW ERROR: ${e.message || e.type} @ ${e.filename || "?"}:${e.lineno || "?"}:${e.colno || "?"}`);
-        });
-        window.addEventListener("unhandledrejection", (e) => {
-            if (!DBG.enabled) return;
-            const reason = e.reason?.message || String(e.reason);
-            window.__DBG.err(`UNHANDLED PROMISE: ${reason}`);
-        });
-
-        debugModeSel.addEventListener("change", () => setMode(debugModeSel.value));
-        toggleDbgBtn.addEventListener("click", () => {
-            const isHidden = dbgLog.style.display === "none";
-            dbgLog.style.display = isHidden ? "" : "none";
-            toggleDbgBtn.textContent = isHidden ? "Hide" : "Show";
-        });
-        clearDbgBtn.addEventListener("click", () => window.__DBG.clear());
-        copyDbgBtn.addEventListener("click", async () => {
-            try {
-                await navigator.clipboard.writeText(window.__DBG.dumpText());
-                setStatus("Copied debug log to clipboard.");
-            } catch {
-                setStatus("Clipboard copy failed (permissions).");
-            }
-        });
-
-        // Default is OFF (per your request)
-        setMode("off");
-    })();
-
-    /* =========================================================
-       GEOCODING (location ⇄ lat/lon) with caching + throttling
-       ========================================================= */
-    const Geo = (() => {
-        const NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
-        const LS_FWD = "geo_fwd_cache_v1";
-        const LS_REV = "geo_rev_cache_v1";
-
-        /** Rate limiting: run one request at a time, with delay. */
-        let chain = Promise.resolve();
-        const MIN_DELAY_MS = 1100;
-
-        function loadCache(key) {
-            try { return JSON.parse(localStorage.getItem(key) || "{}"); }
-            catch { return {}; }
-        }
-        function saveCache(key, obj) {
-            try { localStorage.setItem(key, JSON.stringify(obj)); } catch {}
-        }
-
-        const fwdCache = loadCache(LS_FWD); // location string -> {lat, lon, display}
-        const revCache = loadCache(LS_REV); // "lat,lon" -> display
-
-        function normalizeLoc(s) {
-            return String(s || "").trim();
-        }
-        function revKey(lat, lon) {
-            // reduce cardinality a bit, but keep enough precision
-            const a = Number(lat).toFixed(5);
-            const b = Number(lon).toFixed(5);
-            return `${a},${b}`;
-        }
-
-        function enqueue(fn) {
-            chain = chain.then(async () => {
-                const start = Date.now();
-                const out = await fn();
-                const elapsed = Date.now() - start;
-                const wait = Math.max(0, MIN_DELAY_MS - elapsed);
-                if (wait) await new Promise(r => setTimeout(r, wait));
-                return out;
-            }).catch(err => {
-                // keep chain alive
-                if (window.__DBG?.enabled?.()) window.__DBG.warn("Geocode queue error: " + (err?.message || String(err)));
-                return null;
-            });
-            return chain;
-        }
-
-        async function forward(locationStr) {
-            const q = normalizeLoc(locationStr);
-            if (!q) return null;
-
-            if (fwdCache[q]) return fwdCache[q];
-
-            return enqueue(async () => {
-                // Use format=jsonv2 for consistent fields
-                const url = `${NOMINATIM_BASE}/search?format=jsonv2&limit=1&q=${encodeURIComponent(q)}`;
-                if (window.__DBG?.enabled?.()) window.__DBG.log("Geocode forward: " + q);
-
-                const res = await fetch(url, {
-                    method: "GET",
-                    headers: {
-                        // Browsers set UA; we keep headers minimal.
-                        "Accept": "application/json"
-                    }
-                });
-                if (!res.ok) return null;
-
-                const data = await res.json();
-                if (!Array.isArray(data) || data.length === 0) return null;
-
-                const hit = data[0];
-                const lat = Number(hit.lat);
-                const lon = Number(hit.lon);
-                const display = String(hit.display_name || q);
-
-                if (!isFinite(lat) || !isFinite(lon)) return null;
-
-                const val = { lat, lon, display };
-                fwdCache[q] = val;
-                saveCache(LS_FWD, fwdCache);
-                return val;
-            });
-        }
-
-        async function reverse(lat, lon) {
-            if (!isFinite(lat) || !isFinite(lon)) return null;
-
-            const key = revKey(lat, lon);
-            if (revCache[key]) return revCache[key];
-
-            return enqueue(async () => {
-                const url = `${NOMINATIM_BASE}/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
-                if (window.__DBG?.enabled?.()) window.__DBG.log("Geocode reverse: " + key);
-
-                const res = await fetch(url, {
-                    method: "GET",
-                    headers: { "Accept": "application/json" }
-                });
-                if (!res.ok) return null;
-
-                const data = await res.json();
-                const display = String(data.display_name || "");
-                if (!display) return null;
-
-                revCache[key] = display;
-                saveCache(LS_REV, revCache);
-                return display;
-            });
-        }
-
-        return { forward, reverse };
-    })();
-
-    /* =========================================================
-       APP
-       ========================================================= */
     (function () {
         // ---------- Utilities ----------
         function normKey(s) { return String(s || "").trim().toLowerCase().replace(/\s+/g, "_"); }
@@ -539,7 +251,6 @@
                 d = new Date(Number(Y), Number(M)-1, Number(D), Number(hh), Number(mm), 0);
                 if (!isNaN(d.getTime())) return d;
             }
-
             return null;
         }
         function fmtWhen(item) {
@@ -577,6 +288,8 @@
             return bestScore >= Math.max(3, Math.floor(N * 0.2)) ? best : -1;
         }
 
+        function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+
         // ---------- State ----------
         let allItems = [];
         let itemsById = new Map();
@@ -585,8 +298,6 @@
 
         let map = null;
         let markerLayer = null;
-
-        let currentSelectedIds = [];
 
         // ---------- DOM ----------
         const dropzone = document.getElementById("dropzone");
@@ -604,77 +315,123 @@
         const selectedCount = document.getElementById("selectedCount");
         const selectedTbody = document.getElementById("selectedTbody");
 
-        // ---------- Geo rules you requested ----------
-        // 1) location + no lat/lon => forward geocode to get lat/lon
-        // 2) lat/lon + no location => reverse geocode to get location (for display); map uses lat/lon immediately
-        // 3) both present => lat/lon overrides (we still keep provided location for display; can also reverse-fill if you prefer)
-        // Also: if lat/lon exist but location empty, we try to fill location.
-
-        // We track in-flight geocode per item to avoid duplicate requests.
-        const inFlight = new Map(); // item.id -> Promise
-
-        function hasCoords(it) {
-            return isFinite(it.lat) && isFinite(it.lon);
-        }
-
-        async function ensureGeo(it) {
-            // If already in-flight, await it.
-            if (inFlight.has(it.id)) return inFlight.get(it.id);
-
-            const p = (async () => {
-                const loc = String(it.location || "").trim();
-
-                // If coordinates exist:
-                if (hasCoords(it)) {
-                    // If no location, reverse geocode to fill display location (optional but requested)
-                    if (!loc) {
-                        const display = await Geo.reverse(it.lat, it.lon);
-                        if (display) {
-                            it.location = display;
-                            if (window.__DBG?.enabled?.()) window.__DBG.ok(`Reverse geocoded ${it.lat},${it.lon} -> ${display}`);
-                        }
-                    }
-                    return it;
-                }
-
-                // No coords, but location exists: forward geocode
-                if (loc) {
-                    const hit = await Geo.forward(loc);
-                    if (hit && isFinite(hit.lat) && isFinite(hit.lon)) {
-                        it.lat = hit.lat;
-                        it.lon = hit.lon;
-                        // keep original location text; but if you want standardized display_name, uncomment:
-                        // it.location = hit.display || it.location;
-                        if (window.__DBG?.enabled?.()) window.__DBG.ok(`Forward geocoded "${loc}" -> ${it.lat},${it.lon}`);
-                    } else {
-                        if (window.__DBG?.enabled?.()) window.__DBG.warn(`Forward geocode failed for "${loc}"`);
-                    }
-                }
-
-                return it;
-            })().finally(() => {
-                inFlight.delete(it.id);
-            });
-
-            inFlight.set(it.id, p);
-            return p;
-        }
+        // Timeline controls
+        const zoomInBtn = document.getElementById("zoomInBtn");
+        const zoomOutBtn = document.getElementById("zoomOutBtn");
+        const fitBtn = document.getElementById("fitBtn");
+        const leftBtn = document.getElementById("leftBtn");
+        const rightBtn = document.getElementById("rightBtn");
 
         // ---------- Timeline ----------
         function initTimeline() {
             const container = document.getElementById("timeline");
             visData = new vis.DataSet([]);
-            timeline = new vis.Timeline(container, visData, {
+
+            // Make interaction less fiddly:
+            // - zoomKey: use ctrlKey to avoid accidental zoom when scrolling page
+            // - zoomFriction: lower => zoom is less sensitive
+            // - zoomMin/zoomMax: prevent "stuck" extremes
+            // - horizontalScroll: enable horizontal scroll gestures
+            // - zoomable/moveable explicitly enabled
+            const options = {
                 stack: true,
                 multiselect: true,
                 selectable: true,
-                zoomKey: "ctrlKey"
+
+                zoomable: true,
+                moveable: true,
+                horizontalScroll: true,
+                zoomKey: "ctrlKey",
+                zoomFriction: 12,
+
+                zoomMin: 1000 * 60 * 60,                 // 1 hour minimum
+                zoomMax: 1000 * 60 * 60 * 24 * 365 * 400 // 400 years max window
+            };
+
+            timeline = new vis.Timeline(container, visData, options);
+
+            // Scroll wheel behavior improvements:
+            // - Ctrl/Cmd + wheel = zoom (vis built-in via zoomKey)
+            // - Shift + wheel = pan left/right (we implement)
+            container.addEventListener("wheel", (e) => {
+                if (!timeline) return;
+                // SHIFT + wheel => horizontal pan
+                if (e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
+                    const delta = e.deltaY || e.deltaX || 0;
+                    panByPixels(delta);
+                }
+            }, { passive: false });
+
+            // Keyboard navigation when timeline has focus:
+            // - ArrowLeft/Right: pan
+            // - +/-: zoom
+            // - f: fit
+            container.tabIndex = 0;
+            container.addEventListener("keydown", (e) => {
+                if (!timeline) return;
+                if (e.key === "ArrowLeft") { e.preventDefault(); panByFraction(-0.15); }
+                if (e.key === "ArrowRight") { e.preventDefault(); panByFraction(0.15); }
+                if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomBy(0.7); }
+                if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomBy(1.4); }
+                if (e.key.toLowerCase() === "f") { e.preventDefault(); safeFit(); }
             });
 
-            timeline.on("select", (props) => {
-                currentSelectedIds = props.items || [];
-                updateSelectedUI(currentSelectedIds);
-            });
+            timeline.on("select", (props) => updateSelectedUI(props.items || []));
+        }
+
+        function safeFit() {
+            if (!timeline || allItems.length === 0) return;
+            try { timeline.fit({ animation: { duration: 250, easingFunction: "easeInOutQuad" } }); } catch {}
+        }
+
+        // Zoom by factor: <1 zooms in, >1 zooms out
+        function zoomBy(factor) {
+            if (!timeline) return;
+            const range = timeline.getWindow();
+            const start = range.start.valueOf();
+            const end = range.end.valueOf();
+            const center = (start + end) / 2;
+            const half = (end - start) / 2;
+            const newHalf = clamp(half * factor, 1000 * 60 * 30, 1000 * 60 * 60 * 24 * 365 * 400 / 2); // 30 min to half max
+            const newStart = new Date(center - newHalf);
+            const newEnd = new Date(center + newHalf);
+            timeline.setWindow(newStart, newEnd, { animation: { duration: 200, easingFunction: "easeInOutQuad" } });
+        }
+
+        // Pan by fraction of current window width
+        function panByFraction(frac) {
+            if (!timeline) return;
+            const range = timeline.getWindow();
+            const start = range.start.valueOf();
+            const end = range.end.valueOf();
+            const width = end - start;
+            const shift = width * frac;
+            timeline.setWindow(new Date(start + shift), new Date(end + shift), { animation: { duration: 200, easingFunction: "easeInOutQuad" } });
+        }
+
+        // Pan by pixels (rough heuristic)
+        function panByPixels(px) {
+            if (!timeline) return;
+            const range = timeline.getWindow();
+            const start = range.start.valueOf();
+            const end = range.end.valueOf();
+            const width = end - start;
+
+            const container = document.getElementById("timeline");
+            const wpx = Math.max(300, container.clientWidth || 800);
+            const frac = px / wpx; // 1 container width ~ full window width
+            const shift = width * frac;
+
+            timeline.setWindow(new Date(start + shift), new Date(end + shift), { animation: false });
+        }
+
+        function wireTimelineControls() {
+            zoomInBtn.addEventListener("click", () => zoomBy(0.7));
+            zoomOutBtn.addEventListener("click", () => zoomBy(1.4));
+            fitBtn.addEventListener("click", () => safeFit());
+            leftBtn.addEventListener("click", () => panByFraction(-0.25));
+            rightBtn.addEventListener("click", () => panByFraction(0.25));
         }
 
         // ---------- Map ----------
@@ -700,7 +457,6 @@
                 return;
             }
 
-            // Render table first (even if geocode pending)
             for (const id of selectedIds) {
                 const it = itemsById.get(id);
                 if (!it) continue;
@@ -710,99 +466,42 @@
                     : `<span class="muted">—</span>`;
 
                 const loc = it.location ? escapeHtml(it.location) : `<span class="muted">—</span>`;
-
-                let coordsCell = `<span class="muted">—</span>`;
-                if (hasCoords(it)) {
-                    coordsCell = `${Number(it.lat).toFixed(5)}, ${Number(it.lon).toFixed(5)}`;
-                } else if (String(it.location || "").trim()) {
-                    coordsCell = `<span class="muted">geocoding…</span>`;
-                }
+                const coords = (isFinite(it.lat) && isFinite(it.lon))
+                    ? `${Number(it.lat).toFixed(5)}, ${Number(it.lon).toFixed(5)}`
+                    : `<span class="muted">—</span>`;
 
                 const details = it.details ? escapeHtml(it.details) : `<span class="muted">—</span>`;
 
                 const tr = document.createElement("tr");
-                tr.setAttribute("data-item-id", it.id);
                 tr.innerHTML = `
         <td>${escapeHtml(fmtWhen(it))}</td>
         <td>${escapeHtml(it.title || "")}</td>
         <td>${details}</td>
         <td>${tagsHtml}</td>
         <td>${loc}</td>
-        <td>${coordsCell}</td>
+        <td>${coords}</td>
       `;
                 selectedTbody.appendChild(tr);
             }
 
-            // Map update: add markers for what we already have, then geocode missing and refresh
-            refreshMapMarkers(selectedIds);
-
-            // Kick off geocoding for selected items that need it
-            for (const id of selectedIds) {
-                const it = itemsById.get(id);
-                if (!it) continue;
-
-                const needsFwd = !hasCoords(it) && String(it.location || "").trim();
-                const needsRev = hasCoords(it) && !String(it.location || "").trim();
-
-                if (needsFwd || needsRev) {
-                    ensureGeo(it).then(() => {
-                        // After geo resolves, only refresh if still selected
-                        if (currentSelectedIds.includes(id)) {
-                            // Re-render table row coords/location quickly
-                            patchSelectedRow(id);
-                            // And update markers
-                            refreshMapMarkers(currentSelectedIds);
-                        }
-                    });
-                }
-            }
-        }
-
-        function patchSelectedRow(id) {
-            const it = itemsById.get(id);
-            const tr = selectedTbody.querySelector(`tr[data-item-id="${CSS.escape(id)}"]`);
-            if (!it || !tr) return;
-
-            // Location cell is 5th (index 4), coords cell 6th (index 5)
-            const tds = tr.querySelectorAll("td");
-            if (tds.length >= 6) {
-                tds[4].innerHTML = it.location ? escapeHtml(it.location) : `<span class="muted">—</span>`;
-                if (hasCoords(it)) {
-                    tds[5].textContent = `${Number(it.lat).toFixed(5)}, ${Number(it.lon).toFixed(5)}`;
-                } else if (String(it.location || "").trim()) {
-                    tds[5].innerHTML = `<span class="muted">geocoding…</span>`;
-                } else {
-                    tds[5].innerHTML = `<span class="muted">—</span>`;
-                }
-            }
-        }
-
-        function refreshMapMarkers(selectedIds) {
+            // Map markers
             markerLayer.clearLayers();
             const bounds = [];
-
             for (const id of selectedIds) {
                 const it = itemsById.get(id);
                 if (!it) continue;
-
-                // If we don't have coords yet, skip for now; geocode will call back and refresh.
-                if (!hasCoords(it)) continue;
-
-                const title = escapeHtml(it.title || "Item");
-                const loc = escapeHtml(it.location || "");
-                const when = escapeHtml(fmtWhen(it));
-
-                const m = L.marker([it.lat, it.lon])
-                    .bindPopup(`<strong>${title}</strong><br>${loc}<br><span class="muted">${when}</span>`);
-                markerLayer.addLayer(m);
-                bounds.push([it.lat, it.lon]);
+                if (isFinite(it.lat) && isFinite(it.lon)) {
+                    const title = escapeHtml(it.title || "Item");
+                    const loc = escapeHtml(it.location || "");
+                    const when = escapeHtml(fmtWhen(it));
+                    const m = L.marker([it.lat, it.lon])
+                        .bindPopup(`<strong>${title}</strong><br>${loc}<br><span class="muted">${when}</span>`);
+                    markerLayer.addLayer(m);
+                    bounds.push([it.lat, it.lon]);
+                }
             }
-
             if (bounds.length === 1) map.setView(bounds[0], 10);
             if (bounds.length > 1) map.fitBounds(bounds, { padding: [20, 20] });
-            if (bounds.length === 0) {
-                // keep current view
-            }
         }
 
         // ---------- Filtering ----------
@@ -855,12 +554,14 @@
 
             countLabel.textContent = String(filtered.length);
 
-            currentSelectedIds = [];
             timeline.setSelection([]);
             updateSelectedUI([]);
 
             document.getElementById("status").textContent =
                 `Applied filters. Showing ${filtered.length} / ${allItems.length} items.`;
+
+            // Helpful after filtering: fit to visible items
+            try { timeline.fit({ animation: { duration: 200, easingFunction: "easeInOutQuad" } }); } catch {}
         }
 
         function resetFilters() {
@@ -880,11 +581,12 @@
 
             countLabel.textContent = String(allItems.length);
 
-            currentSelectedIds = [];
             timeline.setSelection([]);
             updateSelectedUI([]);
 
             document.getElementById("status").textContent = `Reset filters. Showing all ${allItems.length} items.`;
+
+            safeFit();
         }
 
         // ---------- CSV -> items ----------
@@ -900,14 +602,8 @@
             const idxLat = findCol(headersNorm, ["lat", "latitude"]);
             const idxLon = findCol(headersNorm, ["lon", "lng", "longitude", "long"]);
 
-            if (idxStart === -1) {
-                idxStart = guessDateCol(fields, rows);
-                if (window.__DBG?.enabled?.()) window.__DBG.warn(`Guessed start column: ${idxStart >= 0 ? fields[idxStart] : "NONE"}`);
-            }
-
-            if (idxStart === -1) {
-                return { items: [], skipped: rows.length, err: "Could not find a date/start column." };
-            }
+            if (idxStart === -1) idxStart = guessDateCol(fields, rows);
+            if (idxStart === -1) return { items: [], skipped: rows.length, err: "Could not find a date/start column." };
 
             const now = Date.now();
             const items = [];
@@ -922,7 +618,6 @@
 
                 const start = safeDate(startVal);
                 const end = safeDate(endVal);
-
                 if (!start) { skipped++; continue; }
 
                 const title = (idxTitle >= 0 ? String(row[fields[idxTitle]] || "").trim() : "") || "Item";
@@ -932,9 +627,6 @@
 
                 const lat = idxLat >= 0 ? Number(row[fields[idxLat]]) : NaN;
                 const lon = idxLon >= 0 ? Number(row[fields[idxLon]]) : NaN;
-
-                // Rule: if both location and lat/lon exist, lat/lon "wins" for mapping (we already use coords if present).
-                // We keep location text as-is for display, unless empty and reverse geocode fills it later.
 
                 const id = `${now}-${i}`;
                 const content = `<div><strong>${escapeHtml(title)}</strong><div class="muted" style="font-size:12px">${escapeHtml(location || "")}</div></div>`;
@@ -997,22 +689,21 @@
                     })));
 
                     countLabel.textContent = String(allItems.length);
-                    currentSelectedIds = [];
                     timeline.setSelection([]);
                     updateSelectedUI([]);
 
                     if (err) {
                         statusEl.textContent = `ERROR: ${err}`;
                     } else {
-                        statusEl.textContent = `Loaded ${items.length} items. Skipped ${skipped} rows (missing/unparseable start date). Select items to populate table + map.`;
+                        statusEl.textContent = `Loaded ${items.length} items. Skipped ${skipped} rows (missing/unparseable start date).`;
                     }
 
-                    // Fit view
-                    try { timeline.fit({ animation: false }); } catch {}
+                    // Fit to data after load
+                    safeFit();
                 },
                 error: (err) => {
                     statusEl.textContent = "ERROR: Failed to parse CSV. Check console for details.";
-                    if (window.__DBG?.enabled?.()) window.__DBG.err("PapaParse error: " + (err?.message || String(err)));
+                    console.error(err);
                 }
             });
         }
@@ -1037,32 +728,17 @@
 
         // ---------- Boot ----------
         document.addEventListener("DOMContentLoaded", () => {
-            // Show only simple status unless debug enabled
-            const libsOk = !!window.vis && !!window.Papa && !!window.L;
-            if (!libsOk && window.__DBG?.enabled?.()) window.__DBG.warn(`Library check: vis=${!!window.vis}, Papa=${!!window.Papa}, Leaflet=${!!window.L}`);
-
             initTimeline();
             initMap();
             attachUploadHandlers();
+            wireTimelineControls();
 
-            // Buttons
             applyBtn.addEventListener("click", applyFilters);
             resetBtn.addEventListener("click", () => { rebuildFilterOptions(allItems); resetFilters(); });
 
-            // Debug mode wiring: show/hide overlay
-            const dbgOverlay = document.getElementById("dbgOverlay");
-            const debugModeSel = document.getElementById("debugMode");
-            debugModeSel.addEventListener("change", () => {
-                const mode = debugModeSel.value;
-                if (mode === "off") dbgOverlay.style.display = "none";
-                else dbgOverlay.style.display = "";
-                window.__DBG.setMode(mode);
-            });
-
             document.getElementById("status").textContent =
-                "Ready. Upload a CSV. For mapping: provide either (lat,lon) or a location string (will be geocoded).";
+                "Ready. Upload a CSV. Timeline tips: Ctrl/Cmd+wheel to zoom, Shift+wheel to pan, or use buttons.";
         });
-
     })();
 </script>
 </body>
