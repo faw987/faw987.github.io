@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Timeline + Selected Table + Map (Debug)</title>
+    <title>Timeline + Selected Table + Map</title>
 
     <!-- vis-timeline -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vis-timeline@8.5.0/styles/vis-timeline-graph2d.min.css">
@@ -29,7 +29,7 @@
 
         .row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
         label { font-size: 12px; opacity: .85; }
-        input[type="date"], select, button, input[type="text"] {
+        input[type="date"], select, button {
             padding: 8px;
             border-radius: 8px;
             border: 1px solid rgba(127,127,127,.35);
@@ -78,10 +78,9 @@
         .muted { opacity: .75; }
 
         #map { height: 360px; }
-
         .pill { display: inline-block; padding: 2px 8px; border: 1px solid rgba(127,127,127,.35); border-radius: 999px; margin-right: 6px; margin-bottom: 4px; font-size: 12px; opacity: .9; white-space: nowrap; }
 
-        /* Floating debug overlay */
+        /* Floating debug overlay (hidden unless enabled) */
         #dbgOverlay {
             position: fixed;
             bottom: 12px;
@@ -98,6 +97,7 @@
             font: 12px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
             white-space: pre-wrap;
             box-shadow: 0 10px 30px rgba(0,0,0,.3);
+            display: none;
         }
         #dbgOverlay .hdr {
             display: flex;
@@ -136,8 +136,8 @@
 
 <body>
 <header>
-    <h1>My Timelines (Debug Build)</h1>
-    <p>Upload a CSV → timeline. Select items → table + map pins. This build includes a debug overlay and status panel.</p>
+    <h1>My Timelines</h1>
+    <p>Upload a CSV → timeline. Select items → table + map pins. (Geocoding: location ⇄ lat/lon.)</p>
 </header>
 
 <div class="app">
@@ -151,25 +151,24 @@
         <h2>Status</h2>
         <div id="status" class="status">Waiting for a CSV…</div>
 
-        <h2 style="margin-top:12px">Debug controls</h2>
+        <h2 style="margin-top:12px">Debug</h2>
         <div class="row">
             <label>Debug mode</label>
             <select id="debugMode">
-                <option value="on" selected>On (overlay + verbose logs)</option>
+                <option value="off" selected>Off</option>
                 <option value="overlayOnly">Overlay only</option>
-                <option value="off">Off</option>
+                <option value="on">On (overlay + console)</option>
             </select>
         </div>
         <div class="btnrow">
-            <button id="selfTestBtn" type="button">Run self-test (fake data)</button>
-            <button id="dumpBtn" type="button">Dump state to console</button>
             <button id="clearDbgBtn" type="button">Clear debug log</button>
+            <button id="copyDbgBtn" type="button">Copy debug log</button>
         </div>
 
         <h2 style="margin-top:12px">Filters</h2>
 
         <div class="row">
-            <label>Date range (YYYY-MM-DD)</label>
+            <label>Date range</label>
             <input id="fromDate" type="date" />
             <input id="toDate" type="date" />
         </div>
@@ -191,6 +190,11 @@
 
         <p class="muted" style="margin-top:12px;font-size:12px">
             Tip: Ctrl/Cmd+click selects multiple. Shift+click attempts range selection (timeline dependent).
+        </p>
+
+        <p class="muted" style="margin-top:12px;font-size:12px">
+            Geocoding uses the public OpenStreetMap Nominatim service. If you plan heavy classroom usage, consider hosting your
+            own geocoder or adding an API key–based provider.
         </p>
     </aside>
 
@@ -216,7 +220,7 @@
                         <th style="min-width:180px">Title</th>
                         <th style="min-width:220px">Details</th>
                         <th style="min-width:160px">Tags</th>
-                        <th style="min-width:180px">Location</th>
+                        <th style="min-width:200px">Location</th>
                         <th style="min-width:160px">Coordinates</th>
                     </tr>
                     </thead>
@@ -230,20 +234,19 @@
         <section class="box">
             <div class="boxhead">
                 <h3>Map</h3>
-                <div class="meta">Plots selected items that have lat/lon</div>
+                <div class="meta">Plots selected items (lat/lon inferred from location if needed)</div>
             </div>
             <div id="map"></div>
         </section>
     </main>
 </div>
 
-<!-- Floating debug overlay -->
+<!-- Debug overlay -->
 <div id="dbgOverlay" aria-live="polite">
     <div class="hdr">
         <strong>DBG overlay</strong>
         <div style="display:flex;gap:8px;align-items:center">
             <button id="toggleDbgBtn" type="button">Hide</button>
-            <button id="copyDbgBtn" type="button">Copy</button>
         </div>
     </div>
     <div id="dbgLog"></div>
@@ -251,7 +254,7 @@
 
 <script>
     /* =========================================================
-       DEBUG FRAMEWORK (overlay + status + global error traps)
+       DEBUG HELPERS (default OFF)
        ========================================================= */
     (function () {
         const statusEl = document.getElementById("status");
@@ -259,12 +262,13 @@
         const dbgLog = document.getElementById("dbgLog");
         const debugModeSel = document.getElementById("debugMode");
         const toggleDbgBtn = document.getElementById("toggleDbgBtn");
+        const clearDbgBtn = document.getElementById("clearDbgBtn");
         const copyDbgBtn = document.getElementById("copyDbgBtn");
 
         const DBG = {
-            enabled: true,
-            overlayEnabled: true,
-            consoleEnabled: true,
+            enabled: false,
+            overlayEnabled: false,
+            consoleEnabled: false,
             lines: [],
             maxLines: 400
         };
@@ -273,27 +277,13 @@
             const d = new Date();
             return d.toISOString().replace("T", " ").replace("Z", "");
         }
-
-        function setMode(mode) {
-            if (mode === "off") {
-                DBG.enabled = false;
-                DBG.overlayEnabled = false;
-                DBG.consoleEnabled = false;
-                dbgOverlay.style.display = "none";
-                statusEl.textContent = "Debug mode is OFF.";
-                return;
-            }
-            if (mode === "overlayOnly") {
-                DBG.enabled = true;
-                DBG.overlayEnabled = true;
-                DBG.consoleEnabled = false;
-                dbgOverlay.style.display = "";
-                return;
-            }
-            DBG.enabled = true;
-            DBG.overlayEnabled = true;
-            DBG.consoleEnabled = true;
-            dbgOverlay.style.display = "";
+        function escapeHtml(s) {
+            return String(s ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
         }
 
         function renderOverlay() {
@@ -303,15 +293,6 @@
                 return `<div class="${cls}">${escapeHtml(l.text)}</div>`;
             }).join("");
             dbgOverlay.scrollTop = dbgOverlay.scrollHeight;
-        }
-
-        function escapeHtml(s) {
-            return String(s ?? "")
-                .replaceAll("&", "&amp;")
-                .replaceAll("<", "&lt;")
-                .replaceAll(">", "&gt;")
-                .replaceAll('"', "&quot;")
-                .replaceAll("'", "&#039;");
         }
 
         function pushLine(level, msg) {
@@ -327,6 +308,30 @@
             renderOverlay();
         }
 
+        function setMode(mode) {
+            if (mode === "off") {
+                DBG.enabled = false;
+                DBG.overlayEnabled = false;
+                DBG.consoleEnabled = false;
+                dbgOverlay.style.display = "none";
+                pushLine("line", "Debug mode OFF.");
+                return;
+            }
+            if (mode === "overlayOnly") {
+                DBG.enabled = true;
+                DBG.overlayEnabled = true;
+                DBG.consoleEnabled = false;
+                dbgOverlay.style.display = "";
+                pushLine("ok", "Debug mode OVERLAY ONLY.");
+                return;
+            }
+            DBG.enabled = true;
+            DBG.overlayEnabled = true;
+            DBG.consoleEnabled = true;
+            dbgOverlay.style.display = "";
+            pushLine("ok", "Debug mode ON.");
+        }
+
         function setStatus(msg) {
             statusEl.textContent = msg;
             pushLine("line", `STATUS: ${msg}`);
@@ -336,7 +341,6 @@
             pushLine("line", msg);
         }
 
-        // Expose helpers globally
         window.__DBG = {
             setMode,
             setStatus,
@@ -345,81 +349,183 @@
             ok: (m) => pushLine("ok", m),
             warn: (m) => pushLine("warn", m),
             err: (m) => pushLine("err", m),
-            clear: () => {
-                DBG.lines = [];
-                renderOverlay();
-                statusEl.textContent = "Debug cleared.";
-            },
-            dumpOverlayText: () => DBG.lines.map(l => l.text).join("\n")
+            clear: () => { DBG.lines = []; renderOverlay(); },
+            dumpText: () => DBG.lines.map(l => l.text).join("\n"),
+            enabled: () => DBG.enabled
         };
 
-        // Global error traps (very useful on GitHub Pages when something fails silently)
+        // Error traps (only visible if debug enabled)
         window.addEventListener("error", (e) => {
+            if (!DBG.enabled) return;
             window.__DBG.err(`WINDOW ERROR: ${e.message || e.type} @ ${e.filename || "?"}:${e.lineno || "?"}:${e.colno || "?"}`);
         });
         window.addEventListener("unhandledrejection", (e) => {
+            if (!DBG.enabled) return;
             const reason = e.reason?.message || String(e.reason);
             window.__DBG.err(`UNHANDLED PROMISE: ${reason}`);
         });
 
-        // UI controls
         debugModeSel.addEventListener("change", () => setMode(debugModeSel.value));
         toggleDbgBtn.addEventListener("click", () => {
             const isHidden = dbgLog.style.display === "none";
             dbgLog.style.display = isHidden ? "" : "none";
             toggleDbgBtn.textContent = isHidden ? "Hide" : "Show";
         });
+        clearDbgBtn.addEventListener("click", () => window.__DBG.clear());
         copyDbgBtn.addEventListener("click", async () => {
             try {
-                await navigator.clipboard.writeText(window.__DBG.dumpOverlayText());
-                window.__DBG.ok("Copied debug log to clipboard.");
+                await navigator.clipboard.writeText(window.__DBG.dumpText());
+                setStatus("Copied debug log to clipboard.");
             } catch {
-                window.__DBG.warn("Clipboard copy failed (browser permissions).");
+                setStatus("Clipboard copy failed (permissions).");
             }
         });
 
-        // Initial mode
-        setMode(debugModeSel.value);
-        pushLine("ok", "Debug overlay initialized.");
-        appendStatus("Debug overlay initialized.");
-
-        // Quick “library presence” check
-        setTimeout(() => {
-            const libs = {
-                vis: typeof window.vis !== "undefined",
-                Papa: typeof window.Papa !== "undefined",
-                Leaflet: typeof window.L !== "undefined"
-            };
-            pushLine(libs.vis && libs.Papa && libs.Leaflet ? "ok" : "warn",
-                `Library check: vis=${libs.vis}, PapaParse=${libs.Papa}, Leaflet=${libs.Leaflet}`);
-            if (!libs.vis || !libs.Papa || !libs.Leaflet) {
-                appendStatus("WARNING: One or more CDN libraries failed to load. Check Network tab for 404/blocked requests.");
-            }
-        }, 0);
+        // Default is OFF (per your request)
+        setMode("off");
     })();
 
     /* =========================================================
-       APP CODE
+       GEOCODING (location ⇄ lat/lon) with caching + throttling
+       ========================================================= */
+    const Geo = (() => {
+        const NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
+        const LS_FWD = "geo_fwd_cache_v1";
+        const LS_REV = "geo_rev_cache_v1";
+
+        /** Rate limiting: run one request at a time, with delay. */
+        let chain = Promise.resolve();
+        const MIN_DELAY_MS = 1100;
+
+        function loadCache(key) {
+            try { return JSON.parse(localStorage.getItem(key) || "{}"); }
+            catch { return {}; }
+        }
+        function saveCache(key, obj) {
+            try { localStorage.setItem(key, JSON.stringify(obj)); } catch {}
+        }
+
+        const fwdCache = loadCache(LS_FWD); // location string -> {lat, lon, display}
+        const revCache = loadCache(LS_REV); // "lat,lon" -> display
+
+        function normalizeLoc(s) {
+            return String(s || "").trim();
+        }
+        function revKey(lat, lon) {
+            // reduce cardinality a bit, but keep enough precision
+            const a = Number(lat).toFixed(5);
+            const b = Number(lon).toFixed(5);
+            return `${a},${b}`;
+        }
+
+        function enqueue(fn) {
+            chain = chain.then(async () => {
+                const start = Date.now();
+                const out = await fn();
+                const elapsed = Date.now() - start;
+                const wait = Math.max(0, MIN_DELAY_MS - elapsed);
+                if (wait) await new Promise(r => setTimeout(r, wait));
+                return out;
+            }).catch(err => {
+                // keep chain alive
+                if (window.__DBG?.enabled?.()) window.__DBG.warn("Geocode queue error: " + (err?.message || String(err)));
+                return null;
+            });
+            return chain;
+        }
+
+        async function forward(locationStr) {
+            const q = normalizeLoc(locationStr);
+            if (!q) return null;
+
+            if (fwdCache[q]) return fwdCache[q];
+
+            return enqueue(async () => {
+                // Use format=jsonv2 for consistent fields
+                const url = `${NOMINATIM_BASE}/search?format=jsonv2&limit=1&q=${encodeURIComponent(q)}`;
+                if (window.__DBG?.enabled?.()) window.__DBG.log("Geocode forward: " + q);
+
+                const res = await fetch(url, {
+                    method: "GET",
+                    headers: {
+                        // Browsers set UA; we keep headers minimal.
+                        "Accept": "application/json"
+                    }
+                });
+                if (!res.ok) return null;
+
+                const data = await res.json();
+                if (!Array.isArray(data) || data.length === 0) return null;
+
+                const hit = data[0];
+                const lat = Number(hit.lat);
+                const lon = Number(hit.lon);
+                const display = String(hit.display_name || q);
+
+                if (!isFinite(lat) || !isFinite(lon)) return null;
+
+                const val = { lat, lon, display };
+                fwdCache[q] = val;
+                saveCache(LS_FWD, fwdCache);
+                return val;
+            });
+        }
+
+        async function reverse(lat, lon) {
+            if (!isFinite(lat) || !isFinite(lon)) return null;
+
+            const key = revKey(lat, lon);
+            if (revCache[key]) return revCache[key];
+
+            return enqueue(async () => {
+                const url = `${NOMINATIM_BASE}/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
+                if (window.__DBG?.enabled?.()) window.__DBG.log("Geocode reverse: " + key);
+
+                const res = await fetch(url, {
+                    method: "GET",
+                    headers: { "Accept": "application/json" }
+                });
+                if (!res.ok) return null;
+
+                const data = await res.json();
+                const display = String(data.display_name || "");
+                if (!display) return null;
+
+                revCache[key] = display;
+                saveCache(LS_REV, revCache);
+                return display;
+            });
+        }
+
+        return { forward, reverse };
+    })();
+
+    /* =========================================================
+       APP
        ========================================================= */
     (function () {
         // ---------- Utilities ----------
         function normKey(s) { return String(s || "").trim().toLowerCase().replace(/\s+/g, "_"); }
-
+        function escapeHtml(s) {
+            return String(s ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
         function parseTags(raw) {
             if (!raw) return [];
             return String(raw).split(/[,;|]/g).map(t => t.trim()).filter(Boolean);
         }
-
         function safeDate(val) {
             if (val === null || val === undefined) return null;
             const s = String(val).trim();
             if (!s) return null;
 
-            // Try native parse first
             let d = new Date(s);
             if (!isNaN(d.getTime())) return d;
 
-            // Try YYYY-MM-DD or YYYY/MM/DD with optional time
             const m1 = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
             if (m1) {
                 const [_, Y, M, D, hh="0", mm="0", ss="0"] = m1;
@@ -427,7 +533,6 @@
                 if (!isNaN(d.getTime())) return d;
             }
 
-            // Try MM/DD/YYYY (US) optionally with HH:MM
             const m2 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/);
             if (m2) {
                 const [_, M, D, Y, hh="0", mm="0"] = m2;
@@ -437,7 +542,6 @@
 
             return null;
         }
-
         function fmtWhen(item) {
             const s = item.start ? new Date(item.start) : null;
             const e = item.end ? new Date(item.end) : null;
@@ -446,16 +550,6 @@
             if (s) return fmt(s);
             return "";
         }
-
-        function escapeHtml(s) {
-            return String(s ?? "")
-                .replaceAll("&", "&amp;")
-                .replaceAll("<", "&lt;")
-                .replaceAll(">", "&gt;")
-                .replaceAll('"', "&quot;")
-                .replaceAll("'", "&#039;");
-        }
-
         function findCol(headersNorm, candidates) {
             for (const c of candidates) {
                 const want = normKey(c);
@@ -464,13 +558,10 @@
             }
             return -1;
         }
-
-        // Heuristic: find the column with the most parsable dates in first N rows
         function guessDateCol(fields, rows, sampleN = 50) {
             if (!fields.length) return -1;
             const N = Math.min(sampleN, rows.length);
             const scores = fields.map(() => 0);
-
             for (let i = 0; i < N; i++) {
                 const r = rows[i];
                 if (!r) continue;
@@ -489,12 +580,13 @@
         // ---------- State ----------
         let allItems = [];
         let itemsById = new Map();
-
         let timeline = null;
         let visData = null;
 
         let map = null;
         let markerLayer = null;
+
+        let currentSelectedIds = [];
 
         // ---------- DOM ----------
         const dropzone = document.getElementById("dropzone");
@@ -512,20 +604,65 @@
         const selectedCount = document.getElementById("selectedCount");
         const selectedTbody = document.getElementById("selectedTbody");
 
-        const selfTestBtn = document.getElementById("selfTestBtn");
-        const dumpBtn = document.getElementById("dumpBtn");
-        const clearDbgBtn = document.getElementById("clearDbgBtn");
+        // ---------- Geo rules you requested ----------
+        // 1) location + no lat/lon => forward geocode to get lat/lon
+        // 2) lat/lon + no location => reverse geocode to get location (for display); map uses lat/lon immediately
+        // 3) both present => lat/lon overrides (we still keep provided location for display; can also reverse-fill if you prefer)
+        // Also: if lat/lon exist but location empty, we try to fill location.
+
+        // We track in-flight geocode per item to avoid duplicate requests.
+        const inFlight = new Map(); // item.id -> Promise
+
+        function hasCoords(it) {
+            return isFinite(it.lat) && isFinite(it.lon);
+        }
+
+        async function ensureGeo(it) {
+            // If already in-flight, await it.
+            if (inFlight.has(it.id)) return inFlight.get(it.id);
+
+            const p = (async () => {
+                const loc = String(it.location || "").trim();
+
+                // If coordinates exist:
+                if (hasCoords(it)) {
+                    // If no location, reverse geocode to fill display location (optional but requested)
+                    if (!loc) {
+                        const display = await Geo.reverse(it.lat, it.lon);
+                        if (display) {
+                            it.location = display;
+                            if (window.__DBG?.enabled?.()) window.__DBG.ok(`Reverse geocoded ${it.lat},${it.lon} -> ${display}`);
+                        }
+                    }
+                    return it;
+                }
+
+                // No coords, but location exists: forward geocode
+                if (loc) {
+                    const hit = await Geo.forward(loc);
+                    if (hit && isFinite(hit.lat) && isFinite(hit.lon)) {
+                        it.lat = hit.lat;
+                        it.lon = hit.lon;
+                        // keep original location text; but if you want standardized display_name, uncomment:
+                        // it.location = hit.display || it.location;
+                        if (window.__DBG?.enabled?.()) window.__DBG.ok(`Forward geocoded "${loc}" -> ${it.lat},${it.lon}`);
+                    } else {
+                        if (window.__DBG?.enabled?.()) window.__DBG.warn(`Forward geocode failed for "${loc}"`);
+                    }
+                }
+
+                return it;
+            })().finally(() => {
+                inFlight.delete(it.id);
+            });
+
+            inFlight.set(it.id, p);
+            return p;
+        }
 
         // ---------- Timeline ----------
         function initTimeline() {
-            __DBG.log("initTimeline() called");
             const container = document.getElementById("timeline");
-
-            if (!window.vis) {
-                __DBG.err("vis-timeline library not available (window.vis is undefined).");
-                return;
-            }
-
             visData = new vis.DataSet([]);
             timeline = new vis.Timeline(container, visData, {
                 stack: true,
@@ -535,21 +672,13 @@
             });
 
             timeline.on("select", (props) => {
-                __DBG.log(`Timeline select event: ${JSON.stringify(props.items || [])}`);
-                updateSelectedUI(props.items || []);
+                currentSelectedIds = props.items || [];
+                updateSelectedUI(currentSelectedIds);
             });
-
-            __DBG.ok("Timeline initialized.");
         }
 
         // ---------- Map ----------
         function initMap() {
-            __DBG.log("initMap() called");
-            if (!window.L) {
-                __DBG.err("Leaflet library not available (window.L is undefined).");
-                return;
-            }
-
             map = L.map("map", { zoomControl: true });
             L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
                 maxZoom: 19,
@@ -558,8 +687,6 @@
 
             markerLayer = L.layerGroup().addTo(map);
             map.setView([20, 0], 2);
-
-            __DBG.ok("Map initialized.");
         }
 
         // ---------- Selection -> Table + Map ----------
@@ -569,54 +696,116 @@
             selectedTbody.innerHTML = "";
             if (selectedIds.length === 0) {
                 selectedTbody.innerHTML = `<tr><td colspan="6" class="muted">Select timeline items to populate this table.</td></tr>`;
-            } else {
-                for (const id of selectedIds) {
-                    const it = itemsById.get(id);
-                    if (!it) continue;
-
-                    const tagsHtml = (it.tags || []).length
-                        ? it.tags.map(t => `<span class="pill">${escapeHtml(t)}</span>`).join("")
-                        : `<span class="muted">—</span>`;
-
-                    const loc = it.location ? escapeHtml(it.location) : "—";
-                    const coords = (isFinite(it.lat) && isFinite(it.lon))
-                        ? `${it.lat.toFixed(5)}, ${it.lon.toFixed(5)}`
-                        : "—";
-
-                    const details = it.details ? escapeHtml(it.details) : "—";
-
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = `
-          <td>${escapeHtml(fmtWhen(it))}</td>
-          <td>${escapeHtml(it.title || "")}</td>
-          <td>${details}</td>
-          <td>${tagsHtml}</td>
-          <td>${loc}</td>
-          <td>${escapeHtml(coords)}</td>
-        `;
-                    selectedTbody.appendChild(tr);
-                }
+                markerLayer.clearLayers();
+                return;
             }
 
-            if (!markerLayer || !map) return;
-
-            markerLayer.clearLayers();
-            const bounds = [];
+            // Render table first (even if geocode pending)
             for (const id of selectedIds) {
                 const it = itemsById.get(id);
                 if (!it) continue;
-                if (isFinite(it.lat) && isFinite(it.lon)) {
-                    const m = L.marker([it.lat, it.lon])
-                        .bindPopup(`<strong>${escapeHtml(it.title || "Item")}</strong><br>${escapeHtml(it.location || "")}<br><span class="muted">${escapeHtml(fmtWhen(it))}</span>`);
-                    markerLayer.addLayer(m);
-                    bounds.push([it.lat, it.lon]);
+
+                const tagsHtml = (it.tags || []).length
+                    ? it.tags.map(t => `<span class="pill">${escapeHtml(t)}</span>`).join("")
+                    : `<span class="muted">—</span>`;
+
+                const loc = it.location ? escapeHtml(it.location) : `<span class="muted">—</span>`;
+
+                let coordsCell = `<span class="muted">—</span>`;
+                if (hasCoords(it)) {
+                    coordsCell = `${Number(it.lat).toFixed(5)}, ${Number(it.lon).toFixed(5)}`;
+                } else if (String(it.location || "").trim()) {
+                    coordsCell = `<span class="muted">geocoding…</span>`;
+                }
+
+                const details = it.details ? escapeHtml(it.details) : `<span class="muted">—</span>`;
+
+                const tr = document.createElement("tr");
+                tr.setAttribute("data-item-id", it.id);
+                tr.innerHTML = `
+        <td>${escapeHtml(fmtWhen(it))}</td>
+        <td>${escapeHtml(it.title || "")}</td>
+        <td>${details}</td>
+        <td>${tagsHtml}</td>
+        <td>${loc}</td>
+        <td>${coordsCell}</td>
+      `;
+                selectedTbody.appendChild(tr);
+            }
+
+            // Map update: add markers for what we already have, then geocode missing and refresh
+            refreshMapMarkers(selectedIds);
+
+            // Kick off geocoding for selected items that need it
+            for (const id of selectedIds) {
+                const it = itemsById.get(id);
+                if (!it) continue;
+
+                const needsFwd = !hasCoords(it) && String(it.location || "").trim();
+                const needsRev = hasCoords(it) && !String(it.location || "").trim();
+
+                if (needsFwd || needsRev) {
+                    ensureGeo(it).then(() => {
+                        // After geo resolves, only refresh if still selected
+                        if (currentSelectedIds.includes(id)) {
+                            // Re-render table row coords/location quickly
+                            patchSelectedRow(id);
+                            // And update markers
+                            refreshMapMarkers(currentSelectedIds);
+                        }
+                    });
                 }
             }
-            if (bounds.length === 1) map.setView(bounds[0], 10);
-            if (bounds.length > 1) map.fitBounds(bounds, { padding: [20, 20] });
         }
 
-        // ---------- Filters ----------
+        function patchSelectedRow(id) {
+            const it = itemsById.get(id);
+            const tr = selectedTbody.querySelector(`tr[data-item-id="${CSS.escape(id)}"]`);
+            if (!it || !tr) return;
+
+            // Location cell is 5th (index 4), coords cell 6th (index 5)
+            const tds = tr.querySelectorAll("td");
+            if (tds.length >= 6) {
+                tds[4].innerHTML = it.location ? escapeHtml(it.location) : `<span class="muted">—</span>`;
+                if (hasCoords(it)) {
+                    tds[5].textContent = `${Number(it.lat).toFixed(5)}, ${Number(it.lon).toFixed(5)}`;
+                } else if (String(it.location || "").trim()) {
+                    tds[5].innerHTML = `<span class="muted">geocoding…</span>`;
+                } else {
+                    tds[5].innerHTML = `<span class="muted">—</span>`;
+                }
+            }
+        }
+
+        function refreshMapMarkers(selectedIds) {
+            markerLayer.clearLayers();
+            const bounds = [];
+
+            for (const id of selectedIds) {
+                const it = itemsById.get(id);
+                if (!it) continue;
+
+                // If we don't have coords yet, skip for now; geocode will call back and refresh.
+                if (!hasCoords(it)) continue;
+
+                const title = escapeHtml(it.title || "Item");
+                const loc = escapeHtml(it.location || "");
+                const when = escapeHtml(fmtWhen(it));
+
+                const m = L.marker([it.lat, it.lon])
+                    .bindPopup(`<strong>${title}</strong><br>${loc}<br><span class="muted">${when}</span>`);
+                markerLayer.addLayer(m);
+                bounds.push([it.lat, it.lon]);
+            }
+
+            if (bounds.length === 1) map.setView(bounds[0], 10);
+            if (bounds.length > 1) map.fitBounds(bounds, { padding: [20, 20] });
+            if (bounds.length === 0) {
+                // keep current view
+            }
+        }
+
+        // ---------- Filtering ----------
         function rebuildFilterOptions(items) {
             const tags = new Set();
             const locs = new Set();
@@ -639,7 +828,6 @@
         }
 
         function applyFilters() {
-            __DBG.log("applyFilters() clicked");
             const fd = fromDate.value ? safeDate(fromDate.value) : null;
             const td = toDate.value ? safeDate(toDate.value) : null;
             const tag = tagFilter.value || "";
@@ -656,11 +844,6 @@
                 return true;
             });
 
-            if (!visData) {
-                __DBG.err("applyFilters(): visData not initialized.");
-                return;
-            }
-
             visData.clear();
             visData.add(filtered.map(it => ({
                 id: it.id,
@@ -672,23 +855,19 @@
 
             countLabel.textContent = String(filtered.length);
 
-            if (timeline) timeline.setSelection([]);
+            currentSelectedIds = [];
+            timeline.setSelection([]);
             updateSelectedUI([]);
 
-            __DBG.appendStatus(`Applied filters. Showing ${filtered.length} / ${allItems.length} items.`);
+            document.getElementById("status").textContent =
+                `Applied filters. Showing ${filtered.length} / ${allItems.length} items.`;
         }
 
         function resetFilters() {
-            __DBG.log("resetFilters() called");
             fromDate.value = "";
             toDate.value = "";
             tagFilter.value = "";
             locFilter.value = "";
-
-            if (!visData) {
-                __DBG.err("resetFilters(): visData not initialized.");
-                return;
-            }
 
             visData.clear();
             visData.add(allItems.map(it => ({
@@ -701,10 +880,11 @@
 
             countLabel.textContent = String(allItems.length);
 
-            if (timeline) timeline.setSelection([]);
+            currentSelectedIds = [];
+            timeline.setSelection([]);
             updateSelectedUI([]);
 
-            __DBG.appendStatus(`Reset filters. Showing all ${allItems.length} items.`);
+            document.getElementById("status").textContent = `Reset filters. Showing all ${allItems.length} items.`;
         }
 
         // ---------- CSV -> items ----------
@@ -721,32 +901,17 @@
             const idxLon = findCol(headersNorm, ["lon", "lng", "longitude", "long"]);
 
             if (idxStart === -1) {
-                const guess = guessDateCol(fields, rows);
-                idxStart = guess;
-                __DBG.warn(`No obvious date column by name. Guessed start column = ${idxStart >= 0 ? fields[idxStart] : "NONE"}`);
+                idxStart = guessDateCol(fields, rows);
+                if (window.__DBG?.enabled?.()) window.__DBG.warn(`Guessed start column: ${idxStart >= 0 ? fields[idxStart] : "NONE"}`);
             }
 
-            __DBG.appendStatus(
-                `Detected columns:\n` +
-                `  start=${idxStart >= 0 ? fields[idxStart] : "NONE"}\n` +
-                `  end=${idxEnd >= 0 ? fields[idxEnd] : "NONE"}\n` +
-                `  title=${idxTitle >= 0 ? fields[idxTitle] : "NONE"}\n` +
-                `  details=${idxDetails >= 0 ? fields[idxDetails] : "NONE"}\n` +
-                `  tags=${idxTags >= 0 ? fields[idxTags] : "NONE"}\n` +
-                `  location=${idxLoc >= 0 ? fields[idxLoc] : "NONE"}\n` +
-                `  lat=${idxLat >= 0 ? fields[idxLat] : "NONE"}\n` +
-                `  lon=${idxLon >= 0 ? fields[idxLon] : "NONE"}`
-            );
-
             if (idxStart === -1) {
-                __DBG.err("Could not find any date/start column. No items can be plotted.");
-                return { items: [], skipped: rows.length };
+                return { items: [], skipped: rows.length, err: "Could not find a date/start column." };
             }
 
             const now = Date.now();
             const items = [];
             let skipped = 0;
-            let badDateSamples = 0;
 
             for (let i = 0; i < rows.length; i++) {
                 const row = rows[i];
@@ -758,14 +923,7 @@
                 const start = safeDate(startVal);
                 const end = safeDate(endVal);
 
-                if (!start) {
-                    skipped++;
-                    if (badDateSamples < 5) {
-                        badDateSamples++;
-                        __DBG.warn(`Row ${i+1}: unparseable start date: "${startVal}"`);
-                    }
-                    continue;
-                }
+                if (!start) { skipped++; continue; }
 
                 const title = (idxTitle >= 0 ? String(row[fields[idxTitle]] || "").trim() : "") || "Item";
                 const details = idxDetails >= 0 ? String(row[fields[idxDetails]] || "").trim() : "";
@@ -775,8 +933,10 @@
                 const lat = idxLat >= 0 ? Number(row[fields[idxLat]]) : NaN;
                 const lon = idxLon >= 0 ? Number(row[fields[idxLon]]) : NaN;
 
-                const id = `${now}-${i}`;
+                // Rule: if both location and lat/lon exist, lat/lon "wins" for mapping (we already use coords if present).
+                // We keep location text as-is for display, unless empty and reverse geocode fills it later.
 
+                const id = `${now}-${i}`;
                 const content = `<div><strong>${escapeHtml(title)}</strong><div class="muted" style="font-size:12px">${escapeHtml(location || "")}</div></div>`;
 
                 const tooltipParts = [];
@@ -801,188 +961,109 @@
                 });
             }
 
-            return { items, skipped };
+            return { items, skipped, err: null };
         }
 
         function loadCsvFile(file) {
-            if (!window.Papa) {
-                __DBG.err("PapaParse library not available (window.Papa is undefined).");
-                return;
-            }
-            __DBG.setStatus(`Reading: ${file.name} (${file.size} bytes)…`);
-            __DBG.log("Starting Papa.parse(file)…");
+            const statusEl = document.getElementById("status");
+            statusEl.textContent = `Reading: ${file.name} (${file.size} bytes)…`;
 
             Papa.parse(file, {
                 header: true,
                 skipEmptyLines: true,
                 dynamicTyping: false,
                 complete: (results) => {
-                    __DBG.ok("Papa.parse complete.");
                     const fields = (results.meta && results.meta.fields) ? results.meta.fields : [];
                     const rows = results.data || [];
 
-                    __DBG.appendStatus(`PapaParse: fields=${fields.length}, rows=${rows.length}`);
-
-                    if (results.errors && results.errors.length) {
-                        __DBG.warn(`PapaParse reported ${results.errors.length} issues. Showing first 5:`);
-                        for (const e of results.errors.slice(0, 5)) {
-                            __DBG.warn(`  ${e.message || JSON.stringify(e)}`);
-                        }
-                    }
-
                     if (!fields.length) {
-                        __DBG.err("No headers detected. If your CSV has no header row, we need header:false mode.");
-                        allItems = [];
-                        itemsById = new Map();
-                        if (visData) visData.clear();
-                        countLabel.textContent = "0";
+                        statusEl.textContent = "ERROR: No headers detected. Ensure the first row is a header row.";
                         return;
                     }
 
-                    const { items, skipped } = buildItemsFromParsed(fields, rows);
-
+                    const { items, skipped, err } = buildItemsFromParsed(fields, rows);
                     allItems = items;
                     itemsById = new Map(allItems.map(it => [it.id, it]));
 
                     rebuildFilterOptions(allItems);
-                    resetFilters();
 
-                    __DBG.appendStatus(`Built ${items.length} timeline items. Skipped ${skipped} rows.`);
-                    if (items.length === 0) {
-                        __DBG.warn("No timeline items were built. Most likely: date column mismatch or date format not recognized.");
-                        __DBG.warn("Paste your header row + one sample row and we’ll hard-map columns and add a date parser for your format.");
+                    visData.clear();
+                    visData.add(allItems.map(it => ({
+                        id: it.id,
+                        start: it.start,
+                        end: it.end || undefined,
+                        content: it.content,
+                        title: it.tooltip
+                    })));
+
+                    countLabel.textContent = String(allItems.length);
+                    currentSelectedIds = [];
+                    timeline.setSelection([]);
+                    updateSelectedUI([]);
+
+                    if (err) {
+                        statusEl.textContent = `ERROR: ${err}`;
                     } else {
-                        __DBG.ok("Timeline data loaded.");
-                        // Auto-fit the timeline view to loaded data
-                        try {
-                            timeline && timeline.fit({ animation: false });
-                            __DBG.log("timeline.fit() executed");
-                        } catch (e) {
-                            __DBG.warn("timeline.fit() failed: " + (e?.message || String(e)));
-                        }
+                        statusEl.textContent = `Loaded ${items.length} items. Skipped ${skipped} rows (missing/unparseable start date). Select items to populate table + map.`;
                     }
+
+                    // Fit view
+                    try { timeline.fit({ animation: false }); } catch {}
                 },
                 error: (err) => {
-                    __DBG.err("Papa.parse failed: " + (err?.message || String(err)));
+                    statusEl.textContent = "ERROR: Failed to parse CSV. Check console for details.";
+                    if (window.__DBG?.enabled?.()) window.__DBG.err("PapaParse error: " + (err?.message || String(err)));
                 }
             });
         }
 
         // ---------- Upload handling ----------
         function attachUploadHandlers() {
-            __DBG.log("Attaching upload handlers…");
-
-            dropzone.addEventListener("click", () => {
-                __DBG.log("Dropzone clicked -> fileInput.click()");
-                fileInput.click();
-            });
+            dropzone.addEventListener("click", () => fileInput.click());
 
             fileInput.addEventListener("change", () => {
-                __DBG.log("File input change fired");
                 const file = fileInput.files && fileInput.files[0];
-                __DBG.log("Picked file = " + (file ? `${file.name} (${file.size} bytes)` : "NONE"));
                 if (file) loadCsvFile(file);
             });
 
-            // drag/drop (optional)
             dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("dragover"); });
             dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
             dropzone.addEventListener("drop", (e) => {
                 e.preventDefault(); dropzone.classList.remove("dragover");
                 const file = e.dataTransfer.files && e.dataTransfer.files[0];
-                __DBG.log("Dropzone drop: " + (file ? `${file.name} (${file.size} bytes)` : "NONE"));
                 if (file) loadCsvFile(file);
             });
-
-            __DBG.ok("Upload handlers attached.");
         }
 
-        // ---------- Debug controls ----------
-        function attachDebugControls() {
-            selfTestBtn.addEventListener("click", () => runSelfTest());
-            dumpBtn.addEventListener("click", () => dumpState());
-            clearDbgBtn.addEventListener("click", () => __DBG.clear());
-        }
-
-        function dumpState() {
-            __DBG.log("Dumping state to console…");
-            console.log("[APP] STATE:", {
-                items: allItems.length,
-                hasTimeline: !!timeline,
-                hasVisData: !!visData,
-                hasMap: !!map,
-                hasMarkerLayer: !!markerLayer
-            });
-            if (allItems.length) console.log("[APP] First item:", allItems[0]);
-            __DBG.ok("State dumped to console.");
-        }
-
-        function runSelfTest() {
-            __DBG.log("Running self-test with fake items…");
-            const now = new Date();
-            const make = (daysAgo, title, location, lat, lon, tags) => ({
-                id: "self-" + Math.random().toString(16).slice(2),
-                start: new Date(now.getTime() - daysAgo * 86400000),
-                end: null,
-                title,
-                details: "Self-test generated item",
-                tags,
-                location,
-                lat,
-                lon,
-                content: `<div><strong>${escapeHtml(title)}</strong><div class="muted" style="font-size:12px">${escapeHtml(location || "")}</div></div>`,
-                tooltip: `${title}\n${location}\n${tags.join(", ")}`
-            });
-
-            allItems = [
-                make(10, "Test Event A", "Boston, MA", 42.3601, -71.0589, ["alpha","east"]),
-                make(50, "Test Event B", "San Francisco, CA", 37.7749, -122.4194, ["beta","west"]),
-                make(120, "Test Event C", "No Coords Place", NaN, NaN, ["gamma"])
-            ];
-            itemsById = new Map(allItems.map(it => [it.id, it]));
-
-            rebuildFilterOptions(allItems);
-            resetFilters();
-
-            try {
-                timeline && timeline.fit({ animation: false });
-                __DBG.log("timeline.fit() executed (self-test)");
-            } catch (e) {
-                __DBG.warn("timeline.fit() failed (self-test): " + (e?.message || String(e)));
-            }
-
-            __DBG.ok("Self-test complete. You should see 3 items on the timeline.");
-        }
-
-        // ---------- Boot (DOMContentLoaded) ----------
+        // ---------- Boot ----------
         document.addEventListener("DOMContentLoaded", () => {
-            __DBG.setStatus("Booting app… (DOMContentLoaded)");
-            attachUploadHandlers();
-            attachDebugControls();
-
-            // Safety check: if elements missing, say so loudly.
-            const missing = [];
-            if (!dropzone) missing.push("dropzone");
-            if (!fileInput) missing.push("fileInput");
-            if (!document.getElementById("timeline")) missing.push("timeline");
-            if (!document.getElementById("map")) missing.push("map");
-            if (missing.length) {
-                __DBG.err("Missing critical DOM elements: " + missing.join(", "));
-                return;
-            }
+            // Show only simple status unless debug enabled
+            const libsOk = !!window.vis && !!window.Papa && !!window.L;
+            if (!libsOk && window.__DBG?.enabled?.()) window.__DBG.warn(`Library check: vis=${!!window.vis}, Papa=${!!window.Papa}, Leaflet=${!!window.L}`);
 
             initTimeline();
             initMap();
+            attachUploadHandlers();
 
-            __DBG.ok("Boot complete. Try uploading a CSV, or click self-test.");
+            // Buttons
+            applyBtn.addEventListener("click", applyFilters);
+            resetBtn.addEventListener("click", () => { rebuildFilterOptions(allItems); resetFilters(); });
+
+            // Debug mode wiring: show/hide overlay
+            const dbgOverlay = document.getElementById("dbgOverlay");
+            const debugModeSel = document.getElementById("debugMode");
+            debugModeSel.addEventListener("change", () => {
+                const mode = debugModeSel.value;
+                if (mode === "off") dbgOverlay.style.display = "none";
+                else dbgOverlay.style.display = "";
+                window.__DBG.setMode(mode);
+            });
+
+            document.getElementById("status").textContent =
+                "Ready. Upload a CSV. For mapping: provide either (lat,lon) or a location string (will be geocoded).";
         });
-
-        // Filter buttons
-        applyBtn.addEventListener("click", applyFilters);
-        resetBtn.addEventListener("click", () => { rebuildFilterOptions(allItems); resetFilters(); });
 
     })();
 </script>
-
 </body>
 </html>
