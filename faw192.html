@@ -395,7 +395,8 @@
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
-      const pageText = textContent.items.map(item => item.str).join(' ');
+      // Preserve more structure by joining with newlines where appropriate
+      const pageText = textContent.items.map(item => item.str).join('');
       fullText += pageText + '\n';
     }
 
@@ -488,19 +489,32 @@
       }
     }
 
+    console.log(`Found ${jsonStrings.length} potential JSON objects`);
+
     // Parse each potential JSON string
-    for (const jsonStr of jsonStrings) {
+    for (let idx = 0; idx < jsonStrings.length; idx++) {
+      const jsonStr = jsonStrings[idx];
       try {
         const obj = JSON.parse(jsonStr);
+        console.log(`Object ${idx + 1}:`, obj);
+
         // Only accept user submissions (have 'rankings', not 'topics')
         if (obj.rankings && Array.isArray(obj.rankings) && !obj.topics) {
+          console.log(`✓ Accepted submission from ${obj.userName || 'Anonymous'}`);
           submissions.push(obj);
+        } else if (obj.topics) {
+          console.log(`✗ Skipped: Admin output (has 'topics' array)`);
+        } else if (!obj.rankings) {
+          console.log(`✗ Skipped: No 'rankings' array found`);
         }
       } catch (e) {
-        // Not valid JSON, skip
+        console.log(`✗ Object ${idx + 1}: Parse error - ${e.message}`);
+        // Show first 100 chars of the problematic JSON
+        console.log(`   First 100 chars: ${jsonStr.substring(0, 100)}...`);
       }
     }
 
+    console.log(`Total valid submissions: ${submissions.length}`);
     return submissions;
   }
 
