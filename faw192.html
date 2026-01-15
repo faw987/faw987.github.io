@@ -452,6 +452,14 @@
             .replace(/\r\n/g, '\n')
             .replace(/\r/g, '\n');
 
+    // Remove common PDF artifacts that can break JSON
+    // Remove page numbers like "1 of 2", "2 of 2", "Page 1", etc.
+    cleaned = cleaned.replace(/\d+\s+of\s+\d+/gi, '');
+    cleaned = cleaned.replace(/Page\s+\d+/gi, '');
+
+    // Remove excessive whitespace but preserve structure
+    cleaned = cleaned.replace(/[ \t]+/g, ' ');
+
     return cleaned;
   }
 
