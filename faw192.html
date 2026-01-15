@@ -302,8 +302,21 @@
     message.textContent = `Generated JSON for ${topics.length} topics. See Export section below.`;
   }
 
+  function cleanText(text) {
+    // Replace smart quotes with straight quotes
+    return text
+            .replace(/[\u201C\u201D]/g, '"')  // Replace " and "
+            .replace(/[\u2018\u2019]/g, "'")  // Replace ' and '
+            .replace(/[\u2013\u2014]/g, '-')  // Replace en-dash and em-dash
+            .replace(/\u2026/g, '...')         // Replace ellipsis
+            .trim();
+  }
+
   function extractJSON(text) {
     const submissions = [];
+
+    // Clean up smart quotes and other problematic characters
+    text = cleanText(text);
 
     // First, try to parse the entire text as JSON
     try {
@@ -314,6 +327,7 @@
       }
     } catch (e) {
       // Not a single JSON object, continue to extract multiple
+      console.log('Single parse failed:', e.message);
     }
 
     // Try to find multiple JSON objects in the text
@@ -331,7 +345,7 @@
           }
         } catch (e) {
           // Not valid JSON or doesn't match structure, skip
-          console.log('Failed to parse:', e.message);
+          console.log('Failed to parse match:', e.message);
         }
       }
     }
