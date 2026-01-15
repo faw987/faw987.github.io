@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Topic Ranking Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        h2 {
+            color: #555;
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .topic-input-area {
+            width: 100%;
+            min-height: 150px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        .topic-input-area:focus {
+            outline: none;
+            border-color: #2196F3;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            font-size: 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: #2196F3;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0b7dda;
+        }
+        
+        .btn-success {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #45a049;
+        }
+        
+        .btn-secondary {
+            background-color: #757575;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #616161;
+        }
+        
+        .submission-input {
+            width: 100%;
+            min-height: 200px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        .output-area {
+            width: 100%;
+            min-height: 300px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            border: 2px solid #4CAF50;
+            border-radius: 4px;
+            background-color: #f1f8f4;
+        }
+        
+        .submissions-list {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            background-color: #fafafa;
+        }
+        
+        .submission-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: white;
+            border-left: 4px solid #2196F3;
+            border-radius: 4px;
+        }
+        
+        .submission-header {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .submission-detail {
+            font-size: 13px;
+            color: #666;
+            margin-left: 15px;
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .results-table th,
+        .results-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .results-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .results-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .rank-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .error {
+            color: #d32f2f;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .success {
+            color: #2e7d32;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .info {
+            color: #0277bd;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .help-text {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        
+        .drop-zone {
+            border: 3px dashed #ddd;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background-color: #fafafa;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 10px;
+        }
+        
+        .drop-zone:hover {
+            border-color: #4CAF50;
+            background-color: #f1f8f4;
+        }
+        
+        .drop-zone.drag-over {
+            border-color: #4CAF50;
+            background-color: #e8f5e9;
+            transform: scale(1.02);
+        }
+        
+        .drop-zone-content {
+            pointer-events: none;
+        }
+        
+        .drop-zone-content p {
+            margin: 10px 0;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin - Topic Ranking Manager</h1>
+        
+        <!-- Initialize Topics Section -->
+        <div class="section">
+            <h2>1. Initialize Topics</h2>
+            <div class="help-text">
+                Enter topics one per line. This will create the initial JSON for the user page.
+            </div>
+            <textarea id="topicInput" class="topic-input-area" placeholder="Enter topics, one per line..."></textarea>
+            <button class="btn btn-primary" onclick="initializeTopics()">Generate Initial Topics JSON</button>
+            <div id="initMessage"></div>
+        </div>
+        
+        <!-- Process Submissions Section -->
+        <div class="section">
+            <h2>2. Process Submissions</h2>
+            <div class="help-text">
+                <strong>Option 1:</strong> Paste email submissions in the text area below.<br>
+                <strong>Option 2:</strong> Drag and drop a PDF file containing multiple emails into the drop zone below.
+            </div>
+            
+            <div id="dropZone" class="drop-zone">
+                <div class="drop-zone-content">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <p><strong>Drop PDF file here</strong></p>
+                    <p style="font-size: 12px; color: #999;">or click to browse</p>
+                    <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+                </div>
+            </div>
+            <div id="pdfMessage"></div>
+            
+            <div style="margin: 20px 0; text-align: center; color: #999;">— OR —</div>
+            
+            <textarea id="submissionInput" class="submission-input" placeholder="Paste email submissions here..."></textarea>
+            <button class="btn btn-success" onclick="processSubmissions()">Process Submissions</button>
+            <button class="btn btn-secondary" onclick="clearSubmissions()">Clear All Submissions</button>
+            <div id="processMessage"></div>
+            
+            <div id="submissionsList" class="submissions-list" style="display: none;">
+                <h3>Collected Submissions (<span id="submissionCount">0</span>)</h3>
+                <div id="submissionsContent"></div>
+            </div>
+        </div>
+        
+        <!-- Aggregate Results Section -->
+        <div class="section">
+            <h2>3. Aggregate Results</h2>
+            <div class="help-text">
+                Click to calculate aggregated rankings from all collected submissions.
+            </div>
+            <button class="btn btn-primary" onclick="aggregateResults()">Calculate Aggregate Rankings</button>
+            <div id="aggregateMessage"></div>
+            
+            <div id="resultsDisplay" style="display: none;">
+                <h3>Aggregated Rankings</h3>
+                <table class="results-table" id="resultsTable"></table>
+            </div>
+        </div>
+        
+        <!-- Export Section -->
+        <div class="section">
+            <h2>4. Export for Next Round</h2>
+            <div class="help-text">
+                Copy this JSON and paste it into the "Load Topics" section of the user page for the next round.
+            </div>
+            <textarea id="outputJSON" class="output-area" readonly></textarea>
+            <button class="btn btn-success" onclick="copyToClipboard()">Copy to Clipboard</button>
+            <button class="btn btn-secondary" onclick="exportToCSV()">Export to CSV</button>
+            <div id="exportMessage"></div>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Set up pdf.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        let allSubmissions = [];
+        let aggregatedData = null;
+        
+        // Set up drag and drop
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+            
+            dropZone.addEventListener('click', () => fileInput.click());
+            
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+            
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('drag-over');
+            });
+            
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handlePDFFile(files[0]);
+                }
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handlePDFFile(e.target.files[0]);
+                }
+            });
+        });
+        
+        async function handlePDFFile(file) {
+            const message = document.getElementById('pdfMessage');
+            message.className = 'info';
+            message.textContent = 'Processing PDF...';
+            
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                message.className = 'error';
+                message.textContent = 'Please upload a PDF file.';
+                return;
+            }
+            
+            try {
+                const text = await extractTextFromPDF(file);
+                const submissions = extractJSON(text);
+                
+                if (submissions.length === 0) {
+                    message.className = 'error';
+                    message.textContent = 'No valid submissions found in PDF.';
+                    return;
+                }
+                
+                allSubmissions.push(...submissions);
+                
+                message.className = 'success';
+                message.textContent = `Extracted ${submissions.length} submission(s) from PDF. Total: ${allSubmissions.length}`;
+                
+                displaySubmissions();
+                
+                // Clear file input
+                document.getElementById('fileInput').value = '';
+                
+            } catch (error) {
+                message.className = 'error';
+                message.textContent = 'Error processing PDF: ' + error.message;
+            }
+        }
+        
+        async function extractTextFromPDF(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let fullText = '';
+            
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                // Preserve more structure by joining with newlines where appropriate
+                const pageText = textContent.items.map(item => item.str).join('');
+                fullText += pageText + '\n';
+            }
+            
+            return fullText;
+        }
+        
+        function initializeTopics() {
+            const input = document.getElementById('topicInput').value.trim();
+            const message = document.getElementById('initMessage');
+            message.className = '';
+            message.textContent = '';
+            
+            if (!input) {
+                message.className = 'error';
+                message.textContent = 'Please enter at least one topic.';
+                return;
+            }
+            
+            const topics = input.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0)
+                .map(text => ({ text: text }));
+            
+            if (topics.length === 0) {
+                message.className = 'error';
+                message.textContent = 'Please enter at least one topic.';
+                return;
+            }
+            
+            const output = {
+                topics: topics,
+                generatedAt: new Date().toISOString(),
+                round: 1
+            };
+            
+            const jsonStr = JSON.stringify(output, null, 2);
+            document.getElementById('outputJSON').value = jsonStr;
+            
+            message.className = 'success';
+            message.textContent = `Generated JSON for ${topics.length} topics. See Export section below.`;
+        }
+        
+        function cleanText(text) {
+            // Replace smart quotes with straight quotes
+            let cleaned = text
+                .replace(/[\u201C\u201D]/g, '"')  // Replace " and "
+                .replace(/[\u2018\u2019]/g, "'")  // Replace ' and '
+                .replace(/[\u2013\u2014]/g, '-')  // Replace en-dash and em-dash
+                .replace(/\u2026/g, '...')         // Replace ellipsis
+                // Remove zero-width spaces and other invisible characters
+                .replace(/[\u200B-\u200D\uFEFF]/g, '')
+                // Normalize line endings
+                .replace(/\r\n/g, '\n')
+                .replace(/\r/g, '\n');
+            
+            return cleaned;
+        }
+        
+        function normalizeJSON(jsonStr) {
+            // Remove any extra whitespace, newlines within the JSON structure
+            // This helps with PDFs where page breaks insert extra characters
+            return jsonStr
+                .replace(/\n\s*/g, ' ')  // Replace newlines and following whitespace with single space
+                .replace(/\s+/g, ' ')     // Normalize multiple spaces to single space
+                .replace(/\s*:\s*/g, ':') // Remove spaces around colons
+                .replace(/\s*,\s*/g, ',') // Remove spaces around commas
+                .replace(/\{\s*/g, '{')   // Remove space after opening brace
+                .replace(/\s*\}/g, '}')   // Remove space before closing brace
+                .replace(/\[\s*/g, '[')   // Remove space after opening bracket
+                .replace(/\s*\]/g, ']')   // Remove space before closing bracket
+                // But preserve spaces within string values
+                .replace(/"\s*:\s*/g, '":')
+                .replace(/,\s*"/g, ',"')
+                .trim();
+        }
+        
+        function extractJSON(text) {
+            const submissions = [];
+            
+            // Clean up smart quotes and other problematic characters
+            text = cleanText(text);
+            
+            // First, try to parse the entire text as JSON
+            try {
+                const obj = JSON.parse(text);
+                // Only accept objects with 'rankings' (user submissions)
+                // Ignore objects with 'topics' (admin outputs)
+                if (obj.rankings && Array.isArray(obj.rankings) && !obj.topics) {
+                    submissions.push(obj);
+                    return submissions;
+                }
+            } catch (e) {
+                // Not a single JSON object, continue to extract multiple
+            }
+            
+            // Try to find multiple JSON objects in the text
+            // Look for patterns like { ... } with proper nesting
+            let braceDepth = 0;
+            let jsonStart = -1;
+            const jsonStrings = [];
+            
+            for (let i = 0; i < text.length; i++) {
+                if (text[i] === '{') {
+                    if (braceDepth === 0) {
+                        jsonStart = i;
+                    }
+                    braceDepth++;
+                } else if (text[i] === '}') {
+                    braceDepth--;
+                    if (braceDepth === 0 && jsonStart !== -1) {
+                        jsonStrings.push(text.substring(jsonStart, i + 1));
+                        jsonStart = -1;
+                    }
+                }
+            }
+            
+            console.log(`Found ${jsonStrings.length} potential JSON objects`);
+            
+            // Parse each potential JSON string
+            for (let idx = 0; idx < jsonStrings.length; idx++) {
+                const jsonStr = jsonStrings[idx];
+                try {
+                    // Try to normalize the JSON first to handle PDF extraction issues
+                    const normalizedJSON = normalizeJSON(jsonStr);
+                    const obj = JSON.parse(normalizedJSON);
+                    console.log(`Object ${idx + 1}:`, obj);
+                    
+                    // Only accept user submissions (have 'rankings', not 'topics')
+                    if (obj.rankings && Array.isArray(obj.rankings) && !obj.topics) {
+                        console.log(`✓ Accepted submission from ${obj.userName || 'Anonymous'}`);
+                        submissions.push(obj);
+                    } else if (obj.topics) {
+                        console.log(`✗ Skipped: Admin output (has 'topics' array)`);
+                    } else if (!obj.rankings) {
+                        console.log(`✗ Skipped: No 'rankings' array found`);
+                    }
+                } catch (e) {
+                    console.log(`✗ Object ${idx + 1}: Parse error - ${e.message}`);
+                    // Show first 200 chars of the problematic JSON
+                    console.log(`   First 200 chars: ${jsonStr.substring(0, 200)}...`);
+                }
+            }
+            
+            console.log(`Total valid submissions: ${submissions.length}`);
+            return submissions;
+        }
+        
+        function processSubmissions() {
+            const input = document.getElementById('submissionInput').value.trim();
+            const message = document.getElementById('processMessage');
+            message.className = '';
+            message.textContent = '';
+            
+            if (!input) {
+                message.className = 'error';
+                message.textContent = 'Please paste submission data.';
+                return;
+            }
+            
+            const newSubmissions = extractJSON(input);
+            
+            if (newSubmissions.length === 0) {
+                message.className = 'error';
+                message.textContent = 'No valid submissions found. Please check the format.';
+                return;
+            }
+            
+            allSubmissions.push(...newSubmissions);
+            
+            document.getElementById('submissionInput').value = '';
+            
+            message.className = 'success';
+            message.textContent = `Added ${newSubmissions.length} submission(s). Total: ${allSubmissions.length}`;
+            
+            displaySubmissions();
+        }
+        
+        function displaySubmissions() {
+            const listDiv = document.getElementById('submissionsList');
+            const contentDiv = document.getElementById('submissionsContent');
+            const countSpan = document.getElementById('submissionCount');
+            
+            if (allSubmissions.length === 0) {
+                listDiv.style.display = 'none';
+                return;
+            }
+            
+            listDiv.style.display = 'block';
+            countSpan.textContent = allSubmissions.length;
+            
+            contentDiv.innerHTML = allSubmissions.map((sub, idx) => {
+                const rankingList = sub.rankings.map(r => 
+                    `<div class="submission-detail">${r.rank}. ${r.topic}${r.isCustom ? ' (custom)' : ''}</div>`
+                ).join('');
+                
+                return `
+                    <div class="submission-item">
+                        <div class="submission-header">
+                            ${sub.userName || 'Anonymous'} - ${new Date(sub.timestamp).toLocaleString()}
+                        </div>
+                        ${rankingList}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function clearSubmissions() {
+            if (allSubmissions.length === 0) {
+                return;
+            }
+            
+            if (confirm(`Clear all ${allSubmissions.length} submissions?`)) {
+                allSubmissions = [];
+                aggregatedData = null;
+                document.getElementById('submissionsList').style.display = 'none';
+                document.getElementById('resultsDisplay').style.display = 'none';
+                document.getElementById('outputJSON').value = '';
+                
+                const message = document.getElementById('processMessage');
+                message.className = 'info';
+                message.textContent = 'All submissions cleared.';
+            }
+        }
+        
+        function aggregateResults() {
+            const message = document.getElementById('aggregateMessage');
+            message.className = '';
+            message.textContent = '';
+            
+            if (allSubmissions.length === 0) {
+                message.className = 'error';
+                message.textContent = 'No submissions to aggregate. Please process submissions first.';
+                return;
+            }
+            
+            // Collect all topics and their rankings
+            const topicRankings = {};
+            
+            allSubmissions.forEach(submission => {
+                submission.rankings.forEach(ranking => {
+                    const topic = ranking.topic;
+                    if (!topicRankings[topic]) {
+                        topicRankings[topic] = [];
+                    }
+                    topicRankings[topic].push(ranking.rank);
+                });
+            });
+            
+            // Calculate average rank for each topic
+            const results = Object.entries(topicRankings).map(([topic, ranks]) => {
+                const avgRank = ranks.reduce((a, b) => a + b, 0) / ranks.length;
+                return {
+                    topic: topic,
+                    avgRank: avgRank,
+                    count: ranks.length,
+                    ranks: ranks
+                };
+            });
+            
+            // Sort by average rank (lower is better)
+            results.sort((a, b) => a.avgRank - b.avgRank);
+            
+            // Assign aggregated rank
+            results.forEach((result, idx) => {
+                result.aggregatedRank = idx + 1;
+            });
+            
+            aggregatedData = results;
+            
+            displayResults(results);
+            generateOutputJSON(results);
+            
+            message.className = 'success';
+            message.textContent = `Successfully aggregated ${results.length} topics from ${allSubmissions.length} submissions.`;
+        }
+        
+        function displayResults(results) {
+            const tableDiv = document.getElementById('resultsDisplay');
+            const table = document.getElementById('resultsTable');
+            
+            tableDiv.style.display = 'block';
+            
+            const headerRow = `
+                <tr>
+                    <th>Rank</th>
+                    <th>Topic</th>
+                    <th>Avg Score</th>
+                    <th>Votes</th>
+                    <th>Individual Ranks</th>
+                </tr>
+            `;
+            
+            const dataRows = results.map(result => {
+                return `
+                    <tr>
+                        <td><span class="rank-badge">${result.aggregatedRank}</span></td>
+                        <td><strong>${result.topic}</strong></td>
+                        <td>${result.avgRank.toFixed(2)}</td>
+                        <td>${result.count}</td>
+                        <td>${result.ranks.sort((a, b) => a - b).join(', ')}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            table.innerHTML = headerRow + dataRows;
+        }
+        
+        function generateOutputJSON(results) {
+            const output = {
+                topics: results.map(r => ({
+                    text: r.topic,
+                    aggregatedRank: r.aggregatedRank,
+                    avgRank: parseFloat(r.avgRank.toFixed(2)),
+                    voteCount: r.count
+                })),
+                generatedAt: new Date().toISOString(),
+                submissionCount: allSubmissions.length
+            };
+            
+            const jsonStr = JSON.stringify(output, null, 2);
+            document.getElementById('outputJSON').value = jsonStr;
+        }
+        
+        function copyToClipboard() {
+            const output = document.getElementById('outputJSON');
+            const message = document.getElementById('exportMessage');
+            
+            if (!output.value) {
+                message.className = 'error';
+                message.textContent = 'No data to copy. Please aggregate results first.';
+                return;
+            }
+            
+            output.select();
+            document.execCommand('copy');
+            
+            message.className = 'success';
+            message.textContent = 'Copied to clipboard!';
+            
+            setTimeout(() => {
+                message.textContent = '';
+            }, 3000);
+        }
+        
+        function exportToCSV() {
+            const message = document.getElementById('exportMessage');
+            
+            if (!aggregatedData || aggregatedData.length === 0) {
+                message.className = 'error';
+                message.textContent = 'No data to export. Please aggregate results first.';
+                return;
+            }
+            
+            // Create CSV content
+            let csv = 'Rank,Topic,Average Score,Vote Count,Individual Ranks\n';
+            
+            aggregatedData.forEach(result => {
+                const individualRanks = result.ranks.sort((a, b) => a - b).join(';');
+                csv += `${result.aggregatedRank},"${result.topic}",${result.avgRank.toFixed(2)},${result.count},"${individualRanks}"\n`;
+            });
+            
+            // Create download link
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `topic-rankings-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            message.className = 'success';
+            message.textContent = 'CSV file downloaded!';
+            
+            setTimeout(() => {
+                message.textContent = '';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
