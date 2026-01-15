@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Topic Ranking</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .instructions {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .topic-list {
+            margin-bottom: 20px;
+        }
+
+        .topic-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+
+        .topic-item.custom {
+            background-color: #fff9e6;
+        }
+
+        .rank-input {
+            width: 60px;
+            padding: 8px;
+            margin-right: 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .rank-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .topic-text {
+            flex: 1;
+            font-size: 16px;
+        }
+
+        .custom-input {
+            flex: 1;
+            padding: 8px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .custom-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .submit-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+        }
+
+        .name-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .name-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .submit-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .submit-btn:hover {
+            background-color: #45a049;
+        }
+
+        .submit-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .load-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+        }
+
+        .load-section h3 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
+
+        .load-input {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            border: 2px solid #a5d6a7;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .load-btn {
+            background-color: #2e7d32;
+            color: white;
+            padding: 10px 20px;
+            font-size: 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .load-btn:hover {
+            background-color: #1b5e20;
+        }
+
+        .error {
+            color: #d32f2f;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .current-ranking {
+            font-size: 12px;
+            color: #666;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Topic Ranking</h1>
+    <div class="instructions">
+        Please rank the topics below by entering a number (1 = highest priority). You can rank as many or as few topics as you like. You can also add your own topics in the blank lines provided.
+    </div>
+
+    <div class="load-section">
+        <h3>Load Topics (Optional)</h3>
+        <textarea id="loadTopicsInput" class="load-input" placeholder="Paste JSON topic data here..."></textarea>
+        <button class="load-btn" onclick="loadTopics()">Load Topics</button>
+        <div id="loadError" class="error"></div>
+    </div>
+
+    <div class="topic-list" id="topicList">
+        <!-- Topics will be inserted here -->
+    </div>
+
+    <div class="submit-section">
+        <input type="text" id="userName" class="name-input" placeholder="Your name (optional)">
+        <button class="submit-btn" onclick="submitRankings()">Submit Rankings</button>
+    </div>
+</div>
+
+<script>
+    let topics = [];
+    const NUM_CUSTOM_SLOTS = 5;
+
+    function initializeDefaultTopics() {
+        topics = [
+            { text: "Example Topic 1", currentRank: null },
+            { text: "Example Topic 2", currentRank: null },
+            { text: "Example Topic 3", currentRank: null }
+        ];
+        renderTopics();
+    }
+
+    function renderTopics() {
+        const topicList = document.getElementById('topicList');
+        topicList.innerHTML = '';
+
+        // Render existing topics
+        topics.forEach((topic, index) => {
+            const div = document.createElement('div');
+            div.className = 'topic-item';
+
+            const rankLabel = topic.currentRank ?
+                `<span class="current-ranking">(Current rank: ${topic.currentRank})</span>` : '';
+
+            div.innerHTML = `
+                    <input type="number" class="rank-input" id="rank-${index}" min="1" placeholder="#">
+                    <div class="topic-text">${topic.text}${rankLabel}</div>
+                `;
+            topicList.appendChild(div);
+        });
+
+        // Render custom topic slots
+        for (let i = 0; i < NUM_CUSTOM_SLOTS; i++) {
+            const div = document.createElement('div');
+            div.className = 'topic-item custom';
+            div.innerHTML = `
+                    <input type="number" class="rank-input" id="custom-rank-${i}" min="1" placeholder="#">
+                    <input type="text" class="custom-input" id="custom-text-${i}" placeholder="Add your own topic...">
+                `;
+            topicList.appendChild(div);
+        }
+    }
+
+    function loadTopics() {
+        const input = document.getElementById('loadTopicsInput').value.trim();
+        const errorDiv = document.getElementById('loadError');
+        errorDiv.textContent = '';
+
+        if (!input) {
+            errorDiv.textContent = 'Please paste topic data to load.';
+            return;
+        }
+
+        try {
+            const data = JSON.parse(input);
+
+            if (!Array.isArray(data.topics)) {
+                throw new Error('Invalid format: expected topics array');
+            }
+
+            topics = data.topics.map(t => ({
+                text: t.text,
+                currentRank: t.aggregatedRank || null
+            }));
+
+            renderTopics();
+            document.getElementById('loadTopicsInput').value = '';
+            alert('Topics loaded successfully!');
+        } catch (e) {
+            errorDiv.textContent = 'Error loading topics: ' + e.message;
+        }
+    }
+
+    function submitRankings() {
+        const userName = document.getElementById('userName').value.trim() || 'Anonymous';
+        const rankings = [];
+
+        // Collect rankings for existing topics
+        topics.forEach((topic, index) => {
+            const rankInput = document.getElementById(`rank-${index}`);
+            const rank = parseInt(rankInput.value);
+
+            if (!isNaN(rank) && rank > 0) {
+                rankings.push({
+                    topic: topic.text,
+                    rank: rank
+                });
+            }
+        });
+
+        // Collect custom topics
+        for (let i = 0; i < NUM_CUSTOM_SLOTS; i++) {
+            const rankInput = document.getElementById(`custom-rank-${i}`);
+            const textInput = document.getElementById(`custom-text-${i}`);
+            const rank = parseInt(rankInput.value);
+            const text = textInput.value.trim();
+
+            if (text && !isNaN(rank) && rank > 0) {
+                rankings.push({
+                    topic: text,
+                    rank: rank,
+                    isCustom: true
+                });
+            }
+        }
+
+        if (rankings.length === 0) {
+            alert('Please rank at least one topic before submitting.');
+            return;
+        }
+
+        const submission = {
+            userName: userName,
+            timestamp: new Date().toISOString(),
+            rankings: rankings
+        };
+
+        const jsonStr = JSON.stringify(submission, null, 2);
+
+        // Create mailto link
+        const subject = encodeURIComponent('Topic Rankings Submission');
+        const body = encodeURIComponent(
+            'Topic Rankings Submission\n\n' +
+            'Please do not modify the data below:\n\n' +
+            jsonStr
+        );
+
+        const mailtoLink = `mailto:faw9422@gmail.com?subject=${subject}&body=${body}`;
+
+        // Open email client
+        window.location.href = mailtoLink;
+    }
+
+    // Initialize with default topics on page load
+    initializeDefaultTopics();
+</script>
+</body>
+</html>
