@@ -303,10 +303,23 @@
   }
 
   function extractJSON(text) {
-    // Try to find JSON objects in the text
-    const jsonRegex = /\{[\s\S]*?\}/g;
-    const matches = text.match(jsonRegex);
     const submissions = [];
+
+    // First, try to parse the entire text as JSON
+    try {
+      const obj = JSON.parse(text);
+      if (obj.rankings && Array.isArray(obj.rankings)) {
+        submissions.push(obj);
+        return submissions;
+      }
+    } catch (e) {
+      // Not a single JSON object, continue to extract multiple
+    }
+
+    // Try to find multiple JSON objects in the text
+    // This regex looks for objects that start with { and finds the matching }
+    const jsonPattern = /\{(?:[^{}]|(?:\{[^{}]*\}))*\}/g;
+    const matches = text.match(jsonPattern);
 
     if (matches) {
       for (const match of matches) {
@@ -317,7 +330,8 @@
             submissions.push(obj);
           }
         } catch (e) {
-          // Not valid JSON, skip
+          // Not valid JSON or doesn't match structure, skip
+          console.log('Failed to parse:', e.message);
         }
       }
     }
