@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin - Topic Ranking Manager 9:42</title>
+  <title>Admin - Topic Ranking Manager</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -234,7 +234,7 @@
 </head>
 <body>
 <div class="container">
-  <h1>Admin - Topic Ranking Manager 9:42</h1>
+  <h1>Admin - Topic Ranking Manager</h1>
 
   <!-- Initialize Topics Section -->
   <div class="section">
@@ -441,11 +441,35 @@
 
   function cleanText(text) {
     // Replace smart quotes with straight quotes
-    return text
+    let cleaned = text
             .replace(/[\u201C\u201D]/g, '"')  // Replace " and "
             .replace(/[\u2018\u2019]/g, "'")  // Replace ' and '
             .replace(/[\u2013\u2014]/g, '-')  // Replace en-dash and em-dash
             .replace(/\u2026/g, '...')         // Replace ellipsis
+            // Remove zero-width spaces and other invisible characters
+            .replace(/[\u200B-\u200D\uFEFF]/g, '')
+            // Normalize line endings
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n');
+
+    return cleaned;
+  }
+
+  function normalizeJSON(jsonStr) {
+    // Remove any extra whitespace, newlines within the JSON structure
+    // This helps with PDFs where page breaks insert extra characters
+    return jsonStr
+            .replace(/\n\s*/g, ' ')  // Replace newlines and following whitespace with single space
+            .replace(/\s+/g, ' ')     // Normalize multiple spaces to single space
+            .replace(/\s*:\s*/g, ':') // Remove spaces around colons
+            .replace(/\s*,\s*/g, ',') // Remove spaces around commas
+            .replace(/\{\s*/g, '{')   // Remove space after opening brace
+            .replace(/\s*\}/g, '}')   // Remove space before closing brace
+            .replace(/\[\s*/g, '[')   // Remove space after opening bracket
+            .replace(/\s*\]/g, ']')   // Remove space before closing bracket
+            // But preserve spaces within string values
+            .replace(/"\s*:\s*/g, '":')
+            .replace(/,\s*"/g, ',"')
             .trim();
   }
 
@@ -495,7 +519,9 @@
     for (let idx = 0; idx < jsonStrings.length; idx++) {
       const jsonStr = jsonStrings[idx];
       try {
-        const obj = JSON.parse(jsonStr);
+        // Try to normalize the JSON first to handle PDF extraction issues
+        const normalizedJSON = normalizeJSON(jsonStr);
+        const obj = JSON.parse(normalizedJSON);
         console.log(`Object ${idx + 1}:`, obj);
 
         // Only accept user submissions (have 'rankings', not 'topics')
@@ -509,8 +535,8 @@
         }
       } catch (e) {
         console.log(`✗ Object ${idx + 1}: Parse error - ${e.message}`);
-        // Show first 100 chars of the problematic JSON
-        console.log(`   First 100 chars: ${jsonStr.substring(0, 100)}...`);
+        // Show first 200 chars of the problematic JSON
+        console.log(`   First 200 chars: ${jsonStr.substring(0, 200)}...`);
       }
     }
 
@@ -742,7 +768,6 @@
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-
 
     message.className = 'success';
     message.textContent = 'CSV file downloaded!';
