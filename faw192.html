@@ -199,6 +199,37 @@
       margin-bottom: 10px;
       line-height: 1.5;
     }
+
+    .drop-zone {
+      border: 3px dashed #ddd;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      background-color: #fafafa;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 10px;
+    }
+
+    .drop-zone:hover {
+      border-color: #4CAF50;
+      background-color: #f1f8f4;
+    }
+
+    .drop-zone.drag-over {
+      border-color: #4CAF50;
+      background-color: #e8f5e9;
+      transform: scale(1.02);
+    }
+
+    .drop-zone-content {
+      pointer-events: none;
+    }
+
+    .drop-zone-content p {
+      margin: 10px 0;
+      color: #666;
+    }
   </style>
 </head>
 <body>
@@ -220,9 +251,26 @@
   <div class="section">
     <h2>2. Process Submissions</h2>
     <div class="help-text">
-      Paste email submissions below (one or multiple). Each submission should be the JSON from an email.
-      You can paste multiple submissions at once, separated by blank lines or email headers.
+      <strong>Option 1:</strong> Paste email submissions in the text area below.<br>
+      <strong>Option 2:</strong> Drag and drop a PDF file containing multiple emails into the drop zone below.
     </div>
+
+    <div id="dropZone" class="drop-zone">
+      <div class="drop-zone-content">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+        <p><strong>Drop PDF file here</strong></p>
+        <p style="font-size: 12px; color: #999;">or click to browse</p>
+        <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+      </div>
+    </div>
+    <div id="pdfMessage"></div>
+
+    <div style="margin: 20px 0; text-align: center; color: #999;">— OR —</div>
+
     <textarea id="submissionInput" class="submission-input" placeholder="Paste email submissions here..."></textarea>
     <button class="btn btn-success" onclick="processSubmissions()">Process Submissions</button>
     <button class="btn btn-secondary" onclick="clearSubmissions()">Clear All Submissions</button>
@@ -262,9 +310,97 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
+  // Set up pdf.js worker
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
   let allSubmissions = [];
   let aggregatedData = null;
+
+  // Set up drag and drop
+  document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handlePDFFile(files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handlePDFFile(e.target.files[0]);
+      }
+    });
+  });
+
+  async function handlePDFFile(file) {
+    const message = document.getElementById('pdfMessage');
+    message.className = 'info';
+    message.textContent = 'Processing PDF...';
+
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      message.className = 'error';
+      message.textContent = 'Please upload a PDF file.';
+      return;
+    }
+
+    try {
+      const text = await extractTextFromPDF(file);
+      const submissions = extractJSON(text);
+
+      if (submissions.length === 0) {
+        message.className = 'error';
+        message.textContent = 'No valid submissions found in PDF.';
+        return;
+      }
+
+      allSubmissions.push(...submissions);
+
+      message.className = 'success';
+      message.textContent = `Extracted ${submissions.length} submission(s) from PDF. Total: ${allSubmissions.length}`;
+
+      displaySubmissions();
+
+      // Clear file input
+      document.getElementById('fileInput').value = '';
+
+    } catch (error) {
+      message.className = 'error';
+      message.textContent = 'Error processing PDF: ' + error.message;
+    }
+  }
+
+  async function extractTextFromPDF(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map(item => item.str).join(' ');
+      fullText += pageText + '\n';
+    }
+
+    return fullText;
+  }
 
   function initializeTopics() {
     const input = document.getElementById('topicInput').value.trim();
@@ -321,32 +457,47 @@
     // First, try to parse the entire text as JSON
     try {
       const obj = JSON.parse(text);
-      if (obj.rankings && Array.isArray(obj.rankings)) {
+      // Only accept objects with 'rankings' (user submissions)
+      // Ignore objects with 'topics' (admin outputs)
+      if (obj.rankings && Array.isArray(obj.rankings) && !obj.topics) {
         submissions.push(obj);
         return submissions;
       }
     } catch (e) {
       // Not a single JSON object, continue to extract multiple
-      console.log('Single parse failed:', e.message);
     }
 
     // Try to find multiple JSON objects in the text
-    // This regex looks for objects that start with { and finds the matching }
-    const jsonPattern = /\{(?:[^{}]|(?:\{[^{}]*\}))*\}/g;
-    const matches = text.match(jsonPattern);
+    // Look for patterns like { ... } with proper nesting
+    let braceDepth = 0;
+    let jsonStart = -1;
+    const jsonStrings = [];
 
-    if (matches) {
-      for (const match of matches) {
-        try {
-          const obj = JSON.parse(match);
-          // Validate it looks like a submission
-          if (obj.rankings && Array.isArray(obj.rankings)) {
-            submissions.push(obj);
-          }
-        } catch (e) {
-          // Not valid JSON or doesn't match structure, skip
-          console.log('Failed to parse match:', e.message);
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === '{') {
+        if (braceDepth === 0) {
+          jsonStart = i;
         }
+        braceDepth++;
+      } else if (text[i] === '}') {
+        braceDepth--;
+        if (braceDepth === 0 && jsonStart !== -1) {
+          jsonStrings.push(text.substring(jsonStart, i + 1));
+          jsonStart = -1;
+        }
+      }
+    }
+
+    // Parse each potential JSON string
+    for (const jsonStr of jsonStrings) {
+      try {
+        const obj = JSON.parse(jsonStr);
+        // Only accept user submissions (have 'rankings', not 'topics')
+        if (obj.rankings && Array.isArray(obj.rankings) && !obj.topics) {
+          submissions.push(obj);
+        }
+      } catch (e) {
+        // Not valid JSON, skip
       }
     }
 
