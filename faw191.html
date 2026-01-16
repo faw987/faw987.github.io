@@ -179,11 +179,17 @@
         Please rank the topics below by entering a number (1 = highest priority). You can rank as many or as few topics as you like. You can also add your own topics in the blank lines provided.
     </div>
 
-    <div class="load-section">
-        <h3>Load Topics (Optional)</h3>
+    <div class="load-section" id="manualLoadSection" style="display: none;">
+        <h3>Manual Load Topics (Optional)</h3>
+        <p style="font-size: 12px; color: #666;">This section is for testing. Normally topics load automatically from topics.json.</p>
         <textarea id="loadTopicsInput" class="load-input" placeholder="Paste JSON topic data here..."></textarea>
-        <button class="load-btn" onclick="loadTopics()">Load Topics</button>
+        <button class="load-btn" onclick="loadTopicsManually()">Load Topics Manually</button>
         <div id="loadError" class="error"></div>
+    </div>
+
+    <div id="autoLoadStatus" style="margin-bottom: 20px; padding: 10px; background-color: #e3f2fd; border-radius: 4px; font-size: 14px;">
+        <span id="statusMessage">Loading topics...</span>
+        <button class="load-btn" style="margin-left: 10px; font-size: 12px; padding: 5px 10px;" onclick="toggleManualLoad()">Show Manual Load</button>
     </div>
 
     <div class="topic-list" id="topicList">
@@ -199,6 +205,50 @@
 <script>
     let topics = [];
     const NUM_CUSTOM_SLOTS = 5;
+
+    // Automatically load topics from topics.json on page load
+    window.addEventListener('DOMContentLoaded', async function() {
+        try {
+            const response = await fetch('topics.json');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            const data = await response.json();
+
+            if (!Array.isArray(data.topics)) {
+                throw new Error('Invalid format: expected topics array');
+            }
+
+            topics = data.topics.map(t => ({
+                text: t.text,
+                currentRank: t.aggregatedRank || null
+            }));
+
+            renderTopics();
+
+            const statusMsg = document.getElementById('statusMessage');
+            statusMsg.innerHTML = `✓ Loaded ${topics.length} topics from topics.json`;
+            statusMsg.style.color = '#2e7d32';
+
+        } catch (error) {
+            console.error('Failed to load topics.json:', error);
+            const statusMsg = document.getElementById('statusMessage');
+            statusMsg.innerHTML = `⚠ Could not load topics.json: ${error.message}<br><small>Using default topics. Make sure topics.json is in the same directory as this HTML file.</small>`;
+            statusMsg.style.color = '#d32f2f';
+
+            // Fall back to default topics
+            initializeDefaultTopics();
+        }
+    });
+
+    function toggleManualLoad() {
+        const section = document.getElementById('manualLoadSection');
+        if (section.style.display === 'none') {
+            section.style.display = 'block';
+        } else {
+            section.style.display = 'none';
+        }
+    }
 
     function initializeDefaultTopics() {
         topics = [
@@ -240,7 +290,7 @@
         }
     }
 
-    function loadTopics() {
+    function loadTopicsManually() {
         const input = document.getElementById('loadTopicsInput').value.trim();
         const errorDiv = document.getElementById('loadError');
         errorDiv.textContent = '';
@@ -264,7 +314,11 @@
 
             renderTopics();
             document.getElementById('loadTopicsInput').value = '';
-            alert('Topics loaded successfully!');
+
+            const statusMsg = document.getElementById('statusMessage');
+            statusMsg.innerHTML = `✓ Manually loaded ${topics.length} topics`;
+            statusMsg.style.color = '#2e7d32';
+
         } catch (e) {
             errorDiv.textContent = 'Error loading topics: ' + e.message;
         }
@@ -330,8 +384,7 @@
         window.location.href = mailtoLink;
     }
 
-    // Initialize with default topics on page load
-    initializeDefaultTopics();
+    // Topics will be loaded automatically from topics.json when page loads
 </script>
 </body>
 </html>

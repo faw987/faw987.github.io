@@ -1,0 +1,18 @@
+{
+  "topics": [
+    {
+      "text": "Example Topic 1",
+      "aggregatedRank": 1,
+      "avgRank": 1,
+      "voteCount": 2
+    },
+    {
+      "text": "Example Topic 2",
+      "aggregatedRank": 2,
+      "avgRank": 2,
+      "voteCount": 2
+    }
+  ],
+  "generatedAt": "2026-01-16T13:42:42.025Z",
+  "submissionCount": 2
+}
