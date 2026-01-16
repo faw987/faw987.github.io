@@ -1,18 +1,24 @@
 {
   "topics": [
     {
-      "text": "Example Topic 1",
+      "text": "my fav topic i am c",
       "aggregatedRank": 1,
       "avgRank": 1,
-      "voteCount": 2
+      "voteCount": 1
+    },
+    {
+      "text": "Example Topic 1",
+      "aggregatedRank": 2,
+      "avgRank": 1.25,
+      "voteCount": 4
     },
     {
       "text": "Example Topic 2",
-      "aggregatedRank": 2,
-      "avgRank": 2,
-      "voteCount": 2
+      "aggregatedRank": 3,
+      "avgRank": 1.75,
+      "voteCount": 4
     }
   ],
-  "generatedAt": "2026-01-16T13:42:42.025Z",
-  "submissionCount": 2
+  "generatedAt": "2026-01-16T13:54:01.725Z",
+  "submissionCount": 5
 }
