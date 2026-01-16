@@ -1,99 +1,54 @@
 {
   "topics": [
     {
-      "text": "{"
+      "text": "my fav topic i am c",
+      "aggregatedRank": 1,
+      "avgRank": 1,
+      "voteCount": 1
     },
     {
-      "text": "\"userName\": \"Anonymous\","
+      "text": "Societal impact in particular labor market impacts.",
+      "aggregatedRank": 2,
+      "avgRank": 1,
+      "voteCount": 1
     },
     {
-      "text": "\"timestamp\": \"2026-01-16T17:37:38.167Z\","
+      "text": "Example Topic 1",
+      "aggregatedRank": 3,
+      "avgRank": 1.25,
+      "voteCount": 4
     },
     {
-      "text": "\"rankings\": ["
+      "text": "Example Topic 2",
+      "aggregatedRank": 4,
+      "avgRank": 1.75,
+      "voteCount": 4
     },
     {
-      "text": "{"
+      "text": "Impact on water,electricity and land use as data centers proliferate.",
+      "aggregatedRank": 5,
+      "avgRank": 2,
+      "voteCount": 1
     },
     {
-      "text": "\"topic\": \"Societal impact in particular labor market impacts.\","
+      "text": "How do you write programs using this Vibe programming technique?",
+      "aggregatedRank": 6,
+      "avgRank": 3,
+      "voteCount": 1
     },
     {
-      "text": "\"rank\": 1,"
+      "text": "What are the implications for society in terms of privacy and security in an AI world?",
+      "aggregatedRank": 7,
+      "avgRank": 4,
+      "voteCount": 1
     },
     {
-      "text": "\"isCustom\": true"
-    },
-    {
-      "text": "},"
-    },
-    {
-      "text": "{"
-    },
-    {
-      "text": "\"topic\": \"Impact on water, electricity and land use as data centers proliferate.\","
-    },
-    {
-      "text": "\"rank\": 2,"
-    },
-    {
-      "text": "\"isCustom\": true"
-    },
-    {
-      "text": "},"
-    },
-    {
-      "text": "{"
-    },
-    {
-      "text": "\"topic\": \"How do you write programs using this Vibe programming technique?\","
-    },
-    {
-      "text": "\"rank\": 3,"
-    },
-    {
-      "text": "\"isCustom\": true"
-    },
-    {
-      "text": "},"
-    },
-    {
-      "text": "{"
-    },
-    {
-      "text": "\"topic\": \"What are the implications for society in terms of privacy and security in an AI world?\","
-    },
-    {
-      "text": "\"rank\": 4,"
-    },
-    {
-      "text": "\"isCustom\": true"
-    },
-    {
-      "text": "},"
-    },
-    {
-      "text": "{"
-    },
-    {
-      "text": "\"topic\": \"What's going on internationally? We hear a lot about China. Are there other significant international players and what's the scorecard like?\","
-    },
-    {
-      "text": "\"rank\": 4,"
-    },
-    {
-      "text": "\"isCustom\": true"
-    },
-    {
-      "text": "}"
-    },
-    {
-      "text": "]"
-    },
-    {
-      "text": "}"
+      "text": "What's going on internationally? We hear a lot about China. Are there other significantinternational players and what's the scorecard like?",
+      "aggregatedRank": 8,
+      "avgRank": 4,
+      "voteCount": 1
     }
   ],
-  "generatedAt": "2026-01-16T17:49:31.330Z",
-  "round": 1
+  "generatedAt": "2026-01-16T17:52:42.815Z",
+  "submissionCount": 6
 }
