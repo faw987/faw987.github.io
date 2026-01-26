@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Puzzle Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .controls label {
+            font-weight: bold;
+        }
+
+        .controls select {
+            padding: 8px 12px;
+            font-size: 16px;
+            border: 2px solid #4a90d9;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .controls button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #4a90d9;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .controls button:hover {
+            background: #357abd;
+        }
+
+        .puzzle-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .puzzle-wrapper {
+            display: inline-block;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .puzzle-grid {
+            display: grid;
+            gap: 2px;
+            background: #333;
+            padding: 2px;
+            border: 3px solid #333;
+        }
+
+        .header-cell {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .col-header {
+            background: #e8f4e8;
+            color: #2d5a2d;
+        }
+
+        .row-header {
+            background: #e8e8f4;
+            color: #2d2d5a;
+        }
+
+        .corner {
+            background: #ddd;
+        }
+
+        .cell {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.15s ease;
+        }
+
+        .cell.empty {
+            background: white;
+        }
+
+        .cell.filled {
+            background: #333;
+            color: white;
+        }
+
+        .cell:hover {
+            opacity: 0.8;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            margin: 20px auto;
+            max-width: 400px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #28a745;
+        }
+
+        .status.working {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffc107;
+        }
+
+        .instructions {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        /* Debug section */
+        .debug-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #2d2d2d;
+            border-radius: 8px;
+            color: #f0f0f0;
+        }
+
+        .debug-section h2 {
+            color: #4a90d9;
+            margin-top: 0;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+
+        .debug-grid-container {
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .debug-panel {
+            flex: 1;
+            min-width: 300px;
+            max-width: 500px;
+        }
+
+        .debug-panel h3 {
+            color: #8bc34a;
+            margin-bottom: 10px;
+        }
+
+        .debug-panel h3.goal {
+            color: #ff9800;
+        }
+
+        .debug-text {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre;
+            overflow-x: auto;
+            line-height: 1.4;
+        }
+
+        .debug-legend {
+            margin-top: 15px;
+            padding: 10px;
+            background: #3d3d3d;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .debug-legend span {
+            margin-right: 20px;
+        }
+
+        .match { color: #8bc34a; }
+        .mismatch { color: #f44336; }
+    </style>
+</head>
+<body>
+<h1>Grid Puzzle Generator</h1>
+
+<div class="controls">
+    <label for="rows">Rows:</label>
+    <select id="rows">
+        <option value="5" selected>5</option>
+        <option value="10">10</option>
+        <option value="15">15</option>
+        <option value="20">20</option>
+    </select>
+
+    <label for="cols">Columns:</label>
+    <select id="cols">
+        <option value="5" selected>5</option>
+        <option value="10">10</option>
+        <option value="15">15</option>
+        <option value="20">20</option>
+    </select>
+
+    <button onclick="generatePuzzle()">Generate Puzzle</button>
+    <button onclick="toggleDebug()" id="debugToggle">Show Debug</button>
+</div>
+
+<p class="instructions">Click cells to toggle them. Match the row and column counts shown in the headers.</p>
+
+<div class="puzzle-container">
+    <div class="puzzle-wrapper">
+        <div id="puzzleGrid" class="puzzle-grid"></div>
+    </div>
+</div>
+
+<div id="status" class="status working" style="display: none;"></div>
+
+<div class="debug-section" id="debugSection" style="display: none;">
+    <h2>Debug Information</h2>
+    <div class="debug-grid-container">
+        <div class="debug-panel">
+            <h3>Current User Input</h3>
+            <div id="debugCurrent" class="debug-text">Generate a puzzle to see debug info</div>
+        </div>
+        <div class="debug-panel">
+            <h3 class="goal">Goal (Solution)</h3>
+            <div id="debugGoal" class="debug-text">Generate a puzzle to see debug info</div>
+        </div>
+    </div>
+    <div class="debug-legend">
+        <span><strong>Legend:</strong></span>
+        <span>[ ] = Empty cell</span>
+        <span>[X] = Filled cell</span>
+        <span>Row/Col numbers show current counts vs target counts</span>
+    </div>
+</div>
+
+<script>
+    let rows = 5;
+    let cols = 5;
+    let solution = [];
+    let userGrid = [];
+    let rowCounts = [];
+    let colCounts = [];
+
+    function generatePuzzle() {
+        rows = parseInt(document.getElementById('rows').value);
+        cols = parseInt(document.getElementById('cols').value);
+
+        // Generate random solution
+        solution = [];
+        for (let r = 0; r < rows; r++) {
+            solution[r] = [];
+            for (let c = 0; c < cols; c++) {
+                solution[r][c] = Math.random() < 0.4 ? 1 : 0; // ~40% filled
+            }
+        }
+
+        // Calculate row and column counts from solution
+        rowCounts = solution.map(row => row.reduce((a, b) => a + b, 0));
+        colCounts = [];
+        for (let c = 0; c < cols; c++) {
+            let count = 0;
+            for (let r = 0; r < rows; r++) {
+                count += solution[r][c];
+            }
+            colCounts.push(count);
+        }
+
+        // Initialize user grid (all empty)
+        userGrid = [];
+        for (let r = 0; r < rows; r++) {
+            userGrid[r] = [];
+            for (let c = 0; c < cols; c++) {
+                userGrid[r][c] = 0;
+            }
+        }
+
+        renderPuzzle();
+        updateDebug();
+        checkSolution();
+    }
+
+    function renderPuzzle() {
+        const grid = document.getElementById('puzzleGrid');
+        grid.innerHTML = '';
+        grid.style.gridTemplateColumns = `repeat(${cols + 1}, 40px)`;
+
+        // Corner cell
+        const corner = document.createElement('div');
+        corner.className = 'header-cell corner';
+        grid.appendChild(corner);
+
+        // Column headers
+        for (let c = 0; c < cols; c++) {
+            const header = document.createElement('div');
+            header.className = 'header-cell col-header';
+            header.textContent = colCounts[c];
+            header.id = `col-header-${c}`;
+            grid.appendChild(header);
+        }
+
+        // Rows with headers
+        for (let r = 0; r < rows; r++) {
+            // Row header
+            const rowHeader = document.createElement('div');
+            rowHeader.className = 'header-cell row-header';
+            rowHeader.textContent = rowCounts[r];
+            rowHeader.id = `row-header-${r}`;
+            grid.appendChild(rowHeader);
+
+            // Cells
+            for (let c = 0; c < cols; c++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell empty';
+                cell.dataset.row = r;
+                cell.dataset.col = c;
+                cell.id = `cell-${r}-${c}`;
+                cell.onclick = () => toggleCell(r, c);
+                grid.appendChild(cell);
+            }
+        }
+    }
+
+    function toggleCell(r, c) {
+        userGrid[r][c] = userGrid[r][c] ? 0 : 1;
+
+        const cell = document.getElementById(`cell-${r}-${c}`);
+        cell.className = userGrid[r][c] ? 'cell filled' : 'cell empty';
+
+        updateHeaderColors();
+        updateDebug();
+        checkSolution();
+    }
+
+    function updateHeaderColors() {
+        // Check rows
+        for (let r = 0; r < rows; r++) {
+            const currentCount = userGrid[r].reduce((a, b) => a + b, 0);
+            const header = document.getElementById(`row-header-${r}`);
+            if (currentCount === rowCounts[r]) {
+                header.style.background = '#c8e6c9';
+                header.style.color = '#2e7d32';
+            } else if (currentCount > rowCounts[r]) {
+                header.style.background = '#ffcdd2';
+                header.style.color = '#c62828';
+            } else {
+                header.style.background = '#e8e8f4';
+                header.style.color = '#2d2d5a';
+            }
+        }
+
+        // Check columns
+        for (let c = 0; c < cols; c++) {
+            let currentCount = 0;
+            for (let r = 0; r < rows; r++) {
+                currentCount += userGrid[r][c];
+            }
+            const header = document.getElementById(`col-header-${c}`);
+            if (currentCount === colCounts[c]) {
+                header.style.background = '#c8e6c9';
+                header.style.color = '#2e7d32';
+            } else if (currentCount > colCounts[c]) {
+                header.style.background = '#ffcdd2';
+                header.style.color = '#c62828';
+            } else {
+                header.style.background = '#e8f4e8';
+                header.style.color = '#2d5a2d';
+            }
+        }
+    }
+
+    function checkSolution() {
+        const status = document.getElementById('status');
+        status.style.display = 'block';
+
+        // Check if all row and column counts match
+        let allMatch = true;
+
+        for (let r = 0; r < rows; r++) {
+            const currentCount = userGrid[r].reduce((a, b) => a + b, 0);
+            if (currentCount !== rowCounts[r]) {
+                allMatch = false;
+                break;
+            }
+        }
+
+        if (allMatch) {
+            for (let c = 0; c < cols; c++) {
+                let currentCount = 0;
+                for (let r = 0; r < rows; r++) {
+                    currentCount += userGrid[r][c];
+                }
+                if (currentCount !== colCounts[c]) {
+                    allMatch = false;
+                    break;
+                }
+            }
+        }
+
+        if (allMatch) {
+            status.className = 'status success';
+            status.textContent = 'Congratulations! Puzzle Solved!';
+        } else {
+            status.className = 'status working';
+            const totalFilled = userGrid.flat().reduce((a, b) => a + b, 0);
+            const targetFilled = rowCounts.reduce((a, b) => a + b, 0);
+            status.textContent = `Working... (${totalFilled}/${targetFilled} cells filled)`;
+        }
+    }
+
+    function updateDebug() {
+        const currentDebug = document.getElementById('debugCurrent');
+        const goalDebug = document.getElementById('debugGoal');
+
+        // Build current state debug text
+        let currentText = buildDebugText(userGrid, true);
+        currentDebug.textContent = currentText;
+
+        // Build goal state debug text
+        let goalText = buildDebugText(solution, false);
+        goalDebug.textContent = goalText;
+    }
+
+    function buildDebugText(grid, showComparison) {
+        let text = '';
+
+        // Header row with column numbers and targets
+        text += '     ';
+        for (let c = 0; c < cols; c++) {
+            text += ` C${c} `;
+        }
+        text += '\n';
+
+        // Column target counts
+        text += 'Tgt: ';
+        for (let c = 0; c < cols; c++) {
+            text += ` ${colCounts[c].toString().padStart(2, ' ')} `;
+        }
+        text += '\n';
+
+        // Current column counts (only for user grid)
+        if (showComparison) {
+            text += 'Cur: ';
+            for (let c = 0; c < cols; c++) {
+                let count = 0;
+                for (let r = 0; r < rows; r++) {
+                    count += userGrid[r][c];
+                }
+                const match = count === colCounts[c];
+                text += ` ${count.toString().padStart(2, ' ')}${match ? '✓' : ' '}`;
+            }
+            text += '\n';
+        }
+
+        text += '─'.repeat(5 + cols * 4) + '\n';
+
+        // Grid rows
+        for (let r = 0; r < rows; r++) {
+            // Row header
+            const currentRowCount = grid[r].reduce((a, b) => a + b, 0);
+
+            if (showComparison) {
+                const match = currentRowCount === rowCounts[r];
+                text += `R${r} ${currentRowCount}/${rowCounts[r]}${match ? '✓' : ' '}`;
+            } else {
+                text += `R${r} ${rowCounts[r].toString().padStart(3, ' ')} `;
+            }
+
+            // Cells
+            for (let c = 0; c < cols; c++) {
+                text += grid[r][c] ? '[X] ' : '[ ] ';
+            }
+            text += '\n';
+        }
+
+        // Summary
+        text += '─'.repeat(5 + cols * 4) + '\n';
+        const totalFilled = grid.flat().reduce((a, b) => a + b, 0);
+        const targetFilled = rowCounts.reduce((a, b) => a + b, 0);
+        text += `Total filled: ${totalFilled}/${targetFilled}`;
+
+        return text;
+    }
+
+    function toggleDebug() {
+        const debugSection = document.getElementById('debugSection');
+        const toggleBtn = document.getElementById('debugToggle');
+
+        if (debugSection.style.display === 'none') {
+            debugSection.style.display = 'block';
+            toggleBtn.textContent = 'Hide Debug';
+        } else {
+            debugSection.style.display = 'none';
+            toggleBtn.textContent = 'Show Debug';
+        }
+    }
+
+    // Generate initial puzzle on load
+    generatePuzzle();
+</script>
+</body>
+</html>
