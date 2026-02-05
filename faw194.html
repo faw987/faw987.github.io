@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Record Value Demo</title>
+  <title>Record Value Lab</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
@@ -466,10 +467,25 @@
         <div>
           <h2>My collection</h2>
           <small>Records you save here stay in this browser using local storage.</small>
+          <div class="inline-actions">
+            <button id="exportButton" type="button" class="secondary">
+              Export JSON
+            </button>
+            <button id="importButton" type="button" class="secondary">
+              Import JSON
+            </button>
+            <input
+                    id="importFileInput"
+                    type="file"
+                    accept="application/json"
+                    style="display:none;"
+            />
+          </div>
         </div>
         <div id="savedList" class="saved-list"></div>
         <div id="emptyState" class="empty-state">
-          No records yet. Add one on the left and hit <strong>Save to My Collection</strong>.
+          No records yet. Add one on the left and hit <strong>Save to My Collection</strong>,
+          or import an existing JSON file.
         </div>
       </div>
     </section>
@@ -523,6 +539,10 @@
 
     const savedList = document.getElementById("savedList");
     const emptyState = document.getElementById("emptyState");
+
+    const exportButton = document.getElementById("exportButton");
+    const importButton = document.getElementById("importButton");
+    const importFileInput = document.getElementById("importFileInput");
 
     // ----------------------
     // Initialization
@@ -662,6 +682,58 @@
       cameraStatus.textContent = "Cover captured. You can now save the record.";
     });
 
+    exportButton.addEventListener("click", () => {
+      try {
+        const blob = new Blob([JSON.stringify(records, null, 2)], {
+          type: "application/json"
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "record-collection.json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        valueStatus.textContent = "Exported collection to JSON file.";
+      } catch (err) {
+        console.error(err);
+        valueStatus.textContent = "Could not export collection.";
+      }
+    });
+
+    importButton.addEventListener("click", () => {
+      importFileInput.click();
+    });
+
+    importFileInput.addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const text = reader.result;
+          const data = JSON.parse(text);
+          if (!Array.isArray(data)) {
+            alert("JSON file must contain an array of records.");
+            return;
+          }
+          records = data.map(normalizeRecord);
+          saveRecords();
+          renderRecords();
+          updateEmptyState();
+          valueStatus.textContent = "Imported collection from JSON file.";
+        } catch (err) {
+          console.error(err);
+          alert("Could not parse JSON file.");
+        } finally {
+          importFileInput.value = "";
+        }
+      };
+      reader.readAsText(file);
+    });
+
     // ----------------------
     // Helpers
     // ----------------------
@@ -678,6 +750,24 @@
 
     function saveRecords() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    }
+
+    function normalizeRecord(raw) {
+      const idBase = Date.now().toString() + Math.random().toString(16).slice(2);
+      return {
+        id:
+                raw.id ||
+                (crypto.randomUUID ? crypto.randomUUID() : idBase),
+        artist: raw.artist || "",
+        title: raw.title || "",
+        year: raw.year || null,
+        condition: raw.condition || "VG+",
+        baseMedian:
+                typeof raw.baseMedian === "number" && isFinite(raw.baseMedian)
+                        ? raw.baseMedian
+                        : 20,
+        coverDataUrl: raw.coverDataUrl || null
+      };
     }
 
     function formatCurrency(amount) {
@@ -821,7 +911,7 @@
       const jitter = (Math.sin(seeded) + 1) / 2; // 0..1
       const base = 10 + jitter * 60; // $10 - $70 range
 
-      await sleep(800 + (jitter * 600) | 0);
+      await sleep(800 + ((jitter * 600) | 0));
 
       const descriptionParts = [];
       descriptionParts.push("Estimated a median based on similar pressings and recent sales.");
