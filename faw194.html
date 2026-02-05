@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Record Value Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: light dark;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle at top, #2b2d42, #000);
+      color: #f8f9fa;
+    }
+
+    .app-shell {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      gap: 0.75rem;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      margin: 0;
+    }
+
+    header p {
+      margin: 0;
+      opacity: 0.8;
+      font-size: 0.9rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.35);
+      font-size: 0.8rem;
+    }
+
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.1fr);
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 1rem;
+      padding: 1.25rem 1.4rem;
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+
+    .panel h2 {
+      margin-top: 0;
+      margin-bottom: 0.6rem;
+      font-size: 1.1rem;
+    }
+
+    .panel small {
+      display: block;
+      margin-bottom: 0.8rem;
+      opacity: 0.8;
+      font-size: 0.8rem;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 0.75rem;
+      gap: 0.25rem;
+    }
+
+    label {
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      padding: 0.5rem 0.6rem;
+      border-radius: 0.6rem;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: rgba(15, 23, 42, 0.9);
+      color: inherit;
+      font-size: 0.9rem;
+    }
+
+    input::placeholder {
+      opacity: 0.5;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 0.5rem 0.9rem;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      cursor: pointer;
+      background: linear-gradient(120deg, #22c55e, #0ea5e9);
+      color: #0b1020;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(34, 197, 94, 0.3);
+      transition: transform 0.08s ease-out, box-shadow 0.08s ease-out,
+      filter 0.08s ease-out;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+      box-shadow: 0 14px 35px rgba(34, 197, 94, 0.35);
+    }
+
+    button:active {
+      transform: translateY(1px) scale(0.99);
+      box-shadow: 0 5px 15px rgba(15, 23, 42, 0.6);
+    }
+
+    button.secondary {
+      background: rgba(15, 23, 42, 0.85);
+      color: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      box-shadow: none;
+    }
+
+    button.secondary:hover {
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.7);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+      filter: none;
+    }
+
+    .inline-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.2rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .value-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      margin-top: 0.4rem;
+    }
+
+    .value-pill {
+      flex: 1;
+      text-align: center;
+      padding: 0.45rem 0.35rem;
+      border-radius: 0.75rem;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+    }
+
+    .value-pill strong {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 0.1rem;
+    }
+
+    .value-pill span {
+      font-size: 0.9rem;
+      opacity: 0.85;
+    }
+
+    .value-status {
+      min-height: 1.1rem;
+      font-size: 0.8rem;
+      opacity: 0.85;
+      margin-top: 0.35rem;
+    }
+
+    .value-status.loading::after {
+      content: "…";
+      animation: dots 1s steps(3, end) infinite;
+    }
+
+    @keyframes dots {
+      0%, 20% { content: "…"; }
+      40% { content: ".  "; }
+      60% { content: ".. "; }
+      80%, 100% { content: "..."; }
+    }
+
+    .camera-shell {
+      margin-top: 0.6rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr);
+      gap: 0.4rem;
+    }
+
+    @media (max-width: 700px) {
+      .camera-shell {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .camera-panel {
+      border-radius: 0.75rem;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: rgba(15, 23, 42, 0.9);
+      position: relative;
+      min-height: 140px;
+    }
+
+    video,
+    canvas,
+    img.cover-preview {
+      width: 100%;
+      display: block;
+      object-fit: cover;
+      aspect-ratio: 4 / 3;
+      background: radial-gradient(circle at center, #020617, #0f172a);
+    }
+
+    .camera-status {
+      font-size: 0.75rem;
+      opacity: 0.75;
+      margin-top: 0.2rem;
+    }
+
+    .saved-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.7rem;
+    }
+
+    .record-card {
+      border-radius: 0.9rem;
+      overflow: hidden;
+      background: radial-gradient(circle at top left, #0f172a, #020617);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      display: flex;
+      flex-direction: column;
+      min-height: 250px;
+    }
+
+    .record-card img {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      background: linear-gradient(145deg, #1e293b, #020617);
+    }
+
+    .record-body {
+      padding: 0.65rem 0.8rem 0.7rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      font-size: 0.85rem;
+    }
+
+    .record-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .record-artist {
+      opacity: 0.85;
+    }
+
+    .record-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 0.8rem;
+      opacity: 0.85;
+      gap: 0.3rem;
+    }
+
+    .record-values {
+      font-size: 0.8rem;
+      margin-top: 0.25rem;
+      opacity: 0.9;
+    }
+
+    .chip {
+      border-radius: 999px;
+      padding: 0.1rem 0.6rem;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      font-size: 0.75rem;
+    }
+
+    .card-actions {
+      margin-top: 0.4rem;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .card-actions button {
+      padding-inline: 0.65rem;
+      font-size: 0.78rem;
+      background: rgba(220, 38, 38, 0.14);
+      color: #fecaca;
+      border: 1px solid rgba(239, 68, 68, 0.6);
+      box-shadow: none;
+    }
+
+    .empty-state {
+      font-size: 0.85rem;
+      opacity: 0.8;
+      margin-top: 0.5rem;
+    }
+
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <header>
+    <div>
+      <h1>Record Value Lab</h1>
+      <p>Scan (or type), rate condition, estimate value, and stash to your mini-collection.</p>
+    </div>
+    <div class="badge">
+      <span class="badge-dot"></span>
+      <span>HTML + JavaScript demo</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left: input + camera -->
+    <section class="panel" aria-label="Record input and camera">
+      <h2>Add a record</h2>
+      <small>Start with artist, album, year, then let the app estimate value based on condition.</small>
+
+      <div class="field-group">
+        <label for="artistInput">Artist</label>
+        <input id="artistInput" type="text" placeholder="e.g., Miles Davis" />
+      </div>
+
+      <div class="field-group">
+        <label for="titleInput">Album</label>
+        <input id="titleInput" type="text" placeholder="e.g., Kind of Blue" />
+      </div>
+
+      <div class="field-group">
+        <label for="yearInput">Year (optional)</label>
+        <input id="yearInput" type="number" min="1900" max="2100" placeholder="1959" />
+      </div>
+
+      <div class="field-group">
+        <label for="conditionSelect">Condition</label>
+        <select id="conditionSelect">
+          <option value="M">Mint (M)</option>
+          <option value="NM" selected>Near Mint (NM)</option>
+          <option value="VG+">Very Good Plus (VG+)</option>
+          <option value="VG">Very Good (VG)</option>
+          <option value="G+">Good Plus (G+)</option>
+          <option value="G">Good (G)</option>
+          <option value="F">Fair (F)</option>
+          <option value="P">Poor (P)</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label for="medianInput">Base median market value (USD)</label>
+        <input
+                id="medianInput"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="You can type a guess or use &quot;Lookup&quot; below"
+        />
+        <div class="inline-actions">
+          <button id="lookupButton" type="button">
+            <span>Lookup Market Value</span>
+          </button>
+          <button id="saveButton" type="button" disabled>
+            Save to My Collection
+          </button>
+        </div>
+        <div id="valueStatus" class="value-status"></div>
+        <div class="value-row">
+          <div class="value-pill">
+            <strong>Low</strong>
+            <span id="lowValue">$—</span>
+          </div>
+          <div class="value-pill">
+            <strong>Median</strong>
+            <span id="medianValue">$—</span>
+          </div>
+          <div class="value-pill">
+            <strong>High</strong>
+            <span id="highValue">$—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Camera area -->
+      <div class="field-group">
+        <label>Cover photo (optional)</label>
+        <div class="inline-actions">
+          <button id="openCameraButton" type="button" class="secondary">
+            Open Camera
+          </button>
+          <button id="captureButton" type="button" class="secondary" disabled>
+            Capture Cover Photo
+          </button>
+        </div>
+
+        <div class="camera-shell">
+          <div class="camera-panel">
+            <video id="videoPreview" playsinline autoplay muted></video>
+          </div>
+          <div class="camera-panel">
+            <canvas id="captureCanvas" style="display:none;"></canvas>
+            <img id="coverPreview" class="cover-preview" alt="Cover preview" />
+          </div>
+        </div>
+        <div id="cameraStatus" class="camera-status"></div>
+      </div>
+    </section>
+
+    <!-- Right: saved records -->
+    <section class="panel" aria-label="Saved records collection">
+      <div class="stack">
+        <div>
+          <h2>My collection</h2>
+          <small>Records you save here stay in this browser using local storage.</small>
+        </div>
+        <div id="savedList" class="saved-list"></div>
+        <div id="emptyState" class="empty-state">
+          No records yet. Add one on the left and hit <strong>Save to My Collection</strong>.
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+  (function () {
+    // ----------------------
+    // Data & configuration
+    // ----------------------
+    const STORAGE_KEY = "recordValueDemo.records";
+
+    const CONDITION_MULTIPLIERS = {
+      M: 1.3,
+      NM: 1.15,
+      "VG+": 1.0,
+      VG: 0.75,
+      "G+": 0.5,
+      G: 0.35,
+      F: 0.25,
+      P: 0.15
+    };
+
+    let currentBaseMedian = null;
+    let currentCoverDataUrl = null;
+    let currentStream = null;
+    let records = loadRecords();
+
+    // ----------------------
+    // DOM references
+    // ----------------------
+    const artistInput = document.getElementById("artistInput");
+    const titleInput = document.getElementById("titleInput");
+    const yearInput = document.getElementById("yearInput");
+    const conditionSelect = document.getElementById("conditionSelect");
+    const medianInput = document.getElementById("medianInput");
+    const lookupButton = document.getElementById("lookupButton");
+    const saveButton = document.getElementById("saveButton");
+    const valueStatus = document.getElementById("valueStatus");
+    const lowValueSpan = document.getElementById("lowValue");
+    const medianValueSpan = document.getElementById("medianValue");
+    const highValueSpan = document.getElementById("highValue");
+
+    const openCameraButton = document.getElementById("openCameraButton");
+    const captureButton = document.getElementById("captureButton");
+    const videoPreview = document.getElementById("videoPreview");
+    const captureCanvas = document.getElementById("captureCanvas");
+    const coverPreview = document.getElementById("coverPreview");
+    const cameraStatus = document.getElementById("cameraStatus");
+
+    const savedList = document.getElementById("savedList");
+    const emptyState = document.getElementById("emptyState");
+
+    // ----------------------
+    // Initialization
+    // ----------------------
+    renderRecords();
+    updateEmptyState();
+    updateValueDisplays();
+
+    // ----------------------
+    // Event handlers
+    // ----------------------
+    lookupButton.addEventListener("click", async () => {
+      const artist = artistInput.value.trim();
+      const title = titleInput.value.trim();
+      const year = yearInput.value.trim();
+
+      if (!artist || !title) {
+        valueStatus.textContent = "Please enter artist and album title before lookup.";
+        return;
+      }
+
+      lookupButton.disabled = true;
+      saveButton.disabled = true;
+      valueStatus.textContent = "Looking up recent sales and computing a median value";
+      valueStatus.classList.add("loading");
+
+      try {
+        const result = await simulateMarketLookup(artist, title, year);
+        currentBaseMedian = result.baseMedian;
+        medianInput.value = currentBaseMedian.toFixed(0);
+        valueStatus.textContent = result.description;
+        valueStatus.classList.remove("loading");
+        updateValueDisplays();
+        saveButton.disabled = false;
+      } catch (err) {
+        console.error(err);
+        valueStatus.textContent = "Could not estimate value. Try again.";
+        valueStatus.classList.remove("loading");
+      } finally {
+        lookupButton.disabled = false;
+      }
+    });
+
+    medianInput.addEventListener("input", () => {
+      const value = parseFloat(medianInput.value);
+      currentBaseMedian = isFinite(value) && value > 0 ? value : null;
+      valueStatus.textContent = currentBaseMedian
+              ? "Using your base median value to compute the range."
+              : "";
+      updateValueDisplays();
+      saveButton.disabled = !currentBaseMedian;
+    });
+
+    conditionSelect.addEventListener("change", () => {
+      updateValueDisplays();
+    });
+
+    saveButton.addEventListener("click", () => {
+      if (!currentBaseMedian) {
+        valueStatus.textContent = "Please lookup or enter a base median value first.";
+        return;
+      }
+
+      const artist = artistInput.value.trim();
+      const title = titleInput.value.trim();
+
+      if (!artist || !title) {
+        valueStatus.textContent = "Artist and album title are required to save.";
+        return;
+      }
+
+      const year = yearInput.value.trim();
+      const condition = conditionSelect.value;
+
+      const record = {
+        id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+        artist,
+        title,
+        year: year || null,
+        condition,
+        baseMedian: currentBaseMedian,
+        coverDataUrl: currentCoverDataUrl
+      };
+
+      records.unshift(record);
+      saveRecords();
+      renderRecords();
+      updateEmptyState();
+      valueStatus.textContent = "Saved to your collection.";
+
+      // Optional: keep fields for next entry; we just keep them.
+    });
+
+    openCameraButton.addEventListener("click", async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        cameraStatus.textContent =
+                "Camera not available in this browser. You can still add records without a photo.";
+        return;
+      }
+
+      try {
+        if (currentStream) {
+          stopStream(currentStream);
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        currentStream = stream;
+        videoPreview.srcObject = stream;
+        cameraStatus.textContent = "Camera is live. Frame the cover and hit “Capture Cover Photo”.";
+        captureButton.disabled = false;
+      } catch (err) {
+        console.error(err);
+        cameraStatus.textContent =
+                "Could not access the camera. Check permissions and try again.";
+      }
+    });
+
+    captureButton.addEventListener("click", () => {
+      if (!currentStream) {
+        cameraStatus.textContent = "Camera is not active.";
+        return;
+      }
+
+      const trackSettings = currentStream.getVideoTracks()[0].getSettings();
+      const width = trackSettings.width || 640;
+      const height = trackSettings.height || 480;
+
+      captureCanvas.width = width;
+      captureCanvas.height = height;
+
+      const ctx = captureCanvas.getContext("2d");
+      ctx.drawImage(videoPreview, 0, 0, width, height);
+
+      const dataUrl = captureCanvas.toDataURL("image/jpeg", 0.8);
+      currentCoverDataUrl = dataUrl;
+      coverPreview.src = dataUrl;
+      cameraStatus.textContent = "Cover captured. You can now save the record.";
+    });
+
+    // ----------------------
+    // Helpers
+    // ----------------------
+    function loadRecords() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveRecords() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    }
+
+    function formatCurrency(amount) {
+      if (!isFinite(amount)) return "$—";
+      return "$" + amount.toFixed(0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+
+    function updateValueDisplays() {
+      const condition = conditionSelect.value;
+      const multiplier = CONDITION_MULTIPLIERS[condition] || 1;
+      const baseMedian =
+              currentBaseMedian ||
+              (parseFloat(medianInput.value) > 0 ? parseFloat(medianInput.value) : null);
+
+      if (!baseMedian) {
+        lowValueSpan.textContent = "$—";
+        medianValueSpan.textContent = "$—";
+        highValueSpan.textContent = "$—";
+        return;
+      }
+
+      const median = baseMedian * multiplier;
+      const low = median * 0.7;
+      const high = median * 1.4;
+
+      lowValueSpan.textContent = formatCurrency(low);
+      medianValueSpan.textContent = formatCurrency(median);
+      highValueSpan.textContent = formatCurrency(high);
+    }
+
+    function renderRecords() {
+      savedList.innerHTML = "";
+
+      records.forEach((record) => {
+        const card = document.createElement("article");
+        card.className = "record-card";
+
+        const img = document.createElement("img");
+        img.src =
+                record.coverDataUrl ||
+                "data:image/svg+xml;utf8," +
+                encodeURIComponent(
+                        `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'>
+                  <defs>
+                    <radialGradient id='g' cx='30%' cy='10%' r='80%'>
+                      <stop offset='0%' stop-color='#1e293b'/>
+                      <stop offset='100%' stop-color='#020617'/>
+                    </radialGradient>
+                  </defs>
+                  <rect width='400' height='300' fill='url(#g)'/>
+                  <circle cx='140' cy='150' r='80' fill='none' stroke='#64748b' stroke-width='8'/>
+                  <circle cx='260' cy='150' r='80' fill='none' stroke='#475569' stroke-width='8'/>
+                  <circle cx='140' cy='150' r='14' fill='#0f172a' stroke='#e5e7eb' stroke-width='4'/>
+                  <circle cx='260' cy='150' r='14' fill='#0f172a' stroke='#e5e7eb' stroke-width='4'/>
+                </svg>`
+                );
+        img.alt = "Record cover";
+
+        const body = document.createElement("div");
+        body.className = "record-body";
+
+        const titleRow = document.createElement("div");
+        titleRow.className = "record-title";
+        titleRow.textContent = record.title;
+
+        const artistRow = document.createElement("div");
+        artistRow.className = "record-artist";
+        artistRow.textContent = record.artist;
+
+        const metaRow = document.createElement("div");
+        metaRow.className = "record-meta";
+
+        const yearSpan = document.createElement("span");
+        yearSpan.textContent = record.year ? record.year : "Year unknown";
+
+        const condChip = document.createElement("span");
+        condChip.className = "chip";
+        condChip.textContent = "Condition: " + record.condition;
+
+        metaRow.appendChild(yearSpan);
+        metaRow.appendChild(condChip);
+
+        const valuesRow = document.createElement("div");
+        valuesRow.className = "record-values";
+
+        const multiplier = CONDITION_MULTIPLIERS[record.condition] || 1;
+        const median = record.baseMedian * multiplier;
+        const low = median * 0.7;
+        const high = median * 1.4;
+
+        valuesRow.textContent =
+                "Value range: " +
+                formatCurrency(low) +
+                " – " +
+                formatCurrency(high) +
+                " (median " +
+                formatCurrency(median) +
+                ")";
+
+        const actions = document.createElement("div");
+        actions.className = "card-actions";
+
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.textContent = "Remove";
+        deleteButton.addEventListener("click", () => {
+          records = records.filter((r) => r.id !== record.id);
+          saveRecords();
+          renderRecords();
+          updateEmptyState();
+        });
+
+        actions.appendChild(deleteButton);
+
+        body.appendChild(titleRow);
+        body.appendChild(artistRow);
+        body.appendChild(metaRow);
+        body.appendChild(valuesRow);
+        body.appendChild(actions);
+
+        card.appendChild(img);
+        card.appendChild(body);
+        savedList.appendChild(card);
+      });
+    }
+
+    function updateEmptyState() {
+      emptyState.style.display = records.length ? "none" : "block";
+    }
+
+    function stopStream(stream) {
+      stream.getTracks().forEach((track) => track.stop());
+    }
+
+    async function simulateMarketLookup(artist, title, year) {
+      // This function mimics a network call to Discogs/eBay/etc.
+      // You can later replace this with a real fetch() call.
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+      const seeded = (artist + title + (year || "")).length;
+      const jitter = (Math.sin(seeded) + 1) / 2; // 0..1
+      const base = 10 + jitter * 60; // $10 - $70 range
+
+      await sleep(800 + (jitter * 600) | 0);
+
+      const descriptionParts = [];
+      descriptionParts.push("Estimated a median based on similar pressings and recent sales.");
+      if (year) {
+        descriptionParts.push("Older release year slightly boosts value.");
+      }
+      descriptionParts.push("You can override this number any time.");
+
+      return {
+        baseMedian: base,
+        description: descriptionParts.join(" ")
+      };
+    }
+
+    // Stop camera when leaving the page
+    window.addEventListener("beforeunload", () => {
+      if (currentStream) stopStream(currentStream);
+    });
+  })();
+</script>
+</body>
+</html>
