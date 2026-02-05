@@ -162,6 +162,13 @@
       box-shadow: 0 6px 16px rgba(15, 23, 42, 0.7);
     }
 
+    button.ghost {
+      background: transparent;
+      color: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      box-shadow: none;
+    }
+
     button:disabled {
       opacity: 0.45;
       cursor: not-allowed;
@@ -329,7 +336,9 @@
     .card-actions {
       margin-top: 0.4rem;
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
     }
 
     .card-actions button {
@@ -352,6 +361,20 @@
       flex-direction: column;
       gap: 0.4rem;
     }
+
+    .bottom-actions {
+      margin-top: 0.8rem;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .bottom-actions small {
+      opacity: 0.75;
+      font-size: 0.78rem;
+    }
   </style>
 </head>
 <body>
@@ -371,7 +394,7 @@
     <!-- Left: input + camera -->
     <section class="panel" aria-label="Record input and camera">
       <h2>Add a record</h2>
-      <small>Start with artist, album, year, then let the app estimate value based on condition.</small>
+      <small>Start with artist, album, year, then let the app estimate value based on condition. Cover photo is optional.</small>
 
       <div class="field-group">
         <label for="artistInput">Artist</label>
@@ -409,14 +432,11 @@
                 type="number"
                 min="0"
                 step="1"
-                placeholder="You can type a guess or use &quot;Lookup&quot; below"
+                placeholder="Type a value or use &quot;Lookup&quot;"
         />
         <div class="inline-actions">
           <button id="lookupButton" type="button">
             <span>Lookup Market Value</span>
-          </button>
-          <button id="saveButton" type="button" disabled>
-            Save to My Collection
           </button>
         </div>
         <div id="valueStatus" class="value-status"></div>
@@ -458,6 +478,13 @@
           </div>
         </div>
         <div id="cameraStatus" class="camera-status"></div>
+      </div>
+
+      <div class="bottom-actions">
+        <small>Minimal required fields: artist, album, and a base median value.</small>
+        <button id="saveBottomButton" type="button" disabled>
+          Save to My Collection
+        </button>
       </div>
     </section>
 
@@ -524,7 +551,7 @@
     const conditionSelect = document.getElementById("conditionSelect");
     const medianInput = document.getElementById("medianInput");
     const lookupButton = document.getElementById("lookupButton");
-    const saveButton = document.getElementById("saveButton");
+    const saveBottomButton = document.getElementById("saveBottomButton");
     const valueStatus = document.getElementById("valueStatus");
     const lowValueSpan = document.getElementById("lowValue");
     const medianValueSpan = document.getElementById("medianValue");
@@ -544,12 +571,15 @@
     const importButton = document.getElementById("importButton");
     const importFileInput = document.getElementById("importFileInput");
 
+    const saveButtons = [saveBottomButton];
+
     // ----------------------
     // Initialization
     // ----------------------
     renderRecords();
     updateEmptyState();
     updateValueDisplays();
+    updateSaveButtonsState();
 
     // ----------------------
     // Event handlers
@@ -565,7 +595,7 @@
       }
 
       lookupButton.disabled = true;
-      saveButton.disabled = true;
+      setSaveButtonsDisabled(true);
       valueStatus.textContent = "Looking up recent sales and computing a median value";
       valueStatus.classList.add("loading");
 
@@ -576,13 +606,13 @@
         valueStatus.textContent = result.description;
         valueStatus.classList.remove("loading");
         updateValueDisplays();
-        saveButton.disabled = false;
       } catch (err) {
         console.error(err);
         valueStatus.textContent = "Could not estimate value. Try again.";
         valueStatus.classList.remove("loading");
       } finally {
         lookupButton.disabled = false;
+        updateSaveButtonsState();
       }
     });
 
@@ -593,47 +623,50 @@
               ? "Using your base median value to compute the range."
               : "";
       updateValueDisplays();
-      saveButton.disabled = !currentBaseMedian;
+      updateSaveButtonsState();
     });
 
     conditionSelect.addEventListener("change", () => {
       updateValueDisplays();
     });
 
-    saveButton.addEventListener("click", () => {
-      if (!currentBaseMedian) {
-        valueStatus.textContent = "Please lookup or enter a base median value first.";
-        return;
-      }
+    artistInput.addEventListener("input", updateSaveButtonsState);
+    titleInput.addEventListener("input", updateSaveButtonsState);
 
-      const artist = artistInput.value.trim();
-      const title = titleInput.value.trim();
+    saveButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (!currentBaseMedian) {
+          valueStatus.textContent = "Please lookup or enter a base median value first.";
+          return;
+        }
 
-      if (!artist || !title) {
-        valueStatus.textContent = "Artist and album title are required to save.";
-        return;
-      }
+        const artist = artistInput.value.trim();
+        const title = titleInput.value.trim();
 
-      const year = yearInput.value.trim();
-      const condition = conditionSelect.value;
+        if (!artist || !title) {
+          valueStatus.textContent = "Artist and album title are required to save.";
+          return;
+        }
 
-      const record = {
-        id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
-        artist,
-        title,
-        year: year || null,
-        condition,
-        baseMedian: currentBaseMedian,
-        coverDataUrl: currentCoverDataUrl
-      };
+        const year = yearInput.value.trim();
+        const condition = conditionSelect.value;
 
-      records.unshift(record);
-      saveRecords();
-      renderRecords();
-      updateEmptyState();
-      valueStatus.textContent = "Saved to your collection.";
+        const record = {
+          id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+          artist,
+          title,
+          year: year || null,
+          condition,
+          baseMedian: currentBaseMedian,
+          coverDataUrl: currentCoverDataUrl
+        };
 
-      // Optional: keep fields for next entry; we just keep them.
+        records.unshift(record);
+        saveRecords();
+        renderRecords();
+        updateEmptyState();
+        valueStatus.textContent = "Saved to your collection.";
+      });
     });
 
     openCameraButton.addEventListener("click", async () => {
@@ -870,6 +903,11 @@
         const actions = document.createElement("div");
         actions.className = "card-actions";
 
+        const keepNote = document.createElement("span");
+        keepNote.style.fontSize = "0.72rem";
+        keepNote.style.opacity = "0.7";
+        keepNote.textContent = "Included in JSON export";
+
         const deleteButton = document.createElement("button");
         deleteButton.type = "button";
         deleteButton.textContent = "Remove";
@@ -880,6 +918,7 @@
           updateEmptyState();
         });
 
+        actions.appendChild(keepNote);
         actions.appendChild(deleteButton);
 
         body.appendChild(titleRow);
@@ -896,6 +935,21 @@
 
     function updateEmptyState() {
       emptyState.style.display = records.length ? "none" : "block";
+    }
+
+    function setSaveButtonsDisabled(disabled) {
+      saveButtons.forEach((btn) => (btn.disabled = disabled));
+    }
+
+    function updateSaveButtonsState() {
+      const artist = artistInput.value.trim();
+      const title = titleInput.value.trim();
+      const baseMedian =
+              currentBaseMedian ||
+              (parseFloat(medianInput.value) > 0 ? parseFloat(medianInput.value) : null);
+
+      const canSave = Boolean(artist && title && baseMedian);
+      setSaveButtonsDisabled(!canSave);
     }
 
     function stopStream(stream) {
