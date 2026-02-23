@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Browser SQL Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            padding: 1.5rem;
+            line-height: 1.4;
+        }
+
+        h1 {
+            margin-bottom: 0.5rem;
+        }
+
+        p {
+            margin-top: 0;
+            margin-bottom: 0.75rem;
+        }
+
+        .section {
+            margin-bottom: 1.5rem;
+        }
+
+        .frame {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            background: #fafafa;
+        }
+
+        .frame-title {
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .field-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .field-row label {
+            min-width: 40px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea {
+            padding: 0.4rem 0.45rem;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 4rem;
+            resize: vertical;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            min-width: 120px;
+        }
+
+        .crud-buttons,
+        .button-row,
+        .sql-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        button {
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            cursor: pointer;
+            background: #f7f7f7;
+            font-size: 0.9rem;
+        }
+
+        button:hover {
+            background: #f0f0f0;
+        }
+
+        button:active {
+            background: #e4e4e4;
+        }
+
+        /* Tabs */
+        .tabs {
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .tab-button {
+            border: 1px solid #ddd;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            padding: 0.35rem 0.75rem;
+            background: #f2f2f2;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .tab-button.active {
+            background: #ffffff;
+            border-bottom: 1px solid #ffffff;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            border: 1px solid #ddd;
+            border-radius: 0 4px 4px 4px;
+            padding: 0.75rem;
+            background: #ffffff;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        #status {
+            border: 1px solid #ddd;
+            padding: 0.5rem;
+            min-height: 4rem;
+            white-space: pre-wrap;
+            background: #fafafa;
+            font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+            margin-top: 0.5rem;
+        }
+
+        .file-row {
+            margin-top: 0.5rem;
+        }
+
+        /* SQL console */
+        .sql-label {
+            font-weight: 500;
+            display: block;
+            margin-bottom: 0.25rem;
+            margin-top: 0.25rem;
+        }
+
+        .sql-io {
+            width: 100%;
+            min-height: 5rem;
+            max-height: 12rem;
+            overflow-y: auto;
+            font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+            font-size: 0.85rem;
+            background: #ffffff;
+        }
+    </style>
+</head>
+<body>
+<h1>Browser SQL Demo</h1>
+<p>
+    Database name: <strong>itemdb</strong><br>
+    Table name: <strong>item(id, description, cost)</strong>
+</p>
+
+<!-- Record editor frame with ID + tabs (CRUD UI) -->
+<div class="frame section">
+    <div class="frame-title">Record editor (CRUD)</div>
+
+    <div class="field-row">
+        <label for="input-id">ID:</label>
+        <input type="number" id="input-id" placeholder="Enter ID" />
+    </div>
+
+    <div class="crud-buttons">
+        <button id="btn-crud-retrieve">Retrieve</button>
+        <button id="btn-crud-create">Create</button>
+        <button id="btn-crud-update">Update</button>
+        <button id="btn-crud-delete">Delete</button>
+    </div>
+
+    <!-- Tabbed region: for now, two tabs: Description and Cost -->
+    <div class="tabs">
+        <button class="tab-button active" data-tab="description" id="tab-desc">Description</button>
+        <button class="tab-button" data-tab="cost" id="tab-cost">Cost</button>
+    </div>
+    <div class="tab-content">
+        <div class="tab-panel active" data-tab-panel="description" id="panel-desc">
+            <label for="input-description">Description:</label><br />
+            <textarea id="input-description" placeholder="Item description"></textarea>
+        </div>
+        <div class="tab-panel" data-tab-panel="cost" id="panel-cost">
+            <label for="input-cost">Cost:</label><br />
+            <input type="number" id="input-cost" placeholder="0.00" step="0.01" />
+        </div>
+    </div>
+</div>
+
+<!-- Admin SQL console -->
+<div class="frame section">
+    <div class="frame-title">Admin SQL console</div>
+
+    <label class="sql-label" for="sql-input">SQL command(s):</label>
+    <textarea id="sql-input" class="sql-io" placeholder="SELECT * FROM item;"></textarea>
+
+    <div class="sql-buttons">
+        <button id="btn-sql-exec">Do it</button>
+        <button id="btn-sql-clear">Clear</button>
+    </div>
+
+    <label class="sql-label" for="sql-output">Output:</label>
+    <textarea id="sql-output" class="sql-io" readonly></textarea>
+</div>
+
+<!-- Database/table/export/import controls -->
+<div class="section">
+    <div class="button-row">
+        <button id="btn-create-db">Create / Select DB</button>
+        <button id="btn-create-table">Create table</button>
+        <button id="btn-drop-table">Delete table</button>
+        <button id="btn-drop-db">Delete database</button>
+        <button id="btn-export">Export table to CSV</button>
+        <button id="btn-import">Import CSV into table</button>
+    </div>
+
+    <div class="file-row">
+        <label for="file-input">CSV file for import:</label>
+        <input type="file" id="file-input" accept=".csv,text/csv" />
+    </div>
+</div>
+
+<div class="section">
+    <h2>Status / Log</h2>
+    <div id="status"></div>
+</div>
+
+<!-- AlaSQL: primary CDN + two fallbacks -->
+<!-- Primary: jsDelivr -->
+<script src="https://cdn.jsdelivr.net/npm/alasql@1.7.6/dist/alasql.min.js"></script>
+
+<!-- Fallback #1: UNPKG -->
+<script>
+    if (typeof window.alasql === "undefined") {
+        document.write('<script src="https://unpkg.com/alasql@1.7.6/dist/alasql.min.js"><\/script>');
+    }
+</script>
+
+<!-- Fallback #2: CDNJS (older version) -->
+<script>
+    if (typeof window.alasql === "undefined") {
+        document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/alasql/0.6.2/alasql.min.js"><\/script>');
+    }
+</script>
+
+<!-- Compiled TypeScript -->
+<script src="js/main.js"></script>
+</body>
+</html>
