@@ -1,0 +1,2841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebDates - Calendar &amp; Date Reminder</title>
+<style>
+:root {
+  --primary: #1a5276;
+  --primary-light: #2980b9;
+  --primary-dark: #0e2f44;
+  --accent: #e74c3c;
+  --accent-light: #f1948a;
+  --bg: #ecf0f1;
+  --surface: #ffffff;
+  --text: #2c3e50;
+  --text-light: #7f8c8d;
+  --border: #bdc3c7;
+  --today: #ffeaa7;
+  --birthday: #a29bfe;
+  --anniversary: #fd79a8;
+  --holiday: #55efc4;
+  --appointment: #74b9ff;
+  --task: #fdcb6e;
+  --custom: #dfe6e9;
+  --gdrive: #0f9d58;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* Top toolbar */
+#toolbar {
+  background: linear-gradient(to bottom, var(--primary-light), var(--primary));
+  color: white;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+#toolbar button {
+  background: linear-gradient(to bottom, #f0f0f0, #d0d0d0);
+  border: 1px solid #999;
+  border-radius: 3px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #333;
+}
+
+#toolbar button:hover { background: linear-gradient(to bottom, #fff, #e0e0e0); }
+#toolbar button.active { background: linear-gradient(to bottom, #a0cfff, #70a0dd); color: #003; border-color: #456; }
+
+#toolbar .sep { width: 1px; height: 24px; background: rgba(255,255,255,0.3); margin: 0 6px; }
+
+#toolbar .nav-group { display: flex; align-items: center; gap: 2px; }
+#toolbar .nav-group .month-label {
+  color: white;
+  font-weight: bold;
+  min-width: 160px;
+  text-align: center;
+  font-size: 14px;
+}
+
+/* Green Save/Load buttons */
+#toolbar button.btn-gdrive {
+  background: linear-gradient(to bottom, #34c770, var(--gdrive));
+  color: white;
+  border-color: #0a7c42;
+  font-weight: bold;
+}
+#toolbar button.btn-gdrive:hover {
+  background: linear-gradient(to bottom, #42e080, #12b85c);
+}
+
+/* Blue Sheets buttons */
+#toolbar button.btn-sheets {
+  background: linear-gradient(to bottom, #4285f4, #3367d6);
+  color: white;
+  border-color: #2a56c6;
+  font-weight: bold;
+}
+#toolbar button.btn-sheets:hover {
+  background: linear-gradient(to bottom, #5a95f5, #4285f4);
+}
+
+/* Main layout */
+#app {
+  display: flex;
+  height: calc(100vh - 38px);
+}
+
+/* Sidebar */
+#sidebar {
+  width: 220px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+#mini-calendar {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+#mini-calendar .mini-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+#mini-calendar .mini-header button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--primary);
+  padding: 0 4px;
+}
+
+#mini-calendar table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+#mini-calendar th {
+  color: var(--text-light);
+  font-weight: normal;
+  padding: 2px;
+  text-align: center;
+}
+
+#mini-calendar td {
+  text-align: center;
+  padding: 2px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+#mini-calendar td:hover { background: #eee; }
+#mini-calendar td.today { background: var(--today); font-weight: bold; }
+#mini-calendar td.selected { background: var(--primary-light); color: white; }
+#mini-calendar td.other-month { color: #ccc; }
+#mini-calendar td.has-event { font-weight: bold; }
+
+/* Upcoming panel */
+#upcoming-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+#upcoming-panel h3 {
+  font-size: 12px;
+  color: var(--primary);
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+
+.upcoming-item {
+  padding: 4px 6px;
+  margin-bottom: 3px;
+  border-radius: 3px;
+  font-size: 11px;
+  cursor: pointer;
+  border-left: 3px solid var(--primary-light);
+}
+
+.upcoming-item:hover { background: #f0f0f0; }
+.upcoming-item .up-date { color: var(--text-light); font-size: 10px; }
+.upcoming-item .up-age { color: var(--accent); font-weight: bold; font-size: 10px; }
+.upcoming-item.type-birthday { border-left-color: var(--birthday); }
+.upcoming-item.type-anniversary { border-left-color: var(--anniversary); }
+.upcoming-item.type-holiday { border-left-color: var(--holiday); }
+.upcoming-item.type-appointment { border-left-color: var(--appointment); }
+.upcoming-item.type-task { border-left-color: var(--task); }
+
+/* Main content */
+#main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Month view */
+#month-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+}
+
+#month-view .month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  flex: 1;
+}
+
+#month-view .day-header {
+  background: var(--primary);
+  color: white;
+  text-align: center;
+  padding: 6px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+#month-view .day-cell {
+  border: 1px solid #e0e0e0;
+  padding: 2px;
+  min-height: 80px;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+}
+
+#month-view .day-cell:hover { background: #f8f9fa; }
+#month-view .day-cell.today { background: #fff9e6; }
+#month-view .day-cell.other-month { background: #f5f5f5; }
+#month-view .day-cell.other-month .day-num { color: #ccc; }
+#month-view .day-cell.selected { outline: 2px solid var(--primary-light); }
+
+.day-num {
+  font-size: 12px;
+  font-weight: bold;
+  padding: 2px 4px;
+  color: var(--text);
+}
+
+.day-num.sunday { color: var(--accent); }
+
+.day-event {
+  font-size: 10px;
+  padding: 1px 4px;
+  margin: 1px 0;
+  border-radius: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.day-event.type-birthday { background: var(--birthday); color: white; }
+.day-event.type-anniversary { background: var(--anniversary); color: white; }
+.day-event.type-holiday { background: var(--holiday); color: #333; }
+.day-event.type-appointment { background: var(--appointment); color: white; }
+.day-event.type-task { background: var(--task); color: #333; }
+.day-event.type-custom { background: var(--custom); color: #333; }
+
+/* Week view */
+#week-view {
+  flex: 1;
+  display: none;
+  flex-direction: column;
+  padding: 4px;
+  overflow-y: auto;
+}
+
+#week-view .week-header-row {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  background: var(--primary);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+#week-view .week-header-row div {
+  padding: 6px 4px;
+  text-align: center;
+  border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+#week-view .week-body {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  flex: 1;
+}
+
+#week-view .time-label {
+  font-size: 10px;
+  color: var(--text-light);
+  text-align: right;
+  padding: 2px 4px;
+  border-bottom: 1px solid #eee;
+  height: 40px;
+  line-height: 40px;
+}
+
+#week-view .week-cell {
+  border: 1px solid #f0f0f0;
+  height: 40px;
+  padding: 1px;
+  cursor: pointer;
+  position: relative;
+}
+
+#week-view .week-cell:hover { background: #f8f9fa; }
+#week-view .week-cell.today-col { background: #fff9e6; }
+
+/* Day view */
+#day-view {
+  flex: 1;
+  display: none;
+  flex-direction: column;
+  padding: 4px;
+  overflow-y: auto;
+}
+
+#day-view .day-view-header {
+  background: var(--primary);
+  color: white;
+  padding: 10px;
+  font-size: 16px;
+  text-align: center;
+}
+
+#day-view .day-timeline {
+  flex: 1;
+}
+
+#day-view .hour-row {
+  display: flex;
+  border-bottom: 1px solid #eee;
+  min-height: 50px;
+}
+
+#day-view .hour-label {
+  width: 70px;
+  font-size: 11px;
+  color: var(--text-light);
+  text-align: right;
+  padding: 4px 8px 4px 4px;
+  flex-shrink: 0;
+}
+
+#day-view .hour-content {
+  flex: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-left: 1px solid #eee;
+}
+
+#day-view .hour-content:hover { background: #f8f9fa; }
+
+/* Event list view */
+#list-view {
+  flex: 1;
+  display: none;
+  flex-direction: column;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+#list-view h2 {
+  font-size: 16px;
+  color: var(--primary);
+  margin-bottom: 8px;
+}
+
+#list-view table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#list-view th {
+  background: var(--primary);
+  color: white;
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 12px;
+}
+
+#list-view td {
+  padding: 5px 8px;
+  border-bottom: 1px solid #eee;
+  font-size: 12px;
+}
+
+#list-view tr:hover { background: #f0f8ff; }
+#list-view tr.past { color: var(--text-light); }
+
+.type-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 10px;
+  color: white;
+}
+
+.type-badge.birthday { background: var(--birthday); }
+.type-badge.anniversary { background: var(--anniversary); }
+.type-badge.holiday { background: var(--holiday); color: #333; }
+.type-badge.appointment { background: var(--appointment); }
+.type-badge.task { background: var(--task); color: #333; }
+.type-badge.custom { background: var(--custom); color: #333; }
+
+/* Modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 60px;
+}
+
+.modal-overlay.active { display: flex; }
+
+.modal {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  width: 480px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  background: var(--primary);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 { font-size: 14px; }
+
+.modal-header .close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.modal-body { padding: 16px; }
+
+.form-group {
+  margin-bottom: 10px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: bold;
+  margin-bottom: 3px;
+  color: var(--text);
+}
+
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.form-group textarea { height: 60px; resize: vertical; }
+
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.form-row .form-group { flex: 1; }
+
+.form-group input[type="checkbox"] {
+  width: auto;
+  margin-right: 6px;
+}
+
+.modal-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.modal-footer button {
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary-dark) !important;
+}
+
+.btn-primary:hover { background: var(--primary-light); }
+
+.btn-danger {
+  background: var(--accent);
+  color: white;
+  border-color: darkred !important;
+}
+
+.btn-danger:hover { background: #c0392b; }
+
+/* Age display */
+.age-display {
+  background: #f8f0ff;
+  border: 1px solid var(--birthday);
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.age-display .age-big {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--primary);
+}
+
+/* Settings panel */
+#settings-panel {
+  display: none;
+  flex-direction: column;
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+#settings-panel h2 {
+  font-size: 16px;
+  color: var(--primary);
+  margin-bottom: 12px;
+}
+
+#settings-panel .settings-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+#settings-panel .settings-section h3 {
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: var(--primary);
+}
+
+/* Alarm notification */
+#alarm-popup {
+  display: none;
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: white;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  z-index: 2000;
+  width: 320px;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+#alarm-popup .alarm-header {
+  background: var(--accent);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px 6px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+#alarm-popup .alarm-body {
+  padding: 12px;
+  font-size: 13px;
+}
+
+#alarm-popup .alarm-footer {
+  padding: 8px 12px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+#alarm-popup .alarm-footer button {
+  padding: 4px 12px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+/* Status bar */
+#statusbar {
+  background: #f0f0f0;
+  border-top: 1px solid var(--border);
+  padding: 3px 10px;
+  font-size: 11px;
+  color: var(--text-light);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Toast notifications */
+#toast-container {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 10px 24px;
+  border-radius: 6px;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: auto;
+  max-width: 400px;
+  text-align: center;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.success { background: var(--gdrive); }
+.toast.error { background: var(--accent); }
+
+/* Password modal green header */
+#password-modal .modal-header {
+  background: var(--gdrive);
+}
+
+/* Print styles */
+@media print {
+  #toolbar, #sidebar, #statusbar, .modal-overlay, #alarm-popup, #toast-container { display: none !important; }
+  #app { height: auto !important; }
+  #main-content { overflow: visible !important; }
+  #month-view .day-cell { min-height: 60px !important; }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  .modal { width: 95vw; }
+}
+</style>
+</head>
+<body>
+
+<!-- Toolbar -->
+<div id="toolbar">
+  <div class="nav-group">
+    <button onclick="navigateMonth(-1)" title="Previous">&laquo;</button>
+    <button onclick="goToToday()" title="Today">Today</button>
+    <button onclick="navigateMonth(1)" title="Next">&raquo;</button>
+    <span class="month-label" id="toolbar-title"></span>
+  </div>
+  <div class="sep"></div>
+  <button id="btn-month" class="active" onclick="switchView('month')">Month</button>
+  <button id="btn-week" onclick="switchView('week')">Week</button>
+  <button id="btn-day" onclick="switchView('day')">Day</button>
+  <button id="btn-list" onclick="switchView('list')">Event List</button>
+  <div class="sep"></div>
+  <button onclick="openNewEvent()">+ New Event</button>
+  <button onclick="openNewEvent('birthday')">+ Birthday</button>
+  <button onclick="openNewEvent('anniversary')">+ Anniversary</button>
+  <div class="sep"></div>
+  <button onclick="importICS()">Import .ics</button>
+  <button onclick="exportICS()">Export .ics</button>
+  <div class="sep"></div>
+  <button class="btn-gdrive" onclick="encryptedSave()">Save</button>
+  <button class="btn-gdrive" onclick="encryptedLoad()">Load</button>
+  <div class="sep"></div>
+  <button class="btn-sheets" id="btn-sheets-save" onclick="sheetsSave()" style="display:none">Sheets Save</button>
+  <button class="btn-sheets" id="btn-sheets-load" onclick="sheetsLoad()" style="display:none">Sheets Load</button>
+  <button onclick="switchView('settings')">Settings</button>
+  <button onclick="window.print()">Print</button>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div id="mini-calendar"></div>
+    <div id="upcoming-panel">
+      <h3>Upcoming Events</h3>
+      <div id="upcoming-list"></div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div id="main-content">
+    <!-- Month View -->
+    <div id="month-view"></div>
+
+    <!-- Week View -->
+    <div id="week-view"></div>
+
+    <!-- Day View -->
+    <div id="day-view"></div>
+
+    <!-- Event List View -->
+    <div id="list-view"></div>
+
+    <!-- Settings Panel -->
+    <div id="settings-panel">
+      <h2>Settings &amp; Customization</h2>
+
+      <div class="settings-section">
+        <h3>Display Options</h3>
+        <div class="form-group">
+          <label><input type="checkbox" id="set-show-holidays" checked onchange="saveSettings()"> Show holidays</label>
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" id="set-show-ages" checked onchange="saveSettings()"> Show ages on birthdays</label>
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" id="set-show-years" checked onchange="saveSettings()"> Show years on anniversaries</label>
+        </div>
+        <div class="form-group">
+          <label>Week starts on:</label>
+          <select id="set-week-start" onchange="saveSettings(); renderAll();">
+            <option value="0">Sunday</option>
+            <option value="1">Monday</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Alarm Defaults</h3>
+        <div class="form-group">
+          <label>Default reminder:</label>
+          <select id="set-default-alarm" onchange="saveSettings()">
+            <option value="0">None</option>
+            <option value="5">5 minutes before</option>
+            <option value="15" selected>15 minutes before</option>
+            <option value="30">30 minutes before</option>
+            <option value="60">1 hour before</option>
+            <option value="1440">1 day before</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" id="set-alarm-sound" checked onchange="saveSettings()"> Play alarm sound</label>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Date &amp; Time Format</h3>
+        <div class="form-group">
+          <label>Date format:</label>
+          <select id="set-date-format" onchange="saveSettings()">
+            <option value="mdy">MM/DD/YYYY</option>
+            <option value="dmy">DD/MM/YYYY</option>
+            <option value="ymd">YYYY-MM-DD</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" id="set-24hour" onchange="saveSettings()"> Use 24-hour time</label>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Holiday Calendars</h3>
+        <div class="form-group">
+          <label><input type="checkbox" id="set-us-holidays" checked onchange="saveSettings(); renderAll();"> US Federal Holidays</label>
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" id="set-observances" checked onchange="saveSettings(); renderAll();"> Common Observances (Mother's Day, Father's Day, etc.)</label>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Backup &amp; Encryption</h3>
+        <div class="form-group">
+          <label><input type="checkbox" id="set-encrypt-backups" checked onchange="saveSettings()"> Encrypt file backups (AES-256-GCM)</label>
+        </div>
+        <p style="font-size:11px; color:var(--text-light); margin-top:4px;">
+          When enabled, Save/Load buttons use password-encrypted .enc files.<br>
+          When disabled, Save/Load use plain JSON files (no password needed).
+        </p>
+      </div>
+
+      <div class="settings-section">
+        <h3>Google Sheets Sync (Optional)</h3>
+        <div class="form-group">
+          <label><input type="checkbox" id="set-sheets-enabled" onchange="saveSettings()"> Enable Google Sheets sync</label>
+        </div>
+        <div class="form-group">
+          <label>OAuth Client ID:</label>
+          <input type="text" id="set-sheets-client-id" placeholder="your-client-id.apps.googleusercontent.com" onchange="saveSettings()">
+        </div>
+        <div class="form-group">
+          <label>Spreadsheet name prefix:</label>
+          <input type="text" id="set-sheets-prefix" placeholder="WebDates" value="WebDates" onchange="saveSettings()">
+        </div>
+        <p style="font-size:11px; color:var(--text-light); margin-top:4px;">
+          Stores calendar data in a Google Spreadsheet (human-readable).<br>
+          Spreadsheet name: <strong>{prefix}_Calendar_{year}</strong>
+        </p>
+        <div style="font-size:11px; margin-top:6px; padding:6px 8px; background:#fff3cd; border:1px solid #ffc107; border-radius:4px;">
+          <strong>Note:</strong> Google Sheets sync requires <code>http://</code> — it will not work when opening the HTML file directly (<code>file://</code>).
+          To start a local server, open Terminal and run:<br>
+          <code style="background:#e8e8e8; padding:2px 6px; border-radius:3px; display:inline-block; margin-top:4px;">python3 -m http.server 8080</code><br>
+          Then open <a href="http://localhost:8080/windates.html" style="color:var(--primary)">http://localhost:8080/windates.html</a><br>
+          <em>Everything else (Save/Load, events, alarms) works fine from file://.</em>
+        </div>
+        <details style="margin-top:10px; font-size:12px; line-height:1.6;">
+          <summary style="cursor:pointer; font-weight:bold; color:var(--primary); padding:4px 0;">How to get an OAuth Client ID (step-by-step)</summary>
+          <div style="padding:8px; margin-top:6px; background:#f8f9fa; border:1px solid var(--border); border-radius:4px;">
+
+            <p style="margin-bottom:8px;"><strong>Important: Multiple Google Accounts</strong></p>
+            <p style="margin-bottom:8px;">
+              If you have more than one Google account (e.g. a personal account and a work account),
+              pay attention to <em>which account</em> you are using at each step. There are two separate choices:
+            </p>
+            <ul style="margin:0 0 8px 20px;">
+              <li><strong>Google Cloud Console account</strong> &mdash; the account where you create the OAuth Client ID (Step 1 below). This account owns the "project" and API credentials. It does NOT have to be the same account that stores the spreadsheet.</li>
+              <li><strong>Google Drive account</strong> &mdash; the account you sign into when WebDates asks to authorize. This is where the spreadsheet gets created and stored. You can choose any of your accounts at that point.</li>
+            </ul>
+            <p style="margin-bottom:10px; color:var(--accent);">
+              Tip: Before starting, open an incognito/private window or make sure you're signed into the
+              Google account you want to use for the Cloud Console. Look at the avatar in the top-right
+              corner of the Google Cloud Console to confirm which account is active.
+            </p>
+
+            <hr style="border:none; border-top:1px solid var(--border); margin:10px 0;">
+
+            <p style="margin-bottom:6px;"><strong>Step 1 &mdash; Go to Google Cloud Console</strong></p>
+            <p style="margin-bottom:10px;">
+              Open <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a>
+              and sign in. If you see an account picker, choose the account you want to own this project
+              (any of your accounts will work).
+            </p>
+
+            <p style="margin-bottom:6px;"><strong>Step 2 &mdash; Create a new project (or use an existing one)</strong></p>
+            <ul style="margin:0 0 10px 20px;">
+              <li>Click the project dropdown at the top of the page (it may say "Select a project" or show a project name).</li>
+              <li>Click <strong>New Project</strong>.</li>
+              <li>Name it anything you like (e.g. "WebDates").</li>
+              <li>Click <strong>Create</strong>. Wait a few seconds, then select the new project from the dropdown.</li>
+            </ul>
+
+            <p style="margin-bottom:6px;"><strong>Step 3 &mdash; Enable the APIs</strong></p>
+            <ul style="margin:0 0 10px 20px;">
+              <li>In the left sidebar, go to <strong>APIs &amp; Services &rarr; Library</strong>.</li>
+              <li>Search for <strong>Google Sheets API</strong>. Click it, then click <strong>Enable</strong>.</li>
+              <li>Go back to the Library. Search for <strong>Google Drive API</strong>. Click it, then click <strong>Enable</strong>.</li>
+            </ul>
+
+            <p style="margin-bottom:6px;"><strong>Step 4 &mdash; Configure the OAuth consent screen</strong></p>
+            <ul style="margin:0 0 10px 20px;">
+              <li>In the left sidebar, go to <strong>APIs &amp; Services &rarr; OAuth consent screen</strong>.</li>
+              <li>Choose <strong>External</strong> user type, then click <strong>Create</strong>.</li>
+              <li>Fill in the required fields:
+                <ul style="margin:4px 0 4px 16px;">
+                  <li><strong>App name</strong>: WebDates (or anything)</li>
+                  <li><strong>User support email</strong>: select your email</li>
+                  <li><strong>Developer contact email</strong>: your email</li>
+                </ul>
+              </li>
+              <li>Click <strong>Save and Continue</strong> through the remaining screens (Scopes, Test users, Summary). You can skip adding scopes here &mdash; WebDates requests them at runtime.</li>
+            </ul>
+
+            <p style="margin-bottom:6px;"><strong>Step 5 &mdash; Add yourself as a test user</strong></p>
+            <ul style="margin:0 0 10px 20px;">
+              <li>On the <strong>OAuth consent screen</strong> page, scroll down to <strong>Test users</strong>.</li>
+              <li>Click <strong>Add users</strong>.</li>
+              <li>Enter the email address(es) of every Google account you want to use with WebDates.
+                For example, if you have <em>you9422@gmail.com</em> and <em>you987@gmail.com</em>,
+                add both here.</li>
+              <li>Click <strong>Save</strong>.</li>
+              <li><em>Why?</em> While the app is in "Testing" mode (not published), only listed test users can sign in. This is normal and fine for personal use.</li>
+            </ul>
+
+            <p style="margin-bottom:6px;"><strong>Step 6 &mdash; Create an OAuth Client ID</strong></p>
+            <ul style="margin:0 0 10px 20px;">
+              <li>Go to <strong>APIs &amp; Services &rarr; Credentials</strong>.</li>
+              <li>Click <strong>+ Create Credentials &rarr; OAuth client ID</strong>.</li>
+              <li>Application type: <strong>Web application</strong>.</li>
+              <li>Name: WebDates (or anything).</li>
+              <li>Under <strong>Authorized JavaScript origins</strong>, click <strong>+ Add URI</strong> and enter:<br>
+                <code style="background:#e8e8e8; padding:2px 6px; border-radius:3px;">http://localhost:8080</code><br>
+                If you use a different port, add that too (e.g. <code style="background:#e8e8e8; padding:2px 6px; border-radius:3px;">http://localhost:8081</code>).
+                If you deploy to a real domain later, add that URL as well.
+              </li>
+              <li>Leave <strong>Authorized redirect URIs</strong> empty (not needed for this flow).</li>
+              <li>Click <strong>Create</strong>.</li>
+            </ul>
+
+            <p style="margin-bottom:6px;"><strong>Step 7 &mdash; Copy the Client ID</strong></p>
+            <ul style="margin:0 0 10px 20px;">
+              <li>A dialog shows your <strong>Client ID</strong> and Client Secret. You only need the <strong>Client ID</strong>.</li>
+              <li>It looks like: <code style="background:#e8e8e8; padding:2px 6px; border-radius:3px; word-break:break-all;">123456789-abcdef.apps.googleusercontent.com</code></li>
+              <li>Copy it and paste it into the <strong>OAuth Client ID</strong> field above.</li>
+              <li>(You do NOT need the Client Secret for this app.)</li>
+            </ul>
+
+            <p style="margin-bottom:6px;"><strong>Step 8 &mdash; Test it</strong></p>
+            <ul style="margin:0 0 10px 20px;">
+              <li>Check the <strong>Enable Google Sheets sync</strong> checkbox above.</li>
+              <li>Paste your Client ID into the field.</li>
+              <li>Click <strong>Sheets Save</strong> in the toolbar.</li>
+              <li>A Google sign-in popup appears. If you have multiple accounts, it will show all of them &mdash;
+                <strong>pick whichever account you want the spreadsheet stored in</strong>.
+                This does not have to be the same account you used for the Cloud Console.</li>
+              <li>You may see a "This app isn't verified" warning &mdash; click <strong>Advanced &rarr; Go to WebDates (unsafe)</strong>.
+                This is normal for testing-mode apps.</li>
+              <li>Grant the requested permissions (Sheets + Drive access for files this app creates).</li>
+              <li>Your calendar data will be saved to a spreadsheet in that account's Google Drive!</li>
+            </ul>
+
+            <hr style="border:none; border-top:1px solid var(--border); margin:10px 0;">
+
+            <p style="margin-bottom:4px;"><strong>Summary: Multiple Accounts</strong></p>
+            <table style="font-size:11px; border-collapse:collapse; width:100%; margin-bottom:6px;">
+              <tr style="background:var(--primary); color:white;">
+                <th style="padding:4px 6px; text-align:left;">Step</th>
+                <th style="padding:4px 6px; text-align:left;">Which account?</th>
+              </tr>
+              <tr style="border-bottom:1px solid #ddd;">
+                <td style="padding:4px 6px;">Cloud Console (create project + Client ID)</td>
+                <td style="padding:4px 6px;">Any account. Pick one and stick with it for the Console.</td>
+              </tr>
+              <tr style="border-bottom:1px solid #ddd;">
+                <td style="padding:4px 6px;">Test Users list</td>
+                <td style="padding:4px 6px;">Add ALL accounts you plan to sign in with.</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 6px;">Sign-in popup (when you click Sheets Save/Load)</td>
+                <td style="padding:4px 6px;">Choose whichever account should own the spreadsheet.</td>
+              </tr>
+            </table>
+            <p style="font-size:11px; color:var(--text-light);">
+              The Client ID is the same regardless of which account signs in. You create it once and can use it
+              with any Google account that's listed as a test user.
+            </p>
+          </div>
+        </details>
+      </div>
+
+      <div class="settings-section">
+        <h3>Data Management</h3>
+        <button onclick="exportAllData()" class="btn-primary" style="padding:6px 16px; font-size:12px; border-radius:3px; cursor:pointer;">Export All Data (JSON)</button>
+        <button onclick="importAllData()" style="padding:6px 16px; font-size:12px; border-radius:3px; cursor:pointer; margin-left:6px;">Import Data (JSON)</button>
+        <button onclick="if(confirm('Delete ALL events and settings? This cannot be undone.')){localStorage.clear();location.reload();}" class="btn-danger" style="padding:6px 16px; font-size:12px; border-radius:3px; cursor:pointer; margin-left:6px;">Reset All Data</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Status Bar -->
+<div id="statusbar">
+  <span id="status-left"></span>
+  <span id="status-center"></span>
+  <span id="status-right"></span>
+</div>
+
+<!-- Event Modal -->
+<div class="modal-overlay" id="event-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">New Event</h3>
+      <button class="close-btn" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Title *</label>
+        <input type="text" id="evt-title" placeholder="Event title">
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select id="evt-type" onchange="onTypeChange()">
+          <option value="appointment">Appointment</option>
+          <option value="birthday">Birthday</option>
+          <option value="anniversary">Anniversary</option>
+          <option value="holiday">Holiday</option>
+          <option value="task">Task</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date *</label>
+          <input type="date" id="evt-date">
+        </div>
+        <div class="form-group" id="evt-end-date-group">
+          <label>End Date</label>
+          <input type="date" id="evt-end-date">
+        </div>
+      </div>
+      <div class="form-row" id="evt-time-group">
+        <div class="form-group">
+          <label>Start Time</label>
+          <input type="time" id="evt-start-time">
+        </div>
+        <div class="form-group">
+          <label>End Time</label>
+          <input type="time" id="evt-end-time">
+        </div>
+      </div>
+      <div class="form-group" id="evt-allday-group">
+        <label><input type="checkbox" id="evt-allday" onchange="toggleAllDay()"> All day event</label>
+      </div>
+
+      <!-- Birthday-specific: birth year for age calc -->
+      <div class="form-group" id="evt-birth-year-group" style="display:none">
+        <label>Birth Year (for age calculation)</label>
+        <input type="number" id="evt-birth-year" placeholder="e.g. 1990" min="1800" max="2100">
+      </div>
+
+      <!-- Anniversary-specific: start year -->
+      <div class="form-group" id="evt-start-year-group" style="display:none">
+        <label>Anniversary Start Year</label>
+        <input type="number" id="evt-start-year" placeholder="e.g. 2010" min="1800" max="2100">
+      </div>
+
+      <!-- Recurrence -->
+      <div class="form-group">
+        <label>Recurrence</label>
+        <select id="evt-recurrence">
+          <option value="none">None (one-time)</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Every 2 weeks</option>
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+        </select>
+      </div>
+
+      <!-- Alarm -->
+      <div class="form-group">
+        <label>Reminder</label>
+        <select id="evt-alarm">
+          <option value="0">None</option>
+          <option value="5">5 minutes before</option>
+          <option value="15">15 minutes before</option>
+          <option value="30">30 minutes before</option>
+          <option value="60">1 hour before</option>
+          <option value="1440">1 day before</option>
+          <option value="10080">1 week before</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="evt-notes" placeholder="Additional notes..."></textarea>
+      </div>
+
+      <!-- Age display for existing birthdays -->
+      <div id="age-info" class="age-display" style="display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button id="btn-delete" class="btn-danger" onclick="deleteEvent()" style="display:none">Delete</button>
+      <button onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveEvent()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Password Modal -->
+<div class="modal-overlay" id="password-modal">
+  <div class="modal" style="width:380px">
+    <div class="modal-header">
+      <h3 id="pw-modal-title">Enter Password</h3>
+      <button class="close-btn" onclick="cancelPasswordModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="pw-input" placeholder="Enter encryption password" autocomplete="off">
+      </div>
+      <div class="form-group" id="pw-confirm-group" style="display:none">
+        <label>Confirm Password</label>
+        <input type="password" id="pw-confirm" placeholder="Confirm password" autocomplete="off">
+      </div>
+      <p id="pw-error" style="color:var(--accent); font-size:12px; margin-top:4px; display:none;"></p>
+    </div>
+    <div class="modal-footer">
+      <button onclick="cancelPasswordModal()">Cancel</button>
+      <button class="btn-primary" onclick="submitPasswordModal()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Alarm Popup -->
+<div id="alarm-popup">
+  <div class="alarm-header">
+    <span>Reminder</span>
+    <button onclick="dismissAlarm()" style="background:none;border:none;color:white;font-size:16px;cursor:pointer">&times;</button>
+  </div>
+  <div class="alarm-body" id="alarm-body"></div>
+  <div class="alarm-footer">
+    <button onclick="snoozeAlarm(5)">Snooze 5m</button>
+    <button onclick="snoozeAlarm(15)">Snooze 15m</button>
+    <button onclick="dismissAlarm()">Dismiss</button>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Hidden file inputs -->
+<input type="file" id="ics-file-input" accept=".ics" style="display:none" onchange="handleICSImport(event)">
+<input type="file" id="json-file-input" accept=".json" style="display:none" onchange="handleJSONImport(event)">
+<input type="file" id="enc-file-input" accept=".enc" style="display:none" onchange="handleEncLoad(event)">
+<input type="file" id="json-load-input" accept=".json" style="display:none" onchange="handleJSONLoad(event)">
+
+<script>
+"use strict";
+// ===== STATE =====
+let events = [];
+let currentDate = new Date();
+let selectedDate = new Date();
+let currentView = 'month';
+let editingEventId = null;
+let alarmQueue = [];
+let dismissedAlarms = new Set();
+let settings = {
+    showHolidays: true,
+    showAges: true,
+    showYears: true,
+    weekStart: 0,
+    defaultAlarm: 15,
+    alarmSound: true,
+    dateFormat: 'mdy',
+    use24Hour: false,
+    usHolidays: true,
+    observances: true,
+    encryptBackups: true,
+    sheetsEnabled: false,
+    sheetsClientId: '',
+    sheetsPrefix: 'WebDates'
+};
+// ===== PASSWORD MODAL (Promise-based) =====
+let _pwResolve = null;
+function promptPassword(title, showConfirm) {
+    return new Promise(function (resolve) {
+        _pwResolve = resolve;
+        document.getElementById('pw-modal-title').textContent = title;
+        document.getElementById('pw-input').value = '';
+        document.getElementById('pw-confirm').value = '';
+        document.getElementById('pw-error').style.display = 'none';
+        document.getElementById('pw-error').textContent = '';
+        document.getElementById('pw-confirm-group').style.display = showConfirm ? 'block' : 'none';
+        document.getElementById('password-modal').classList.add('active');
+        setTimeout(function () { document.getElementById('pw-input').focus(); }, 50);
+    });
+}
+function submitPasswordModal() {
+    const pw = document.getElementById('pw-input').value;
+    const confirmGroup = document.getElementById('pw-confirm-group');
+    const showConfirm = confirmGroup.style.display !== 'none';
+    if (!pw) {
+        document.getElementById('pw-error').textContent = 'Password is required.';
+        document.getElementById('pw-error').style.display = 'block';
+        return;
+    }
+    if (showConfirm) {
+        const confirmVal = document.getElementById('pw-confirm').value;
+        if (pw !== confirmVal) {
+            document.getElementById('pw-error').textContent = 'Passwords do not match.';
+            document.getElementById('pw-error').style.display = 'block';
+            return;
+        }
+    }
+    document.getElementById('password-modal').classList.remove('active');
+    if (_pwResolve) {
+        const resolve = _pwResolve;
+        _pwResolve = null;
+        resolve(pw);
+    }
+}
+function cancelPasswordModal() {
+    document.getElementById('password-modal').classList.remove('active');
+    if (_pwResolve) {
+        const resolve = _pwResolve;
+        _pwResolve = null;
+        resolve(null);
+    }
+}
+// ===== TOAST NOTIFICATIONS =====
+function showToast(message, type) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + (type || 'success');
+    toast.textContent = message;
+    container.appendChild(toast);
+    requestAnimationFrame(function () {
+        toast.classList.add('show');
+    });
+    setTimeout(function () {
+        toast.classList.remove('show');
+        setTimeout(function () {
+            if (toast.parentNode)
+                toast.parentNode.removeChild(toast);
+        }, 350);
+    }, 3500);
+}
+// ===== AES-256-GCM ENCRYPTION =====
+async function deriveKey(password, salt) {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({
+        name: 'PBKDF2',
+        salt: salt,
+        iterations: 100000,
+        hash: 'SHA-256'
+    }, keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function encryptData(password, plaintext) {
+    const enc = new TextEncoder();
+    const salt = new Uint8Array(crypto.getRandomValues(new Uint8Array(16)));
+    const iv = new Uint8Array(crypto.getRandomValues(new Uint8Array(12)));
+    const key = await deriveKey(password, salt);
+    const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, enc.encode(plaintext));
+    // Combine: salt(16) + iv(12) + ciphertext
+    const combined = new Uint8Array(salt.length + iv.length + ciphertext.byteLength);
+    combined.set(salt, 0);
+    combined.set(iv, salt.length);
+    combined.set(new Uint8Array(ciphertext), salt.length + iv.length);
+    // Base64 encode
+    let binary = '';
+    for (let i = 0; i < combined.length; i++) {
+        binary += String.fromCharCode(combined[i]);
+    }
+    return btoa(binary);
+}
+async function decryptData(password, base64Data) {
+    // Base64 decode
+    const binary = atob(base64Data);
+    const combined = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        combined[i] = binary.charCodeAt(i);
+    }
+    const salt = new Uint8Array(combined.buffer, 0, 16);
+    const iv = new Uint8Array(combined.buffer, 16, 12);
+    const ciphertext = new Uint8Array(combined.buffer, 28);
+    const key = await deriveKey(password, salt);
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, ciphertext);
+    const dec = new TextDecoder();
+    return dec.decode(decrypted);
+}
+// ===== ENCRYPTED SAVE =====
+async function encryptedSave() {
+    if (!settings.encryptBackups) {
+        // Plain JSON save (no encryption)
+        const data = {
+            events: events,
+            settings: settings,
+            version: '1.0',
+            exportDate: new Date().toISOString()
+        };
+        const jsonStr = JSON.stringify(data, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'webdates-backup.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        document.getElementById('status-center').textContent = 'Backup saved successfully (unencrypted)';
+        showToast('Backup saved as plain JSON', 'success');
+        setTimeout(function () {
+            document.getElementById('status-center').textContent = '';
+        }, 5000);
+        return;
+    }
+    const password = await promptPassword('Encrypt & Save Backup', true);
+    if (!password)
+        return;
+    try {
+        document.getElementById('status-center').textContent = 'Encrypting...';
+        const data = {
+            events: events,
+            settings: settings,
+            version: '1.0',
+            exportDate: new Date().toISOString()
+        };
+        const jsonStr = JSON.stringify(data);
+        const encrypted = await encryptData(password, jsonStr);
+        // Download as .enc file
+        const blob = new Blob([encrypted], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'webdates-backup.enc';
+        a.click();
+        URL.revokeObjectURL(url);
+        document.getElementById('status-center').textContent = 'Backup saved successfully';
+        showToast('Encrypted backup saved successfully', 'success');
+        setTimeout(function () {
+            document.getElementById('status-center').textContent = '';
+        }, 5000);
+    }
+    catch (err) {
+        document.getElementById('status-center').textContent = 'Save failed';
+        showToast('Save failed: ' + (err instanceof Error ? err.message : String(err)), 'error');
+        setTimeout(function () {
+            document.getElementById('status-center').textContent = '';
+        }, 5000);
+    }
+}
+// ===== ENCRYPTED LOAD =====
+async function encryptedLoad() {
+    if (!settings.encryptBackups) {
+        // Plain JSON load
+        document.getElementById('json-load-input').click();
+        return;
+    }
+    document.getElementById('enc-file-input').click();
+}
+async function handleEncLoad(event) {
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file)
+        return;
+    input.value = '';
+    const password = await promptPassword('Decrypt & Load Backup', false);
+    if (!password)
+        return;
+    try {
+        document.getElementById('status-center').textContent = 'Decrypting...';
+        const base64Data = await new Promise(function (resolve, reject) {
+            const reader = new FileReader();
+            reader.onload = function (e) { resolve(e.target.result); };
+            reader.onerror = function () { reject(new Error('Failed to read file')); };
+            reader.readAsText(file);
+        });
+        const jsonStr = await decryptData(password, base64Data.trim());
+        const data = JSON.parse(jsonStr);
+        if (data.events) {
+            events = data.events;
+            saveEvents();
+        }
+        if (data.settings) {
+            settings = { ...settings, ...data.settings };
+            localStorage.setItem('webdates-settings', JSON.stringify(settings));
+            applySettingsToUI();
+        }
+        renderAll();
+        document.getElementById('status-center').textContent = 'Backup loaded successfully';
+        showToast('Backup loaded: ' + (data.events ? data.events.length : 0) + ' events restored', 'success');
+        setTimeout(function () {
+            document.getElementById('status-center').textContent = '';
+        }, 5000);
+    }
+    catch (err) {
+        document.getElementById('status-center').textContent = 'Load failed';
+        showToast('Decryption failed. Wrong password or corrupted file.', 'error');
+        setTimeout(function () {
+            document.getElementById('status-center').textContent = '';
+        }, 5000);
+    }
+}
+// Handle plain JSON load (for unencrypted backups via Load button)
+function handleJSONLoad(event) {
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file)
+        return;
+    input.value = '';
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (data.events) {
+                events = data.events;
+                saveEvents();
+            }
+            if (data.settings) {
+                settings = { ...settings, ...data.settings };
+                localStorage.setItem('webdates-settings', JSON.stringify(settings));
+                applySettingsToUI();
+            }
+            renderAll();
+            document.getElementById('status-center').textContent = 'Backup loaded successfully';
+            showToast('Backup loaded: ' + (data.events ? data.events.length : 0) + ' events restored', 'success');
+            setTimeout(function () {
+                document.getElementById('status-center').textContent = '';
+            }, 5000);
+        }
+        catch (err) {
+            document.getElementById('status-center').textContent = 'Load failed';
+            showToast('Invalid JSON file.', 'error');
+            setTimeout(function () {
+                document.getElementById('status-center').textContent = '';
+            }, 5000);
+        }
+    };
+    reader.readAsText(file);
+}
+// ===== GOOGLE SHEETS SYNC =====
+let _sheetsTokenClient = null;
+let _sheetsAccessToken = null;
+let _gapiLoaded = false;
+let _gisLoaded = false;
+function loadGoogleAPIs() {
+    if (!settings.sheetsEnabled || !settings.sheetsClientId)
+        return;
+    // Google APIs require http:// or https:// — they will NOT work from file://
+    if (window.location.protocol === 'file:') {
+        // Don't try to load scripts — they won't work anyway
+        return;
+    }
+    // Load GAPI client
+    if (!_gapiLoaded && !document.getElementById('gapi-script')) {
+        const gapiScript = document.createElement('script');
+        gapiScript.id = 'gapi-script';
+        gapiScript.src = 'https://apis.google.com/js/api.js';
+        gapiScript.onload = function () {
+            gapi.load('client', async function () {
+                await gapi.client.init({});
+                // Load the Sheets and Drive discovery documents so gapi.client.sheets/drive exist
+                await gapi.client.load('sheets', 'v4');
+                await gapi.client.load('drive', 'v3');
+                _gapiLoaded = true;
+            });
+        };
+        document.head.appendChild(gapiScript);
+    }
+    // Load GIS
+    if (!_gisLoaded && !document.getElementById('gis-script')) {
+        const gisScript = document.createElement('script');
+        gisScript.id = 'gis-script';
+        gisScript.src = 'https://accounts.google.com/gsi/client';
+        gisScript.onload = function () {
+            _gisLoaded = true;
+        };
+        document.head.appendChild(gisScript);
+    }
+}
+function sheetsAuthenticate() {
+    return new Promise(function (resolve) {
+        if (_sheetsAccessToken) {
+            resolve(_sheetsAccessToken);
+            return;
+        }
+        if (!_gisLoaded || !_gapiLoaded) {
+            if (window.location.protocol === 'file:') {
+                showToast('Google Sheets requires http:// — run via a local web server (see Settings for details).', 'error');
+            }
+            else {
+                showToast('Google APIs still loading. Please wait a moment and try again.', 'error');
+            }
+            resolve(null);
+            return;
+        }
+        _sheetsTokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: settings.sheetsClientId,
+            scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+            callback: function (response) {
+                if (response.error) {
+                    showToast('Google authentication failed: ' + response.error, 'error');
+                    resolve(null);
+                    return;
+                }
+                _sheetsAccessToken = response.access_token;
+                gapi.client.setToken({ access_token: response.access_token });
+                resolve(response.access_token);
+            }
+        });
+        _sheetsTokenClient.requestAccessToken();
+    });
+}
+async function sheetsFindOrCreateSpreadsheet(name) {
+    // Search for existing spreadsheet
+    try {
+        const response = await gapi.client.drive.files.list({
+            q: `name='${name}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
+            fields: 'files(id, name)',
+            spaces: 'drive'
+        });
+        if (response.result.files && response.result.files.length > 0) {
+            return response.result.files[0].id;
+        }
+    }
+    catch (err) {
+        // If search fails, try to create
+    }
+    // Create new spreadsheet
+    try {
+        const response = await gapi.client.sheets.spreadsheets.create({}, {
+            properties: { title: name },
+            sheets: [
+                { properties: { title: 'Events' } },
+                { properties: { title: 'Settings' } }
+            ]
+        });
+        return response.result.spreadsheetId;
+    }
+    catch (err) {
+        showToast('Failed to create spreadsheet: ' + (err instanceof Error ? err.message : String(err)), 'error');
+        return null;
+    }
+}
+async function sheetsEnsureSettingsSheet(spreadsheetId) {
+    // Check if Settings sheet exists
+    try {
+        const response = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: spreadsheetId });
+        const sheets = response.result.sheets || [];
+        const hasSettings = sheets.some(function (s) {
+            return s.properties.title === 'Settings';
+        });
+        if (!hasSettings) {
+            await gapi.client.sheets.spreadsheets.batchUpdate({ spreadsheetId: spreadsheetId }, {
+                requests: [
+                    { addSheet: { properties: { title: 'Settings' } } }
+                ]
+            });
+        }
+    }
+    catch (err) {
+        // Ignore, we will try to write anyway
+    }
+}
+async function sheetsSave() {
+    if (!settings.sheetsEnabled || !settings.sheetsClientId) {
+        showToast('Google Sheets sync is not configured. Enable it in Settings.', 'error');
+        return;
+    }
+    const token = await sheetsAuthenticate();
+    if (!token)
+        return;
+    try {
+        document.getElementById('status-center').textContent = 'Syncing to Google Sheets...';
+        const year = new Date().getFullYear();
+        const spreadsheetName = `${settings.sheetsPrefix}_Calendar_${year}`;
+        const spreadsheetId = await sheetsFindOrCreateSpreadsheet(spreadsheetName);
+        if (!spreadsheetId)
+            return;
+        await sheetsEnsureSettingsSheet(spreadsheetId);
+        // Build Events data
+        const eventsHeader = ['ID', 'Title', 'Type', 'Date', 'EndDate', 'StartTime', 'EndTime', 'AllDay', 'BirthYear', 'StartYear', 'Recurrence', 'Alarm', 'Notes'];
+        const eventsRows = [eventsHeader];
+        for (const evt of events) {
+            eventsRows.push([
+                evt.id,
+                evt.title,
+                evt.type,
+                evt.date,
+                evt.endDate || '',
+                evt.startTime || '',
+                evt.endTime || '',
+                evt.allDay,
+                evt.birthYear,
+                evt.startYear,
+                evt.recurrence,
+                evt.alarm,
+                evt.notes
+            ]);
+        }
+        // Build Settings data
+        const settingsRows = [['Key', 'Value']];
+        const settingsKeys = Object.keys(settings);
+        for (const key of settingsKeys) {
+            settingsRows.push([key, String(settings[key])]);
+        }
+        // Clear existing data and write new
+        try {
+            await gapi.client.sheets.spreadsheets.values.batchClear({ spreadsheetId: spreadsheetId }, { ranges: ['Events!A:Z', 'Settings!A:Z'] });
+        }
+        catch (err) {
+            // Sheets may not exist yet, ignore
+        }
+        await gapi.client.sheets.spreadsheets.values.batchUpdate({ spreadsheetId: spreadsheetId }, {
+            valueInputOption: 'RAW',
+            data: [
+                { range: 'Events!A1', values: eventsRows },
+                { range: 'Settings!A1', values: settingsRows }
+            ]
+        });
+        document.getElementById('status-center').textContent = 'Synced to Google Sheets';
+        showToast('Saved to Google Sheets: ' + spreadsheetName, 'success');
+        setTimeout(function () {
+            document.getElementById('status-center').textContent = '';
+        }, 5000);
+    }
+    catch (err) {
+        document.getElementById('status-center').textContent = 'Sheets sync failed';
+        showToast('Google Sheets save failed: ' + (err instanceof Error ? err.message : String(err)), 'error');
+        setTimeout(function () {
+            document.getElementById('status-center').textContent = '';
+        }, 5000);
+    }
+}
+async function sheetsLoad() {
+    if (!settings.sheetsEnabled || !settings.sheetsClientId) {
+        showToast('Google Sheets sync is not configured. Enable it in Settings.', 'error');
+        return;
+    }
+    const token = await sheetsAuthenticate();
+    if (!token)
+        return;
+    try {
+        document.getElementById('status-center').textContent = 'Loading from Google Sheets...';
+        const year = new Date().getFullYear();
+        const spreadsheetName = `${settings.sheetsPrefix}_Calendar_${year}`;
+        // Find spreadsheet
+        const driveResponse = await gapi.client.drive.files.list({
+            q: `name='${spreadsheetName}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
+            fields: 'files(id, name)',
+            spaces: 'drive'
+        });
+        if (!driveResponse.result.files || driveResponse.result.files.length === 0) {
+            showToast('Spreadsheet not found: ' + spreadsheetName, 'error');
+            document.getElementById('status-center').textContent = '';
+            return;
+        }
+        const spreadsheetId = driveResponse.result.files[0].id;
+        // Read Events sheet
+        const eventsResponse = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: spreadsheetId,
+            range: 'Events!A:M'
+        });
+        const eventsValues = eventsResponse.result.values;
+        if (eventsValues && eventsValues.length > 1) {
+            const loadedEvents = [];
+            for (let i = 1; i < eventsValues.length; i++) {
+                const row = eventsValues[i];
+                loadedEvents.push({
+                    id: String(row[0] || ''),
+                    title: String(row[1] || ''),
+                    type: String(row[2] || 'appointment'),
+                    date: String(row[3] || ''),
+                    endDate: row[4] ? String(row[4]) : null,
+                    startTime: row[5] ? String(row[5]) : null,
+                    endTime: row[6] ? String(row[6]) : null,
+                    allDay: String(row[7]).toLowerCase() === 'true',
+                    birthYear: row[8] ? parseInt(String(row[8])) || null : null,
+                    startYear: row[9] ? parseInt(String(row[9])) || null : null,
+                    recurrence: String(row[10] || 'none'),
+                    alarm: parseInt(String(row[11])) || 0,
+                    notes: String(row[12] || '')
+                });
+            }
+            events = loadedEvents;
+            saveEvents();
+        }
+        // Read Settings sheet
+        const settingsResponse = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: spreadsheetId,
+            range: 'Settings!A:B'
+        });
+        const settingsValues = settingsResponse.result.values;
+        if (settingsValues && settingsValues.length > 1) {
+            const loadedSettings = {};
+            for (let i = 1; i < settingsValues.length; i++) {
+                const row = settingsValues[i];
+                if (row[0] && row[1] !== undefined) {
+                    loadedSettings[String(row[0])] = String(row[1]);
+                }
+            }
+            // Apply loaded settings, parsing types appropriately
+            if (loadedSettings['showHolidays'] !== undefined)
+                settings.showHolidays = loadedSettings['showHolidays'] === 'true';
+            if (loadedSettings['showAges'] !== undefined)
+                settings.showAges = loadedSettings['showAges'] === 'true';
+            if (loadedSettings['showYears'] !== undefined)
+                settings.showYears = loadedSettings['showYears'] === 'true';
+            if (loadedSettings['weekStart'] !== undefined)
+                settings.weekStart = parseInt(loadedSettings['weekStart']) || 0;
+            if (loadedSettings['defaultAlarm'] !== undefined)
+                settings.defaultAlarm = parseInt(loadedSettings['defaultAlarm']) || 15;
+            if (loadedSettings['alarmSound'] !== undefined)
+                settings.alarmSound = loadedSettings['alarmSound'] === 'true';
+            if (loadedSettings['dateFormat'] !== undefined)
+                settings.dateFormat = loadedSettings['dateFormat'];
+            if (loadedSettings['use24Hour'] !== undefined)
+                settings.use24Hour = loadedSettings['use24Hour'] === 'true';
+            if (loadedSettings['usHolidays'] !== undefined)
+                settings.usHolidays = loadedSettings['usHolidays'] === 'true';
+            if (loadedSettings['observances'] !== undefined)
+                settings.observances = loadedSettings['observances'] === 'true';
+            if (loadedSettings['encryptBackups'] !== undefined)
+                settings.encryptBackups = loadedSettings['encryptBackups'] === 'true';
+            if (loadedSettings['sheetsEnabled'] !== undefined)
+                settings.sheetsEnabled = loadedSettings['sheetsEnabled'] === 'true';
+            if (loadedSettings['sheetsClientId'] !== undefined)
+                settings.sheetsClientId = loadedSettings['sheetsClientId'];
+            if (loadedSettings['sheetsPrefix'] !== undefined)
+                settings.sheetsPrefix = loadedSettings['sheetsPrefix'];
+            localStorage.setItem('webdates-settings', JSON.stringify(settings));
+            applySettingsToUI();
+        }
+        renderAll();
+        document.getElementById('status-center').textContent = 'Loaded from Google Sheets';
+        showToast('Loaded from Google Sheets: ' + events.length + ' events restored', 'success');
+        setTimeout(function () {
+            document.getElementById('status-center').textContent = '';
+        }, 5000);
+    }
+    catch (err) {
+        document.getElementById('status-center').textContent = 'Sheets load failed';
+        showToast('Google Sheets load failed: ' + (err instanceof Error ? err.message : String(err)), 'error');
+        setTimeout(function () {
+            document.getElementById('status-center').textContent = '';
+        }, 5000);
+    }
+}
+function updateSheetsVisibility() {
+    const sheetsSaveBtn = document.getElementById('btn-sheets-save');
+    const sheetsLoadBtn = document.getElementById('btn-sheets-load');
+    const visible = settings.sheetsEnabled && settings.sheetsClientId.length > 0;
+    if (sheetsSaveBtn)
+        sheetsSaveBtn.style.display = visible ? '' : 'none';
+    if (sheetsLoadBtn)
+        sheetsLoadBtn.style.display = visible ? '' : 'none';
+}
+// ===== INIT =====
+function init() {
+    loadSettings();
+    loadEvents();
+    applySettingsToUI();
+    updateSheetsVisibility();
+    if (settings.sheetsEnabled && settings.sheetsClientId) {
+        loadGoogleAPIs();
+    }
+    renderAll();
+    updateStatus();
+    setInterval(checkAlarms, 30000);
+    checkAlarms();
+}
+// ===== PERSISTENCE =====
+function loadEvents() {
+    try {
+        const data = localStorage.getItem('webdates-events');
+        events = data ? JSON.parse(data) : [];
+    }
+    catch (e) {
+        events = [];
+    }
+}
+function saveEvents() {
+    localStorage.setItem('webdates-events', JSON.stringify(events));
+}
+function loadSettings() {
+    try {
+        const data = localStorage.getItem('webdates-settings');
+        if (data)
+            settings = { ...settings, ...JSON.parse(data) };
+    }
+    catch (e) { }
+}
+function saveSettings() {
+    settings.showHolidays = document.getElementById('set-show-holidays').checked;
+    settings.showAges = document.getElementById('set-show-ages').checked;
+    settings.showYears = document.getElementById('set-show-years').checked;
+    settings.weekStart = parseInt(document.getElementById('set-week-start').value);
+    settings.defaultAlarm = parseInt(document.getElementById('set-default-alarm').value);
+    settings.alarmSound = document.getElementById('set-alarm-sound').checked;
+    settings.dateFormat = document.getElementById('set-date-format').value;
+    settings.use24Hour = document.getElementById('set-24hour').checked;
+    settings.usHolidays = document.getElementById('set-us-holidays').checked;
+    settings.observances = document.getElementById('set-observances').checked;
+    settings.encryptBackups = document.getElementById('set-encrypt-backups').checked;
+    settings.sheetsEnabled = document.getElementById('set-sheets-enabled').checked;
+    settings.sheetsClientId = document.getElementById('set-sheets-client-id').value.trim();
+    settings.sheetsPrefix = document.getElementById('set-sheets-prefix').value.trim() || 'WebDates';
+    localStorage.setItem('webdates-settings', JSON.stringify(settings));
+    updateSheetsVisibility();
+}
+function applySettingsToUI() {
+    document.getElementById('set-show-holidays').checked = settings.showHolidays;
+    document.getElementById('set-show-ages').checked = settings.showAges;
+    document.getElementById('set-show-years').checked = settings.showYears;
+    document.getElementById('set-week-start').value = String(settings.weekStart);
+    document.getElementById('set-default-alarm').value = String(settings.defaultAlarm);
+    document.getElementById('set-alarm-sound').checked = settings.alarmSound;
+    document.getElementById('set-date-format').value = settings.dateFormat;
+    document.getElementById('set-24hour').checked = settings.use24Hour;
+    document.getElementById('set-us-holidays').checked = settings.usHolidays;
+    document.getElementById('set-observances').checked = settings.observances;
+    document.getElementById('set-encrypt-backups').checked = settings.encryptBackups;
+    document.getElementById('set-sheets-enabled').checked = settings.sheetsEnabled;
+    document.getElementById('set-sheets-client-id').value = settings.sheetsClientId;
+    document.getElementById('set-sheets-prefix').value = settings.sheetsPrefix;
+}
+// ===== HOLIDAYS =====
+function getEaster(year) {
+    const a = year % 19;
+    const b = Math.floor(year / 100);
+    const c = year % 100;
+    const d = Math.floor(b / 4);
+    const e = b % 4;
+    const f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4);
+    const k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31) - 1;
+    const day = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(year, month, day);
+}
+function getNthDayOfMonth(year, month, dayOfWeek, n) {
+    const first = new Date(year, month, 1);
+    let day = first.getDay();
+    let date = 1 + ((dayOfWeek - day + 7) % 7);
+    date += (n - 1) * 7;
+    return new Date(year, month, date);
+}
+function getLastDayOfMonth(year, month, dayOfWeek) {
+    const last = new Date(year, month + 1, 0);
+    let day = last.getDay();
+    let diff = (day - dayOfWeek + 7) % 7;
+    return new Date(year, month, last.getDate() - diff);
+}
+function getHolidays(year) {
+    const holidays = [];
+    if (settings.usHolidays) {
+        holidays.push({ date: `${year}-01-01`, title: "New Year's Day", type: 'holiday' });
+        holidays.push({ date: `${year}-07-04`, title: "Independence Day", type: 'holiday' });
+        holidays.push({ date: `${year}-11-11`, title: "Veterans Day", type: 'holiday' });
+        holidays.push({ date: `${year}-12-25`, title: "Christmas Day", type: 'holiday' });
+        const mlk = getNthDayOfMonth(year, 0, 1, 3);
+        holidays.push({ date: formatDateISO(mlk), title: "Martin Luther King Jr. Day", type: 'holiday' });
+        const presidents = getNthDayOfMonth(year, 1, 1, 3);
+        holidays.push({ date: formatDateISO(presidents), title: "Presidents' Day", type: 'holiday' });
+        const memorial = getLastDayOfMonth(year, 4, 1);
+        holidays.push({ date: formatDateISO(memorial), title: "Memorial Day", type: 'holiday' });
+        const labor = getNthDayOfMonth(year, 8, 1, 1);
+        holidays.push({ date: formatDateISO(labor), title: "Labor Day", type: 'holiday' });
+        const columbus = getNthDayOfMonth(year, 9, 1, 2);
+        holidays.push({ date: formatDateISO(columbus), title: "Columbus Day", type: 'holiday' });
+        const thanksgiving = getNthDayOfMonth(year, 10, 4, 4);
+        holidays.push({ date: formatDateISO(thanksgiving), title: "Thanksgiving", type: 'holiday' });
+        holidays.push({ date: `${year}-06-19`, title: "Juneteenth", type: 'holiday' });
+    }
+    if (settings.observances) {
+        holidays.push({ date: `${year}-02-14`, title: "Valentine's Day", type: 'holiday' });
+        holidays.push({ date: `${year}-03-17`, title: "St. Patrick's Day", type: 'holiday' });
+        const easter = getEaster(year);
+        holidays.push({ date: formatDateISO(easter), title: "Easter Sunday", type: 'holiday' });
+        const goodFriday = new Date(easter);
+        goodFriday.setDate(goodFriday.getDate() - 2);
+        holidays.push({ date: formatDateISO(goodFriday), title: "Good Friday", type: 'holiday' });
+        const mothers = getNthDayOfMonth(year, 4, 0, 2);
+        holidays.push({ date: formatDateISO(mothers), title: "Mother's Day", type: 'holiday' });
+        const fathers = getNthDayOfMonth(year, 5, 0, 3);
+        holidays.push({ date: formatDateISO(fathers), title: "Father's Day", type: 'holiday' });
+        holidays.push({ date: `${year}-10-31`, title: "Halloween", type: 'holiday' });
+        holidays.push({ date: `${year}-02-02`, title: "Groundhog Day", type: 'holiday' });
+        holidays.push({ date: `${year}-04-22`, title: "Earth Day", type: 'holiday' });
+        holidays.push({ date: `${year}-05-05`, title: "Cinco de Mayo", type: 'holiday' });
+        holidays.push({ date: `${year}-12-31`, title: "New Year's Eve", type: 'holiday' });
+        const firstMonNov = getNthDayOfMonth(year, 10, 1, 1);
+        const electionDay = new Date(firstMonNov);
+        electionDay.setDate(electionDay.getDate() + 1);
+        holidays.push({ date: formatDateISO(electionDay), title: "Election Day", type: 'holiday' });
+    }
+    return holidays;
+}
+// ===== DATE UTILITIES =====
+function formatDateISO(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+function parseDate(str) {
+    const [y, m, d] = str.split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+function formatDateDisplay(dateStr) {
+    const d = parseDate(dateStr);
+    const fmt = settings.dateFormat;
+    const m = d.getMonth() + 1, day = d.getDate(), y = d.getFullYear();
+    if (fmt === 'dmy')
+        return `${day}/${m}/${y}`;
+    if (fmt === 'ymd')
+        return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return `${m}/${day}/${y}`;
+}
+function formatTime(timeStr) {
+    if (!timeStr)
+        return '';
+    const [h, m] = timeStr.split(':').map(Number);
+    if (settings.use24Hour)
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+function isSameDay(d1, d2) {
+    return d1.getFullYear() === d2.getFullYear() &&
+        d1.getMonth() === d2.getMonth() &&
+        d1.getDate() === d2.getDate();
+}
+function daysBetween(d1, d2) {
+    const oneDay = 86400000;
+    return Math.round((d2.getTime() - d1.getTime()) / oneDay);
+}
+function calcAge(birthYear, onDate) {
+    return onDate.getFullYear() - birthYear;
+}
+function calcYears(startYear, onDate) {
+    return onDate.getFullYear() - startYear;
+}
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAYS_MIN = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+// ===== GET EVENTS FOR DATE =====
+function getEventsForDate(dateStr) {
+    const targetDate = parseDate(dateStr);
+    const result = [];
+    for (const evt of events) {
+        if (matchesDate(evt, targetDate)) {
+            const display = { ...evt, displayTitle: evt.title };
+            if (evt.type === 'birthday' && evt.birthYear && settings.showAges) {
+                display.age = calcAge(evt.birthYear, targetDate);
+                display.displayTitle = `${evt.title} (${display.age})`;
+            }
+            else if (evt.type === 'anniversary' && evt.startYear && settings.showYears) {
+                display.years = calcYears(evt.startYear, targetDate);
+                display.displayTitle = `${evt.title} (${display.years} yr)`;
+            }
+            else {
+                display.displayTitle = evt.title;
+            }
+            result.push(display);
+        }
+    }
+    if (settings.showHolidays) {
+        const year = targetDate.getFullYear();
+        const holidays = getHolidays(year);
+        for (const h of holidays) {
+            if (h.date === dateStr) {
+                result.push({ ...h, id: 'holiday-' + h.date + h.title, displayTitle: h.title, isHoliday: true, endDate: null, startTime: null, endTime: null, allDay: true, birthYear: null, startYear: null, recurrence: 'none', alarm: 0, notes: '' });
+            }
+        }
+    }
+    return result;
+}
+function matchesDate(evt, targetDate) {
+    const evtDate = parseDate(evt.date);
+    const recurrence = evt.recurrence || 'none';
+    if (recurrence === 'none') {
+        if (evt.endDate) {
+            const end = parseDate(evt.endDate);
+            return targetDate >= evtDate && targetDate <= end;
+        }
+        return isSameDay(evtDate, targetDate);
+    }
+    if (targetDate < evtDate)
+        return false;
+    switch (recurrence) {
+        case 'daily':
+            return true;
+        case 'weekly':
+            return targetDate.getDay() === evtDate.getDay();
+        case 'biweekly': {
+            const diff = daysBetween(evtDate, targetDate);
+            return diff % 14 === 0 && targetDate.getDay() === evtDate.getDay();
+        }
+        case 'monthly':
+            return targetDate.getDate() === evtDate.getDate();
+        case 'yearly':
+            return targetDate.getMonth() === evtDate.getMonth() &&
+                targetDate.getDate() === evtDate.getDate();
+        default:
+            return isSameDay(evtDate, targetDate);
+    }
+}
+// ===== RENDERING =====
+function renderAll() {
+    renderMiniCalendar();
+    renderUpcoming();
+    renderMonthView();
+    renderWeekView();
+    renderDayView();
+    renderListView();
+    updateToolbarTitle();
+    updateStatus();
+}
+function updateToolbarTitle() {
+    const el = document.getElementById('toolbar-title');
+    if (currentView === 'day') {
+        el.textContent = `${DAYS_SHORT[currentDate.getDay()]}, ${MONTHS[currentDate.getMonth()]} ${currentDate.getDate()}, ${currentDate.getFullYear()}`;
+    }
+    else if (currentView === 'week') {
+        const start = getWeekStart(currentDate);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
+        el.textContent = `${MONTHS[start.getMonth()]} ${start.getDate()} - ${MONTHS[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`;
+    }
+    else {
+        el.textContent = `${MONTHS[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+    }
+}
+function updateStatus() {
+    const today = new Date();
+    document.getElementById('status-left').textContent = `Today: ${DAYS_SHORT[today.getDay()]}, ${MONTHS[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`;
+    document.getElementById('status-right').textContent = `${events.length} events stored`;
+}
+// Mini calendar
+function renderMiniCalendar() {
+    const container = document.getElementById('mini-calendar');
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const today = new Date();
+    let html = `<div class="mini-header">
+    <button onclick="miniNav(-1)">&lsaquo;</button>
+    <span>${MONTHS[month].substring(0, 3)} ${year}</span>
+    <button onclick="miniNav(1)">&rsaquo;</button>
+  </div>`;
+    html += '<table><tr>';
+    for (let i = 0; i < 7; i++) {
+        const dayIdx = (i + settings.weekStart) % 7;
+        html += `<th>${DAYS_MIN[dayIdx]}</th>`;
+    }
+    html += '</tr>';
+    const firstDay = new Date(year, month, 1);
+    let startDay = firstDay.getDay() - settings.weekStart;
+    if (startDay < 0)
+        startDay += 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const prevDays = new Date(year, month, 0).getDate();
+    let day = 1;
+    let nextDay = 1;
+    for (let row = 0; row < 6; row++) {
+        html += '<tr>';
+        for (let col = 0; col < 7; col++) {
+            const cellIdx = row * 7 + col;
+            let classes = [];
+            let cellDate;
+            let cellDay;
+            if (cellIdx < startDay) {
+                cellDay = prevDays - startDay + cellIdx + 1;
+                cellDate = new Date(year, month - 1, cellDay);
+                classes.push('other-month');
+            }
+            else if (day > daysInMonth) {
+                cellDay = nextDay++;
+                cellDate = new Date(year, month + 1, cellDay);
+                classes.push('other-month');
+            }
+            else {
+                cellDay = day;
+                cellDate = new Date(year, month, day);
+                day++;
+            }
+            if (isSameDay(cellDate, today))
+                classes.push('today');
+            if (isSameDay(cellDate, selectedDate))
+                classes.push('selected');
+            const dateStr = formatDateISO(cellDate);
+            const evts = getEventsForDate(dateStr);
+            if (evts.length > 0)
+                classes.push('has-event');
+            html += `<td class="${classes.join(' ')}" onclick="selectDate(${cellDate.getFullYear()},${cellDate.getMonth()},${cellDate.getDate()})">${cellDay}</td>`;
+        }
+        html += '</tr>';
+        if (day > daysInMonth && row >= 3)
+            break;
+    }
+    html += '</table>';
+    container.innerHTML = html;
+}
+function miniNav(dir) {
+    currentDate.setMonth(currentDate.getMonth() + dir);
+    renderAll();
+}
+function selectDate(y, m, d) {
+    selectedDate = new Date(y, m, d);
+    currentDate = new Date(y, m, d);
+    renderAll();
+}
+// Upcoming events
+function renderUpcoming() {
+    const container = document.getElementById('upcoming-list');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const upcoming = [];
+    for (let i = 0; i < 90; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() + i);
+        const dateStr = formatDateISO(d);
+        const evts = getEventsForDate(dateStr);
+        for (const evt of evts) {
+            if (upcoming.length < 20) {
+                upcoming.push({ ...evt, occurrenceDate: dateStr, daysAway: i });
+            }
+        }
+    }
+    if (upcoming.length === 0) {
+        container.innerHTML = '<div style="font-size:11px;color:#999;padding:8px;">No upcoming events</div>';
+        return;
+    }
+    let html = '';
+    for (const evt of upcoming) {
+        const dayLabel = evt.daysAway === 0 ? 'Today' :
+            evt.daysAway === 1 ? 'Tomorrow' :
+                `in ${evt.daysAway} days`;
+        let ageInfo = '';
+        if (evt.age !== undefined)
+            ageInfo = `<span class="up-age">Turning ${evt.age}</span>`;
+        if (evt.years !== undefined)
+            ageInfo = `<span class="up-age">${evt.years} years</span>`;
+        html += `<div class="upcoming-item type-${evt.type}" onclick="openEventDetail('${evt.id}', '${evt.occurrenceDate}')">
+      <div><strong>${evt.displayTitle || evt.title}</strong></div>
+      <div class="up-date">${formatDateDisplay(evt.occurrenceDate)} - ${dayLabel}</div>
+      ${ageInfo}
+    </div>`;
+    }
+    container.innerHTML = html;
+}
+// Month view
+function renderMonthView() {
+    const container = document.getElementById('month-view');
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let html = '<div class="month-grid">';
+    for (let i = 0; i < 7; i++) {
+        const dayIdx = (i + settings.weekStart) % 7;
+        html += `<div class="day-header">${DAYS_SHORT[dayIdx]}</div>`;
+    }
+    const firstDay = new Date(year, month, 1);
+    let startDay = firstDay.getDay() - settings.weekStart;
+    if (startDay < 0)
+        startDay += 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const prevDays = new Date(year, month, 0).getDate();
+    let day = 1;
+    let nextDay = 1;
+    const totalCells = Math.ceil((startDay + daysInMonth) / 7) * 7;
+    for (let cellIdx = 0; cellIdx < totalCells; cellIdx++) {
+        let classes = ['day-cell'];
+        let cellDate;
+        let cellDay;
+        if (cellIdx < startDay) {
+            cellDay = prevDays - startDay + cellIdx + 1;
+            cellDate = new Date(year, month - 1, cellDay);
+            classes.push('other-month');
+        }
+        else if (day > daysInMonth) {
+            cellDay = nextDay++;
+            cellDate = new Date(year, month + 1, cellDay);
+            classes.push('other-month');
+        }
+        else {
+            cellDay = day;
+            cellDate = new Date(year, month, day);
+            day++;
+        }
+        if (isSameDay(cellDate, today))
+            classes.push('today');
+        if (isSameDay(cellDate, selectedDate))
+            classes.push('selected');
+        const dateStr = formatDateISO(cellDate);
+        const evts = getEventsForDate(dateStr);
+        const realDayOfWeek = cellDate.getDay();
+        html += `<div class="${classes.join(' ')}" ondblclick="openNewEventOnDate('${dateStr}')" onclick="selectDate(${cellDate.getFullYear()},${cellDate.getMonth()},${cellDate.getDate()})">`;
+        html += `<div class="day-num ${realDayOfWeek === 0 ? 'sunday' : ''}">${cellDay}</div>`;
+        for (const evt of evts.slice(0, 4)) {
+            html += `<div class="day-event type-${evt.type}" onclick="event.stopPropagation(); openEventDetail('${evt.id}', '${dateStr}')" title="${evt.displayTitle}">${evt.displayTitle}</div>`;
+        }
+        if (evts.length > 4) {
+            html += `<div class="day-event type-custom" style="text-align:center">+${evts.length - 4} more</div>`;
+        }
+        html += '</div>';
+    }
+    html += '</div>';
+    container.innerHTML = html;
+}
+// Week view
+function renderWeekView() {
+    const container = document.getElementById('week-view');
+    const weekStart = getWeekStart(currentDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let html = '<div class="week-header-row"><div>Time</div>';
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(weekStart);
+        d.setDate(d.getDate() + i);
+        const isToday = isSameDay(d, today);
+        html += `<div${isToday ? ' style="background:#c0392b"' : ''}>${DAYS_SHORT[d.getDay()]} ${d.getDate()}</div>`;
+    }
+    html += '</div><div class="week-body">';
+    for (let hour = 0; hour < 24; hour++) {
+        const timeLabel = settings.use24Hour ? `${String(hour).padStart(2, '0')}:00` : `${hour % 12 || 12}${hour < 12 ? 'a' : 'p'}`;
+        html += `<div class="time-label">${timeLabel}</div>`;
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(weekStart);
+            d.setDate(d.getDate() + i);
+            const dateStr = formatDateISO(d);
+            const isToday = isSameDay(d, today);
+            const evts = getEventsForDate(dateStr).filter(function (e) {
+                if (!e.startTime)
+                    return hour === 8;
+                const h = parseInt(e.startTime.split(':')[0]);
+                return h === hour;
+            });
+            html += `<div class="week-cell${isToday ? ' today-col' : ''}" ondblclick="openNewEventOnDate('${dateStr}', '${String(hour).padStart(2, '0')}:00')">`;
+            for (const evt of evts) {
+                html += `<div class="day-event type-${evt.type}" style="font-size:9px" onclick="event.stopPropagation(); openEventDetail('${evt.id}', '${dateStr}')">${evt.displayTitle}</div>`;
+            }
+            html += '</div>';
+        }
+    }
+    html += '</div>';
+    container.innerHTML = html;
+}
+function getWeekStart(d) {
+    const result = new Date(d);
+    const day = result.getDay();
+    let diff = day - settings.weekStart;
+    if (diff < 0)
+        diff += 7;
+    result.setDate(result.getDate() - diff);
+    result.setHours(0, 0, 0, 0);
+    return result;
+}
+// Day view
+function renderDayView() {
+    const container = document.getElementById('day-view');
+    const dateStr = formatDateISO(currentDate);
+    const evts = getEventsForDate(dateStr);
+    let html = `<div class="day-view-header">${DAYS_SHORT[currentDate.getDay()]}, ${MONTHS[currentDate.getMonth()]} ${currentDate.getDate()}, ${currentDate.getFullYear()}</div>`;
+    const allDay = evts.filter(function (e) { return e.allDay || !e.startTime; });
+    if (allDay.length > 0) {
+        html += '<div style="padding:4px;background:#f8f9fa;border-bottom:2px solid var(--primary)">';
+        html += '<strong style="font-size:11px;color:var(--text-light)">All Day:</strong>';
+        for (const evt of allDay) {
+            html += `<div class="day-event type-${evt.type}" onclick="openEventDetail('${evt.id}', '${dateStr}')">${evt.displayTitle}</div>`;
+        }
+        html += '</div>';
+    }
+    html += '<div class="day-timeline">';
+    for (let hour = 0; hour < 24; hour++) {
+        const timeLabel = settings.use24Hour ? `${String(hour).padStart(2, '0')}:00` : `${hour % 12 || 12}:00 ${hour < 12 ? 'AM' : 'PM'}`;
+        const hourEvts = evts.filter(function (e) {
+            if (!e.startTime)
+                return false;
+            return parseInt(e.startTime.split(':')[0]) === hour;
+        });
+        html += `<div class="hour-row">
+      <div class="hour-label">${timeLabel}</div>
+      <div class="hour-content" ondblclick="openNewEventOnDate('${dateStr}', '${String(hour).padStart(2, '0')}:00')">`;
+        for (const evt of hourEvts) {
+            html += `<div class="day-event type-${evt.type}" onclick="event.stopPropagation(); openEventDetail('${evt.id}', '${dateStr}')">${evt.displayTitle} ${evt.startTime ? formatTime(evt.startTime) : ''} ${evt.endTime ? '- ' + formatTime(evt.endTime) : ''}</div>`;
+        }
+        html += '</div></div>';
+    }
+    html += '</div>';
+    container.innerHTML = html;
+}
+// Event list view
+function renderListView() {
+    const container = document.getElementById('list-view');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const listEvents = [];
+    for (let i = 0; i < 365; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() + i);
+        const dateStr = formatDateISO(d);
+        const evts = getEventsForDate(dateStr);
+        for (const evt of evts) {
+            listEvents.push({ ...evt, occurrenceDate: dateStr, daysAway: i });
+        }
+    }
+    let html = `<h2>Events - Next 12 Months (${listEvents.length} events)</h2>`;
+    html += `<table>
+    <tr><th>Date</th><th>Event</th><th>Type</th><th>Age/Years</th><th>Time</th><th>Notes</th></tr>`;
+    for (const evt of listEvents) {
+        const isPast = (evt.daysAway ?? 0) < 0;
+        let ageCol = '';
+        if (evt.age !== undefined)
+            ageCol = `Age ${evt.age}`;
+        if (evt.years !== undefined)
+            ageCol = `${evt.years} years`;
+        html += `<tr class="${isPast ? 'past' : ''}" onclick="openEventDetail('${evt.id}', '${evt.occurrenceDate}')" style="cursor:pointer">
+      <td>${formatDateDisplay(evt.occurrenceDate)}</td>
+      <td><strong>${evt.title}</strong></td>
+      <td><span class="type-badge ${evt.type}">${evt.type}</span></td>
+      <td>${ageCol}</td>
+      <td>${evt.startTime ? formatTime(evt.startTime) : 'All day'}</td>
+      <td>${evt.notes || ''}</td>
+    </tr>`;
+    }
+    html += '</table>';
+    container.innerHTML = html;
+}
+// ===== VIEW SWITCHING =====
+function switchView(view) {
+    currentView = view;
+    document.querySelectorAll('#toolbar button.active').forEach(function (b) { b.classList.remove('active'); });
+    const btnMap = { month: 'btn-month', week: 'btn-week', day: 'btn-day', list: 'btn-list' };
+    if (btnMap[view])
+        document.getElementById(btnMap[view])?.classList.add('active');
+    document.getElementById('month-view').style.display = view === 'month' ? 'flex' : 'none';
+    document.getElementById('week-view').style.display = view === 'week' ? 'flex' : 'none';
+    document.getElementById('day-view').style.display = view === 'day' ? 'flex' : 'none';
+    document.getElementById('list-view').style.display = view === 'list' ? 'flex' : 'none';
+    document.getElementById('settings-panel').style.display = view === 'settings' ? 'flex' : 'none';
+    updateToolbarTitle();
+    if (view === 'week')
+        renderWeekView();
+    if (view === 'day')
+        renderDayView();
+    if (view === 'list')
+        renderListView();
+}
+function navigateMonth(dir) {
+    if (currentView === 'day') {
+        currentDate.setDate(currentDate.getDate() + dir);
+    }
+    else if (currentView === 'week') {
+        currentDate.setDate(currentDate.getDate() + dir * 7);
+    }
+    else {
+        currentDate.setMonth(currentDate.getMonth() + dir);
+    }
+    renderAll();
+}
+function goToToday() {
+    currentDate = new Date();
+    selectedDate = new Date();
+    renderAll();
+}
+// ===== EVENT MODAL =====
+function openNewEvent(type) {
+    editingEventId = null;
+    document.getElementById('modal-title').textContent = 'New Event';
+    document.getElementById('evt-title').value = '';
+    document.getElementById('evt-type').value = type || 'appointment';
+    document.getElementById('evt-date').value = formatDateISO(selectedDate);
+    document.getElementById('evt-end-date').value = '';
+    document.getElementById('evt-start-time').value = '';
+    document.getElementById('evt-end-time').value = '';
+    document.getElementById('evt-allday').checked = type === 'birthday' || type === 'anniversary' || type === 'holiday';
+    document.getElementById('evt-birth-year').value = '';
+    document.getElementById('evt-start-year').value = '';
+    document.getElementById('evt-recurrence').value = (type === 'birthday' || type === 'anniversary') ? 'yearly' : 'none';
+    document.getElementById('evt-alarm').value = String(settings.defaultAlarm);
+    document.getElementById('evt-notes').value = '';
+    document.getElementById('btn-delete').style.display = 'none';
+    document.getElementById('age-info').style.display = 'none';
+    onTypeChange();
+    toggleAllDay();
+    document.getElementById('event-modal').classList.add('active');
+    document.getElementById('evt-title').focus();
+}
+function openNewEventOnDate(dateStr, time) {
+    selectedDate = parseDate(dateStr);
+    openNewEvent();
+    document.getElementById('evt-date').value = dateStr;
+    if (time) {
+        document.getElementById('evt-start-time').value = time;
+        document.getElementById('evt-allday').checked = false;
+        toggleAllDay();
+    }
+}
+function openEventDetail(id, occurrenceDate) {
+    if (id && id.startsWith('holiday-')) {
+        const evts = getEventsForDate(occurrenceDate);
+        const evt = evts.find(function (e) { return e.id === id; });
+        if (evt)
+            alert(`${evt.title}\n${formatDateDisplay(occurrenceDate)}\n\nThis is a built-in holiday.`);
+        return;
+    }
+    const evt = events.find(function (e) { return e.id === id; });
+    if (!evt)
+        return;
+    editingEventId = id;
+    document.getElementById('modal-title').textContent = 'Edit Event';
+    document.getElementById('evt-title').value = evt.title;
+    document.getElementById('evt-type').value = evt.type;
+    document.getElementById('evt-date').value = evt.date;
+    document.getElementById('evt-end-date').value = evt.endDate || '';
+    document.getElementById('evt-start-time').value = evt.startTime || '';
+    document.getElementById('evt-end-time').value = evt.endTime || '';
+    document.getElementById('evt-allday').checked = evt.allDay || false;
+    document.getElementById('evt-birth-year').value = evt.birthYear ? String(evt.birthYear) : '';
+    document.getElementById('evt-start-year').value = evt.startYear ? String(evt.startYear) : '';
+    document.getElementById('evt-recurrence').value = evt.recurrence || 'none';
+    document.getElementById('evt-alarm').value = String(evt.alarm || 0);
+    document.getElementById('evt-notes').value = evt.notes || '';
+    document.getElementById('btn-delete').style.display = 'inline-block';
+    onTypeChange();
+    toggleAllDay();
+    if (evt.type === 'birthday' && evt.birthYear) {
+        const today = new Date();
+        const age = calcAge(evt.birthYear, today);
+        const nextBirthday = parseDate(evt.date);
+        nextBirthday.setFullYear(today.getFullYear());
+        if (nextBirthday < today)
+            nextBirthday.setFullYear(today.getFullYear() + 1);
+        const daysUntil = daysBetween(today, nextBirthday);
+        const nextAge = calcAge(evt.birthYear, nextBirthday);
+        document.getElementById('age-info').style.display = 'block';
+        document.getElementById('age-info').innerHTML = `
+      <strong>Age Information:</strong><br>
+      Current age: <span class="age-big">${age}</span><br>
+      Born in: ${evt.birthYear}<br>
+      Next birthday: ${formatDateDisplay(formatDateISO(nextBirthday))} (${daysUntil} days away)<br>
+      Will turn: <strong>${nextAge}</strong>
+    `;
+    }
+    else if (evt.type === 'anniversary' && evt.startYear) {
+        const today = new Date();
+        const years = calcYears(evt.startYear, today);
+        document.getElementById('age-info').style.display = 'block';
+        document.getElementById('age-info').innerHTML = `
+      <strong>Anniversary Information:</strong><br>
+      Years: <span class="age-big">${years}</span><br>
+      Since: ${evt.startYear}
+    `;
+    }
+    else {
+        document.getElementById('age-info').style.display = 'none';
+    }
+    document.getElementById('event-modal').classList.add('active');
+}
+function closeModal() {
+    document.getElementById('event-modal').classList.remove('active');
+    editingEventId = null;
+}
+function onTypeChange() {
+    const type = document.getElementById('evt-type').value;
+    document.getElementById('evt-birth-year-group').style.display = type === 'birthday' ? 'block' : 'none';
+    document.getElementById('evt-start-year-group').style.display = type === 'anniversary' ? 'block' : 'none';
+    if (type === 'birthday' || type === 'anniversary') {
+        document.getElementById('evt-allday').checked = true;
+        document.getElementById('evt-recurrence').value = 'yearly';
+        toggleAllDay();
+    }
+}
+function toggleAllDay() {
+    const allDay = document.getElementById('evt-allday').checked;
+    document.getElementById('evt-time-group').style.display = allDay ? 'none' : 'flex';
+}
+function saveEvent() {
+    const title = document.getElementById('evt-title').value.trim();
+    const date = document.getElementById('evt-date').value;
+    if (!title || !date) {
+        alert('Title and date are required.');
+        return;
+    }
+    const evt = {
+        id: editingEventId || 'evt-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+        title,
+        type: document.getElementById('evt-type').value,
+        date,
+        endDate: document.getElementById('evt-end-date').value || null,
+        startTime: document.getElementById('evt-start-time').value || null,
+        endTime: document.getElementById('evt-end-time').value || null,
+        allDay: document.getElementById('evt-allday').checked,
+        birthYear: parseInt(document.getElementById('evt-birth-year').value) || null,
+        startYear: parseInt(document.getElementById('evt-start-year').value) || null,
+        recurrence: document.getElementById('evt-recurrence').value,
+        alarm: parseInt(document.getElementById('evt-alarm').value) || 0,
+        notes: document.getElementById('evt-notes').value.trim()
+    };
+    if (editingEventId) {
+        const idx = events.findIndex(function (e) { return e.id === editingEventId; });
+        if (idx !== -1)
+            events[idx] = evt;
+    }
+    else {
+        events.push(evt);
+    }
+    saveEvents();
+    closeModal();
+    renderAll();
+}
+function deleteEvent() {
+    if (!editingEventId)
+        return;
+    if (!confirm('Delete this event?'))
+        return;
+    events = events.filter(function (e) { return e.id !== editingEventId; });
+    saveEvents();
+    closeModal();
+    renderAll();
+}
+// ===== ALARMS =====
+function checkAlarms() {
+    const now = new Date();
+    const todayStr = formatDateISO(now);
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    for (const evt of events) {
+        if (!evt.alarm || evt.alarm === 0)
+            continue;
+        if (!matchesDate(evt, now))
+            continue;
+        const alarmKey = evt.id + '-' + todayStr;
+        if (dismissedAlarms.has(alarmKey))
+            continue;
+        if (evt.startTime) {
+            const [h, m] = evt.startTime.split(':').map(Number);
+            const evtMinutes = h * 60 + m;
+            const alarmMinutes = evtMinutes - evt.alarm;
+            if (currentMinutes >= alarmMinutes && currentMinutes < evtMinutes + 5) {
+                showAlarm(evt, alarmKey);
+            }
+        }
+        else {
+            const alarmMinutes = 480 - evt.alarm;
+            if (currentMinutes >= Math.max(0, alarmMinutes) && currentMinutes < 485) {
+                showAlarm(evt, alarmKey);
+            }
+        }
+    }
+}
+function showAlarm(evt, alarmKey) {
+    if (dismissedAlarms.has(alarmKey))
+        return;
+    const popup = document.getElementById('alarm-popup');
+    const body = document.getElementById('alarm-body');
+    let info = `<strong>${evt.title}</strong><br>`;
+    info += `Type: ${evt.type}<br>`;
+    info += `Date: ${formatDateDisplay(evt.date)}<br>`;
+    if (evt.startTime)
+        info += `Time: ${formatTime(evt.startTime)}<br>`;
+    if (evt.type === 'birthday' && evt.birthYear) {
+        info += `Turning: ${calcAge(evt.birthYear, new Date())}<br>`;
+    }
+    if (evt.notes)
+        info += `Notes: ${evt.notes}`;
+    body.innerHTML = info;
+    popup.style.display = 'block';
+    popup.dataset.alarmKey = alarmKey;
+    if (settings.alarmSound) {
+        try {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioContextClass();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 800;
+            gain.gain.value = 0.3;
+            osc.start();
+            setTimeout(function () { osc.stop(); ctx.close(); }, 300);
+        }
+        catch (e) { }
+    }
+}
+function dismissAlarm() {
+    const popup = document.getElementById('alarm-popup');
+    const key = popup.dataset.alarmKey;
+    if (key)
+        dismissedAlarms.add(key);
+    popup.style.display = 'none';
+}
+function snoozeAlarm(minutes) {
+    const popup = document.getElementById('alarm-popup');
+    popup.style.display = 'none';
+    setTimeout(function () {
+        popup.style.display = 'block';
+    }, minutes * 60000);
+}
+// ===== iCalendar IMPORT/EXPORT =====
+function importICS() {
+    document.getElementById('ics-file-input').click();
+}
+function handleICSImport(event) {
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file)
+        return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const text = e.target.result;
+        const imported = parseICS(text);
+        if (imported.length === 0) {
+            alert('No events found in file.');
+            return;
+        }
+        events = events.concat(imported);
+        saveEvents();
+        renderAll();
+        alert(`Imported ${imported.length} events.`);
+    };
+    reader.readAsText(file);
+    input.value = '';
+}
+function parseICS(text) {
+    const result = [];
+    const lines = text.replace(/\r\n /g, '').split(/\r?\n/);
+    let inEvent = false;
+    let evt = {};
+    for (const line of lines) {
+        if (line === 'BEGIN:VEVENT') {
+            inEvent = true;
+            evt = {};
+        }
+        else if (line === 'END:VEVENT') {
+            inEvent = false;
+            if (evt.title && evt.date) {
+                result.push({
+                    id: 'evt-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+                    title: evt.title,
+                    type: 'appointment',
+                    date: evt.date,
+                    endDate: evt.endDate || null,
+                    startTime: evt.startTime || null,
+                    endTime: evt.endTime || null,
+                    allDay: !evt.startTime,
+                    recurrence: 'none',
+                    alarm: 0,
+                    notes: evt.description || '',
+                    birthYear: null,
+                    startYear: null
+                });
+            }
+        }
+        else if (inEvent) {
+            if (line.startsWith('SUMMARY:')) {
+                evt.title = line.substring(8);
+            }
+            else if (line.startsWith('DESCRIPTION:')) {
+                evt.description = line.substring(12).replace(/\\n/g, '\n');
+            }
+            else if (line.startsWith('DTSTART;VALUE=DATE:')) {
+                const d = line.substring(19);
+                evt.date = `${d.substring(0, 4)}-${d.substring(4, 6)}-${d.substring(6, 8)}`;
+            }
+            else if (line.startsWith('DTSTART:')) {
+                const d = line.substring(8);
+                evt.date = `${d.substring(0, 4)}-${d.substring(4, 6)}-${d.substring(6, 8)}`;
+                if (d.includes('T')) {
+                    evt.startTime = `${d.substring(9, 11)}:${d.substring(11, 13)}`;
+                }
+            }
+            else if (line.startsWith('DTEND;VALUE=DATE:')) {
+                const d = line.substring(17);
+                evt.endDate = `${d.substring(0, 4)}-${d.substring(4, 6)}-${d.substring(6, 8)}`;
+            }
+            else if (line.startsWith('DTEND:')) {
+                const d = line.substring(6);
+                if (d.includes('T')) {
+                    evt.endTime = `${d.substring(9, 11)}:${d.substring(11, 13)}`;
+                }
+            }
+        }
+    }
+    return result;
+}
+function exportICS() {
+    let ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//WebDates//EN\r\n';
+    for (const evt of events) {
+        ics += 'BEGIN:VEVENT\r\n';
+        ics += `UID:${evt.id}@webdates\r\n`;
+        ics += `SUMMARY:${evt.title}\r\n`;
+        if (evt.allDay || !evt.startTime) {
+            const d = evt.date.replace(/-/g, '');
+            ics += `DTSTART;VALUE=DATE:${d}\r\n`;
+            if (evt.endDate) {
+                ics += `DTEND;VALUE=DATE:${evt.endDate.replace(/-/g, '')}\r\n`;
+            }
+        }
+        else {
+            const d = evt.date.replace(/-/g, '');
+            const t = (evt.startTime || '00:00').replace(':', '') + '00';
+            ics += `DTSTART:${d}T${t}\r\n`;
+            if (evt.endTime) {
+                const et = evt.endTime.replace(':', '') + '00';
+                ics += `DTEND:${d}T${et}\r\n`;
+            }
+        }
+        if (evt.recurrence && evt.recurrence !== 'none') {
+            const rruleMap = { daily: 'DAILY', weekly: 'WEEKLY', biweekly: 'WEEKLY;INTERVAL=2', monthly: 'MONTHLY', yearly: 'YEARLY' };
+            ics += `RRULE:FREQ=${rruleMap[evt.recurrence]}\r\n`;
+        }
+        if (evt.notes) {
+            ics += `DESCRIPTION:${evt.notes.replace(/\n/g, '\\n')}\r\n`;
+        }
+        if (evt.alarm && evt.alarm > 0) {
+            ics += 'BEGIN:VALARM\r\n';
+            ics += 'ACTION:DISPLAY\r\n';
+            ics += `TRIGGER:-PT${evt.alarm}M\r\n`;
+            ics += `DESCRIPTION:${evt.title}\r\n`;
+            ics += 'END:VALARM\r\n';
+        }
+        ics += 'END:VEVENT\r\n';
+    }
+    ics += 'END:VCALENDAR\r\n';
+    const blob = new Blob([ics], { type: 'text/calendar' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'webdates-export.ics';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+// ===== DATA EXPORT/IMPORT =====
+function exportAllData() {
+    const data = { events, settings, version: '1.0', exportDate: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'webdates-backup.json';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+function importAllData() {
+    document.getElementById('json-file-input').click();
+}
+function handleJSONImport(event) {
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file)
+        return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (data.events) {
+                events = data.events;
+                saveEvents();
+            }
+            if (data.settings) {
+                settings = { ...settings, ...data.settings };
+                localStorage.setItem('webdates-settings', JSON.stringify(settings));
+                applySettingsToUI();
+            }
+            renderAll();
+            alert(`Imported ${data.events ? data.events.length : 0} events.`);
+        }
+        catch (err) {
+            alert('Invalid file format.');
+        }
+    };
+    reader.readAsText(file);
+    input.value = '';
+}
+// ===== KEYBOARD SHORTCUTS =====
+document.addEventListener('keydown', function (e) {
+    if (document.getElementById('event-modal').classList.contains('active')) {
+        if (e.key === 'Escape')
+            closeModal();
+        return;
+    }
+    if (document.getElementById('password-modal').classList.contains('active')) {
+        if (e.key === 'Escape')
+            cancelPasswordModal();
+        if (e.key === 'Enter')
+            submitPasswordModal();
+        return;
+    }
+    const target = e.target;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')
+        return;
+    switch (e.key) {
+        case 'ArrowLeft':
+            navigateMonth(-1);
+            break;
+        case 'ArrowRight':
+            navigateMonth(1);
+            break;
+        case 't':
+        case 'T':
+            goToToday();
+            break;
+        case 'm':
+        case 'M':
+            switchView('month');
+            break;
+        case 'w':
+        case 'W':
+            switchView('week');
+            break;
+        case 'd':
+        case 'D':
+            switchView('day');
+            break;
+        case 'l':
+        case 'L':
+            switchView('list');
+            break;
+        case 'n':
+        case 'N':
+            openNewEvent();
+            break;
+    }
+});
+// Close modals on background click
+document.getElementById('event-modal').addEventListener('click', function (e) {
+    if (e.target === this)
+        closeModal();
+});
+document.getElementById('password-modal').addEventListener('click', function (e) {
+    if (e.target === this)
+        cancelPasswordModal();
+});
+// Start app
+init();
+
+</script>
+</body>
+</html>
