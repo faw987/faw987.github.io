@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Browser SQL Demo (SQLite)</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            margin: 16px;
+        }
+        h1 {
+            margin-bottom: 4px;
+        }
+        .section {
+            border: 1px solid #ccc;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 4px;
+        }
+        .section h2 {
+            margin-top: 0;
+            font-size: 1.1rem;
+        }
+        label {
+            display: inline-block;
+            min-width: 80px;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 80px;
+            font-family: monospace;
+        }
+        button {
+            margin-right: 4px;
+            margin-top: 4px;
+        }
+        #output, #status-log {
+            background: #f7f7f7;
+            border: 1px solid #ccc;
+            padding: 8px;
+            min-height: 60px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        #db-buttons {
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+<h1>Browser SQL Demo (SQLite)</h1>
+<div>Database name: <strong>itemdb</strong><br/>Table name: <strong>item(id, description, cost)</strong></div>
+
+<!-- Record editor (CRUD) -->
+<div class="section">
+    <h2>Record editor (CRUD)</h2>
+    <div>
+        <label for="item-id">ID:</label>
+        <input type="text" id="item-id" placeholder="Enter ID" />
+    </div>
+    <div style="margin-top:8px;">
+        <label for="item-description">Description:</label><br />
+        <input type="text" id="item-description" placeholder="Item description" />
+    </div>
+    <div style="margin-top:8px;">
+        <label for="item-cost">Cost:</label><br />
+        <input type="text" id="item-cost" placeholder="Item cost (number)" />
+    </div>
+    <div style="margin-top:8px;">
+        <button id="btn-retrieve">Retrieve</button>
+        <button id="btn-create">Create</button>
+        <button id="btn-update">Update</button>
+        <button id="btn-delete">Delete</button>
+    </div>
+</div>
+
+<!-- Admin SQL console -->
+<div class="section">
+    <h2>Admin SQL console</h2>
+    <div>
+        <label for="sql-command">SQL command(s):</label><br />
+        <textarea id="sql-command">SELECT * FROM item;</textarea>
+    </div>
+    <div style="margin-top:8px;">
+        <button id="btn-sql-do">Do it</button>
+        <button id="btn-sql-clear">Clear</button>
+    </div>
+    <div style="margin-top:8px;">
+        <div>Output:</div>
+        <pre id="output"></pre>
+    </div>
+</div>
+
+<!-- DB / table / CSV controls -->
+<div class="section">
+    <h2>Database / Table / CSV</h2>
+    <div id="db-buttons">
+        <button id="btn-create-db">Create / Select DB</button>
+        <button id="btn-create-table">Create table</button>
+        <button id="btn-delete-table">Delete table</button>
+        <button id="btn-delete-db">Delete database</button>
+        <button id="btn-export-csv">Export table to CSV</button>
+        <label>
+            CSV file for import:
+            <input type="file" id="file-import" accept=".csv,text/csv" />
+        </label>
+        <button id="btn-import-csv">Import CSV into table</button>
+    </div>
+</div>
+
+<!-- Status / log -->
+<div class="section">
+    <h2>Status / Log</h2>
+    <pre id="status-log">[Initializing UI...]</pre>
+</div>
+
+<!-- SQLite (sql.js) from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<!-- Your compiled TypeScript -->
+<script src="js/app2.js"></script>
+</body>
+</html>
