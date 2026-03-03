@@ -121,7 +121,13 @@
 <h1>Browser SQL Demo (SQLite)</h1>
 <div>
     Database name: <strong>itemdb</strong><br/>
-    Table name: <strong>item(id, description, short_description, date_input, purchased_from, date_purchased, cost, notes, picture)</strong>
+    Table name:
+    <strong>
+        item(
+        id, description, short_description, date_input,
+        purchased_from, date_purchased, cost, notes, picture
+        )
+    </strong>
 </div>
 
 <!-- Record editor (CRUD) -->
@@ -147,8 +153,12 @@
         </div>
         <div class="field-row">
             <label for="item-short-description">Short description</label>
-            <input type="text" id="item-short-description" maxlength="30"
-                   placeholder="~30 characters summary" />
+            <input
+                    type="text"
+                    id="item-short-description"
+                    maxlength="30"
+                    placeholder="~30 characters summary"
+            />
         </div>
         <div class="field-row">
             <label for="item-date-input">Date input</label>
@@ -163,7 +173,11 @@
     <div class="tab-panel" id="tab-acquire">
         <div class="field-row">
             <label for="item-purchased-from">Purchased from</label>
-            <input type="text" id="item-purchased-from" placeholder="Store / website / person" />
+            <input
+                    type="text"
+                    id="item-purchased-from"
+                    placeholder="Store / website / person"
+            />
         </div>
         <div class="field-row">
             <label for="item-date-purchased">Purchased on</label>
@@ -174,7 +188,13 @@
         </div>
         <div class="field-row">
             <label for="item-cost">Cost</label>
-            <input type="number" id="item-cost" step="0.01" min="0" placeholder="Dollar value" />
+            <input
+                    type="number"
+                    id="item-cost"
+                    step="0.01"
+                    min="0"
+                    placeholder="Dollar value"
+            />
         </div>
     </div>
 
@@ -186,7 +206,13 @@
                 <img id="picture-preview" alt="No picture" />
             </div>
             <div class="field-row">
-                <input type="file" id="item-picture-input" accept="image/*" capture="environment" style="display:none" />
+                <input
+                        type="file"
+                        id="item-picture-input"
+                        accept="image/*"
+                        capture="environment"
+                        style="display:none"
+                />
                 <button type="button" id="btn-capture-picture">Capture picture</button>
                 <button type="button" id="btn-clear-picture">Clear picture</button>
             </div>
@@ -216,7 +242,16 @@
     <h2>Admin SQL console</h2>
     <div>
         <label for="sql-command">SQL command(s):</label><br />
-        <textarea id="sql-command">SELECT id, description, short_description, date_input, purchased_from, date_purchased, cost FROM item;</textarea>
+        <textarea id="sql-command">
+SELECT id,
+       description,
+       short_description,
+       date_input,
+       purchased_from,
+       date_purchased,
+       cost
+FROM item;
+      </textarea>
     </div>
     <div style="margin-top:8px;">
         <button id="btn-sql-do">Do it</button>
@@ -230,18 +265,32 @@
 
 <!-- DB / table / CSV controls -->
 <div class="section">
-    <h2>Database / Table / CSV</h2>
+    <h2>Database / Table / CSV / DB file</h2>
     <div id="db-buttons">
         <button id="btn-create-db">Create / Select DB</button>
         <button id="btn-create-table">Create table</button>
         <button id="btn-delete-table">Delete table</button>
         <button id="btn-delete-db">Delete database</button>
+
+        <br /><br />
         <button id="btn-export-csv">Export table to CSV</button>
         <label>
             CSV file for import:
             <input type="file" id="file-import" accept=".csv,text/csv" />
         </label>
         <button id="btn-import-csv">Import CSV into table</button>
+
+        <br /><br />
+        <button id="btn-export-db">Export DB (.sqlite)</button>
+        <label>
+            DB file for import:
+            <input
+                    type="file"
+                    id="file-import-db"
+                    accept=".sqlite,.db,application/octet-stream"
+            />
+        </label>
+        <button id="btn-import-db">Import DB</button>
     </div>
 </div>
 
@@ -254,6 +303,6 @@
 <!-- SQLite (sql.js) from CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
 <!-- Your compiled TypeScript -->
-<script src="js/app2a.js"></script>
+<script src="js/app2b.js"></script>
 </body>
 </html>

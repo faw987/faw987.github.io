@@ -1,54 +1,186 @@
 {
   "topics": [
     {
-      "text": "my fav topic i am c",
+      "text": "Ethics: Will AI ever be truly \"conscious\" — and how would we know?",
       "aggregatedRank": 1,
       "avgRank": 1,
       "voteCount": 1
     },
     {
-      "text": "Societal impact in particular labor market impacts.",
+      "text": "Ethics: Should robots have legal rights or personhood?",
       "aggregatedRank": 2,
       "avgRank": 1,
       "voteCount": 1
     },
     {
-      "text": "Example Topic 1",
+      "text": "Ethics: Is it ethical to form emotional bonds with AI companions or caregivers?",
       "aggregatedRank": 3,
-      "avgRank": 1.25,
-      "voteCount": 4
+      "avgRank": 1,
+      "voteCount": 1
     },
     {
-      "text": "Example Topic 2",
+      "text": "Ethics: Could a sufficiently advanced AI deserve moral consideration?",
       "aggregatedRank": 4,
-      "avgRank": 1.75,
-      "voteCount": 4
+      "avgRank": 1,
+      "voteCount": 1
     },
     {
-      "text": "Impact on water,electricity and land use as data centers proliferate.",
+      "text": "Ethics: Is it possible to build AI that reliably shares human values?",
       "aggregatedRank": 5,
-      "avgRank": 2,
+      "avgRank": 1,
       "voteCount": 1
     },
     {
-      "text": "How do you write programs using this Vibe programming technique?",
+      "text": "Governance: Should governments regulate AI development, and if so, how?",
       "aggregatedRank": 6,
-      "avgRank": 3,
+      "avgRank": 1,
       "voteCount": 1
     },
     {
-      "text": "What are the implications for society in terms of privacy and security in an AI world?",
+      "text": "Governance: Should AI systems be required to identify themselves to humans?",
       "aggregatedRank": 7,
-      "avgRank": 4,
+      "avgRank": 1,
       "voteCount": 1
     },
     {
-      "text": "What's going on internationally? We hear a lot about China. Are there other significantinternational players and what's the scorecard like?",
+      "text": "Governance: Is the race between the US and China on AI a genuine national security threat?",
       "aggregatedRank": 8,
-      "avgRank": 4,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Governance: Is \"AI safety\" a real existential concern or hype from tech insiders?",
+      "aggregatedRank": 9,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Governance: Should there be an international treaty governing AI — like we have for nuclear weapons?",
+      "aggregatedRank": 10,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Work: Will AI cause mass unemployment — or just shift what humans do?",
+      "aggregatedRank": 11,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Work: Should children be taught by AI tutors — and what are we giving up if they are?",
+      "aggregatedRank": 12,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Work: Should robots be used in elder care, and what does that say about our society?",
+      "aggregatedRank": 13,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Work: Can AI accelerate scientific discovery, or does it just find patterns humans miss?",
+      "aggregatedRank": 14,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Bias: How do we prevent AI from amplifying racial, gender, or economic bias?",
+      "aggregatedRank": 15,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Bias: Can AI replace judges, lawyers, or jury deliberation fairly?",
+      "aggregatedRank": 16,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Bias: Who is liable when a self-driving car kills someone?",
+      "aggregatedRank": 17,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Bias: Should AI be allowed to make life-or-death medical decisions?",
+      "aggregatedRank": 18,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Creativity: Can AI be creative, or is it always just remixing human ideas?",
+      "aggregatedRank": 19,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Creativity: Is AI-generated art real art — and should it be eligible for awards or copyright?",
+      "aggregatedRank": 20,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Creativity: Who should own the output of AI — the user, the company, or no one?",
+      "aggregatedRank": 21,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Creativity: How do deepfakes threaten democracy and personal reputation?",
+      "aggregatedRank": 22,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Privacy: Should lethal autonomous weapons (\"killer robots\") be banned?",
+      "aggregatedRank": 23,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Privacy: Can we ever fully explain why an AI made a particular decision?",
+      "aggregatedRank": 24,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Privacy: Is artificial general intelligence (AGI) inevitable, and are we ready?",
+      "aggregatedRank": 25,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Privacy: Do social media algorithms count as AI — and are they already controlling us?",
+      "aggregatedRank": 26,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Privacy: Should AI-written news articles be labeled — and does it matter if they're accurate?",
+      "aggregatedRank": 27,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Future: How much of your personal data is a fair trade for AI convenience?",
+      "aggregatedRank": 28,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Future: How should we handle AI systems that develop unexpected, emergent behaviors?",
+      "aggregatedRank": 29,
+      "avgRank": 1,
+      "voteCount": 1
+    },
+    {
+      "text": "Future: Could brain-computer interfaces blur the line between human and machine intelligence?",
+      "aggregatedRank": 30,
+      "avgRank": 1,
       "voteCount": 1
     }
   ],
-  "generatedAt": "2026-01-16T17:52:42.815Z",
-  "submissionCount": 6
+  "generatedAt": "2026-03-03T00:00:00.000Z",
+  "submissionCount": 30
 }
