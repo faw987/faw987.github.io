@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser SQL Demo (SQLite + Tailwind)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-900 p-4 md:p-8">
+
+<div class="max-w-4xl mx-auto space-y-6">
+
+    <header class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold tracking-tight text-slate-800">Browser SQL Demo</h1>
+            <p class="text-slate-500 text-sm mt-1">
+                Database: <span class="font-mono font-bold text-blue-600">itemdb</span>
+            </p>
+        </div>
+        <div class="text-right">
+            <p class="text-[10px] uppercase tracking-widest font-bold text-slate-400">Schema</p>
+            <p class="font-mono text-[11px] bg-slate-200 px-2 py-1 rounded text-slate-700">
+                item(id, description, short_description, date_input, purchased_from, date_purchased, cost, notes, picture)
+            </p>
+        </div>
+    </header>
+
+    <div class="bg-white shadow-md rounded-xl border border-slate-200 overflow-hidden">
+        <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-slate-700">Record Editor</h2>
+            <div class="flex items-center gap-2">
+                <label class="text-xs font-bold text-slate-400 uppercase">ID:</label>
+                <input type="text" id="item-id" class="w-24 px-3 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="ID" />
+            </div>
+        </div>
+
+        <div class="p-6">
+            <div class="flex gap-2 border-b border-slate-200 mb-6">
+                <button class="px-4 py-2 text-sm font-medium border-b-2 border-blue-600 text-blue-600" id="tab-btn-basics" data-tab="basics">Basics</button>
+                <button class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent" id="tab-btn-acquire" data-tab="acquire">Acquisition</button>
+                <button class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent" id="tab-btn-misc" data-tab="misc">Misc</button>
+            </div>
+
+            <div id="tab-basics" class="tab-panel space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Description</label>
+                    <textarea id="item-description" class="w-full px-4 py-2 border border-slate-300 rounded-lg h-24 focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="Enter full description..."></textarea>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Short Description</label>
+                        <input type="text" id="item-short-description" maxlength="30" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="~30 chars summary" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Date Input</label>
+                        <div class="flex gap-2">
+                            <input type="date" id="item-date-input" class="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                            <button type="button" id="btn-date-input-picker" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition">📅</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-acquire" class="tab-panel hidden space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Purchased From</label>
+                    <input type="text" id="item-purchased-from" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Store / website / person" />
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Purchased On</label>
+                        <div class="flex gap-2">
+                            <input type="date" id="item-date-purchased" class="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                            <button type="button" id="btn-date-purchased-picker" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition">📅</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cost</label>
+                        <input type="number" id="item-cost" step="0.01" min="0" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0.00" />
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-misc" class="tab-panel hidden space-y-6">
+                <div class="flex flex-col md:flex-row gap-6">
+                    <div class="flex-shrink-0">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Picture</label>
+                        <div class="w-40 h-40 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center bg-slate-50 overflow-hidden">
+                            <img id="picture-preview" alt="No picture" class="max-w-full max-h-full object-contain" />
+                        </div>
+                        <div class="mt-3 flex gap-2">
+                            <input type="file" id="item-picture-input" accept="image/*" capture="environment" class="hidden" />
+                            <button type="button" id="btn-capture-picture" class="text-[11px] bg-slate-800 text-white px-3 py-1.5 rounded hover:bg-black transition">Capture</button>
+                            <button type="button" id="btn-clear-picture" class="text-[11px] bg-white border border-slate-300 px-3 py-1.5 rounded hover:bg-slate-50 transition">Clear</button>
+                        </div>
+                    </div>
+                    <div class="flex-grow">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Notes</label>
+                        <div class="border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500">
+                            <div class="bg-slate-100 border-b border-slate-300 p-1.5 flex gap-1 notes-toolbar">
+                                <button type="button" data-format="bold" class="px-3 py-1 hover:bg-white rounded text-sm font-bold">B</button>
+                                <button type="button" data-format="italic" class="px-3 py-1 hover:bg-white rounded text-sm italic">I</button>
+                                <button type="button" data-format="underline" class="px-3 py-1 hover:bg-white rounded text-sm underline">U</button>
+                            </div>
+                            <div id="item-notes" contenteditable="true" class="p-4 bg-white min-h-[120px] outline-none"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-slate-100 flex flex-wrap gap-3">
+                <button id="btn-retrieve" class="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-black transition font-medium shadow-sm">Retrieve</button>
+                <button id="btn-create" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-sm">Create</button>
+                <button id="btn-update" class="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium shadow-sm">Update</button>
+                <button id="btn-delete" class="px-6 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition font-medium shadow-sm">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-slate-900 rounded-xl shadow-lg border border-slate-800 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+            <h2 class="text-white font-medium flex items-center gap-2">
+                <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                SQL Console
+            </h2>
+            <div class="flex gap-2">
+                <button id="btn-sql-do" class="text-xs bg-emerald-500 text-slate-950 px-4 py-1.5 rounded font-bold hover:bg-emerald-400 transition">DO IT</button>
+                <button id="btn-sql-clear" class="text-xs bg-slate-700 text-slate-300 px-4 py-1.5 rounded font-bold hover:bg-slate-600 transition">CLEAR</button>
+            </div>
+        </div>
+        <div class="p-4 bg-slate-950 space-y-4">
+            <div>
+                <div class="text-[10px] text-slate-500 mb-2 uppercase tracking-widest font-bold px-2">Input Query</div>
+                <textarea id="sql-command" class="w-full bg-slate-900 text-emerald-400 font-mono text-sm p-3 outline-none h-40 rounded-lg border border-slate-800 focus:border-emerald-500 transition overflow-auto resize-none">SELECT id, description, short_description, date_input, purchased_from, date_purchased, cost, notes FROM item;
+PRAGMA table_info('item');</textarea>
+            </div>
+            <div>
+                <div class="text-[10px] text-slate-500 mb-2 uppercase tracking-widest font-bold px-2">Results Output</div>
+                <div class="bg-slate-900/50 border border-slate-800 rounded-lg overflow-hidden">
+                        <pre id="output"
+                             class="text-slate-50 p-4 font-mono text-xs leading-relaxed h-[300px] overflow-x-auto overflow-y-auto bg-slate-900/50 border border-slate-800 whitespace-pre scrollbar-thin scrollbar-thumb-slate-700">Ready.</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-sm rounded-xl border border-slate-200 p-6 space-y-8">
+        <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Database & Data Management</h2>
+
+        <div class="space-y-3">
+            <p class="text-[11px] font-bold text-slate-400 uppercase">1. Lifecycle Operations</p>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <button id="btn-create-db" class="bg-slate-100 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-slate-200 transition border border-slate-200">Create/Select DB</button>
+                <button id="btn-create-table" class="bg-slate-100 text-slate-700 py-2 rounded-lg text-sm font-medium hover:bg-slate-200 transition border border-slate-200">Create Table</button>
+                <button id="btn-delete-table" class="bg-rose-50 text-rose-600 py-2 rounded-lg text-sm font-medium hover:bg-rose-100 transition border border-rose-100">Delete Table</button>
+                <button id="btn-delete-db" class="bg-rose-50 text-rose-600 py-2 rounded-lg text-sm font-medium hover:bg-rose-100 transition border border-rose-100">Delete DB</button>
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            <p class="text-[11px] font-bold text-slate-400 uppercase">2. CSV Data Exchange</p>
+            <div class="flex flex-col md:flex-row gap-3 items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <button id="btn-export-csv" class="w-full md:w-1/3 bg-blue-50 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-100 transition border border-blue-100">Export Table to CSV</button>
+                <div class="w-full md:w-2/3 flex items-center gap-4 px-2">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase flex-shrink-0">Import CSV:</label>
+                    <input type="file" id="file-import" accept=".csv,text/csv" class="text-xs flex-grow" />
+                    <button id="btn-import-csv" class="bg-blue-600 text-white px-4 py-1.5 rounded text-xs font-bold hover:bg-blue-700 transition">Import</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            <p class="text-[11px] font-bold text-slate-400 uppercase">3. Binary SQLite Files</p>
+            <div class="flex flex-col md:flex-row gap-3 items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <button id="btn-export-db" class="w-full md:w-1/3 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-black transition">Export DB (.sqlite)</button>
+                <div class="w-full md:w-2/3 flex items-center gap-4 px-2">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase flex-shrink-0">Import DB File:</label>
+                    <input type="file" id="file-import-db" accept=".sqlite,.db,application/octet-stream" class="text-xs flex-grow" />
+                    <button id="btn-import-db" class="bg-slate-800 text-white px-4 py-1.5 rounded text-xs font-bold hover:bg-black transition">Upload</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-slate-100 rounded-lg p-4 border border-slate-200">
+        <div class="flex items-center gap-2 mb-2">
+            <span class="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">System Status</span>
+        </div>
+        <pre id="status-log" class="text-[11px] font-mono text-slate-500 leading-relaxed overflow-auto max-h-32 whitespace-pre-wrap">[Initializing UI...]</pre>
+    </footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<script src="js/app2b.js"></script>
+
+<script>
+    document.querySelectorAll('[data-tab]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Style updates
+            document.querySelectorAll('[data-tab]').forEach(b => {
+                b.classList.remove('border-blue-600', 'text-blue-600');
+                b.classList.add('text-slate-500', 'border-transparent');
+            });
+            btn.classList.add('border-blue-600', 'text-blue-600');
+            btn.classList.remove('text-slate-500', 'border-transparent');
+
+            // Content updates
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+            const target = btn.getAttribute('data-tab');
+            const panel = document.getElementById('tab-' + target);
+            if (panel) panel.classList.remove('hidden');
+        });
+    });
+</script>
+</body>
+</html>
