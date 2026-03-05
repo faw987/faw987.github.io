@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weather Dashboard</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem 1rem;
+            gap: 1.5rem;
+        }
+
+        /* Clock */
+        #clock-display {
+            text-align: center;
+        }
+        #clock-time {
+            font-size: 3.5rem;
+            font-weight: 200;
+            letter-spacing: 0.05em;
+            line-height: 1;
+        }
+        #clock-date {
+            font-size: 1.1rem;
+            font-weight: 300;
+            opacity: 0.75;
+            margin-top: 0.25rem;
+        }
+
+        /* Glass card */
+        .glass {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 1rem;
+        }
+
+        /* Weather cards */
+        #cards {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .weather-card {
+            width: 200px;
+            padding: 1.25rem 1.5rem;
+            text-align: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: default;
+        }
+        .weather-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+        }
+        .weather-card .city-name {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            opacity: 0.65;
+            margin-bottom: 0.5rem;
+        }
+        .weather-card .temp {
+            font-size: 2.5rem;
+            font-weight: 200;
+        }
+        .weather-card .details {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-top: 0.4rem;
+        }
+
+        /* Buttons area */
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            width: 100%;
+            max-width: 520px;
+        }
+
+        .place-selector {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        select {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 0.5rem;
+            color: #e0e0e0;
+            padding: 0.5rem 0.75rem;
+            font-family: inherit;
+            font-size: 0.9rem;
+            cursor: pointer;
+            outline: none;
+        }
+        select option { background: #1a1a2e; }
+
+        button, .btn-link {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 0.6rem;
+            color: #e0e0e0;
+            padding: 0.55rem 1.1rem;
+            font-family: inherit;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+            white-space: nowrap;
+        }
+        button:hover, .btn-link:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .btn-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            justify-content: center;
+        }
+
+        /* Overlay */
+        #bday-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(10,10,30,0.8);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        #bday-overlay.open { display: flex; }
+
+        #bday-box {
+            background: rgba(255,255,255,0.07);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 1.25rem;
+            padding: 2rem;
+            max-width: 680px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        #bday-box h2 {
+            text-align: center;
+            font-weight: 300;
+            font-size: 1.4rem;
+            margin-bottom: 1.25rem;
+            opacity: 0.9;
+        }
+        #year-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+            gap: 0.4rem;
+        }
+        #year-grid button {
+            padding: 0.4rem 0.2rem;
+            font-size: 0.8rem;
+            border-radius: 0.4rem;
+        }
+        #bday-close {
+            display: block;
+            margin: 1.25rem auto 0;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Clock -->
+<div id="clock-display">
+    <div id="clock-time"></div>
+    <div id="clock-date"></div>
+</div>
+
+<!-- Weather cards -->
+<div id="cards"></div>
+
+<!-- Buttons -->
+<div class="buttons">
+
+    <!-- Place selector -->
+    <div class="place-selector">
+        <select id="place-select">
+            <option value="Cleveland, OH">Cleveland</option>
+            <option value="Clearfield, PA">Clearfield PA</option>
+            <option value="Freehold, NJ">Freehold NJ</option>
+        </select>
+        <button onclick="goToWeather()">Go to weather for this place</button>
+    </div>
+
+    <!-- Utility buttons -->
+    <div class="btn-grid">
+        <a class="btn-link" href="https://www.nytimes.com/section/todayspaper" target="_blank">I Feel Lucky</a>
+        <a class="btn-link" href="https://www.google.com/search?q=What%27s+lucky+for+me+today%3F" target="_blank">It Hasn't Been My Day</a>
+        <button onclick="openBdayOverlay()">On This Day On Bday</button>
+        <a class="btn-link" href="https://www.nytimes.com" target="_blank">NYT Front Page</a>
+        <a class="btn-link" href="https://faw987.github.io/faw191" target="_blank">SQL Lite Demo</a>
+        <a class="btn-link" href="https://faw987.github.io/avsitai-s26.html" target="_blank">OLLI-RU Spring 2026B</a>
+    </div>
+
+</div>
+
+<!-- On This Day overlay -->
+<div id="bday-overlay">
+    <div id="bday-box">
+        <h2 id="bday-title"></h2>
+        <div id="year-grid"></div>
+        <button id="bday-close" onclick="closeBdayOverlay()">Close</button>
+    </div>
+</div>
+
+<script>
+    // ── Cities ───────────────────────────────────────────────────────────────
+    const cities = [
+        { id: 'nyc',    name: 'New York City', lat: 40.7128, lon: -74.0060 },
+        { id: 'medina', name: 'Medina, OH',    lat: 41.1382, lon: -81.8637 },
+    ];
+
+    // Weather code → short description
+    function weatherDesc(code) {
+        if (code === 0) return 'Clear';
+        if (code <= 3) return 'Partly Cloudy';
+        if (code <= 9) return 'Overcast';
+        if (code <= 19) return 'Foggy';
+        if (code <= 29) return 'Drizzle';
+        if (code <= 39) return 'Dusty';
+        if (code <= 49) return 'Foggy';
+        if (code <= 59) return 'Drizzle';
+        if (code <= 69) return 'Rain';
+        if (code <= 79) return 'Snow';
+        if (code <= 84) return 'Rain Showers';
+        if (code <= 94) return 'Thunderstorm';
+        return 'Severe';
+    }
+
+    // ── Weather fetch ────────────────────────────────────────────────────────
+    async function fetchWeather() {
+        const container = document.getElementById('cards');
+        container.innerHTML = '';
+
+        for (const city of cities) {
+            const card = document.createElement('div');
+            card.className = 'weather-card glass';
+            card.innerHTML = `<div class="city-name">${city.name}</div><div class="temp">…</div><div class="details">Loading</div>`;
+            container.appendChild(card);
+
+            try {
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current_weather=true&temperature_unit=fahrenheit&windspeed_unit=mph`;
+                const res = await fetch(url);
+                const data = await res.json();
+                const cw = data.current_weather;
+                card.querySelector('.temp').textContent = `${Math.round(cw.temperature)}°F`;
+                card.querySelector('.details').textContent = `${weatherDesc(cw.weathercode)} · ${Math.round(cw.windspeed)} mph`;
+            } catch {
+                card.querySelector('.temp').textContent = '—';
+                card.querySelector('.details').textContent = 'Unavailable';
+            }
+        }
+    }
+
+    fetchWeather();
+    setInterval(fetchWeather, 5 * 60 * 1000);
+
+    // ── Clock ────────────────────────────────────────────────────────────────
+    function updateClock() {
+        const now = new Date();
+        const timeEl = document.getElementById('clock-time');
+        const dateEl = document.getElementById('clock-date');
+
+        const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        const pad = n => String(n).padStart(2, '0');
+        timeEl.textContent = `${h12}:${pad(m)}:${pad(s)} ${ampm}`;
+
+        const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+        const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        dateEl.textContent = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // ── Place weather ────────────────────────────────────────────────────────
+    function goToWeather() {
+        const place = document.getElementById('place-select').value;
+        const q = encodeURIComponent(`weather ${place}`);
+        window.open(`https://www.google.com/search?q=${q}`, '_blank');
+    }
+
+    // ── On This Day overlay ──────────────────────────────────────────────────
+    function openBdayOverlay() {
+        const now = new Date();
+        const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        const monthName = months[now.getMonth()];
+        const day = now.getDate();
+
+        document.getElementById('bday-title').textContent = `On This Day: ${monthName} ${day}`;
+
+        const grid = document.getElementById('year-grid');
+        grid.innerHTML = '';
+        for (let year = 1900; year <= 2026; year++) {
+            const btn = document.createElement('button');
+            btn.textContent = year;
+            btn.onclick = () => {
+                const q = encodeURIComponent(`notable events ${monthName} ${day} ${year}`);
+                window.open(`https://www.google.com/search?q=${q}`, '_blank');
+            };
+            grid.appendChild(btn);
+        }
+
+        document.getElementById('bday-overlay').classList.add('open');
+    }
+
+    function closeBdayOverlay() {
+        document.getElementById('bday-overlay').classList.remove('open');
+    }
+
+    // Close overlay on backdrop click
+    document.getElementById('bday-overlay').addEventListener('click', function(e) {
+        if (e.target === this) closeBdayOverlay();
+    });
+</script>
+</body>
+</html>
