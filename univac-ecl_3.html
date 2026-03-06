@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UNIVAC ECL</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&family=Orbitron:wght@400;700&family=Bebas+Neue&display=swap');
+  :root {
+    --green: #00ff41;
+    --green-dim: #00aa2a;
+    --green-glow: #00ff4166;
+    --amber: #ffb000;
+    --dark: #030a03;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 30px 20px 60px;
+    font-family: 'Share Tech Mono', monospace;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg,rgba(0,0,0,0.15) 0px,rgba(0,0,0,0.15) 1px,transparent 1px,transparent 3px);
+    pointer-events: none; z-index: 1000;
+  }
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.7) 100%);
+    pointer-events: none; z-index: 999;
+  }
+  .crt-frame {
+    width: 100%; max-width: 900px;
+    background: var(--dark);
+    border: 3px solid var(--green-dim);
+    border-radius: 8px;
+    box-shadow: 0 0 30px var(--green-glow), 0 0 80px rgba(0,255,65,0.1), inset 0 0 60px rgba(0,0,0,0.8);
+    padding: 36px 40px 40px;
+    position: relative;
+  }
+  .crt-frame::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 30%, rgba(0,255,65,0.04) 0%, transparent 70%);
+    border-radius: 8px; pointer-events: none;
+  }
+  /* ── HEADER / LOGO ── */
+  .header { text-align: center; margin-bottom: 32px; border-bottom: 1px solid var(--green-dim); padding-bottom: 20px; }
+  .logo-wrap {
+    display: flex; align-items: center; justify-content: center;
+    animation: flicker 7s infinite; margin-bottom: 3px;
+  }
+  /* SPERRY in dim green, condensed */
+  .logo-sperry {
+    font-family: 'Bebas Neue', 'Orbitron', sans-serif;
+    font-size: clamp(18px, 3.8vw, 32px);
+    letter-spacing: 7px;
+    color: var(--green-dim);
+    text-shadow: 0 0 10px rgba(0,200,60,0.35);
+  }
+  /* The ─┼─ crosshair symbol between words */
+  .logo-cross {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: clamp(26px, 3.5vw, 40px);
+    height: clamp(26px, 3.5vw, 40px);
+    margin: 0 4px;
+    position: relative; flex-shrink: 0;
+  }
+  .logo-cross::before { /* horizontal bar */
+    content: ''; position: absolute;
+    width: 100%; height: 2px;
+    background: var(--green); box-shadow: 0 0 7px var(--green);
+    top: 50%; transform: translateY(-50%);
+  }
+  .logo-cross::after { /* vertical bar */
+    content: ''; position: absolute;
+    height: 100%; width: 2px;
+    background: var(--green); box-shadow: 0 0 7px var(--green);
+    left: 50%; transform: translateX(-50%);
+  }
+  .logo-cross-dot {
+    width: clamp(9px, 1.3vw, 14px);
+    height: clamp(9px, 1.3vw, 14px);
+    border: 2px solid var(--green);
+    border-radius: 50%;
+    box-shadow: 0 0 7px var(--green), inset 0 0 3px rgba(0,255,65,0.25);
+    background: var(--dark); z-index: 1;
+  }
+  /* UNIVAC — bright, glowing, same condensed face */
+  .logo-univac {
+    font-family: 'Bebas Neue', 'Orbitron', sans-serif;
+    font-size: clamp(18px, 3.8vw, 32px);
+    letter-spacing: 7px;
+    color: var(--green);
+    text-shadow: 0 0 18px var(--green), 0 0 36px rgba(0,255,65,0.35);
+  }
+  .logo-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: clamp(7px, 0.95vw, 9px);
+    color: #236623; letter-spacing: 5px; text-transform: uppercase; margin-top: 1px;
+  }
+  .logo-dash {
+    font-family: 'VT323', monospace;
+    font-size: clamp(11px, 1.5vw, 15px);
+    color: var(--green-dim); letter-spacing: 2px; margin-top: 6px;
+  }
+  .system-line { font-size: 11px; color: #2a5c2a; letter-spacing: 2px; margin-top: 4px; }
+  @keyframes flicker { 0%,95%,100%{opacity:1} 96%{opacity:0.82} 97%{opacity:1} 98%{opacity:0.88} }
+
+  /* ── CONTROLS ── */
+  .section-label { font-family: 'VT323', monospace; color: var(--amber); font-size: 16px; letter-spacing: 3px; margin-bottom: 8px; text-shadow: 0 0 8px rgba(255,176,0,0.4); }
+  .section-label::before { content: '> '; }
+  .input-wrapper { position: relative; margin-bottom: 6px; }
+  .prompt-line { position: absolute; left: 14px; top: 14px; color: var(--green); font-size: 15px; pointer-events: none; text-shadow: 0 0 6px var(--green); }
+  textarea {
+    width: 100%; min-height: 170px;
+    background: #010d01; border: 1px solid var(--green-dim); border-radius: 4px;
+    color: var(--green); font-family: 'Share Tech Mono', monospace; font-size: 15px;
+    padding: 12px 14px 12px 34px; resize: vertical; outline: none;
+    caret-color: var(--green); line-height: 1.7; letter-spacing: 0.5px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    text-shadow: 0 0 4px rgba(0,255,65,0.3);
+  }
+  textarea:focus { border-color: var(--green); box-shadow: 0 0 12px rgba(0,255,65,0.2), inset 0 0 20px rgba(0,255,65,0.03); }
+  textarea::placeholder { color: #1a4a1a; }
+  .hint { font-size: 11px; color: #1e441e; letter-spacing: 1px; margin-bottom: 18px; }
+  .btn-row { display: flex; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; }
+  button { font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; letter-spacing: 3px; padding: 12px 28px; cursor: pointer; border-radius: 3px; transition: all 0.15s; text-transform: uppercase; }
+  .btn-primary { background: transparent; border: 2px solid var(--green); color: var(--green); text-shadow: 0 0 8px var(--green); box-shadow: 0 0 10px rgba(0,255,65,0.2), inset 0 0 10px rgba(0,255,65,0.05); }
+  .btn-primary:hover { background: rgba(0,255,65,0.1); box-shadow: 0 0 20px rgba(0,255,65,0.4), inset 0 0 20px rgba(0,255,65,0.1); transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); background: rgba(0,255,65,0.15); }
+  .btn-secondary { background: transparent; border: 1px solid #1e441e; color: #2a6a2a; font-size: 11px; }
+  .btn-secondary:hover { border-color: var(--green-dim); color: var(--green-dim); }
+
+  /* ── OUTPUT ── */
+  .output-area { background: #000d00; border: 1px solid #1a3a1a; border-radius: 4px; padding: 20px; min-height: 80px; font-size: 14px; line-height: 1.8; }
+  .output-empty { color: #1a3a1a; font-size: 13px; letter-spacing: 1px; font-style: italic; }
+  .output-header { font-family: 'VT323', monospace; color: var(--amber); font-size: 15px; letter-spacing: 2px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #0a2a0a; text-shadow: 0 0 6px rgba(255,176,0,0.3); }
+  .cmd-block { margin-bottom: 16px; padding: 12px 14px; border-left: 3px solid var(--green-dim); background: rgba(0,255,65,0.02); animation: fadeSlide 0.3s ease-out forwards; opacity: 0; }
+  .cmd-block-repeat { border-left-color: #1a4a1a; background: rgba(0,255,65,0.01); }
+  @keyframes fadeSlide { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
+  .cmd-name { color: var(--green); font-size: 16px; font-weight: bold; text-shadow: 0 0 6px rgba(0,255,65,0.4); letter-spacing: 1px; }
+  .cmd-name-repeat { color: var(--green-dim); font-size: 15px; font-weight: bold; letter-spacing: 1px; }
+  .cmd-args { color: var(--amber); font-size: 13px; margin-left: 4px; opacity: 0.8; }
+  .cmd-syntax { color: #3a7a3a; font-size: 11px; margin-top: 4px; letter-spacing: 0.3px; font-style: italic; }
+  .cmd-desc { color: #7acc7a; font-size: 13px; margin-top: 7px; line-height: 1.65; }
+  .cmd-desc-brief { color: #4a8c4a; font-size: 13px; margin-top: 5px; line-height: 1.55; font-style: italic; }
+  .cmd-unknown { border-left-color: #ff4444; }
+  .cmd-unknown .cmd-name { color: #ff6666; text-shadow: 0 0 6px rgba(255,0,0,0.3); }
+  .cmd-unknown .cmd-desc { color: #aa4444; font-style: italic; }
+
+  /* ── QUICK REF ── */
+  .quick-ref { margin-top: 28px; border-top: 1px solid #0a1a0a; padding-top: 20px; }
+  .quick-ref-title { font-family: 'VT323', monospace; color: #1e5c1e; font-size: 14px; letter-spacing: 3px; margin-bottom: 12px; }
+  .quick-ref-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .qr-tag { font-size: 11px; color: #1e5c1e; border: 1px solid #0a2a0a; padding: 3px 8px; border-radius: 2px; cursor: pointer; transition: all 0.15s; letter-spacing: 0.5px; }
+  .qr-tag:hover { color: var(--green-dim); border-color: var(--green-dim); background: rgba(0,255,65,0.05); }
+  .status-bar { display: flex; justify-content: space-between; margin-top: 24px; padding-top: 12px; border-top: 1px solid #0a1a0a; font-size: 10px; color: #1a3a1a; letter-spacing: 1px; }
+  .status-blink { animation: blink 1.2s step-end infinite; }
+  @keyframes blink { 50%{opacity:0} }
+  #processing { color: var(--amber); font-size: 12px; margin-top: 6px; display: none; animation: blink 0.4s step-end infinite; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+<div class="crt-frame">
+  <div class="header">
+    <div class="logo-wrap">
+      <span class="logo-sperry">SPERRY</span>
+      <span class="logo-cross"><span class="logo-cross-dot"></span></span>
+      <span class="logo-univac">UNIVAC</span>
+    </div>
+    <div class="logo-sub">COMPUTER SYSTEMS</div>
+    <div class="logo-dash">EXECUTIVE CONTROL LANGUAGE INTERPRETER</div>
+    <div class="system-line">OS 2200 / EXEC 8 &nbsp;&#9670;&nbsp; ECL AND FURPUR REFERENCE MANUAL 7830 7949-029</div>
+  </div>
+
+  <div class="section-label">ENTER ECL COMMANDS</div>
+  <div class="input-wrapper">
+    <span class="prompt-line">@</span>
+    <textarea id="eclInput" placeholder="RUN PAYROLL,FINANCE,JSMITH,PROD&#10;PASSWD JSMITH/SECRET&#10;ASG,A EMPMASTER.&#10;USE MASTER.,EMPMASTER.&#10;ADD PJT*UTL.STD-ASGS&#10;XQT PAYPGM.MAIN&#10;FIN" spellcheck="false"></textarea>
+  </div>
+  <div class="hint">ONE COMMAND PER LINE &nbsp;&#183;&nbsp; LEADING @ IS OPTIONAL &nbsp;&#183;&nbsp; CTRL+ENTER TO INTERPRET &nbsp;&#183;&nbsp; COMMENTS BEGIN WITH PERIOD ( . )</div>
+
+  <div class="btn-row">
+    <button class="btn-primary" onclick="interpretECL()">&#9646; INTERPRET COMMANDS</button>
+    <button class="btn-secondary" onclick="loadExample()">LOAD EXAMPLE JOB</button>
+    <button class="btn-secondary" onclick="clearAll()">CLEAR</button>
+  </div>
+
+  <div class="section-label">SYSTEM OUTPUT</div>
+  <div class="output-area" id="outputArea">
+    <div class="output-empty">// AWAITING INPUT &mdash; ENTER ECL COMMANDS ABOVE AND PRESS INTERPRET //</div>
+  </div>
+  <div id="processing">&#9679; PROCESSING...</div>
+
+  <div class="quick-ref">
+    <div class="quick-ref-title">&#9668; QUICK INSERT: CLICK TO ADD COMMAND &#9658;</div>
+    <div class="quick-ref-grid" id="quickRef"></div>
+  </div>
+
+  <div class="status-bar">
+    <span>OS 2200 REL 18.0 &nbsp;&#183;&nbsp; EXEC 8</span>
+    <span id="cmdCount">0 COMMANDS PARSED</span>
+    <span class="status-blink">&#9608;</span>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// SPERRY UNIVAC / OS 2200 ECL COMMAND KNOWLEDGE BASE
+// Source: ClearPath OS 2200 ECL and FURPUR Reference Manual
+//         Release 18.0  (7830 7949-029)
+//
+// Each entry has:
+//   syntax  - formal parameter format string
+//   desc(a) - full paragraph shown on FIRST occurrence
+//   brief(a)- 1-2 sentence summary shown on SUBSEQUENT occurrences
+// ============================================================
+const ECL = {
+
+  'ADD': {
+    syntax: '@ADD[,D|E|F|L|P|R] name',
+    brief: (a) => `Inserts the contents of file or element ${a[0]||'"name"'} into the current runstream at this point, then returns control to the calling run.`,
+    desc:  (a) => `Includes a canned runstream or data stored in file or element ${a[0]||'"name"'} into the current run at this point. The contents of the added file or element replace the @ADD statement; control then returns to the run that contained the @ADD statement. Control statements or data need be entered only once but can be reused across many runs. The F option frees the added file upon completion; E provides an implied @EOF at the end; L lists all control statements added (demand only); P prints the @ADD statement itself in the listing.`
+  },
+
+  'ASG': {
+    syntax: '@ASG[,options] filename[,type/reserve/granule/maximum/placement][,pack-ids,,,ACR-name]',
+    brief: (a) => `Assigns file ${a[0]||'"filename"'} to this run, adding it to the Program Control Table (PCT) so I/O can be performed on it.`,
+    desc:  (a) => `Assigns file ${a[0]||'"filename"'} to the run, stating its I/O facility requirements and adding it to the run's Program Control Table (PCT). You cannot perform I/O on a file not listed in the PCT. For previously cataloged files use option A; for temporary files use T; for files to be cataloged at normal termination use C or U. Option X grants exclusive use; D or K deletes the file at termination or @FREE; R and W restrict the file to read-only or write-only access. The type subfield (F = sector-addressable, D = word-addressable) specifies storage equipment; reserve and maximum specify space in granules; granule is TRK (default) or POS.`
+  },
+
+  'BRKPT': {
+    syntax: '@BRKPT[,options] [filename]',
+    brief: (a) => `Diverts output to user-defined file ${a[0]||'"filename"'} instead of to the terminal or PRINT$ file.`,
+    desc:  (a) => `For demand runs, diverts output to a user-defined print file instead of to the terminal. For batch runs, can divert several print files to the same tape file. Also diverts output back to the terminal (demand) or the PRINT$ file (batch) when used with no filename. The @BRKPT statement also diverts output from PUNCH$, the primary punch file. Use @HDG with @BRKPT when directing output to a user-defined file; use @SYM to queue the breakpoint file to a printer after it has been created.`
+  },
+
+  'CAT': {
+    syntax: '@CAT[,options] filename[,type/reserve/granule/maximum,pack-ids,,,ACR-name]',
+    brief: (a) => `Creates a permanent catalog entry for file ${a[0]||'"filename"'} in the Master File Directory without assigning it to this run.`,
+    desc:  (a) => `Catalogs file ${a[0]||'"filename"'} in a Master File Directory (MFD) without having it assigned to the run — contrast with @ASG,C which assigns and catalogs simultaneously. Use @CAT when you want a file permanently recorded without assigning it. Option P makes the file public; G guards keys from override by privileged runs; R makes it read-only; W makes it write-only. Once cataloged, the file persists beyond the run and can be assigned by any authorized user in subsequent runs.`
+  },
+
+  'CHG': {
+    syntax: '@CHG[,options] filename[/read-key/write-key/new-name/new-qualifier/mode]',
+    brief: (a) => `Changes attributes of file or element ${a[0]||'"filename"'} such as keys, name, qualifier, or mode, without affecting data content.`,
+    desc:  (a) => `Changes attributes of cataloged file or program file element ${a[0]||'"filename"'} without affecting data content. File attributes that can be changed include the read key, write key, file name, qualifier, and mode. Program file element attributes that can be changed include element name and version name. You must have appropriate access rights: to change keys, supply the current keys; to change names or qualifiers, you must have write access. This is a FURPUR command.`
+  },
+
+  'CKPT': {
+    syntax: '@CKPT[,options] [filename.element][,ckpt-number][,eqpmt-type,reel-1/.../reel-n]',
+    brief: (a) => `Saves a snapshot of the run environment so processing can be halted and resumed later via @RSTRT.`,
+    desc:  (a) => `Saves a complete or partial copy of the current run's programming environment so that processing can be halted and resumed at a later time via @RSTRT. The checkpoint/restart (CKRS) facility stores file assignments, condition word, and program state to allow full recovery from a system failure or deliberate interruption. Particularly valuable for long-running production jobs where restarting from scratch would be prohibitively expensive. See the CKRS Programming Reference Manual for complete details.`
+  },
+
+  'CLOSE': {
+    syntax: '@CLOSE[,options] filename-1[,filename-2,...,filename-n]',
+    brief: (a) => `Writes two hardware EOF marks on the specified tape file(s) and rewinds — equivalent to @MARK then @REWIND.`,
+    desc:  (a) => `Closes the specified magnetic tape file(s) by writing two hardware EOF marks on the associated tape and rewinding it. @CLOSE performs the same operations as @MARK followed by @REWIND. Only the first filename is required. This is a FURPUR command.`
+  },
+
+  'COPY': {
+    syntax: '@COPY[,options] source-file.,dest-file.',
+    brief: (a) => `Copies files or selected elements between SDF files and program files (FURPUR command).`,
+    desc:  (a) => `Copies between SDF (System Data Format) files, program files, and program file elements. File-to-file copies can transfer all elements of a program file into a destination program file, or copy SDF files. Element-based copies transfer selected elements. Option C is for SDF-to-SDF copy; E for element file copy. @COPY does not copy deleted elements, so it has the same compaction effect as @PACK on the destination file. This is a FURPUR command.`
+  },
+
+  'COPIN': {
+    syntax: '@COPIN[,options] tape-file.,program-file.[,element-name-1,...,element-name-n]',
+    brief: (a) => `Copies elements from an element-format tape file into a mass storage program file (FURPUR command).`,
+    desc:  (a) => `Copies one or more elements from an element file on magnetic tape into a program file on sector-formatted mass storage. Large Element Program Files (LEPFs and LLEPFs) cannot be used as output. When a relocatable element is added, any existing entry-point table for the file is destroyed; run @PREP afterward to recreate it. This is a FURPUR command.`
+  },
+
+  'COPOUT': {
+    syntax: '@COPOUT[,options] program-file.,tape-file.[,element-name-1,...,element-name-n]',
+    brief: (a) => `Copies a program file or selected elements from mass storage to a tape file in element file format (FURPUR command).`,
+    desc:  (a) => `Copies a program file or selected elements from a program file on sector-formatted mass storage to a magnetic tape file in element file format. Procedure name entries are saved but relocatable entry points are discarded. Tape files produced by @COPOUT must be in element file format to be used by @COPIN and @FIND. Large Element Program Files (LEPFs and LLEPFs) cannot be used as input. This is a FURPUR command.`
+  },
+
+  'CYCLE': {
+    syntax: '@CYCLE[,options] filename[/number]',
+    brief: (a) => `Sets the maximum number of F-cycles or element cycles to retain for ${a[0]||'"filename"'}; older cycles are purged automatically.`,
+    desc:  (a) => `Sets the maximum range of absolute F-cycle numbers to be retained for cataloged file ${a[0]||'"filename"'}, or the maximum number of element cycles for a program file symbolic element. When the number of existing cycles exceeds this limit, the Exec automatically purges the oldest cycles. When the number field is omitted, cycle information about the current F-cycle series is displayed. This is a FURPUR command.`
+  },
+
+  'DELETE': {
+    syntax: '@DELETE[,options] name-1[,name-2,...,name-n]',
+    brief: (a) => `Deletes file or element ${a[0]||'"name"'} from the MFD, or marks/unmarks program file elements as deleted.`,
+    desc:  (a) => `Deletes cataloged files, changes program file elements from current to deleted, or (with the R option) restores deleted elements back to current. For files, the D option permanently removes the file and frees its disk space from the Master File Directory. All parameters except the first name are optional. You must have appropriate access rights to delete owned files. This is a FURPUR command.`
+  },
+
+  'ENABLE': {
+    syntax: '@ENABLE [filename-1,filename-2,...,filename-n]',
+    brief: (a) => `Clears the disable flag from cataloged file(s), restoring access after a hardware I/O error (FURPUR command).`,
+    desc:  (a) => `Removes the disable flag from one or more cataloged files. Files become disabled when the Exec detects an irrecoverable I/O error on a device, preventing further data corruption. @ENABLE allows the file to be accessed again once the hardware problem has been resolved. All parameters are optional; if none are given, all disabled files are re-enabled. This is a FURPUR command.`
+  },
+
+  'END': {
+    syntax: '@END',
+    brief: (a) => `Terminates the @DATA or @ELT processor; ignored by any other processor.`,
+    desc:  (a) => `Terminates the @DATA and @ELT processors. If encountered in a runstream by anything other than the @DATA or @ELT processors this statement is ignored. If a READ$-type request encounters the statement, it is treated as any other control statement and an end-of-file status is returned.`
+  },
+
+  'ENDF': {
+    syntax: '@ENDF',
+    brief: (a) => `Marks the end of the card image data for a file created by @FILE.`,
+    desc:  (a) => `Marks the end of the card images for a file created by the @FILE statement. @ENDF cannot have a label and cannot be continued. Note that @FILE and @ENDF may be disabled at your site because they lack proper security protection.`
+  },
+
+  'ENDX': {
+    syntax: '@ENDX',
+    brief: (a) => `Gives the current program an end-of-file return and terminates CLIST mode.`,
+    desc:  (a) => `Gives a program or processor an end-of-file return and terminates CLIST mode. Also marks the end of the images for a file created by the @FILE statement. If entered when the run stream is not in CLIST mode, the Exec returns an appropriate error message.`
+  },
+
+  'EOF': {
+    syntax: '@EOF [s]',
+    brief: (a) => `Signals end-of-input from the runstream to the currently executing program or processor.`,
+    desc:  (a) => `Indicates the end of input from the runstream to the currently executing program, which can be a compiler, user application, or any OS 2200 system processor. The optional single-character sentinel s, if specified, allows end-of-file to be signaled within a data stream without terminating the entire input. Labels are not allowed on @EOF. It is used to end inline source code or data that immediately follows a processor call statement.`
+  },
+
+  'ERS': {
+    syntax: '@ERS[,options] filename-1[,filename-2,...,filename-n]',
+    brief: (a) => `Returns all mass storage granules to the system from file ${a[0]||'"filename"'}, effectively emptying it (FURPUR command).`,
+    desc:  (a) => `Returns mass storage granules to the system from cataloged or temporary sector- or word-addressable files, effectively emptying the file. @ERS exclusively assigns the files during processing. Option Z zero-fills mass storage before release. After @ERS, @CHG can be used to change file attributes. This is a FURPUR command.`
+  },
+
+  'FILE': {
+    syntax: '@FILE filename.',
+    brief: (a) => `Creates a mass storage card file at input time and assigns it to the run; terminated by @ENDF.`,
+    desc:  (a) => `Creates a mass storage card file at input time and assigns it to the run while images are being read. Creating a file with @FILE rather than via the ELT or DATA processors reduces overhead because the data is handled only once at input time rather than being read again from auxiliary storage at execution time. The file is terminated by the @ENDF statement.`
+  },
+
+  'FIN': {
+    syntax: '@FIN',
+    brief: (a) => `Marks the end of the run. Must be the last statement in every batch or demand run.`,
+    desc:  (a) => `Identifies the end of a run and must be the last statement in all runs, whether demand or batch. It must be coded exactly as shown in the first four columns. At @FIN: symbiont output files are closed and queued for printing; all facilities are released back to the system; temporary files are freed and removed; cataloged files are retained in the MFD; summary accounting is entered in the print file including run time, SUP used, and pages printed. @FIN is never treated as data by any processor, including DATA and ELT.`
+  },
+
+  'FIND': {
+    syntax: '@FIND[,options] element-name',
+    brief: (a) => `Locates element ${a[0]||'"element-name"'} on a tape file and positions the tape immediately before its label block.`,
+    desc:  (a) => `Locates element ${a[0]||'"element-name"'} on a magnetic tape file (which must be in element file format) and positions the tape immediately preceding the element's label block. All parameters are required except options. Options A, O, R, and S control search behavior. Used before @COPIN to position the tape to a specific element. This is a FURPUR command.`
+  },
+
+  'FREE': {
+    syntax: '@FREE[,options] filename-1[,filename-2,...,filename-n]',
+    brief: (a) => `Releases file ${a[0]||'"filename"'} from the run, removing it from the PCT; may also catalog or delete it depending on its assign options.`,
+    desc:  (a) => `Releases files, tape reels, internal file names, and the exclusive use of files from your run, removing them from the Program Control Table (PCT). For mass storage files, @FREE can cause a file to be deleted, cataloged, or simply released depending on which option was used on @ASG and which option is specified on @FREE. Option D on @FREE forces deletion; C forces cataloging. @FREE can appear anywhere in the runstream and is used dynamically to release resources as soon as they are no longer needed.`
+  },
+
+  'HDG': {
+    syntax: '@HDG[,options] heading-text',
+    brief: (a) => `Sets the page heading and print parameters (page size, LPI, margins) for subsequent printout pages.`,
+    desc:  (a) => `Specifies a heading to be printed on every page of the printout, along with page numbers and the date when the file was created. Use @HDG with @BRKPT when directing output into a user-defined file. Options can change print parameters such as page size, number of lines per inch, and margins. Any number of @HDG statements can appear in the runstream. On systems with Security Level 2 or higher, printouts can be labeled with the clearance level and compartment set.`
+  },
+
+  'JUMP': {
+    syntax: '@JUMP label',
+    brief: (a) => `Branches unconditionally to statement labeled ${a[0]||'"label"'} in the runstream.`,
+    desc:  (a) => `Advances control unconditionally to the statement labeled ${a[0]||'"label"'} in the runstream. The label field can be a name (such as TAG) or a decimal value from 1 to 999999 indicating how many control statements forward to jump. Example: @JUMP TAG advances to the statement with label TAG; @JUMP 4 advances to the fourth subsequent control statement. @JUMP is the primary unconditional branch mechanism in ECL.`
+  },
+
+  'LOG': {
+    syntax: '@LOG message',
+    brief: (a) => `Records the message "${a.join(' ')||'text'}" in the system log, prefixed with run-ID, date, and time.`,
+    desc:  (a) => `Inserts the user-specified message "${a.join(' ')||'text'}" into the system log, a file maintained by the Exec as a historical record of system activity. The Exec prefixes the message with your run-ID, date, and time before entering it. The message can be up to 132 characters including embedded blanks; it cannot begin with a comma or slash, and cannot include the continuation character (semicolon). Useful for annotating production job logs with status milestones.`
+  },
+
+  'MARK': {
+    syntax: '@MARK[,E|W] filename-1[,filename-2,...,filename-n]',
+    brief: (a) => `Writes an EOF mark on the specified tape file(s). Without option E, also writes a second mark and positions between them.`,
+    desc:  (a) => `Writes a hardware EOF mark on the specified tape file(s). For unlabeled tapes without the E option, FURPUR writes a second EOF mark and positions the tape between the two marks. The E option writes only a single EOF mark for better write performance on unlabeled tapes (you must then use @CLOSE or another @MARK before releasing the tape). The W option, used with BUFTAP buffered-write mode, ensures all buffered data is synchronized to tape before the mark is written. This is a FURPUR command.`
+  },
+
+  'MODE': {
+    syntax: '@MODE[,options] filename[,type/units/log/noise/processor/tape/format/...]',
+    brief: (a) => `Changes hardware mode settings (density, compression, buffered-write, etc.) for currently assigned tape file ${a[0]||'"filename"'}.`,
+    desc:  (a) => `Changes the hardware mode settings that were initially specified when tape file ${a[0]||'"filename"'} was assigned. The file must be currently assigned to the run. Supported subfields are the same as for @ASG tape assignment including density options (H, L, M, S, V), data compression (CMPON, CMPOFF, CMPEON, CMEOPT, etc.), and buffered-write (BUFON, BUFOFF, BUFTAP, BUFFIL). This is a FURPUR command.`
+  },
+
+  'MOVE': {
+    syntax: '@MOVE[,F|B] filename[,number]',
+    brief: (a) => `Positions tape file ${a[0]||'"filename"'} forward (F) or backward (B) over the specified number of hardware EOF marks.`,
+    desc:  (a) => `Moves magnetic tape file ${a[0]||'"filename"'} forward or backward over a specified number of hardware EOF marks. Option F moves forward (default); B moves backward. The number specifies how many EOF marks to skip; if omitted, one EOF mark is skipped. Used to position a tape to a specific file within a multi-file tape volume. This is a FURPUR command.`
+  },
+
+  'MSG': {
+    syntax: '@MSG[,C|H|I|S] message',
+    brief: (a) => `Sends the message "${a.join(' ')||'text'}" to the operator console (all types, or the type specified by option).`,
+    desc:  (a) => `Sends the message "${a.join(' ')||'text'}" to a console from within an active run. Option C sends to a communications console; H to a hardware-confidence console; I to an I/O console; S to a system console. If no option is specified, the message goes to all active consoles of all types. @MSG is used to notify the operator of status, request tape mounts, or request operator intervention. Compare with @@CM, which can be used outside a run.`
+  },
+
+  'PACK': {
+    syntax: '@PACK[,options] filename.',
+    brief: (a) => `Rewrites program file ${a[0]||'"filename."'}, removing all deleted elements and reclaiming the freed mass storage.`,
+    desc:  (a) => `Rewrites the entire program file ${a[0]||'"filename."'}, removing all elements marked as deleted and optionally removing elements of specified types based on the D, L, and M options. Mass storage space that is no longer needed is returned to the system. @COPOUT and @COPY,P have the same compaction effect since they do not copy deleted elements. This is a FURPUR command.`
+  },
+
+  'PASSWD': {
+    syntax: '@PASSWD user-id/password[/new-password]',
+    brief: (a) => `Supplies authentication credentials for a batch run; must appear between @RUN and @FIN.`,
+    desc:  (a) => `Provides authentication credentials in a batch run. You supply your user-ID on the @RUN statement and your password on the @PASSWD statement, which can be placed anywhere between @RUN and @FIN. Long passwords (both case-sensitive and case-insensitive) are accepted. For batch runstreams started with @START, @PASSWD is not required and is ignored if found. The password can also be changed by specifying user-id/old-password/new-password. Important: the password is visible to observers in the runstream listing — security can be compromised.`
+  },
+
+  'PCH': {
+    syntax: '@PCH[,A|O|R|S] element-name[,sequence-character]',
+    brief: (a) => `Creates 80-column card images from program file element ${a[0]||'"element-name"'} (FURPUR command).`,
+    desc:  (a) => `Creates 80-column card images from program file elements. The element-name parameter is required; options control element types: A punches absolute elements; O punches object modules; R punches relocatable elements; S punches symbolic elements. Used for archival output or for transferring programs to systems that accept card input. This is a FURPUR command.`
+  },
+
+  'PREP': {
+    syntax: '@PREP[,options] [filename-1,filename-2,...,filename-n]',
+    brief: (a) => `Rebuilds the entry-point table for program file(s), required after @COPIN adds relocatable elements (FURPUR command).`,
+    desc:  (a) => `Creates relocatable and object module entry-point tables from the preambles of relocatable elements and from the control information in object modules within the specified program file(s). Entry-point tables speed up program linking and execution. All parameters are optional; if no filenames are given, TPF$ is used. @PREP must be run after @COPIN adds relocatable elements to a program file, since @COPIN destroys any existing entry-point table. This is a FURPUR command.`
+  },
+
+  'PRT': {
+    syntax: '@PRT[,options] [filename[.element-name]]',
+    brief: (a) => `Lists symbolic element text, program file table of contents, or MFD entries for ${a[0]||'"filename"'} (FURPUR command).`,
+    desc:  (a) => `Provides a listing of symbolic element text, the table of contents of a program file, information on temporary or currently assigned files, or the Master File Directory items of cataloged files. Cannot list executable, omnibus, or relocatable elements (use the LIST processor for those). Option I lists files currently assigned to your run; M lists the MFD directory. Does not execute the element. This is a FURPUR command.`
+  },
+
+  'QUAL': {
+    syntax: '@QUAL[,D] qualifier',
+    brief: (a) => `Sets the default qualifier prefix to ${a[0]||'"qualifier"'} for all subsequent unqualified file name references.`,
+    desc:  (a) => `Sets the default qualifier (user-ID or project-ID prefix) to ${a[0]||'"qualifier"'} for all subsequent control statements involving unqualified file name references. The qualifier is the first part of a fully qualified file name (e.g., QUAL in QUAL*FILENAME). Option D sets the default directory-ID instead of the qualifier. This eliminates the need to specify the qualifier on every @ASG, @ADD, @CAT, and @USE statement in the job.`
+  },
+
+  'REWIND': {
+    syntax: '@REWIND[,C|I] [filename-1,filename-2,...,filename-n]',
+    brief: (a) => `Rewinds the specified tape file(s) back to load point; if no filename given, all assigned tapes are rewound.`,
+    desc:  (a) => `Rewinds magnetic tape files back to the load point of the first reel. Option I rewinds with interlock (the tape unit is held until the rewind completes); C rewinds with close. All parameters are optional; if no filename is given, all assigned tape files are rewound. This is a FURPUR command.`
+  },
+
+  'RSTRT': {
+    syntax: '@RSTRT[,priority/options] run-id,[acct-id/user-id,project-id,filename.element,ckpt-number,...]',
+    brief: (a) => `Restores a previously saved checkpoint and resumes processing from that point.`,
+    desc:  (a) => `Restores information from a previously saved checkpoint (created by @CKPT) and resumes processing from that point. The CKRS facility recreates the run environment including file assignments and program state. See the CKRS Programming Reference Manual for complete details on the checkpoint and restart routines.`
+  },
+
+  'RUN': {
+    syntax: '@RUN[,priority/options/dispatch-priority] run-id[,acct-id/user-id,project-id,run-time/deadline,pages/cards,start-time]',
+    brief: (a) => `Starts run ${a[0]||'"run-id"'} — identifies it to the Exec with account, scheduling, and resource parameters.`,
+    desc:  (a) => {
+      const rid = a[0]||'"run-id"';
+      return `Identifies the start of run ${rid} to the Exec and provides accounting, scheduling, and resource information. This is the first statement in all batch and demand runs. The run-ID (1–6 alphanumeric characters) identifies the run; if omitted, RUN000 is used. The account number (acct-id, up to 12 characters) is used for billing. The project-ID (up to 12 characters) is the default file qualifier and controls file access. Scheduling priority is A (highest) through Z (lowest). Key options: B treats demand input as batch; R reschedules on recoverable system failure; T terminates the run if the SUP estimate is exceeded; P terminates if the page estimate is exceeded; N suppresses postmortem dumps. Run-time is in SUPs (roughly minutes; prefix S for seconds). The deadline and start-time fields accept [D]hhmm format (D prefix = time-of-day; otherwise elapsed time from submission).`;
+    }
+  },
+
+  'SETC': {
+    syntax: '@SETC[,A|I] [f/]value[/j]',
+    brief: (a) => `Stores octal value in the condition word (portion j, default T2) — used to pass state between ECL steps.`,
+    desc:  (a) => `Stores a value in the condition word, the primary mechanism for passing information between ECL steps. The value is a positive octal number up to 4 digits. The j field designates which portion of the word to change: T1, T2 (default), S2, S3, or S4. The optional f field specifies a logical operation. Option A clears bit 5 of the condition word (allows normal run termination even in error states); option I sets bit 5 (run termination is treated as error-free). The condition word is set to zero at run start. Use @SETC and @TEST with @JUMP to implement conditional logic in the runstream.`
+  },
+
+  'START': {
+    syntax: '@START[,options] filename.[element-name][,set-field]',
+    brief: (a) => `Submits the canned runstream in ${a[0]||'"filename"'} as a new batch job for concurrent execution.`,
+    desc:  (a) => `Starts a full canned runstream stored in file or element ${a[0]||'"filename"'} as a separate batch job. The first statement in the stored runstream must be an @RUN statement; the Exec provides an implied @FIN at end-of-file. @START submits the canned run concurrently with the current run — use this to initiate parallel processing, schedule runs for a specific time, or start a run that generates data for another run. The @@START variant can be used from a demand terminal during an active run.`
+  },
+
+  'SYM': {
+    syntax: '@SYM[,options] filename.[,printer-or-userid]',
+    brief: (a) => `Queues print file ${a[0]||'"filename"'} to a printer or user-ID for output.`,
+    desc:  (a) => `Queues previously created print file ${a[0]||'"filename"'} to a printer, group of printers, or user-ID for printing. Also directs the PRINT$ file (primary print file) to an alternate device. Use @SYM rather than SITE from a text editor — it does not tie up your terminal. On secure systems, your security officer may restrict using @SYM to queue files to another terminal or user-ID to protect classified data. Use @BRKPT to create alternate print files; use @SYM to dispatch them to printers.`
+  },
+
+  'TEST': {
+    syntax: '@TEST condition/value[/j][,condition/value[/j],...]',
+    brief: (a) => `Tests the condition word; if any test is met, the next runstream statement is skipped.`,
+    desc:  (a) => `Tests the condition word to select which control statements to execute or skip. If any specified test condition is met, the control statement immediately following @TEST is skipped; if no test is met, the next statement executes normally. Condition codes: TE (equal), TG (greater than), TL (less than), TGE (≥), TLE (≤), TOP (bit set). The value is a positive octal number. The j field specifies which portion of the word to test: W (whole), H1, H2, T1, T2 (default), T3, S1–S6. Scanning stops at the first met condition.`
+  },
+
+  'USE': {
+    syntax: '@USE fname-1[,I],fname-2',
+    brief: (a) => `Equates internal name ${a[0]||'"fname-1"'} to file ${a[1]||'"fname-2"'}, allowing programs to reference it by that logical name.`,
+    desc:  (a) => {
+      const fn1 = a[0]||'"fname-1"', fn2 = a[1]||'"fname-2"';
+      return `Creates internal (use) file name ${fn1} as an alternate reference for file ${fn2}. Once equated, the file can be referenced by either the internal or external name from within a program or the runstream. The list of internal file names is searched first when a file is referenced; if not found, external names are searched. Internal names are maintained for the duration of the run or until @FREE,A is issued. Option I releases the file and all its internal names the next time a task terminates. This is the primary mechanism for allowing programs written with logical file names to work with actual catalog names without recompilation.`;
+    }
+  },
+
+  'XQT': {
+    syntax: '@XQT,[options] [filename.eltname]',
+    brief: (a) => `Executes absolute element or object module ${a[0]||'"filename.eltname"'}; TPF$ is assumed if no file name is given.`,
+    desc:  (a) => {
+      const prog = a[0]||'"filename.eltname"';
+      return `Initiates execution of absolute element or object module ${prog}. This element cannot reside in a Large Element Program File (LEPF). If no file name is provided, TPF$ is assumed. If no element name is provided, the system executes the most recently placed absolute element or object module in TPF$. For basic mode programs with no absolute element in TPF$, implied collection of all relocatable elements creates absolute element NAME$. Options specified are presented to the program in a register (retrievable via ER OPT$). @XQT is the primary mechanism for running user programs in OS 2200 batch and demand jobs.`;
+    }
+  },
+
+  // ── TRANSPARENT (@@) DEMAND STATEMENTS ──
+  'CM': {
+    syntax: '@@CM message',
+    brief: (a) => `Sends a console message prefixed with your site-ID; usable before @RUN or after @FIN, unlike @MSG.`,
+    desc:  (a) => `Sends a message to the operator console. The key difference from @MSG is that @@CM can be used outside of a runstream — before an @RUN statement or after an @FIN statement. The message is prefixed by your site-ID rather than your run-ID. Use @@CM for pre-run or post-run operator notifications when no active run is present.`
+  },
+
+  'CONS': {
+    syntax: '@@CONS [keyin]',
+    brief: (a) => `Allows you to enter console keyins (TM, E, X, etc.) from a demand terminal.`,
+    desc:  (a) => `Allows you to enter console keyins directly from a demand terminal. Use Format 1 (@@CONS followed by a series of unsolicited keyins) or Format 2 (@@CONS keyin) for a single keyin. Console mode keyins include TM (send message to run), E (error terminate run), X (halt processor), and others. See Table 7–2 in the manual for the complete list of keyins and their required console modes.`
+  },
+
+  'CONT': {
+    syntax: '@@CONT',
+    brief: (a) => `Resumes output to the terminal after interruption with the MSG WAIT key.`,
+    desc:  (a) => `Tells the system to resume sending output to the terminal after you have interrupted it with the MSG WAIT key. Although you can continue output by pressing XMIT, it can generate an error message or the blank line might be accepted by the executing program; @@CONT is the correct way to resume output.`
+  },
+
+  'CQUE': {
+    syntax: '@@CQUE soe-parameter',
+    brief: (a) => `Queues statements into a main-storage buffer for immediate sequential processing without waiting for SOE responses.`,
+    desc:  (a) => `Queues lines of statements and data into a buffer in the computer's main storage for immediate processing in the order entered. Unlike @@INQ (which queues to mass storage and processes after @@END INQ), @@CQUE images are processed immediately. This lets you continue entering input without waiting for each SOE character response.`
+  },
+
+  'DCT': {
+    syntax: '@@DCT function-1,value-1[,...,function-n,value-n]',
+    brief: (a) => `Changes DCT 500 terminal characteristics; interchangeable with @@TTY.`,
+    desc:  (a) => `Changes characteristics associated with the DCT 500 terminal. @@DCT and @@TTY are interchangeable and can be submitted from either device type. Use the function-value pairs to modify terminal settings such as page width, line density, and display characteristics.`
+  },
+
+  'ESC': {
+    syntax: '@@ESC [I|O]',
+    brief: (a) => `Passes input (I) or output (O) in unaltered format, without SOE or control character interpretation.`,
+    desc:  (a) => `Passes input to a program or output to a terminal in unaltered format — exactly as entered or produced. Option I passes input unaltered; O passes output unaltered. Similar in function to @@TRNS, designed for users sending file images from a host to a demand terminal.`
+  },
+
+  'FUL': {
+    syntax: '@@FUL',
+    brief: (a) => `Enters full-screen mode, accepting data a complete screen at a time rather than line-by-line.`,
+    desc:  (a) => `Initiates full-screen mode, allowing you to enter data and statements a full screen at a time. Screens of information are stored on mass storage until you terminate with @@END FUL. You must provide your own SOE character for the first input line and on the @@END FUL statement; other lines do not require an SOE character.`
+  },
+
+  'HOLD': {
+    syntax: '@@HOLD [TM/PO]',
+    brief: (a) => `Holds terminal messages (TM) or print output (PO) to prevent scrolling; release with @@END HOLD.`,
+    desc:  (a) => `Places a hold on terminal messages and/or print output. The TM type holds all terminal messages generated by @@TM. The PO type holds print output. Holding output prevents it from scrolling past on your terminal during a session, allowing you to review at your own pace. Use @@END HOLD to release.`
+  },
+
+  'INQ': {
+    syntax: '@@INQ soe-parameter',
+    brief: (a) => `Queues statements into a mass-storage buffer; not processed until @@END INQ is entered.`,
+    desc:  (a) => `Queues lines of statements and data into a buffer on mass storage. Unlike @@CQUE (processed immediately), @@INQ statements are not processed until @@END INQ or @@END is entered. This allows you to queue an entire batch of input before any of it is processed.`
+  },
+
+  'INS': {
+    syntax: '@@INS [n]',
+    brief: (a) => `Changes the screen insert point to line n, controlling where new output first appears on the display.`,
+    desc:  (a) => `Changes the insert point on the screen display — the line where new output first appears. Lines are counted down from the top. For standard 24-line displays, the normal insert point is line 23. This allows you to reserve the top portion of the screen for important status information while new output scrolls below it.`
+  },
+
+  'NOPR': {
+    syntax: '@@NOPR',
+    brief: (a) => `Terminates local printer output started by @@PRNT; subsequent output goes to terminal only.`,
+    desc:  (a) => `Terminates output to a local printer that was started with @@PRNT. After @@NOPR, subsequent output is sent only to the terminal and no longer to the local printer.`
+  },
+
+  'PASSWD': {
+    syntax: '@@PASSWD old-password/new-password',
+    brief: (a) => `Changes your password in demand mode; visible to observers — use sign-on change for better security.`,
+    desc:  (a) => `Changes your password in demand mode on systems where the configuration allows it. Format: @@PASSWD old-password/new-password. Note: the password specified is visible to observers, which can compromise security. The most secure way to change your password is during sign-on. @@PASSWD is not permitted on systems configured to disallow password changes via this statement.`
+  },
+
+  'PMOD': {
+    syntax: '@@PMOD',
+    brief: (a) => `Controls the peripheral mode for output sent to a local printer on a UTS 400 terminal.`,
+    desc:  (a) => `Controls the way data is sent from a UTS 400 terminal in demand mode to a printer connected to your terminal. Defines peripheral mode operations. To return to print transparent mode (normal mode), enter @@NOPR.`
+  },
+
+  'PRNT': {
+    syntax: '@@PRNT',
+    brief: (a) => `Directs all subsequent output to both the terminal and a locally connected printer simultaneously.`,
+    desc:  (a) => `Directs output to both the terminal and a local printer connected directly to the terminal. All output following @@PRNT is sent to both destinations simultaneously. Terminate with @@NOPR to stop printing to the local printer.`
+  },
+
+  'RLD': {
+    syntax: '@@RLD n',
+    brief: (a) => `Causes screen output to scroll down from line n instead of the normal upward scroll.`,
+    desc:  (a) => `Causes the lines of the display to scroll down instead of up from line n (counted from the top). Use this to prevent important information in the top portion of the screen from scrolling off while new output appears below it.`
+  },
+
+  'RLU': {
+    syntax: '@@RLU n',
+    brief: (a) => `Causes screen output to scroll up from line n, reversing a previous @@RLD.`,
+    desc:  (a) => `Causes screen images to scroll up from a specified line n on the display. Can be used to reverse the effect of @@RLD, returning the display to the normal upward scroll mode.`
+  },
+
+  'RQUE': {
+    syntax: '@@RQUE',
+    brief: (a) => `Stops the current batch output file, requeues it for later retrieval via @@SEND, and returns the terminal to inactive mode.`,
+    desc:  (a) => `Stops printing the present batch output file, requeues it for later retrieval with the @@SEND statement, and returns the terminal to inactive mode. Can be issued from any terminal in remote batch mode.`
+  },
+
+  'SEND': {
+    syntax: '@@SEND[,U] [filename]',
+    brief: (a) => `Sends queued print files to your terminal; use after @FIN and before @@TERM.`,
+    desc:  (a) => `Tells the system to send you the print files queued to your user-ID (with U option) or your terminal's site-ID (default). Cannot be used during an active run; the best time is immediately after @FIN and before @@TERM. If a local printer is connected, use @@PRNT before @@SEND to also receive a printed copy.`
+  },
+
+  'SKIP': {
+    syntax: '@@SKIP n',
+    brief: (a) => `Skips the next n lines of output (up to 63); enter @@SKIP 0 to cancel.`,
+    desc:  (a) => `Skips the next n lines of output, up to a maximum of 63. Usually used after an output interrupt (MSG WAIT key). If fewer lines than specified are produced by the program, the system continues skipping lines even from subsequent statements. Enter @@SKIP 0 after an output interrupt to cancel a previous @@SKIP.`
+  },
+
+  'SOLI': {
+    syntax: '@@SOLI',
+    brief: (a) => `Forces a traditional user-ID/password solicit when ASIS authentication is temporarily unavailable.`,
+    desc:  (a) => `Generates a traditional user-ID/password solicit for demand users when the Authentication and Session Initiation Subsystem (ASIS) is temporarily unavailable or draining. Normally when ASIS is unavailable, sign-on attempts are rejected with an error message. @@SOLI forces the Exec to use traditional authentication instead.`
+  },
+
+  'TERM': {
+    syntax: '@@TERM',
+    brief: (a) => `Signs off from the system after @FIN. Caution: if entered before @FIN, the run terminates abnormally.`,
+    desc:  (a) => `Signs off from the system to terminate the run and the terminal session. Enter @@TERM after @FIN when you do not want to start a new run. Caution: if entered before @FIN, @@TERM terminates the run abnormally (without normal file cataloging and cleanup), so use only as a last resort.`
+  },
+
+  'TM': {
+    syntax: '@@TM run-id/R message  |  @@TM user-id/U message  |  @@TM site-id message',
+    brief: (a) => `Sends a message to another active run, user-ID, or site-ID (demand mode only).`,
+    desc:  (a) => `Sends a message to another active run, user-ID, or site-ID in demand runs only. The /R suffix targets a specific run-ID; /U targets all active runs of a specific user-ID; no suffix targets a site-ID (a space must follow the site-ID). The target ID must be active to receive the message. Note: @@TM may not be available on all systems — check with your site administrator.`
+  },
+
+  'TOUT': {
+    syntax: '@@TOUT t',
+    brief: (a) => `Overrides the terminal idle-timeout period (typically 30 min); @@TOUT ? displays current value; @@TOUT D disables it.`,
+    desc:  (a) => `Overrides the standard terminal timeout period (typically 30 minutes of idle time before automatic sign-off). The t parameter specifies minutes from 1 to 2047 (~34 hours); actual limit depends on your site configuration. Enter @@TOUT ? to display the current timeout period without changing it. Enter @@TOUT D to disable the timeout mechanism entirely. The new timeout remains in effect until another @@TOUT or run termination.`
+  },
+
+  'TRNS': {
+    syntax: '@@TRNS',
+    brief: (a) => `Makes escape and EOT characters transparent so they pass through without acting as control codes.`,
+    desc:  (a) => `Causes the escape and end-of-transmission characters to be ignored (treated transparently rather than as control codes). Similar in purpose to @@ESC. Designed for users sending file images from a host to a demand terminal where escape or EOT characters in the data would otherwise be intercepted by the terminal software.`
+  },
+
+  'TTY': {
+    syntax: '@@TTY function-1,value-1[,...,function-n,value-n]',
+    brief: (a) => `Changes TTY terminal characteristics; interchangeable with @@DCT.`,
+    desc:  (a) => `Changes characteristics associated with the TTY terminal. @@TTY and @@DCT are interchangeable and can be submitted from either device type. Use function-value pairs to modify terminal settings. Example: @@TTY W,30 changes the page width to 30 characters.`
+  },
+
+  'X': {
+    syntax: '@@X [C|D|I|O|R|T][,data]',
+    brief: (a) => `Halts the current processor or program. Default @@X (no options) implies TIOCR — use sparingly.`,
+    desc:  (a) => `Halts the current processor or program. Specifying @@X alone defaults to @@X TIOCR. Key function characters: C jumps to an address previously specified in the program (remote break contingency); T terminates the currently executing program; R terminates the active processor and removes all QECL stack entries; O stops output without terminating the program; I discards all backed-up input from @ADD files and @@CQUE/@@INQ mode. The optional data field (max 6 characters, only with the C function) passes auxiliary information to the contingency handler. Use sparingly: specifying all options can corrupt common banks, database files, and user files.`
+  },
+};
+
+// ── Quick-insert bar ──
+const QUICK = ['RUN','PASSWD','ASG','USE','ADD','CAT','CHG','FREE','DELETE','XQT','COPY','QUAL','SETC','JUMP','TEST','MSG','START','SYM','BRKPT','HDG','PRT','MARK','REWIND','MOVE','EOF','END','FIN','LOG','CKPT','RSTRT','ERS','FIND','PACK','PREP','PCH','FILE','ENDF'];
+const qrEl = document.getElementById('quickRef');
+QUICK.forEach(cmd => {
+  const t = document.createElement('span');
+  t.className = 'qr-tag';
+  t.textContent = '@' + cmd;
+  t.title = ECL[cmd]?.syntax || '';
+  t.onclick = () => insertCmd(cmd);
+  qrEl.appendChild(t);
+});
+
+function insertCmd(cmd) {
+  const ta = document.getElementById('eclInput');
+  const val = ta.value, pos = ta.selectionStart;
+  const before = val.substring(0, pos), after = val.substring(pos);
+  const ins = (before.length > 0 && !before.endsWith('\n') ? '\n' : '') + '@' + cmd + ' ';
+  ta.value = before + ins + after;
+  ta.focus();
+  ta.setSelectionRange(pos + ins.length, pos + ins.length);
+}
+
+function parseECLLine(line) {
+  const t = line.trim();
+  if (!t || t.startsWith('*')) return null;
+  const commentIdx = t.search(/\s\.\s|\s\.$/);
+  const stripped0 = commentIdx > -1 ? t.substring(0, commentIdx).trim() : t;
+  if (!stripped0) return null;
+  const isDouble = stripped0.startsWith('@@');
+  const stripped = stripped0.startsWith('@') ? stripped0.substring(isDouble ? 2 : 1) : stripped0;
+  if (!stripped) return null;
+  const spIdx = stripped.search(/\s/);
+  let rawCmd, rest;
+  if (spIdx === -1) { rawCmd = stripped; rest = ''; }
+  else { rawCmd = stripped.substring(0, spIdx); rest = stripped.substring(spIdx).trim(); }
+  const optSplit = rawCmd.indexOf(',');
+  let cmd, opts;
+  if (optSplit > -1) { cmd = rawCmd.substring(0, optSplit).toUpperCase(); opts = rawCmd.substring(optSplit + 1).toUpperCase(); }
+  else { cmd = rawCmd.toUpperCase(); opts = ''; }
+  const args = rest ? rest.split(/\s+/).filter(Boolean) : [];
+  return { cmd, opts, args, isDouble };
+}
+
+function interpretECL() {
+  const input = document.getElementById('eclInput').value;
+  const outputArea = document.getElementById('outputArea');
+  const processing = document.getElementById('processing');
+  const lines = input.split('\n').filter(l => l.trim());
+  if (!lines.length) {
+    outputArea.innerHTML = '<div class="output-empty">// NO COMMANDS ENTERED — TYPE ECL ABOVE //</div>';
+    return;
+  }
+  processing.style.display = 'block';
+  outputArea.innerHTML = '';
+
+  setTimeout(() => {
+    processing.style.display = 'none';
+    const parsed = lines.map(parseECLLine).filter(Boolean);
+    if (!parsed.length) {
+      outputArea.innerHTML = '<div class="output-empty">// NO VALID ECL COMMANDS DETECTED — CHECK SYNTAX //</div>';
+      return;
+    }
+
+    const hdr = document.createElement('div');
+    hdr.className = 'output-header';
+    hdr.textContent = '◆ PARSED ' + parsed.length + ' COMMAND' + (parsed.length !== 1 ? 'S' : '') + ' — BEGIN INTERPRETATION';
+    outputArea.appendChild(hdr);
+
+    // Track first-occurrence per command type
+    const seen = {};
+
+    parsed.forEach((item, i) => {
+      const known   = ECL[item.cmd];
+      const isFirst = !seen[item.cmd];
+      if (known) seen[item.cmd] = true;
+
+      const block = document.createElement('div');
+      block.style.animationDelay = (i * 60) + 'ms';
+
+      if (!known) {
+        // Unknown command
+        block.className = 'cmd-block cmd-unknown';
+        const nameEl = document.createElement('span');
+        nameEl.className = 'cmd-name';
+        nameEl.textContent = (item.isDouble ? '@@' : '@') + item.cmd;
+        block.appendChild(nameEl);
+        if (item.opts || item.args.length) {
+          const argEl = document.createElement('span');
+          argEl.className = 'cmd-args';
+          argEl.textContent = (item.opts ? ',' + item.opts : '') + (item.args.length ? ' ' + item.args.join(' ') : '');
+          block.appendChild(argEl);
+        }
+        const desc = document.createElement('div');
+        desc.className = 'cmd-desc';
+        desc.textContent = '⚠ "@' + item.cmd + '" is not recognized. It may be a processor call (@FTN, @UCOB, @MAP, @ELT, @DATA, @UTL, etc.), a site-specific macro, or a typographical error. Processor calls use the same @ prefix — the processor name is the absolute element to be loaded and executed. Verify against the ClearPath OS 2200 ECL and FURPUR Reference Manual (7830 7949-029).';
+        block.appendChild(desc);
+      } else if (isFirst) {
+        // FIRST occurrence — full treatment
+        block.className = 'cmd-block';
+        const nameEl = document.createElement('span');
+        nameEl.className = 'cmd-name';
+        nameEl.textContent = (item.isDouble ? '@@' : '@') + item.cmd;
+        block.appendChild(nameEl);
+        if (item.opts || item.args.length) {
+          const argEl = document.createElement('span');
+          argEl.className = 'cmd-args';
+          argEl.textContent = (item.opts ? ',' + item.opts : '') + (item.args.length ? ' ' + item.args.join(' ') : '');
+          block.appendChild(argEl);
+        }
+        const synEl = document.createElement('div');
+        synEl.className = 'cmd-syntax';
+        synEl.textContent = 'SYNTAX: ' + known.syntax;
+        block.appendChild(synEl);
+        const descEl = document.createElement('div');
+        descEl.className = 'cmd-desc';
+        descEl.textContent = known.desc(item.args);
+        block.appendChild(descEl);
+      } else {
+        // SUBSEQUENT occurrence — compact treatment
+        block.className = 'cmd-block cmd-block-repeat';
+        const nameEl = document.createElement('span');
+        nameEl.className = 'cmd-name-repeat';
+        nameEl.textContent = (item.isDouble ? '@@' : '@') + item.cmd;
+        block.appendChild(nameEl);
+        if (item.opts || item.args.length) {
+          const argEl = document.createElement('span');
+          argEl.className = 'cmd-args';
+          argEl.textContent = (item.opts ? ',' + item.opts : '') + (item.args.length ? ' ' + item.args.join(' ') : '');
+          block.appendChild(argEl);
+        }
+        const descEl = document.createElement('div');
+        descEl.className = 'cmd-desc-brief';
+        descEl.textContent = known.brief ? known.brief(item.args) : known.desc(item.args).split('. ')[0] + '.';
+        block.appendChild(descEl);
+      }
+
+      outputArea.appendChild(block);
+    });
+
+    document.getElementById('cmdCount').textContent = parsed.length + ' COMMANDS PARSED';
+  }, 280);
+}
+
+function loadExample() {
+  document.getElementById('eclInput').value =
+`@RUN PAYROLL,FINANCE/JSMITH,PROD-SCHED . Weekly payroll batch job
+@PASSWD JSMITH/SECRET99
+@ASG,T WORKTAPE.,HICL
+@ASG,A EMPMASTER.,F
+@ASG,A TRANFILE.,F
+@USE MASTER.,EMPMASTER.
+@USE TRANS.,TRANFILE.
+@ADD PJT*UTL.STD-ASGS
+@ASG,C PAYREPORT.,F///500
+@HDG WEEKLY PAYROLL REGISTER - PRODUCTION RUN
+@XQT PAYPGM.MAIN
+@BRKPT PAYREPORT.
+@SYM PAYREPORT.,LP1
+@FREE WORKTAPE.
+@MSG PAYROLL COMPLETE - VERIFY PAGE COUNT ON LP1
+@LOG PAYROLL JOB COMPLETED NORMALLY
+@FIN`;
+}
+
+function clearAll() {
+  document.getElementById('eclInput').value = '';
+  document.getElementById('outputArea').innerHTML = '<div class="output-empty">// AWAITING INPUT &mdash; ENTER ECL COMMANDS ABOVE AND PRESS INTERPRET //</div>';
+  document.getElementById('cmdCount').textContent = '0 COMMANDS PARSED';
+}
+
+document.getElementById('eclInput').addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 'Enter') interpretECL();
+});
+</script>
+</body>
+</html>
