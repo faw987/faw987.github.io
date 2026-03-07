@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Money Dashboard</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #e0e0f0;
+            padding: 24px;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            margin-bottom: 24px;
+            color: #c9d6ff;
+        }
+
+        /* Glass card */
+        .card {
+            background: rgba(255,255,255,0.07);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin-bottom: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+
+        .card h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #a0b4d6;
+            margin-bottom: 14px;
+        }
+
+        /* Drop zones */
+        .dropzone {
+            border: 2px dashed rgba(160,180,220,0.4);
+            border-radius: 10px;
+            padding: 16px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            color: #8899bb;
+            font-size: 0.95rem;
+        }
+        .dropzone.over {
+            border-color: #7eb8f7;
+            background: rgba(126,184,247,0.08);
+            color: #c9d6ff;
+        }
+        .dropzone input[type="file"] { display: none; }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: #e0e0f0;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s, box-shadow 0.15s;
+            font-family: inherit;
+        }
+        .btn:hover {
+            background: rgba(255,255,255,0.18);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+        .btn:active { transform: translateY(0); }
+        .btn-primary {
+            background: rgba(80,140,240,0.3);
+            border-color: rgba(80,140,240,0.5);
+        }
+        .btn-primary:hover { background: rgba(80,140,240,0.5); }
+        .btn-danger {
+            background: rgba(220,60,60,0.25);
+            border-color: rgba(220,60,60,0.4);
+        }
+        .btn-danger:hover { background: rgba(220,60,60,0.4); }
+
+        /* Status chips */
+        .file-list { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+        .file-chip {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 0.82rem;
+            color: #b0c8e8;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .file-chip .source-tag {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .source-amex { background: rgba(0,160,120,0.3); color: #60e8b0; border: 1px solid rgba(0,160,120,0.4); }
+        .source-affinity { background: rgba(100,100,240,0.3); color: #a0a8ff; border: 1px solid rgba(100,100,240,0.4); }
+        .source-chase { background: rgba(220,160,0,0.3); color: #ffd060; border: 1px solid rgba(220,160,0,0.4); }
+        .source-unknown { background: rgba(180,100,0,0.3); color: #ffb060; border: 1px solid rgba(180,100,0,0.4); }
+
+        /* Config status */
+        .config-status {
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: #8899bb;
+        }
+        .config-status.loaded { color: #60e8b0; }
+
+        /* Controls row */
+        .controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .controls-row label { font-size: 0.88rem; color: #a0b4d6; }
+        .controls-row input[type="date"] {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 7px;
+            color: #e0e0f0;
+            padding: 6px 10px;
+            font-size: 0.88rem;
+            font-family: inherit;
+        }
+        .controls-row input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
+        .controls-row select {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 7px;
+            color: #e0e0f0;
+            padding: 6px 10px;
+            font-size: 0.88rem;
+            font-family: inherit;
+            cursor: pointer;
+        }
+        .controls-row select option { background: #1a1a2e; color: #e0e0f0; }
+
+        /* Table */
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        thead th {
+            background: rgba(255,255,255,0.08);
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.07em;
+            color: #a0b4d6;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s;
+        }
+        thead th:hover { background: rgba(255,255,255,0.14); }
+        thead th .sort-arrow { display: inline-block; margin-left: 4px; opacity: 0.5; }
+        thead th.sort-asc .sort-arrow::after { content: ' ▲'; }
+        thead th.sort-desc .sort-arrow::after { content: ' ▼'; }
+        thead th:not(.sort-asc):not(.sort-desc) .sort-arrow::after { content: ' ⇅'; }
+
+        tbody tr {
+            border-top: 1px solid rgba(255,255,255,0.06);
+            transition: background 0.15s;
+        }
+        tbody tr:hover { background: rgba(255,255,255,0.05); }
+        tbody td { padding: 8px 12px; color: #d0daf0; vertical-align: middle; }
+        td.amount-debit { color: #ff8080; }
+        td.amount-credit { color: #60e8b0; }
+        td.category-empty { color: #555; font-style: italic; }
+        td.source-amex-cell { color: #60e8b0; }
+        td.source-affinity-cell { color: #a0a8ff; }
+        td.source-chase-cell { color: #ffd060; }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: #556;
+            font-size: 0.95rem;
+        }
+
+        /* Modal overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: linear-gradient(135deg, rgba(26,26,60,0.98) 0%, rgba(15,52,96,0.98) 100%);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 16px;
+            padding: 28px;
+            width: min(560px, 95vw);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .modal h3 { font-size: 1.1rem; margin-bottom: 8px; color: #c9d6ff; }
+        .modal p { font-size: 0.84rem; color: #8899bb; margin-bottom: 14px; line-height: 1.5; }
+        .modal textarea {
+            width: 100%;
+            height: 220px;
+            background: rgba(0,0,0,0.35);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            color: #d0daf0;
+            padding: 12px;
+            font-family: 'Cascadia Code', 'Fira Code', monospace;
+            font-size: 0.82rem;
+            resize: vertical;
+            outline: none;
+        }
+        .modal textarea:focus { border-color: rgba(126,184,247,0.5); }
+        .modal-actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
+
+        /* Summary bar */
+        .summary-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 0.85rem;
+            color: #a0b4d6;
+            padding: 10px 0 0;
+        }
+        .summary-bar span strong { color: #e0e0f0; }
+        .summary-bar .sum-debit strong { color: #ff8080; }
+        .summary-bar .sum-credit strong { color: #60e8b0; }
+
+        .top-row { display: flex; flex-wrap: wrap; gap: 20px; }
+        .top-row > .card { flex: 1; min-width: 280px; }
+
+        /* Stats panel */
+        .stats-panel {
+            display: none;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 24px;
+            font-size: 0.85rem;
+            color: #a0b4d6;
+        }
+        .stats-panel.visible { display: flex; }
+        .stats-panel .stat-item { display: flex; flex-direction: column; gap: 2px; }
+        .stats-panel .stat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; opacity: 0.7; }
+        .stats-panel .stat-value { font-size: 1.1rem; font-weight: 600; color: #e0e0f0; }
+        .stats-panel .stat-value.warn { color: #ffb060; }
+
+        /* Chart */
+        .chart-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 0.83rem;
+        }
+        .chart-label {
+            width: 160px;
+            min-width: 160px;
+            color: #a0b4d6;
+            text-align: right;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .chart-track {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+            height: 20px;
+            overflow: hidden;
+        }
+        .chart-bar-debit {
+            height: 100%;
+            background: linear-gradient(90deg, rgba(220,80,80,0.7), rgba(255,120,120,0.5));
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            min-width: 2px;
+        }
+        .chart-bar-credit {
+            height: 100%;
+            background: linear-gradient(90deg, rgba(60,200,120,0.7), rgba(96,232,176,0.5));
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            min-width: 2px;
+        }
+        .chart-amount {
+            width: 80px;
+            min-width: 80px;
+            color: #d0daf0;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+        .chart-legend {
+            display: flex;
+            gap: 16px;
+            font-size: 0.78rem;
+            color: #8899bb;
+            margin-bottom: 14px;
+        }
+        .chart-legend span { display: flex; align-items: center; gap: 6px; }
+        .legend-swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+
+        /* Category filter panel */
+        .cat-filter-panel {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 12px 20px;
+            margin-bottom: 20px;
+        }
+        .cat-filter-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .cat-filter-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #a0b4d6;
+            margin-right: 4px;
+        }
+        .cat-checkboxes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px 18px;
+        }
+        .cat-check-label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.78rem;
+            color: #c0d0e8;
+            cursor: pointer;
+            white-space: nowrap;
+            padding: 2px 0;
+        }
+        .cat-check-label input[type="checkbox"] {
+            accent-color: #7eb8f7;
+            cursor: pointer;
+            width: 13px;
+            height: 13px;
+        }
+
+        /* Month picker */
+        .month-picker-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .picker-year-label {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #c9d6ff;
+            min-width: 44px;
+            text-align: center;
+            letter-spacing: 0.04em;
+        }
+        .year-nav-btn { padding: 4px 10px; font-size: 1rem; line-height: 1; }
+        .month-btns { display: flex; gap: 3px; flex-wrap: wrap; }
+        .month-btn {
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 6px;
+            color: #a0b4d6;
+            padding: 4px 9px;
+            font-size: 0.78rem;
+            cursor: pointer;
+            user-select: none;
+            font-family: inherit;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .month-btn:hover { background: rgba(255,255,255,0.14); color: #e0e0f0; }
+        .month-btn.selected {
+            background: rgba(80,140,240,0.4);
+            border-color: rgba(80,140,240,0.65);
+            color: #e8f0ff;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Money Dashboard</h1>
+
+<div class="top-row">
+    <!-- CSV Drop Zone -->
+    <div class="card">
+        <h2>Transaction Files</h2>
+        <div class="dropzone" id="csvDropzone" onclick="document.getElementById('csvFileInput').click()">
+            <div style="font-size:2rem;margin-bottom:8px;">&#8659;</div>
+            Drop CSV files here, or click to browse<br>
+            <span style="font-size:0.8rem;opacity:0.6;">Supports American Express, Affinity Bank &amp; Chase exports</span>
+            <input type="file" id="csvFileInput" accept=".csv" multiple>
+        </div>
+        <button class="btn" style="margin-top:10px;" type="button" onclick="loadDemoData()">Load Demo Data</button>
+        <div class="file-list" id="fileList"></div>
+    </div>
+
+    <!-- Config Card -->
+    <div class="card">
+        <h2>Category Configuration</h2>
+        <p style="font-size:0.85rem;color:#8899bb;margin-bottom:12px;line-height:1.5;">
+            Paste a config file mapping regex patterns to categories.<br>
+            Format: one rule per line &mdash; <code style="color:#a0c8ff;font-size:0.8rem;">REGEX = Category</code>
+        </p>
+        <button class="btn btn-primary" onclick="openConfigModal()">Paste / Edit Config</button>
+        <div class="config-status" id="configStatus">No config loaded &mdash; categories will be blank</div>
+    </div>
+</div>
+
+<!-- Stats Panel -->
+<div class="stats-panel" id="statsPanel">
+    <div class="stat-item">
+        <span class="stat-label">Total Input Records</span>
+        <span class="stat-value" id="statTotal">0</span>
+    </div>
+    <div class="stat-item">
+        <span class="stat-label">Duplicates Eliminated</span>
+        <span class="stat-value warn" id="statDups">0</span>
+    </div>
+    <div class="stat-item">
+        <span class="stat-label">Records After Dedup</span>
+        <span class="stat-value" id="statFinal">0</span>
+    </div>
+</div>
+
+<!-- Source Filter Panel -->
+<div class="cat-filter-panel" id="sourceFilterPanel" style="display:none;">
+    <div class="cat-filter-header">
+        <span class="cat-filter-title">Source Filter</span>
+        <button class="btn" style="padding:3px 10px;font-size:0.75rem;" onclick="checkAllSources()">Check All</button>
+        <button class="btn" style="padding:3px 10px;font-size:0.75rem;" onclick="uncheckAllSources()">Uncheck All</button>
+    </div>
+    <div id="sourceCheckboxes" class="cat-checkboxes"></div>
+</div>
+
+<!-- Category Filter Panel -->
+<div class="cat-filter-panel" id="catFilterPanel" style="display:none;">
+    <div class="cat-filter-header">
+        <span class="cat-filter-title">Category Filter</span>
+        <button class="btn" style="padding:3px 10px;font-size:0.75rem;" onclick="checkAllCats()">Check All</button>
+        <button class="btn" style="padding:3px 10px;font-size:0.75rem;" onclick="uncheckAllCats()">Uncheck All</button>
+    </div>
+    <div id="catCheckboxes" class="cat-checkboxes"></div>
+</div>
+
+<!-- Output Card -->
+<div class="card">
+    <h2>Transactions</h2>
+
+    <div class="controls-row">
+        <label>From <input type="date" id="dateFrom"></label>
+        <label>To <input type="date" id="dateTo"></label>
+        <button class="btn btn-primary" onclick="applyFilters()">Apply</button>
+        <button class="btn" onclick="clearFilters()">Clear Filters</button>
+        <button class="btn btn-danger" onclick="clearAll()" style="margin-left:auto;">Clear All Data</button>
+    </div>
+
+    <div class="month-picker-row">
+        <button class="btn year-nav-btn" onclick="prevYear()" title="Previous year">&#8592;</button>
+        <span id="pickerYearLabel" class="picker-year-label"></span>
+        <button class="btn year-nav-btn" onclick="nextYear()" title="Next year">&#8594;</button>
+        <div id="monthBtns" class="month-btns"></div>
+        <button class="btn" style="padding:4px 10px;font-size:0.78rem;" onclick="clearMonths()">Clear Months</button>
+    </div>
+
+    <div class="table-wrap">
+        <table id="txTable">
+            <thead>
+            <tr>
+                <th onclick="sortBy('date')" data-col="date">Date<span class="sort-arrow"></span></th>
+                <th onclick="sortBy('source')" data-col="source">Source<span class="sort-arrow"></span></th>
+                <th onclick="sortBy('description')" data-col="description">Description<span class="sort-arrow"></span></th>
+                <th onclick="sortBy('memo')" data-col="memo">Memo<span class="sort-arrow"></span></th>
+                <th onclick="sortBy('debit')" data-col="debit">Debit<span class="sort-arrow"></span></th>
+                <th onclick="sortBy('credit')" data-col="credit">Credit<span class="sort-arrow"></span></th>
+                <th onclick="sortBy('category')" data-col="category">Category<span class="sort-arrow"></span></th>
+            </tr>
+            </thead>
+            <tbody id="txBody">
+            <tr><td colspan="7" class="empty-state">Load one or more CSV files to see transactions</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="summary-bar" id="summaryBar"></div>
+</div>
+
+<!-- Category Summary Card -->
+<div class="card" id="catCard" style="display:none;">
+    <h2>Category Summary</h2>
+    <div class="table-wrap">
+        <table id="catTable">
+            <thead>
+            <tr>
+                <th>Category</th>
+                <th style="text-align:right">Transactions</th>
+                <th style="text-align:right">Total Debit</th>
+                <th style="text-align:right">Total Credit</th>
+                <th style="text-align:right">Net</th>
+            </tr>
+            </thead>
+            <tbody id="catBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Spending Chart Card -->
+<div class="card" id="chartCard" style="display:none;">
+    <h2>Spending by Category</h2>
+    <div class="chart-legend">
+        <span><span class="legend-swatch" style="background:rgba(220,80,80,0.7)"></span>Debit</span>
+        <span><span class="legend-swatch" style="background:rgba(60,200,120,0.7)"></span>Credit</span>
+    </div>
+    <div id="chartBody"></div>
+</div>
+
+<!-- Duplicates Modal -->
+<div class="modal-overlay" id="dupModal">
+    <div class="modal" style="width:min(720px,95vw);max-height:85vh;display:flex;flex-direction:column;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <h3 style="margin-bottom:0;">Duplicates Eliminated</h3>
+            <button onclick="closeDupModal()" title="Close" style="background:none;border:none;color:#8899bb;font-size:1.5rem;line-height:1;cursor:pointer;padding:0 4px;transition:color 0.15s;" onmouseover="this.style.color='#e0e0f0'" onmouseout="this.style.color='#8899bb'">&times;</button>
+        </div>
+        <p id="dupIntro" style="margin-bottom:10px;"></p>
+        <div id="dupList" style="overflow-y:auto;flex:1;min-height:60px;max-height:420px;background:rgba(0,0,0,0.25);border-radius:8px;padding:10px 14px;font-size:0.81rem;line-height:1.9;"></div>
+        <div class="modal-actions">
+            <button class="btn btn-primary" onclick="closeDupModal()">OK, Got It</button>
+        </div>
+    </div>
+</div>
+
+<!-- Config Modal -->
+<div class="modal-overlay" id="configModal">
+    <div class="modal">
+        <h3>Category Configuration</h3>
+        <p>
+            Enter one rule per line in the format <code style="color:#a0c8ff;">REGEX = Category</code><br>
+            Patterns are full JavaScript regular expressions, matched case-insensitively against description + memo.<br>
+            Plain words work as-is; use <code style="color:#a0c8ff;">^</code>, <code style="color:#a0c8ff;">$</code>, <code style="color:#a0c8ff;">|</code>, <code style="color:#a0c8ff;">.*</code> etc. for more control.<br>
+            Lines starting with <code style="color:#a0c8ff;">#</code> are comments. Invalid patterns are skipped (check browser console).
+        </p>
+        <textarea id="configText" placeholder="REGEX = Category"></textarea>
+        <div class="modal-actions">
+            <button class="btn" onclick="closeConfigModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveConfig()">Save Config</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ─── State ───────────────────────────────────────────────────────────────────
+    let allTransactions = [];   // canonical records (all loaded files, deduped)
+    let configRules = [];       // [{regex, category, raw}]
+    let sortCol = 'date';
+    let sortDir = 'asc';
+    let filterFrom = null;
+    let filterTo = null;
+    let checkedCategories = new Set(); // category values currently checked (shown)
+    let knownCategories   = new Set(); // all category values ever seen in loaded data
+    let checkedSources    = new Set(); // source values currently checked (shown)
+    let knownSources      = new Set(); // all source values ever seen in loaded data
+
+    // Month picker
+    const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    let pickerYear     = new Date().getFullYear();
+    let selectedMonths = new Set(); // 0-based month indices currently selected
+    let monthDragActive = false;
+    let monthDragStart  = -1;
+
+    // Dedup tracking
+    let seenFingerprints     = new Set();
+    let totalInputRecords    = 0;
+    let duplicatesRemoved    = 0;
+    let eliminatedDuplicates = []; // full records of each eliminated duplicate
+    let pendingFileCount     = 0;  // files still being read (async)
+    const DEFAULT_CONFIG_TEXT = `# Comments start with #
+APPLE\\.COM = Technology
+TESLA|SUPERCHARG = Transportation
+AMAZON|AWS = Shopping
+^EXT WD Jersey Central = Utilities
+SSA TREAS 310 = Social Security
+CANVA = software1
+PAYPAL = misc1
+wegmans = food
+NJT\\ RAIL = nyc1
+CHASE CREDIT CRD AUTOPAY = ChaseCreditCard`;
+    const DEMO_FILES = [
+        {
+            name: 'testdata1.csv',
+            text: `Date,Description,Card Member,Account #,Amount
+03/03/2026,APPLE.COM/BILL      INTERNET CHARGE     CA,FRANKLIN A DOE,-07008,4.25
+03/02/2026,OVERLOOK HOSPITAL PASUMMIT              NJ,FRANKLIN A DOE,-07008,2.00
+03/02/2026,TESLA INC SUPERCHARGPALO ALTO,FRANKLIN A DOE,-07008,12.77
+03/01/2026,Amazon Web Services AWS.Amazon.com      WA,FRANKLIN A DOE,-07008,16.80`
+        },
+        {
+            name: 'testdata2.csv',
+            text: `"Account Name : Afty Cash Back Debit"
+"Account Number : 6858"
+"Date Range : 06/13/2023-06/13/2025"
+Transaction Number,Date,Description,Memo,Amount Debit,Amount Credit,Balance,Check Number,Fees
+"20250611000000[-5:EST]*-200.00*1*114*Check",06/11/2025,"Check","",-2000.00,,"853.06",114,
+"20250609000000[-5:EST]*-1.65*0**EXT WD PAYPAL 2506PPZDDJ -",06/09/2025,"EXT WD PAYPAL 250606PPZDDJ -","INST XFER",-10.65,,"1053.06",,
+"20250606000000[-5:EST]*403.00*501**EXT DEP SSA TREAS 310 - XXSOC",06/06/2025,"EXT DEP SSA TREAS 310 - XXSOC","SEC",,503.00,"1063.71",,
+"20250605000000[-5:EST]*-22.33*0**EXT WD UnitedHehcare -",06/05/2025,"EXT WD UnitedHealthcare -","Premium",-22.33,,"50.71",,
+"20250604000000[-5:EST]*-176.54*0**EXT WD Jersey Central M",06/04/2025,"EXT WD Jersey Central M","732-942-6100 - WEB PMTS",-116.54,,"843.04",,`
+        },
+        {
+            name: 'testdata3.csv',
+            text: `Details,Posting Date,Description,Amount,Type,Balance,Check or Slip #
+DEBIT,02/23/2026,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224",-35.52,ACH_DEBIT,2507.17,,
+DEBIT,12/23/2025,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224",-9.20,ACH_DEBIT,2812.69,,
+DEBIT,11/24/2025,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224",-16.11,ACH_DEBIT,2906.89,,
+DEBIT,10/23/2025,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224",-3.67,ACH_DEBIT,3033.00,,
+DEBIT,08/25/2025,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224",-9.55,ACH_DEBIT,3071.67,,
+DEBIT,07/23/2025,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224",-7.73,ACH_DEBIT,3121.22,,
+DEBIT,07/07/2025,"MONTHLY SERVICE FEE",-12.00,FEE_TRANSACTION,3198.95,,
+DSLIP,06/10/2025,"REMOTE ONLINE DEPOSIT #          1",2000.00,CHECK_DEPOSIT,3210.95,1,
+DEBIT,04/23/2025,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224",-9.15,ACH_DEBIT,1234.95,,
+DEBIT,03/24/2025,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224",-25.57,ACH_DEBIT,1316.10,,
+DEBIT,02/24/2025,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224",-1.88,ACH_DEBIT,1541.67,,
+DEBIT,01/24/2025,"PU AUDITING PROGRAM 609-258-8300 NJ          01/24",-200.00,DEBIT_CARD,1552.55,,
+DEBIT,04/23/2024,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224",-57.65,ACH_DEBIT,2624.50,,
+DSLIP,04/01/2024,"REMOTE ONLINE DEPOSIT #          1",1000.00,CHECK_DEPOSIT,282.15,1,
+DEBIT,03/25/2024,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224",-31.93,ACH_DEBIT,1682.15,,`
+        }
+    ];
+
+    function fingerprint(rec) {
+        const d = rec.date
+            ? `${rec.date.getFullYear()}-${rec.date.getMonth()}-${rec.date.getDate()}`
+            : '';
+        return `${rec.source}|${d}|${rec.description.trim().toLowerCase()}|${rec.memo.trim().toLowerCase()}|${rec.debit}|${rec.credit}`;
+    }
+
+    function updateStatsPanel() {
+        const panel = document.getElementById('statsPanel');
+        panel.classList.toggle('visible', totalInputRecords > 0);
+        document.getElementById('statTotal').textContent = totalInputRecords;
+        document.getElementById('statDups').textContent = duplicatesRemoved;
+        document.getElementById('statFinal').textContent = allTransactions.length;
+    }
+
+    // ─── CSV Parsing ─────────────────────────────────────────────────────────────
+
+    /**
+     * Minimal CSV parser that handles quoted fields (including embedded commas/newlines).
+     * Returns array of arrays (rows of fields).
+     */
+    function parseCSV(text) {
+        const rows = [];
+        let field = '', row = [], inQuote = false;
+        for (let i = 0; i < text.length; i++) {
+            const ch = text[i];
+            if (inQuote) {
+                if (ch === '"') {
+                    if (text[i + 1] === '"') { field += '"'; i++; }
+                    else inQuote = false;
+                } else {
+                    field += ch;
+                }
+            } else {
+                if (ch === '"') { inQuote = true; }
+                else if (ch === ',') { row.push(field.trim()); field = ''; }
+                else if (ch === '\n') {
+                    row.push(field.trim()); field = '';
+                    if (row.some(f => f !== '')) rows.push(row);
+                    row = [];
+                } else if (ch !== '\r') { field += ch; }
+            }
+        }
+        row.push(field.trim());
+        if (row.some(f => f !== '')) rows.push(row);
+        return rows;
+    }
+
+    /**
+     * Detect source from CSV content.
+     * Returns 'amex' | 'affinity' | 'chase' | 'unknown'
+     */
+    function detectSource(rows) {
+        // Scan first few rows because some exports include metadata rows before headers.
+        for (let i = 0; i < Math.min(6, rows.length); i++) {
+            const low = rows[i].map(f => f.toLowerCase().trim());
+            if (low.includes('card member') && low.includes('amount')) return 'amex';
+            if (low.includes('details') && low.includes('posting date') && low.includes('type')) return 'chase';
+            if (low.some(f => f.includes('transaction number'))) return 'affinity';
+            const joined = rows[i].join(' ').toLowerCase();
+            if (joined.includes('account name') && joined.includes('affinity')) return 'affinity';
+        }
+        return 'unknown';
+    }
+
+    /**
+     * Parse date string MM/DD/YYYY -> Date object (local midnight).
+     */
+    function parseDate(str) {
+        const m = str && str.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+        if (!m) return null;
+        let year = parseInt(m[3], 10);
+        if (year < 100) year += 2000;
+        return new Date(year, parseInt(m[1], 10) - 1, parseInt(m[2], 10));
+    }
+
+    function parseAmount(value) {
+        if (value == null) return 0;
+        let s = String(value).trim();
+        if (!s) return 0;
+        const isParenNegative = /^\(.*\)$/.test(s);
+        if (isParenNegative) s = s.slice(1, -1);
+        s = s.replace(/[$,\s]/g, '');
+        if (!s) return 0;
+        const n = Number(s);
+        if (!Number.isFinite(n)) return 0;
+        return isParenNegative ? -Math.abs(n) : n;
+    }
+
+    function formatDate(d) {
+        if (!d) return '';
+        return d.toLocaleDateString('en-US', { year:'numeric', month:'2-digit', day:'2-digit' });
+    }
+
+    /**
+     * Parse AmEx CSV rows into canonical records.
+     * Header: Date, Description, Card Member, Account #, Amount
+     * Amount is positive = charge (debit). Negative = credit/refund.
+     */
+    function parseAmEx(rows) {
+        const headerIdx = rows.findIndex(r => r[0] && r[0].toLowerCase() === 'date' && r.some(f => f.toLowerCase() === 'description'));
+        if (headerIdx < 0) return [];
+        const header = rows[headerIdx].map(f => f.toLowerCase().trim());
+        const iDate = header.indexOf('date');
+        const iDesc = header.indexOf('description');
+        const iAmt  = header.indexOf('amount');
+
+        const records = [];
+        for (let i = headerIdx + 1; i < rows.length; i++) {
+            const r = rows[i];
+            if (!r[iDate]) continue;
+            const d = parseDate(r[iDate]);
+            if (!d) continue;
+            const rawAmt = parseAmount(r[iAmt]);
+            records.push({
+                source: 'AmEx',
+                date: d,
+                txNum: '',
+                description: r[iDesc] || '',
+                memo: '',
+                debit:  rawAmt > 0 ? rawAmt : 0,
+                credit: rawAmt < 0 ? Math.abs(rawAmt) : 0,
+                balance: '',
+                category: '',
+            });
+        }
+        return records;
+    }
+
+    /**
+     * Parse Affinity CSV rows into canonical records.
+     * There are 3 metadata header rows, then the real header row.
+     * Header: Transaction Number, Date, Description, Memo, Amount Debit, Amount Credit, Balance, Check Number, Fees
+     */
+    function parseAffinity(rows) {
+        // Find the real header row (contains "Transaction Number")
+        const headerIdx = rows.findIndex(r => r.some(f => f.toLowerCase().includes('transaction number')));
+        if (headerIdx < 0) return [];
+        const header = rows[headerIdx].map(f => f.toLowerCase().trim());
+        const iTxNum  = header.findIndex(f => f.includes('transaction'));
+        const iDate   = header.indexOf('date');
+        const iDesc   = header.indexOf('description');
+        const iMemo   = header.indexOf('memo');
+        const iDebit  = header.findIndex(f => f.includes('debit'));
+        const iCredit = header.findIndex(f => f.includes('credit'));
+        const iBalance= header.indexOf('balance');
+
+        const records = [];
+        for (let i = headerIdx + 1; i < rows.length; i++) {
+            const r = rows[i];
+            if (!r[iDate]) continue;
+            const d = parseDate(r[iDate]);
+            if (!d) continue;
+            const rawDebit = parseAmount(r[iDebit]);
+            const rawCredit = parseAmount(r[iCredit]);
+            records.push({
+                source: 'Affinity',
+                date: d,
+                txNum: r[iTxNum] || '',
+                description: r[iDesc] || '',
+                memo: r[iMemo] || '',
+                debit:  rawDebit ? Math.abs(rawDebit) : 0,
+                credit: rawCredit ? Math.abs(rawCredit) : 0,
+                balance: r[iBalance] || '',
+                category: '',
+            });
+        }
+        return records;
+    }
+
+    /**
+     * Parse Chase CSV rows into canonical records.
+     * Header: Details, Posting Date, Description, Amount, Type, Balance, Check or Slip #
+     * Amount is negative = debit (charge), positive = credit/refund.
+     */
+    function parseChase(rows) {
+        const headerIdx = rows.findIndex(r => {
+            const low = r.map(f => f.toLowerCase());
+            return low.includes('details') && low.includes('posting date');
+        });
+        if (headerIdx < 0) return [];
+        const header = rows[headerIdx].map(f => f.toLowerCase().trim());
+        const iDate = header.findIndex(f => f === 'posting date');
+        const iDesc = header.indexOf('description');
+        const iAmt  = header.indexOf('amount');
+        const iType = header.indexOf('type');
+
+        const records = [];
+        for (let i = headerIdx + 1; i < rows.length; i++) {
+            const r = rows[i];
+            if (!r[iDate]) continue;
+            const d = parseDate(r[iDate]);
+            if (!d) continue;
+            const rawAmt = parseAmount(r[iAmt]);
+            const memo = r[iType] || '';
+            records.push({
+                source: 'Chase',
+                date: d,
+                txNum: '',
+                description: r[iDesc] || '',
+                memo,
+                debit:  rawAmt < 0 ? Math.abs(rawAmt) : 0,
+                credit: rawAmt > 0 ? rawAmt : 0,
+                balance: '',
+                category: '',
+            });
+        }
+        return records;
+    }
+
+    /**
+     * Apply config rules to assign categories to records.
+     */
+    function applyCategories(records) {
+        for (const rec of records) {
+            rec.category = '';
+            const desc = rec.description + ' ' + rec.memo;
+            for (const rule of configRules) {
+                if (rule.regex.test(desc)) {
+                    rec.category = rule.category;
+                    break;
+                }
+            }
+        }
+    }
+
+    // ─── File Loading ─────────────────────────────────────────────────────────────
+
+    function loadFiles(files) {
+        pendingFileCount += files.length;
+        for (const file of files) {
+            const reader = new FileReader();
+            const finishFile = () => {
+                pendingFileCount--;
+                if (pendingFileCount === 0 && eliminatedDuplicates.length > 0) {
+                    showDupModal();
+                }
+            };
+
+            reader.onload = e => {
+                const text = e.target.result;
+                const rows = parseCSV(text);
+                const src = detectSource(rows);
+                let records = [];
+                if (src === 'amex')          records = parseAmEx(rows);
+                else if (src === 'affinity') records = parseAffinity(rows);
+                else if (src === 'chase')    records = parseChase(rows);
+                else {
+                    const chip = document.createElement('div');
+                    chip.className = 'file-chip';
+                    chip.innerHTML =
+                        `<span class="source-tag source-unknown">?</span>${esc(file.name)} <span style="color:#ffb060;opacity:0.9">(unsupported format)</span>`;
+                    document.getElementById('fileList').appendChild(chip);
+                    finishFile();
+                    return;
+                }
+
+                // Deduplicate against already-loaded records
+                const uniqueRecords = [];
+                let fileDups = 0;
+                for (const rec of records) {
+                    const fp = fingerprint(rec);
+                    if (seenFingerprints.has(fp)) {
+                        fileDups++;
+                        eliminatedDuplicates.push(rec);
+                    } else {
+                        seenFingerprints.add(fp);
+                        uniqueRecords.push(rec);
+                    }
+                }
+
+                totalInputRecords += records.length;
+                duplicatesRemoved += fileDups;
+
+                applyCategories(uniqueRecords);
+                allTransactions.push(...uniqueRecords);
+
+                // Add chip
+                const chip = document.createElement('div');
+                chip.className = 'file-chip';
+                const tagClass = src === 'amex' ? 'source-amex' : src === 'affinity' ? 'source-affinity' : src === 'chase' ? 'source-chase' : 'source-unknown';
+                const tagLabel = src === 'amex' ? 'AmEx' : src === 'affinity' ? 'Affinity' : src === 'chase' ? 'Chase' : '?';
+                const dupNote = fileDups > 0 ? ` <span style="color:#ffb060;opacity:0.8">${fileDups} dup${fileDups === 1 ? '' : 's'}</span>` : '';
+                chip.innerHTML = `<span class="source-tag ${tagClass}">${tagLabel}</span>${esc(file.name)} <span style="opacity:0.5">(${records.length})</span>${dupNote}`;
+                document.getElementById('fileList').appendChild(chip);
+
+                updateStatsPanel();
+                renderTable();
+                finishFile();
+            };
+            reader.onerror = () => {
+                const chip = document.createElement('div');
+                chip.className = 'file-chip';
+                chip.innerHTML =
+                    `<span class="source-tag source-unknown">!</span>${esc(file.name)} <span style="color:#ff8080;opacity:0.9">(read failed)</span>`;
+                document.getElementById('fileList').appendChild(chip);
+                finishFile();
+            };
+            reader.onabort = () => {
+                const chip = document.createElement('div');
+                chip.className = 'file-chip';
+                chip.innerHTML =
+                    `<span class="source-tag source-unknown">!</span>${esc(file.name)} <span style="color:#ffb060;opacity:0.9">(read aborted)</span>`;
+                document.getElementById('fileList').appendChild(chip);
+                finishFile();
+            };
+            reader.readAsText(file);
+        }
+    }
+
+    function loadDemoData() {
+        const files = DEMO_FILES.map(f => new File([f.text], f.name, { type: 'text/csv' }));
+        loadFiles(files);
+    }
+
+    // Drop zone wiring
+    const dropzone = document.getElementById('csvDropzone');
+    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('over'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('over'));
+    dropzone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropzone.classList.remove('over');
+        loadFiles(e.dataTransfer.files);
+    });
+    document.getElementById('csvFileInput').addEventListener('change', e => {
+        loadFiles(e.target.files);
+        e.target.value = '';
+    });
+
+    // ─── Config Modal ─────────────────────────────────────────────────────────────
+
+    function openConfigModal() {
+        document.getElementById('configModal').classList.add('open');
+        document.getElementById('configText').focus();
+    }
+    function closeConfigModal() {
+        document.getElementById('configModal').classList.remove('open');
+    }
+    document.getElementById('configModal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) closeConfigModal();
+    });
+
+    function saveConfig() {
+        const text = document.getElementById('configText').value;
+        const parsedRules = [];
+        for (const line of text.split('\n')) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) continue;
+            const eq = trimmed.indexOf('=');
+            if (eq < 0) continue;
+            const raw      = trimmed.slice(0, eq).trim();
+            const category = trimmed.slice(eq + 1).trim();
+            if (!raw || !category) continue;
+            try {
+                const regex = new RegExp(raw, 'i');
+                parsedRules.push({ regex, category, raw });
+            } catch (e) {
+                console.warn(`Invalid regex pattern "${raw}": ${e.message}`);
+            }
+        }
+        configRules = parsedRules;
+
+        const status = document.getElementById('configStatus');
+        if (configRules.length > 0) {
+            status.textContent = `${configRules.length} rule${configRules.length === 1 ? '' : 's'} loaded`;
+            status.className = 'config-status loaded';
+        } else {
+            status.textContent = 'No valid rules found — categories will be blank';
+            status.className = 'config-status';
+        }
+
+        // Re-apply categories to existing data
+        applyCategories(allTransactions);
+        closeConfigModal();
+        renderTable();
+    }
+
+    // ─── Sorting & Filtering ──────────────────────────────────────────────────────
+
+    function sortBy(col) {
+        if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        else { sortCol = col; sortDir = 'asc'; }
+        renderTable();
+    }
+
+    function applyFilters() {
+        const from = document.getElementById('dateFrom').value;
+        const to   = document.getElementById('dateTo').value;
+        filterFrom = from ? new Date(from + 'T00:00:00') : null;
+        filterTo   = to   ? new Date(to   + 'T23:59:59') : null;
+        // Decouple from month picker when user manually applies dates
+        selectedMonths = new Set();
+        renderMonthPicker();
+        renderTable();
+    }
+
+    function clearFilters() {
+        document.getElementById('dateFrom').value = '';
+        document.getElementById('dateTo').value = '';
+        filterFrom = filterTo = null;
+        selectedMonths = new Set();
+        renderMonthPicker();
+        checkAllSources();
+        checkAllCats();
+    }
+
+    function clearAll() {
+        allTransactions = [];
+        seenFingerprints     = new Set();
+        totalInputRecords    = 0;
+        duplicatesRemoved    = 0;
+        eliminatedDuplicates = [];
+        pendingFileCount     = 0;
+        checkedCategories = new Set();
+        knownCategories   = new Set();
+        checkedSources    = new Set();
+        knownSources      = new Set();
+        document.getElementById('fileList').innerHTML = '';
+        document.getElementById('catCard').style.display = 'none';
+        document.getElementById('chartCard').style.display = 'none';
+        document.getElementById('catFilterPanel').style.display = 'none';
+        document.getElementById('catCheckboxes').innerHTML = '';
+        document.getElementById('sourceFilterPanel').style.display = 'none';
+        document.getElementById('sourceCheckboxes').innerHTML = '';
+        updateStatsPanel();
+        setCurrentMonthFilter();
+    }
+
+    // ─── Render ───────────────────────────────────────────────────────────────────
+
+    function renderTable() {
+        // Update sort header indicators
+        document.querySelectorAll('thead th[data-col]').forEach(th => {
+            th.classList.remove('sort-asc', 'sort-desc');
+            if (th.dataset.col === sortCol) th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+        });
+
+        // Update filter checkboxes first (adds new values as checked, removes stale ones)
+        refreshSourceFilter();
+        refreshCategoryFilter();
+
+        let rows = allTransactions.slice();
+
+        // Date filter
+        if (filterFrom) rows = rows.filter(r => r.date >= filterFrom);
+        if (filterTo)   rows = rows.filter(r => r.date <= filterTo);
+
+        // Source checkbox filter — only active when something is unchecked
+        if (checkedSources.size < knownSources.size) {
+            rows = rows.filter(r => checkedSources.has(r.source));
+        }
+
+        // Category checkbox filter — only active when something is unchecked
+        if (checkedCategories.size < knownCategories.size) {
+            rows = rows.filter(r => checkedCategories.has(r.category || '__uncategorized__'));
+        }
+
+        // Sort
+        rows.sort((a, b) => {
+            let va, vb;
+            switch (sortCol) {
+                case 'date':        va = a.date ? a.date.getTime() : 0; vb = b.date ? b.date.getTime() : 0; break;
+                case 'source':      va = a.source; vb = b.source; break;
+                case 'description': va = a.description.toLowerCase(); vb = b.description.toLowerCase(); break;
+                case 'memo':        va = a.memo.toLowerCase(); vb = b.memo.toLowerCase(); break;
+                case 'debit':       va = a.debit;  vb = b.debit;  break;
+                case 'credit':      va = a.credit; vb = b.credit; break;
+                case 'category':    va = a.category.toLowerCase(); vb = b.category.toLowerCase(); break;
+                default: return 0;
+            }
+            if (va < vb) return sortDir === 'asc' ? -1 : 1;
+            if (va > vb) return sortDir === 'asc' ?  1 : -1;
+            return 0;
+        });
+
+        const tbody = document.getElementById('txBody');
+        if (rows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${allTransactions.length === 0 ? 'Load one or more CSV files to see transactions' : 'No transactions match the current filters'}</td></tr>`;
+            document.getElementById('summaryBar').innerHTML = '';
+            document.getElementById('catCard').style.display = 'none';
+            document.getElementById('chartCard').style.display = 'none';
+            return;
+        }
+
+        tbody.innerHTML = rows.map(r => {
+            const srcClass = r.source === 'AmEx' ? 'source-amex-cell' : r.source === 'Chase' ? 'source-chase-cell' : 'source-affinity-cell';
+            const debitCell  = r.debit  ? `<td class="amount-debit">-$${r.debit.toFixed(2)}</td>`  : '<td></td>';
+            const creditCell = r.credit ? `<td class="amount-credit">+$${r.credit.toFixed(2)}</td>` : '<td></td>';
+            const catCell    = r.category
+                ? `<td>${esc(r.category)}</td>`
+                : `<td class="category-empty">—</td>`;
+            return `<tr>
+      <td>${formatDate(r.date)}</td>
+      <td class="${srcClass}">${esc(r.source)}</td>
+      <td>${esc(r.description)}</td>
+      <td>${esc(r.memo)}</td>
+      ${debitCell}
+      ${creditCell}
+      ${catCell}
+    </tr>`;
+        }).join('');
+
+        // Summary
+        const totalDebit  = rows.reduce((s, r) => s + r.debit, 0);
+        const totalCredit = rows.reduce((s, r) => s + r.credit, 0);
+        document.getElementById('summaryBar').innerHTML =
+            `<span>${rows.length} transaction${rows.length === 1 ? '' : 's'}</span>` +
+            `<span class="sum-debit">Total debits: <strong>$${totalDebit.toFixed(2)}</strong></span>` +
+            `<span class="sum-credit">Total credits: <strong>$${totalCredit.toFixed(2)}</strong></span>` +
+            `<span>Net: <strong style="color:${(totalCredit - totalDebit) >= 0 ? '#60e8b0' : '#ff8080'}">$${(totalCredit - totalDebit).toFixed(2)}</strong></span>`;
+
+        renderCategoryTable(rows);
+    }
+
+    function refreshCategoryFilter() {
+        const cats = [...new Set(allTransactions.map(r => r.category).filter(Boolean))].sort();
+        const hasUncategorized = allTransactions.some(r => !r.category);
+
+        const allOptions = cats.map(c => ({ value: c, label: c }));
+        if (hasUncategorized) allOptions.push({ value: '__uncategorized__', label: 'Uncategorized' });
+
+        const panel = document.getElementById('catFilterPanel');
+        if (allOptions.length === 0) { panel.style.display = 'none'; return; }
+        panel.style.display = '';
+
+        // New categories default to checked; stale categories removed from tracking
+        let changed = false;
+        const validValues = new Set(allOptions.map(o => o.value));
+        for (const v of [...knownCategories]) {
+            if (!validValues.has(v)) { knownCategories.delete(v); checkedCategories.delete(v); changed = true; }
+        }
+        for (const o of allOptions) {
+            if (!knownCategories.has(o.value)) {
+                knownCategories.add(o.value);
+                checkedCategories.add(o.value);
+                changed = true;
+            }
+        }
+
+        if (!changed) return; // checkboxes already up-to-date
+
+        document.getElementById('catCheckboxes').innerHTML = allOptions.map(o => {
+            const checked = checkedCategories.has(o.value) ? 'checked' : '';
+            return `<label class="cat-check-label">` +
+                `<input type="checkbox" value="${esc(o.value)}" ${checked} onchange="onCategoryChange(this)">` +
+                `${esc(o.label)}</label>`;
+        }).join('');
+    }
+
+    function onCategoryChange(cb) {
+        if (cb.checked) checkedCategories.add(cb.value);
+        else checkedCategories.delete(cb.value);
+        renderTable();
+    }
+
+    function checkAllCats() {
+        checkedCategories = new Set(knownCategories);
+        document.querySelectorAll('#catCheckboxes input[type="checkbox"]').forEach(cb => cb.checked = true);
+        renderTable();
+    }
+
+    function uncheckAllCats() {
+        checkedCategories = new Set();
+        document.querySelectorAll('#catCheckboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
+        renderTable();
+    }
+
+    function renderCategoryTable(rows) {
+        const catCard = document.getElementById('catCard');
+        if (rows.length === 0) { catCard.style.display = 'none'; return; }
+
+        // Aggregate by category
+        const map = new Map();
+        for (const r of rows) {
+            const key = r.category || '—';
+            if (!map.has(key)) map.set(key, { count: 0, debit: 0, credit: 0 });
+            const entry = map.get(key);
+            entry.count++;
+            entry.debit  += r.debit;
+            entry.credit += r.credit;
+        }
+
+        // Sort: named categories by total debit desc, uncategorized last
+        const sorted = [...map.entries()].sort((a, b) => {
+            if (a[0] === '—') return 1;
+            if (b[0] === '—') return -1;
+            return b[1].debit - a[1].debit;
+        });
+
+        document.getElementById('catBody').innerHTML = sorted.map(([cat, v]) => {
+            const net = v.credit - v.debit;
+            const netColor = net >= 0 ? '#60e8b0' : '#ff8080';
+            const catCell = cat === '—'
+                ? `<td class="category-empty">Uncategorized</td>`
+                : `<td>${esc(cat)}</td>`;
+            return `<tr>
+      ${catCell}
+      <td style="text-align:right;color:#a0b4d6">${v.count}</td>
+      <td style="text-align:right" class="amount-debit">${v.debit  ? '-$' + v.debit.toFixed(2)  : ''}</td>
+      <td style="text-align:right" class="amount-credit">${v.credit ? '+$' + v.credit.toFixed(2) : ''}</td>
+      <td style="text-align:right;color:${netColor};font-weight:600">$${net.toFixed(2)}</td>
+    </tr>`;
+        }).join('');
+
+        catCard.style.display = '';
+
+        renderChart(rows);
+    }
+
+    function renderChart(rows) {
+        const chartCard = document.getElementById('chartCard');
+        if (rows.length === 0) { chartCard.style.display = 'none'; return; }
+
+        // Aggregate by named category only (skip uncategorized in chart)
+        const map = new Map();
+        for (const r of rows) {
+            if (!r.category) continue;
+            if (!map.has(r.category)) map.set(r.category, { debit: 0, credit: 0 });
+            const e = map.get(r.category);
+            e.debit  += r.debit;
+            e.credit += r.credit;
+        }
+
+        if (map.size === 0) { chartCard.style.display = 'none'; return; }
+
+        // Sort by debit desc
+        const sorted = [...map.entries()].sort((a, b) => b[1].debit - a[1].debit);
+        const maxDebit  = Math.max(...sorted.map(([, v]) => v.debit));
+        const maxCredit = Math.max(...sorted.map(([, v]) => v.credit));
+        const maxVal = Math.max(maxDebit, maxCredit, 0.01);
+
+        document.getElementById('chartBody').innerHTML = sorted.map(([cat, v]) => {
+            const debitPct  = (v.debit  / maxVal * 100).toFixed(1);
+            const creditPct = (v.credit / maxVal * 100).toFixed(1);
+            const amount = v.debit
+                ? `<span class="amount-debit">-$${v.debit.toFixed(2)}</span>`
+                : `<span class="amount-credit">+$${v.credit.toFixed(2)}</span>`;
+            const bar = v.debit >= v.credit
+                ? `<div class="chart-bar-debit" style="width:${debitPct}%"></div>`
+                : `<div class="chart-bar-credit" style="width:${creditPct}%"></div>`;
+            return `<div class="chart-row">
+      <div class="chart-label" title="${esc(cat)}">${esc(cat)}</div>
+      <div class="chart-track">${bar}</div>
+      <div class="chart-amount">${amount}</div>
+    </div>`;
+        }).join('');
+
+        chartCard.style.display = '';
+    }
+
+    function esc(str) {
+        return String(str)
+            .replace(/&/g,'&amp;')
+            .replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;');
+    }
+
+    // ─── Month Picker ─────────────────────────────────────────────────────────────
+
+    function renderMonthPicker() {
+        document.getElementById('pickerYearLabel').textContent = pickerYear;
+        document.getElementById('monthBtns').innerHTML = MONTH_LABELS.map((m, i) =>
+            `<button class="month-btn${selectedMonths.has(i) ? ' selected' : ''}" data-month="${i}"
+      onmousedown="monthMouseDown(event,${i})"
+      onmouseover="monthMouseOver(event,${i})">${m}</button>`
+        ).join('');
+    }
+
+    function prevYear() { pickerYear--; renderMonthPicker(); }
+    function nextYear() { pickerYear++; renderMonthPicker(); }
+
+    function monthMouseDown(e, idx) {
+        e.preventDefault();
+        monthDragActive = true;
+        monthDragStart  = idx;
+        // If clicking the only selected month, deselect (toggle off); otherwise start fresh selection
+        if (selectedMonths.has(idx) && selectedMonths.size === 1) {
+            selectedMonths = new Set();
+        } else {
+            selectedMonths = new Set([idx]);
+        }
+        renderMonthPicker();
+        applyMonthFilter();
+    }
+
+    function monthMouseOver(e, idx) {
+        if (!monthDragActive) return;
+        selectedMonths = new Set();
+        const lo = Math.min(monthDragStart, idx);
+        const hi = Math.max(monthDragStart, idx);
+        for (let m = lo; m <= hi; m++) selectedMonths.add(m);
+        renderMonthPicker();
+        applyMonthFilter();
+    }
+
+    document.addEventListener('mouseup', () => { monthDragActive = false; });
+
+    function applyMonthFilter() {
+        if (selectedMonths.size === 0) {
+            filterFrom = filterTo = null;
+            document.getElementById('dateFrom').value = '';
+            document.getElementById('dateTo').value   = '';
+            renderTable();
+            return;
+        }
+        const sorted = [...selectedMonths].sort((a, b) => a - b);
+        const lo = sorted[0];
+        const hi = sorted[sorted.length - 1];
+        filterFrom = new Date(pickerYear, lo, 1, 0, 0, 0);
+        filterTo   = new Date(pickerYear, hi + 1, 0, 23, 59, 59); // day 0 of next month = last day of hi
+        const pad  = n => String(n).padStart(2, '0');
+        const lastDay = new Date(pickerYear, hi + 1, 0).getDate();
+        document.getElementById('dateFrom').value = `${pickerYear}-${pad(lo + 1)}-01`;
+        document.getElementById('dateTo').value   = `${pickerYear}-${pad(hi + 1)}-${pad(lastDay)}`;
+        renderTable();
+    }
+
+    function clearMonths() {
+        selectedMonths = new Set();
+        filterFrom = filterTo = null;
+        document.getElementById('dateFrom').value = '';
+        document.getElementById('dateTo').value   = '';
+        renderMonthPicker();
+        renderTable();
+    }
+
+    function setCurrentMonthFilter() {
+        const now = new Date();
+        pickerYear = now.getFullYear();
+        selectedMonths = new Set([now.getMonth()]);
+        renderMonthPicker();
+        applyMonthFilter();
+    }
+
+    // ─── Source Filter ────────────────────────────────────────────────────────────
+
+    function refreshSourceFilter() {
+        const sources = [...new Set(allTransactions.map(r => r.source))].sort();
+        const panel = document.getElementById('sourceFilterPanel');
+        if (sources.length === 0) { panel.style.display = 'none'; return; }
+        panel.style.display = '';
+
+        let changed = false;
+        const validValues = new Set(sources);
+        for (const v of [...knownSources]) {
+            if (!validValues.has(v)) { knownSources.delete(v); checkedSources.delete(v); changed = true; }
+        }
+        for (const s of sources) {
+            if (!knownSources.has(s)) {
+                knownSources.add(s);
+                checkedSources.add(s);
+                changed = true;
+            }
+        }
+
+        if (!changed) return;
+
+        const sourceLabels = { AmEx: 'American Express', Affinity: 'Affinity', Chase: 'Chase' };
+        const sourceClasses = { AmEx: 'source-amex', Affinity: 'source-affinity', Chase: 'source-chase' };
+
+        document.getElementById('sourceCheckboxes').innerHTML = sources.map(s => {
+            const checked = checkedSources.has(s) ? 'checked' : '';
+            const colorClass = sourceClasses[s] || 'source-unknown';
+            const label = sourceLabels[s] || s;
+            return `<label class="cat-check-label">` +
+                `<input type="checkbox" value="${esc(s)}" ${checked} onchange="onSourceChange(this)">` +
+                `<span class="source-tag ${colorClass}">${esc(label)}</span></label>`;
+        }).join('');
+    }
+
+    function onSourceChange(cb) {
+        if (cb.checked) checkedSources.add(cb.value);
+        else checkedSources.delete(cb.value);
+        renderTable();
+    }
+
+    function checkAllSources() {
+        checkedSources = new Set(knownSources);
+        document.querySelectorAll('#sourceCheckboxes input[type="checkbox"]').forEach(cb => cb.checked = true);
+        renderTable();
+    }
+
+    function uncheckAllSources() {
+        checkedSources = new Set();
+        document.querySelectorAll('#sourceCheckboxes input[type="checkbox"]').forEach(cb => cb.checked = false);
+        renderTable();
+    }
+
+    // ─── Duplicates Modal ─────────────────────────────────────────────────────────
+
+    function showDupModal() {
+        const count = eliminatedDuplicates.length;
+        document.getElementById('dupIntro').textContent =
+            `${count} record${count === 1 ? '' : 's'} were detected as duplicates and removed from the merged dataset. Please review:`;
+
+        const srcColors = { AmEx: '#60e8b0', Affinity: '#a0a8ff', Chase: '#ffd060' };
+        document.getElementById('dupList').innerHTML = eliminatedDuplicates.map(r => {
+            const srcColor = srcColors[r.source] || '#ffb060';
+            const amt = r.debit ? `-$${r.debit.toFixed(2)}` : r.credit ? `+$${r.credit.toFixed(2)}` : '';
+            const amtColor = r.debit ? '#ff8080' : '#60e8b0';
+            const desc = r.description + (r.memo ? ' \u2014 ' + r.memo : '');
+            return `<div style="display:flex;gap:14px;border-bottom:1px solid rgba(255,255,255,0.06);padding:2px 0;">` +
+                `<span style="min-width:90px;color:#8899bb;flex-shrink:0">${formatDate(r.date)}</span>` +
+                `<span style="min-width:76px;color:${srcColor};font-weight:600;flex-shrink:0">${esc(r.source)}</span>` +
+                `<span style="flex:1;color:#d0daf0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(desc)}</span>` +
+                `<span style="min-width:80px;text-align:right;color:${amtColor};font-weight:600;flex-shrink:0">${amt}</span>` +
+                `</div>`;
+        }).join('');
+
+        document.getElementById('dupModal').classList.add('open');
+    }
+
+    function closeDupModal() {
+        document.getElementById('dupModal').classList.remove('open');
+    }
+
+    // dupModal intentionally does NOT close on outside click — user must review and dismiss.
+
+    // Initialize default starter config and month picker.
+    document.getElementById('configText').value = DEFAULT_CONFIG_TEXT;
+    saveConfig();
+    setCurrentMonthFilter();
+</script>
+</body>
+</html>
