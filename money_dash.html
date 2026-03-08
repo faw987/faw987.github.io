@@ -138,6 +138,12 @@
             margin-bottom: 16px;
         }
         .controls-row label { font-size: 0.88rem; color: #a0b4d6; }
+        .controls-row label.checkbox-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            user-select: none;
+        }
         .controls-row input[type="date"] {
             background: rgba(255,255,255,0.08);
             border: 1px solid rgba(255,255,255,0.18);
@@ -199,10 +205,12 @@
         tbody td { padding: 8px 12px; color: #d0daf0; vertical-align: middle; }
         td.amount-debit { color: #ff8080; }
         td.amount-credit { color: #60e8b0; }
-        td.category-empty { color: #555; font-style: italic; }
+        td.category-empty { color: #9aa8c6; }
         td.source-amex-cell { color: #60e8b0; }
         td.source-affinity-cell { color: #a0a8ff; }
         td.source-chase-cell { color: #ffd060; }
+        .cat-row-select { width: 34px; text-align: center; }
+        tr.cat-summary-row.selected { background: rgba(80,140,240,0.18); }
 
         .empty-state {
             text-align: center;
@@ -338,6 +346,21 @@
         }
         .chart-legend span { display: flex; align-items: center; gap: 6px; }
         .legend-swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+        .chart-sort-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-bottom: 10px;
+            font-size: 0.8rem;
+            color: #a0b4d6;
+        }
+        .chart-sort-controls label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            user-select: none;
+        }
 
         /* Category filter panel */
         .cat-filter-panel {
@@ -420,6 +443,124 @@
             color: #e8f0ff;
             font-weight: 600;
         }
+
+        /* Print stylesheet: swap interactive/glass UI for paper-safe output */
+        @media print {
+            @page {
+                size: auto;
+                margin: 0.5in;
+            }
+
+            html, body {
+                background: #fff !important;
+                color: #000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                min-height: auto !important;
+                font-size: 10pt;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            h1, h2, h3, p, span, label, td, th, code {
+                color: #000 !important;
+                text-shadow: none !important;
+            }
+
+            .top-row,
+            .controls-row,
+            .month-picker-row,
+            #sourceFilterPanel,
+            #catFilterPanel,
+            .modal-overlay,
+            .chart-sort-controls {
+                display: none !important;
+            }
+
+            .card,
+            .stats-panel,
+            .cat-filter-panel,
+            .table-wrap,
+            .chart-track {
+                background: #fff !important;
+                border: 1px solid #ccc !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+            }
+
+            .card {
+                margin: 0 0 14pt 0 !important;
+                padding: 10pt 12pt !important;
+                break-inside: avoid;
+            }
+
+            .stats-panel.visible {
+                display: flex !important;
+            }
+
+            .table-wrap {
+                overflow: visible !important;
+            }
+
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                table-layout: fixed;
+                font-size: 9pt;
+            }
+
+            thead {
+                display: table-header-group;
+            }
+
+            tfoot {
+                display: table-footer-group;
+            }
+
+            thead th,
+            tbody td {
+                border: 1px solid #ccc !important;
+                background: #fff !important;
+                color: #000 !important;
+                white-space: normal !important;
+                overflow-wrap: anywhere;
+                word-break: break-word;
+            }
+
+            tbody tr,
+            .chart-row,
+            .stat-item {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            .btn,
+            .sort-arrow {
+                display: none !important;
+            }
+
+            .chart-label,
+            .chart-amount,
+            .summary-bar,
+            .stats-panel {
+                color: #000 !important;
+            }
+
+            .chart-bar-debit {
+                background: #c33 !important;
+            }
+
+            .chart-bar-credit {
+                background: #2d8a4d !important;
+            }
+
+            .empty-state {
+                color: #000 !important;
+                padding: 14pt 8pt !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -447,7 +588,10 @@
             Paste a config file mapping regex patterns to categories.<br>
             Format: one rule per line &mdash; <code style="color:#a0c8ff;font-size:0.8rem;">REGEX = Category</code>
         </p>
-        <button class="btn btn-primary" onclick="openConfigModal()">Paste / Edit Config</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="openConfigModal()">Edit</button>
+            <button class="btn" onclick="openConfigWithUncategorizedProposals()">Add Uncategorized</button>
+        </div>
         <div class="config-status" id="configStatus">No config loaded &mdash; categories will be blank</div>
     </div>
 </div>
@@ -495,6 +639,7 @@
     <div class="controls-row">
         <label>From <input type="date" id="dateFrom"></label>
         <label>To <input type="date" id="dateTo"></label>
+        <label class="checkbox-inline"><input type="checkbox" id="hideDetails" onchange="onHideDetailsChange(this)"> Hide Details</label>
         <button class="btn btn-primary" onclick="applyFilters()">Apply</button>
         <button class="btn" onclick="clearFilters()">Clear Filters</button>
         <button class="btn btn-danger" onclick="clearAll()" style="margin-left:auto;">Clear All Data</button>
@@ -508,7 +653,7 @@
         <button class="btn" style="padding:4px 10px;font-size:0.78rem;" onclick="clearMonths()">Clear Months</button>
     </div>
 
-    <div class="table-wrap">
+    <div class="table-wrap" id="txTableWrap">
         <table id="txTable">
             <thead>
             <tr>
@@ -537,6 +682,7 @@
         <table id="catTable">
             <thead>
             <tr>
+                <th class="cat-row-select"><input type="checkbox" id="catSelectAll" onchange="onCategorySummarySelectAll(this)" title="Select all categories"></th>
                 <th>Category</th>
                 <th style="text-align:right">Transactions</th>
                 <th style="text-align:right">Total Debit</th>
@@ -547,11 +693,17 @@
             <tbody id="catBody"></tbody>
         </table>
     </div>
+    <div class="summary-bar" id="catSummaryBar"></div>
 </div>
 
 <!-- Spending Chart Card -->
 <div class="card" id="chartCard" style="display:none;">
     <h2>Spending by Category</h2>
+    <div class="chart-sort-controls">
+        <label><input type="radio" name="chartSortMode" value="alpha_all" checked onchange="onChartSortModeChange(this)"> All alphabetical</label>
+        <label><input type="radio" name="chartSortMode" value="group_amount" onchange="onChartSortModeChange(this)"> Debit/Credit then amount</label>
+        <label><input type="radio" name="chartSortMode" value="group_alpha" onchange="onChartSortModeChange(this)"> Debit/Credit then alphabetical</label>
+    </div>
     <div class="chart-legend">
         <span><span class="legend-swatch" style="background:rgba(220,80,80,0.7)"></span>Debit</span>
         <span><span class="legend-swatch" style="background:rgba(60,200,120,0.7)"></span>Credit</span>
@@ -604,6 +756,11 @@
     let knownCategories   = new Set(); // all category values ever seen in loaded data
     let checkedSources    = new Set(); // source values currently checked (shown)
     let knownSources      = new Set(); // all source values ever seen in loaded data
+    let hideTransactionDetails = false;
+    let chartSortMode = 'alpha_all';
+    let selectedSummaryCategories = new Set();
+    const UNCATEGORIZED_VALUE = '__uncategorized__';
+    const UNCATEGORIZED_LABEL = 'Uncategorized';
 
     // Month picker
     const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -622,13 +779,33 @@
 APPLE\\.COM = Technology
 TESLA|SUPERCHARG = Transportation
 AMAZON|AWS = Shopping
-^EXT WD Jersey Central = Utilities
+^EXT WD Jersey Central = Rent
 SSA TREAS 310 = Social Security
 CANVA = software1
 PAYPAL = misc1
 wegmans = food
 NJT\\ RAIL = nyc1
-CHASE CREDIT CRD AUTOPAY = ChaseCreditCard`;
+CHASE CREDIT CRD AUTOPAY = ChaseCreditCard
+
+# proposed new categories
+EXT WD Unitedhealthcare - = Medical Insurance
+EXT WD PUBLIC SERVICE DIRECT = Utilities Electricity
+EXT DEP NATL FIN SVC LLC - EFT = Income #3
+EXT WD WELLCARE AUTOPAY - BILL = Medical Insurance
+EXT WD MLTakeAlongDent - = Medical Insurance Dental
+EXT WD AMEX EPAYMENT AM - ACH = AX Payment
+EXT DEP PRUCO LIFE OF AZ - = Income #1
+ATM WD AFFINITY F C U 1342 = Cash Out
+Deposit Internet Transfer FROM: = Transfer From
+ATM WD PNC BANK 580 UNION AVE = ATM WD PNC
+Withdrawal Internet Transfer TO = FAWallace Savings
+EXT WD UnitedHealthcare - = Medical Insurance
+EXT WD METLIFE TAKEALON G DENT = Medical Insurance Dental
+EXT WD METLIFETAKEALONG G DENT = Medical Insurance Dental
+Check = Check MAYBE to Chase
+EXT DEP STATE OF N.J. = New Jersey Tax Refund
+EXT WD MEDICAL / RX INS - BILL = Medical Insurance Meds
+EXT DEP IRS TREAS 310 - TAX = Income #2`;
     const DEMO_FILES = [
         {
             name: 'testdata1.csv',
@@ -1002,7 +1179,10 @@ DEBIT,03/25/2024,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224"
 
     // ─── Config Modal ─────────────────────────────────────────────────────────────
 
-    function openConfigModal() {
+    function openConfigModal(textOverride) {
+        if (typeof textOverride === 'string') {
+            document.getElementById('configText').value = textOverride;
+        }
         document.getElementById('configModal').classList.add('open');
         document.getElementById('configText').focus();
     }
@@ -1012,6 +1192,30 @@ DEBIT,03/25/2024,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224"
     document.getElementById('configModal').addEventListener('click', e => {
         if (e.target === e.currentTarget) closeConfigModal();
     });
+
+    function stripProposedCategorySection(text) {
+        return text.replace(/\n?# proposed new categories[\s\S]*$/i, '').trimEnd();
+    }
+
+    function openConfigWithUncategorizedProposals() {
+        const existing = document.getElementById('configText').value || '';
+        const base = stripProposedCategorySection(existing);
+        const seenDescriptions = new Set();
+        const uniqueDescriptions = [];
+        for (const tx of allTransactions) {
+            if (tx.category) continue;
+            const description = (tx.description || '').trim();
+            if (!description || seenDescriptions.has(description)) continue;
+            seenDescriptions.add(description);
+            uniqueDescriptions.push(description);
+        }
+
+        const proposalLines = uniqueDescriptions.length
+            ? uniqueDescriptions.map((description, i) => `${description} = Category ${i + 1}`).join('\n')
+            : '# (no uncategorized transactions found)';
+        const withProposals = `${base}${base ? '\n\n' : ''}# proposed new categories\n${proposalLines}`;
+        openConfigModal(withProposals);
+    }
 
     function saveConfig() {
         const text = document.getElementById('configText').value;
@@ -1088,15 +1292,39 @@ DEBIT,03/25/2024,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224"
         knownCategories   = new Set();
         checkedSources    = new Set();
         knownSources      = new Set();
+        selectedSummaryCategories = new Set();
         document.getElementById('fileList').innerHTML = '';
         document.getElementById('catCard').style.display = 'none';
+        document.getElementById('catSummaryBar').innerHTML = '';
         document.getElementById('chartCard').style.display = 'none';
         document.getElementById('catFilterPanel').style.display = 'none';
         document.getElementById('catCheckboxes').innerHTML = '';
         document.getElementById('sourceFilterPanel').style.display = 'none';
         document.getElementById('sourceCheckboxes').innerHTML = '';
+        hideTransactionDetails = false;
+        chartSortMode = 'alpha_all';
+        document.getElementById('hideDetails').checked = false;
+        const chartSortDefault = document.querySelector('input[name="chartSortMode"][value="alpha_all"]');
+        if (chartSortDefault) chartSortDefault.checked = true;
         updateStatsPanel();
         setCurrentMonthFilter();
+    }
+
+    function onHideDetailsChange(cb) {
+        hideTransactionDetails = cb.checked;
+        renderTable();
+        if (hideTransactionDetails) {
+            const catCard = document.getElementById('catCard');
+            if (catCard && catCard.style.display !== 'none') {
+                catCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    }
+
+    function onChartSortModeChange(radio) {
+        if (!radio.checked) return;
+        chartSortMode = radio.value;
+        renderTable();
     }
 
     // ─── Render ───────────────────────────────────────────────────────────────────
@@ -1125,7 +1353,7 @@ DEBIT,03/25/2024,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224"
 
         // Category checkbox filter — only active when something is unchecked
         if (checkedCategories.size < knownCategories.size) {
-            rows = rows.filter(r => checkedCategories.has(r.category || '__uncategorized__'));
+            rows = rows.filter(r => checkedCategories.has(r.category || UNCATEGORIZED_VALUE));
         }
 
         // Sort
@@ -1138,7 +1366,7 @@ DEBIT,03/25/2024,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224"
                 case 'memo':        va = a.memo.toLowerCase(); vb = b.memo.toLowerCase(); break;
                 case 'debit':       va = a.debit;  vb = b.debit;  break;
                 case 'credit':      va = a.credit; vb = b.credit; break;
-                case 'category':    va = a.category.toLowerCase(); vb = b.category.toLowerCase(); break;
+                case 'category':    va = (a.category || UNCATEGORIZED_LABEL).toLowerCase(); vb = (b.category || UNCATEGORIZED_LABEL).toLowerCase(); break;
                 default: return 0;
             }
             if (va < vb) return sortDir === 'asc' ? -1 : 1;
@@ -1147,37 +1375,46 @@ DEBIT,03/25/2024,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224"
         });
 
         const tbody = document.getElementById('txBody');
+        const txTableWrap = document.getElementById('txTableWrap');
         if (rows.length === 0) {
+            txTableWrap.style.display = '';
             tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${allTransactions.length === 0 ? 'Load one or more CSV files to see transactions' : 'No transactions match the current filters'}</td></tr>`;
             document.getElementById('summaryBar').innerHTML = '';
             document.getElementById('catCard').style.display = 'none';
+            document.getElementById('catSummaryBar').innerHTML = '';
             document.getElementById('chartCard').style.display = 'none';
             return;
         }
 
-        tbody.innerHTML = rows.map(r => {
-            const srcClass = r.source === 'AmEx' ? 'source-amex-cell' : r.source === 'Chase' ? 'source-chase-cell' : 'source-affinity-cell';
-            const debitCell  = r.debit  ? `<td class="amount-debit">-$${r.debit.toFixed(2)}</td>`  : '<td></td>';
-            const creditCell = r.credit ? `<td class="amount-credit">+$${r.credit.toFixed(2)}</td>` : '<td></td>';
-            const catCell    = r.category
-                ? `<td>${esc(r.category)}</td>`
-                : `<td class="category-empty">—</td>`;
-            return `<tr>
-      <td>${formatDate(r.date)}</td>
-      <td class="${srcClass}">${esc(r.source)}</td>
-      <td>${esc(r.description)}</td>
-      <td>${esc(r.memo)}</td>
-      ${debitCell}
-      ${creditCell}
-      ${catCell}
-    </tr>`;
-        }).join('');
+        if (hideTransactionDetails) {
+            txTableWrap.style.display = 'none';
+        } else {
+            txTableWrap.style.display = '';
+            tbody.innerHTML = rows.map(r => {
+                const srcClass = r.source === 'AmEx' ? 'source-amex-cell' : r.source === 'Chase' ? 'source-chase-cell' : 'source-affinity-cell';
+                const debitCell  = r.debit  ? `<td class="amount-debit">-$${r.debit.toFixed(2)}</td>`  : '<td></td>';
+                const creditCell = r.credit ? `<td class="amount-credit">+$${r.credit.toFixed(2)}</td>` : '<td></td>';
+                const catCell    = r.category
+                    ? `<td>${esc(r.category)}</td>`
+                    : `<td>${UNCATEGORIZED_LABEL}</td>`;
+                return `<tr>
+        <td>${formatDate(r.date)}</td>
+        <td class="${srcClass}">${esc(r.source)}</td>
+        <td>${esc(r.description)}</td>
+        <td>${esc(r.memo)}</td>
+        ${debitCell}
+        ${creditCell}
+        ${catCell}
+      </tr>`;
+            }).join('');
+        }
 
         // Summary
         const totalDebit  = rows.reduce((s, r) => s + r.debit, 0);
         const totalCredit = rows.reduce((s, r) => s + r.credit, 0);
         document.getElementById('summaryBar').innerHTML =
             `<span>${rows.length} transaction${rows.length === 1 ? '' : 's'}</span>` +
+            `${hideTransactionDetails ? '<span>Details hidden</span>' : ''}` +
             `<span class="sum-debit">Total debits: <strong>$${totalDebit.toFixed(2)}</strong></span>` +
             `<span class="sum-credit">Total credits: <strong>$${totalCredit.toFixed(2)}</strong></span>` +
             `<span>Net: <strong style="color:${(totalCredit - totalDebit) >= 0 ? '#60e8b0' : '#ff8080'}">$${(totalCredit - totalDebit).toFixed(2)}</strong></span>`;
@@ -1186,13 +1423,15 @@ DEBIT,03/25/2024,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224"
     }
 
     function refreshCategoryFilter() {
-        const cats = [...new Set(allTransactions.map(r => r.category).filter(Boolean))].sort();
-        const hasUncategorized = allTransactions.some(r => !r.category);
-
-        const allOptions = cats.map(c => ({ value: c, label: c }));
-        if (hasUncategorized) allOptions.push({ value: '__uncategorized__', label: 'Uncategorized' });
-
         const panel = document.getElementById('catFilterPanel');
+        if (allTransactions.length === 0) {
+            panel.style.display = 'none';
+            return;
+        }
+        const cats = [...new Set(allTransactions.map(r => r.category).filter(Boolean))].sort();
+        const allOptions = cats.map(c => ({ value: c, label: c }));
+        allOptions.push({ value: UNCATEGORIZED_VALUE, label: UNCATEGORIZED_LABEL });
+
         if (allOptions.length === 0) { panel.style.display = 'none'; return; }
         panel.style.display = '';
 
@@ -1240,12 +1479,17 @@ DEBIT,03/25/2024,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224"
 
     function renderCategoryTable(rows) {
         const catCard = document.getElementById('catCard');
-        if (rows.length === 0) { catCard.style.display = 'none'; return; }
+        if (rows.length === 0) {
+            catCard.style.display = 'none';
+            document.getElementById('catSummaryBar').innerHTML = '';
+            return;
+        }
 
         // Aggregate by category
         const map = new Map();
+        map.set(UNCATEGORIZED_VALUE, { count: 0, debit: 0, credit: 0 });
         for (const r of rows) {
-            const key = r.category || '—';
+            const key = r.category || UNCATEGORIZED_VALUE;
             if (!map.has(key)) map.set(key, { count: 0, debit: 0, credit: 0 });
             const entry = map.get(key);
             entry.count++;
@@ -1253,27 +1497,37 @@ DEBIT,03/25/2024,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224"
             entry.credit += r.credit;
         }
 
-        // Sort: named categories by total debit desc, uncategorized last
+        // Always sort category summary alphabetically by category label.
         const sorted = [...map.entries()].sort((a, b) => {
-            if (a[0] === '—') return 1;
-            if (b[0] === '—') return -1;
-            return b[1].debit - a[1].debit;
+            const aLabel = a[0] === UNCATEGORIZED_VALUE ? UNCATEGORIZED_LABEL : a[0];
+            const bLabel = b[0] === UNCATEGORIZED_VALUE ? UNCATEGORIZED_LABEL : b[0];
+            return aLabel.localeCompare(bLabel);
         });
+
+        const validCategories = new Set(sorted.map(([category]) => category));
+        selectedSummaryCategories = new Set([...selectedSummaryCategories].filter(category => validCategories.has(category)));
 
         document.getElementById('catBody').innerHTML = sorted.map(([cat, v]) => {
             const net = v.credit - v.debit;
             const netColor = net >= 0 ? '#60e8b0' : '#ff8080';
-            const catCell = cat === '—'
-                ? `<td class="category-empty">Uncategorized</td>`
-                : `<td>${esc(cat)}</td>`;
-            return `<tr>
-      ${catCell}
+            const displayCategory = cat === UNCATEGORIZED_VALUE ? UNCATEGORIZED_LABEL : cat;
+            const checked = selectedSummaryCategories.has(cat) ? 'checked' : '';
+            const rowClass = selectedSummaryCategories.has(cat) ? 'cat-summary-row selected' : 'cat-summary-row';
+            return `<tr class="${rowClass}" onclick="onCategorySummaryRowClick('${escJs(cat)}')">
+      <td class="cat-row-select"><input type="checkbox" data-category="${esc(cat)}" ${checked} onchange="onCategorySummaryToggle('${escJs(cat)}', this.checked)" onclick="event.stopPropagation()"></td>
+      <td>${esc(displayCategory)}</td>
       <td style="text-align:right;color:#a0b4d6">${v.count}</td>
       <td style="text-align:right" class="amount-debit">${v.debit  ? '-$' + v.debit.toFixed(2)  : ''}</td>
       <td style="text-align:right" class="amount-credit">${v.credit ? '+$' + v.credit.toFixed(2) : ''}</td>
       <td style="text-align:right;color:${netColor};font-weight:600">$${net.toFixed(2)}</td>
     </tr>`;
         }).join('');
+
+        const selectAll = document.getElementById('catSelectAll');
+        const selectedCount = selectedSummaryCategories.size;
+        selectAll.checked = sorted.length > 0 && selectedCount === sorted.length;
+        selectAll.indeterminate = selectedCount > 0 && selectedCount < sorted.length;
+        renderSelectedCategoryTotals(map);
 
         catCard.style.display = '';
 
@@ -1284,35 +1538,58 @@ DEBIT,03/25/2024,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224"
         const chartCard = document.getElementById('chartCard');
         if (rows.length === 0) { chartCard.style.display = 'none'; return; }
 
-        // Aggregate by named category only (skip uncategorized in chart)
+        // Aggregate by category, including Uncategorized
         const map = new Map();
+        map.set(UNCATEGORIZED_VALUE, { debit: 0, credit: 0 });
         for (const r of rows) {
-            if (!r.category) continue;
-            if (!map.has(r.category)) map.set(r.category, { debit: 0, credit: 0 });
-            const e = map.get(r.category);
+            const key = r.category || UNCATEGORIZED_VALUE;
+            if (!map.has(key)) map.set(key, { debit: 0, credit: 0 });
+            const e = map.get(key);
             e.debit  += r.debit;
             e.credit += r.credit;
         }
 
         if (map.size === 0) { chartCard.style.display = 'none'; return; }
 
-        // Sort by debit desc
-        const sorted = [...map.entries()].sort((a, b) => b[1].debit - a[1].debit);
-        const maxDebit  = Math.max(...sorted.map(([, v]) => v.debit));
-        const maxCredit = Math.max(...sorted.map(([, v]) => v.credit));
+        const chartRows = [...map.entries()].map(([category, values]) => {
+            const label = category === UNCATEGORIZED_VALUE ? UNCATEGORIZED_LABEL : category;
+            const dominant = values.debit >= values.credit ? 'debit' : 'credit';
+            const dominantAmount = dominant === 'debit' ? values.debit : values.credit;
+            return { category, label, values, dominant, dominantAmount };
+        });
+
+        let sorted;
+        if (chartSortMode === 'group_amount') {
+            sorted = chartRows.sort((a, b) => {
+                if (a.dominant !== b.dominant) return a.dominant === 'debit' ? -1 : 1;
+                if (b.dominantAmount !== a.dominantAmount) return b.dominantAmount - a.dominantAmount;
+                return a.label.localeCompare(b.label);
+            });
+        } else if (chartSortMode === 'group_alpha') {
+            sorted = chartRows.sort((a, b) => {
+                if (a.dominant !== b.dominant) return a.dominant === 'debit' ? -1 : 1;
+                return a.label.localeCompare(b.label);
+            });
+        } else {
+            sorted = chartRows.sort((a, b) => a.label.localeCompare(b.label));
+        }
+
+        const maxDebit  = Math.max(...sorted.map(row => row.values.debit));
+        const maxCredit = Math.max(...sorted.map(row => row.values.credit));
         const maxVal = Math.max(maxDebit, maxCredit, 0.01);
 
-        document.getElementById('chartBody').innerHTML = sorted.map(([cat, v]) => {
+        document.getElementById('chartBody').innerHTML = sorted.map(row => {
+            const v = row.values;
             const debitPct  = (v.debit  / maxVal * 100).toFixed(1);
             const creditPct = (v.credit / maxVal * 100).toFixed(1);
-            const amount = v.debit
+            const amount = row.dominant === 'debit'
                 ? `<span class="amount-debit">-$${v.debit.toFixed(2)}</span>`
                 : `<span class="amount-credit">+$${v.credit.toFixed(2)}</span>`;
-            const bar = v.debit >= v.credit
+            const bar = row.dominant === 'debit'
                 ? `<div class="chart-bar-debit" style="width:${debitPct}%"></div>`
                 : `<div class="chart-bar-credit" style="width:${creditPct}%"></div>`;
             return `<div class="chart-row">
-      <div class="chart-label" title="${esc(cat)}">${esc(cat)}</div>
+      <div class="chart-label" title="${esc(row.label)}">${esc(row.label)}</div>
       <div class="chart-track">${bar}</div>
       <div class="chart-amount">${amount}</div>
     </div>`;
@@ -1327,6 +1604,64 @@ DEBIT,03/25/2024,"CHASE CREDIT CRD AUTOPAY                    PPD ID: 476009224"
             .replace(/</g,'&lt;')
             .replace(/>/g,'&gt;')
             .replace(/"/g,'&quot;');
+    }
+
+    function escJs(str) {
+        return String(str)
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, "\\'");
+    }
+
+    function onCategorySummaryToggle(category, checked) {
+        if (checked) selectedSummaryCategories.add(category);
+        else selectedSummaryCategories.delete(category);
+        renderTable();
+    }
+
+    function onCategorySummaryRowClick(category) {
+        if (selectedSummaryCategories.has(category)) selectedSummaryCategories.delete(category);
+        else selectedSummaryCategories.add(category);
+        renderTable();
+    }
+
+    function onCategorySummarySelectAll(cb) {
+        if (!cb.checked) {
+            selectedSummaryCategories = new Set();
+            renderTable();
+            return;
+        }
+        const keys = [];
+        document.querySelectorAll('#catBody input[type="checkbox"][data-category]').forEach(box => {
+            keys.push(box.getAttribute('data-category'));
+        });
+        selectedSummaryCategories = new Set(keys);
+        renderTable();
+    }
+
+    function renderSelectedCategoryTotals(categoryMap) {
+        const summaryBar = document.getElementById('catSummaryBar');
+        if (selectedSummaryCategories.size === 0) {
+            summaryBar.innerHTML = '';
+            return;
+        }
+
+        let txCount = 0;
+        let totalDebit = 0;
+        let totalCredit = 0;
+        for (const category of selectedSummaryCategories) {
+            const entry = categoryMap.get(category);
+            if (!entry) continue;
+            txCount += entry.count;
+            totalDebit += entry.debit;
+            totalCredit += entry.credit;
+        }
+        const net = totalCredit - totalDebit;
+        summaryBar.innerHTML =
+            `<span>${selectedSummaryCategories.size} selected categor${selectedSummaryCategories.size === 1 ? 'y' : 'ies'}</span>` +
+            `<span>${txCount} transaction${txCount === 1 ? '' : 's'}</span>` +
+            `<span class="sum-debit">Total debits: <strong>$${totalDebit.toFixed(2)}</strong></span>` +
+            `<span class="sum-credit">Total credits: <strong>$${totalCredit.toFixed(2)}</strong></span>` +
+            `<span>Net: <strong style="color:${net >= 0 ? '#60e8b0' : '#ff8080'}">$${net.toFixed(2)}</strong></span>`;
     }
 
     // ─── Month Picker ─────────────────────────────────────────────────────────────
