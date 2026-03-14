@@ -1,0 +1,2466 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <title>Prompt Demo Helper</title>
+    <style>
+        :root {
+            --bg: #f2efe8;
+            --panel: #fffaf2;
+            --panel-strong: #f5ead8;
+            --text: #1f1a14;
+            --muted: #655746;
+            --accent: #b7522d;
+            --accent-strong: #8d3412;
+            --border: #d7c7b1;
+            --drop: #fff2db;
+            --success: #275d38;
+            --error: #8c2020;
+            --shadow: 0 16px 40px rgba(74, 50, 24, 0.12);
+            --code-bg: #f7efe2;
+            --app-font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: var(--app-font-family);
+            color: var(--text);
+            background:
+                    radial-gradient(circle at top left, rgba(183, 82, 45, 0.12), transparent 28rem),
+                    radial-gradient(circle at bottom right, rgba(180, 139, 66, 0.18), transparent 30rem),
+                    linear-gradient(180deg, #f8f4ed 0%, var(--bg) 100%);
+            padding: 24px;
+        }
+
+        .app {
+            max-width: 980px;
+            margin: 0 auto;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .hero {
+            padding: 24px 28px 20px;
+            background: linear-gradient(135deg, rgba(183, 82, 45, 0.12), rgba(245, 234, 216, 0.9));
+            border-bottom: 1px solid var(--border);
+        }
+
+        .hero-top {
+            display: flex;
+            gap: 16px;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: clamp(2rem, 4vw, 3rem);
+            line-height: 1;
+            letter-spacing: -0.03em;
+        }
+
+        .subtitle {
+            margin: 0;
+            max-width: 50rem;
+            color: var(--muted);
+            font-size: 1.02rem;
+        }
+
+        .content {
+            padding: 24px 28px 28px;
+            display: grid;
+            gap: 20px;
+        }
+
+        .dropzone {
+            position: relative;
+            border: 2px dashed var(--border);
+            border-radius: 18px;
+            background: var(--drop);
+            padding: 22px;
+            text-align: center;
+            transition: border-color 120ms ease, transform 120ms ease, background 120ms ease;
+        }
+
+        .dropzone.dragging {
+            border-color: var(--accent);
+            background: #ffe6c4;
+            transform: translateY(-1px);
+        }
+
+        .dropzone strong {
+            display: block;
+            font-size: 1.15rem;
+            margin-bottom: 8px;
+        }
+
+        .dropzone p {
+            margin: 0 0 14px;
+            color: var(--muted);
+        }
+
+        .dropzone input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .button-row,
+        .picker-row,
+        .inline-row,
+        .creation-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        button,
+        select,
+        input[type="password"] {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: #fff;
+            color: var(--text);
+            font: inherit;
+        }
+
+        button {
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--panel-strong);
+            border-color: #c9ab82;
+            transform: translateY(-1px);
+        }
+
+        button:disabled,
+        select:disabled,
+        input[type="password"]:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        .accent {
+            background: var(--accent);
+            border-color: var(--accent-strong);
+            color: #fff8f2;
+        }
+
+        .accent:hover:not(:disabled) {
+            background: var(--accent-strong);
+            border-color: var(--accent-strong);
+        }
+
+        .ghost-button {
+            background: rgba(255, 255, 255, 0.75);
+        }
+
+        .menu-button {
+            min-width: 3rem;
+            padding-left: 12px;
+            padding-right: 12px;
+            font-size: 1.15rem;
+        }
+
+        select,
+        input[type="password"] {
+            min-width: min(100%, 20rem);
+            padding: 10px 12px;
+        }
+
+        input[type="password"] {
+            width: 100%;
+        }
+
+        .panel {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .panel-header label {
+            margin-bottom: 0;
+        }
+
+        .prompt-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .slider-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: min(100%, 18rem);
+        }
+
+        .slider-control input[type="range"] {
+            width: min(14rem, 40vw);
+            accent-color: var(--accent);
+        }
+
+        .control-value {
+            min-width: 4.5rem;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            resize: vertical;
+            font: inherit;
+            color: var(--text);
+            background: #fffdfa;
+        }
+
+        #promptText {
+            min-height: 16rem;
+        }
+
+        #commentsText {
+            min-height: 8rem;
+        }
+
+        .status {
+            min-height: 1.4em;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .status.success {
+            color: var(--success);
+        }
+
+        .status.error {
+            color: var(--error);
+        }
+
+        .meta {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        .toggle-row input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+        }
+
+        .toggle-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-left: auto;
+        }
+
+        .online-panel[hidden],
+        .settings-overlay[hidden],
+        .markdown-preview[hidden] {
+            display: none;
+        }
+
+        .online-controls,
+        .settings-content {
+            display: grid;
+            gap: 16px;
+        }
+
+        .online-submit-row {
+            display: grid;
+            grid-template-columns: auto minmax(12rem, 14rem);
+            gap: 12px;
+            align-items: end;
+        }
+
+        .field label {
+            margin-bottom: 6px;
+        }
+
+        .field-note {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .creation-row {
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .creation-row .field-note {
+            max-width: 44rem;
+        }
+
+        .creation-panel[hidden] {
+            display: none;
+        }
+
+        .creation-panel {
+            display: grid;
+            gap: 14px;
+        }
+
+        .creation-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .creation-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .creation-grid textarea,
+        .creation-grid input[type="text"] {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 12px;
+            font: inherit;
+            color: var(--text);
+            background: #fffdfa;
+        }
+
+        .creation-grid textarea {
+            resize: vertical;
+            min-height: 8rem;
+        }
+
+        .response-box,
+        .markdown-preview {
+            min-height: 13rem;
+            max-height: 22rem;
+            overflow: auto;
+            white-space: pre-wrap;
+            line-height: 1.5;
+            background: #fffdfa;
+        }
+
+        .markdown-editor {
+            display: grid;
+            gap: 12px;
+        }
+
+        .markdown-toolbar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .markdown-toolbar button {
+            padding: 8px 12px;
+            border-radius: 999px;
+        }
+
+        .toolbar-spacer {
+            flex: 1;
+        }
+
+        .speak-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(186, 98, 54, 0.22);
+            background:
+                    linear-gradient(135deg, rgba(186, 98, 54, 0.14), rgba(230, 199, 168, 0.16)),
+                    #fffdfa;
+            color: var(--text);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+        }
+
+        .speak-action:hover:not(:disabled) {
+            border-color: rgba(186, 98, 54, 0.42);
+            transform: translateY(-1px);
+        }
+
+        .speak-action[data-speaking="true"] {
+            background: linear-gradient(135deg, rgba(186, 98, 54, 0.22), rgba(122, 79, 48, 0.18));
+            border-color: rgba(186, 98, 54, 0.52);
+        }
+
+        .speak-action:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .speak-icon {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            position: relative;
+            flex: 0 0 18px;
+            background:
+                    radial-gradient(circle at 38% 50%, var(--accent) 0 32%, transparent 34%),
+                    radial-gradient(circle at 68% 34%, rgba(186, 98, 54, 0.25) 0 16%, transparent 18%),
+                    radial-gradient(circle at 68% 66%, rgba(186, 98, 54, 0.25) 0 16%, transparent 18%),
+                    linear-gradient(135deg, rgba(186, 98, 54, 0.18), rgba(255, 255, 255, 0.9));
+            box-shadow: inset 0 0 0 1px rgba(186, 98, 54, 0.18);
+        }
+
+        .speak-icon::before,
+        .speak-icon::after {
+            content: "";
+            position: absolute;
+            border: 2px solid rgba(122, 79, 48, 0.55);
+            border-left: 0;
+            border-radius: 0 999px 999px 0;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .speak-icon::before {
+            width: 5px;
+            height: 7px;
+            right: 2px;
+        }
+
+        .speak-icon::after {
+            width: 8px;
+            height: 11px;
+            right: -2px;
+        }
+
+        .speak-label {
+            font-weight: 700;
+        }
+
+        .markdown-toggle {
+            margin-left: 0;
+        }
+
+        .markdown-preview {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            min-height: 8rem;
+        }
+
+        .markdown-preview h1,
+        .markdown-preview h2,
+        .markdown-preview h3 {
+            margin-top: 0.2em;
+            margin-bottom: 0.5em;
+            line-height: 1.2;
+        }
+
+        .markdown-preview p,
+        .markdown-preview ul,
+        .markdown-preview ol,
+        .markdown-preview blockquote {
+            margin-top: 0;
+            margin-bottom: 0.9em;
+        }
+
+        .markdown-preview code {
+            background: var(--code-bg);
+            padding: 0.1em 0.3em;
+            border-radius: 6px;
+            font-size: 0.92em;
+        }
+
+        .markdown-preview pre {
+            background: var(--code-bg);
+            padding: 12px;
+            border-radius: 10px;
+            overflow: auto;
+        }
+
+        .markdown-preview blockquote {
+            padding-left: 12px;
+            border-left: 3px solid var(--border);
+            color: var(--muted);
+        }
+
+        .settings-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(31, 26, 20, 0.28);
+            display: flex;
+            justify-content: flex-end;
+            padding: 18px;
+            z-index: 10;
+        }
+
+        .settings-drawer {
+            width: min(100%, 28rem);
+            height: 100%;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            padding: 18px;
+            overflow: auto;
+        }
+
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .settings-header h2 {
+            margin: 0;
+            font-size: 1.35rem;
+        }
+
+        .settings-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .settings-zone {
+            display: grid;
+            gap: 14px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(247, 240, 233, 0.96));
+        }
+
+        .settings-zone h3 {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .settings-zone p {
+            margin: 0;
+        }
+
+        .settings-zone-header {
+            display: grid;
+            gap: 4px;
+        }
+
+        .settings-zone-header p {
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        .voice-grid {
+            display: grid;
+            gap: 14px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .range-control {
+            display: grid;
+            gap: 8px;
+        }
+
+        .range-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            font-size: 0.92rem;
+            color: var(--text);
+        }
+
+        .range-control input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+        }
+
+        .range-value {
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .session-note {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.93rem;
+        }
+
+        .storage-options {
+            display: grid;
+            gap: 10px;
+        }
+
+        .storage-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            color: var(--text);
+            font-weight: 400;
+            margin-bottom: 0;
+        }
+
+        .storage-option input {
+            width: 18px;
+            height: 18px;
+            margin-top: 1px;
+            accent-color: var(--accent);
+            flex: 0 0 auto;
+        }
+
+        .storage-option strong {
+            display: block;
+            margin-bottom: 2px;
+            font-size: 0.95rem;
+        }
+
+        .storage-option span {
+            display: block;
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+
+        @media (max-width: 760px) {
+            body {
+                padding: 14px;
+            }
+
+            .hero,
+            .content {
+                padding-left: 18px;
+                padding-right: 18px;
+            }
+
+            .hero-top {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .hero-actions {
+                justify-content: flex-start;
+            }
+
+            .slider-control {
+                min-width: 100%;
+            }
+
+            .slider-control input[type="range"] {
+                width: 100%;
+            }
+
+            .online-submit-row {
+                grid-template-columns: 1fr;
+            }
+
+            .settings-overlay {
+                padding: 10px;
+            }
+
+            .settings-drawer {
+                width: 100%;
+            }
+
+            .voice-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<main class="app">
+    <section class="hero">
+        <div class="hero-top">
+            <div>
+                <h1>Prompt Demo Helper</h1>
+                <p class="subtitle">Load a JSON file, edit prompts and comments with markdown-friendly controls, and export the live JSON state when you need it.</p>
+            </div>
+            <div class="hero-actions">
+                <button type="button" id="exportButton" class="ghost-button" disabled>Export JSON</button>
+                <button type="button" id="settingsButton" class="menu-button" aria-haspopup="dialog" aria-controls="settingsOverlay" aria-expanded="false">&#9776; <span class="sr-only">Open settings</span></button>
+            </div>
+        </div>
+    </section>
+
+    <section class="content">
+        <label class="dropzone" id="dropzone">
+            <strong>Drop a JSON file here</strong>
+            <p>or click anywhere in this box to choose a file</p>
+            <button type="button" class="accent" id="chooseFileButton">Choose JSON File</button>
+            <input type="file" id="fileInput" accept=".json,application/json">
+        </label>
+
+        <div class="creation-row">
+            <button type="button" id="addPromptButton" class="accent">Add New Prompt</button>
+            <p class="field-note">Create prompts from scratch before loading a file. New entries are added to the in-memory JSON and included in exports.</p>
+        </div>
+
+        <section class="panel creation-panel" id="creationPanel" hidden>
+            <div class="settings-zone-header">
+                <h3>Create Prompt</h3>
+                <p>Provide a prompt ID, the prompt text, and an optional initial comment.</p>
+            </div>
+            <div class="creation-grid">
+                <div class="field">
+                    <label for="newPromptIdInput">Prompt ID</label>
+                    <input type="text" id="newPromptIdInput" placeholder="Example: demo-001" spellcheck="false">
+                </div>
+                <div class="field">
+                    <label for="newPromptTextInput">Prompt Text</label>
+                    <textarea id="newPromptTextInput" placeholder="Write the new prompt here."></textarea>
+                </div>
+                <div class="field">
+                    <label for="newPromptCommentsInput">Initial Comment</label>
+                    <textarea id="newPromptCommentsInput" placeholder="Optional notes or comments."></textarea>
+                </div>
+            </div>
+            <div class="creation-actions">
+                <button type="button" class="accent" id="saveNewPromptButton">Create Prompt</button>
+                <button type="button" id="cancelNewPromptButton">Cancel</button>
+            </div>
+        </section>
+
+        <div class="meta">
+            <span id="fileName">No file loaded</span>
+            <span id="recordCount">0 prompts</span>
+        </div>
+
+        <div class="toggle-row">
+            <label class="toggle-row" for="onlineModelToggle">
+                <input type="checkbox" id="onlineModelToggle">
+                <span>Connect Online Model</span>
+            </label>
+            <label class="toggle-row" for="saveResponsesToggle">
+                <input type="checkbox" id="saveResponsesToggle">
+                <span>Save Responses To Export</span>
+            </label>
+            <div class="toggle-actions">
+                <button type="button" id="clearAllResponsesButton" disabled>Clear Saved Responses</button>
+            </div>
+        </div>
+
+        <div class="picker-row">
+            <button type="button" id="prevButton" aria-label="Previous prompt" disabled>&larr; Previous</button>
+            <select id="promptSelect" disabled>
+                <option value="">Load a JSON file first</option>
+            </select>
+            <button type="button" id="nextButton" aria-label="Next prompt" disabled>Next &rarr;</button>
+        </div>
+
+        <section class="panel">
+            <div class="panel-header">
+                <label for="promptText">Prompt Text</label>
+                <div class="prompt-controls">
+                    <div class="slider-control">
+                        <span>Smaller</span>
+                        <input
+                                type="range"
+                                id="fontSizeSlider"
+                                min="-4"
+                                max="6"
+                                step="1"
+                                value="0"
+                                aria-label="Adjust prompt text size"
+                        >
+                        <span>Larger</span>
+                        <span id="fontSizeValue" class="control-value">100%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="markdown-editor">
+                <div class="markdown-toolbar" data-editor-toolbar="promptText">
+                    <button type="button" data-wrap="**" data-editor-target="promptText">Bold</button>
+                    <button type="button" data-wrap="_" data-editor-target="promptText">Italic</button>
+                    <button type="button" data-prefix="## " data-editor-target="promptText">Heading</button>
+                    <button type="button" data-prefix="- " data-editor-target="promptText">Bullet</button>
+                    <button type="button" data-wrap="`" data-editor-target="promptText">Code</button>
+                    <span class="toolbar-spacer" aria-hidden="true"></span>
+                    <button type="button" class="speak-action" data-speak-target="prompt" data-default-label="Speak" disabled>
+                        <span class="speak-icon" aria-hidden="true"></span>
+                        <span class="speak-label">Speak</span>
+                    </button>
+                    <button type="button" class="markdown-toggle" data-preview-toggle="promptPreview" data-source="promptText">Preview</button>
+                </div>
+                <textarea id="promptText" placeholder="The selected prompt will appear here."></textarea>
+                <div id="promptPreview" class="panel markdown-preview" hidden></div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <label for="commentsText">Comments</label>
+            <div class="markdown-editor">
+                <div class="markdown-toolbar" data-editor-toolbar="commentsText">
+                    <button type="button" data-wrap="**" data-editor-target="commentsText">Bold</button>
+                    <button type="button" data-wrap="_" data-editor-target="commentsText">Italic</button>
+                    <button type="button" data-prefix="> " data-editor-target="commentsText">Quote</button>
+                    <button type="button" data-prefix="- " data-editor-target="commentsText">Bullet</button>
+                    <button type="button" data-wrap="`" data-editor-target="commentsText">Code</button>
+                    <span class="toolbar-spacer" aria-hidden="true"></span>
+                    <button type="button" class="speak-action" data-speak-target="comments" data-default-label="Speak" disabled>
+                        <span class="speak-icon" aria-hidden="true"></span>
+                        <span class="speak-label">Speak</span>
+                    </button>
+                    <button type="button" class="markdown-toggle" data-preview-toggle="commentsPreview" data-source="commentsText">Preview</button>
+                </div>
+                <textarea id="commentsText" placeholder="Comments will appear here when present."></textarea>
+                <div id="commentsPreview" class="panel markdown-preview" hidden></div>
+            </div>
+        </section>
+
+        <div class="button-row">
+            <button type="button" id="copyButton" disabled>Copy Current Prompt</button>
+            <div id="status" class="status" aria-live="polite"></div>
+        </div>
+
+        <section class="panel online-panel" id="onlinePanel" hidden>
+            <div class="online-controls">
+                <div class="online-submit-row">
+                    <button type="button" class="accent" id="submitPromptButton" disabled>Prompt With This Prompt</button>
+                    <div class="field">
+                        <label for="providerSelect">Model Provider</label>
+                        <select id="providerSelect">
+                            <option value="chatgpt">ChatGPT</option>
+                            <option value="claude">Claude</option>
+                            <option value="gemini">Gemini</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="markdown-toolbar response-toolbar">
+                    <span class="toolbar-spacer" aria-hidden="true"></span>
+                    <button type="button" class="speak-action" data-speak-target="response" data-default-label="Speak" disabled>
+                        <span class="speak-icon" aria-hidden="true"></span>
+                        <span class="speak-label">Speak</span>
+                    </button>
+                    <button type="button" id="clearResponseButton" disabled>Clear</button>
+                    <button type="button" class="markdown-toggle" id="responsePreviewToggle" aria-controls="modelResponsePreview" aria-expanded="false">Preview</button>
+                </div>
+                <div class="panel response-box" id="modelResponse" aria-live="polite">Online model responses will appear here.</div>
+                <div id="modelResponsePreview" class="panel markdown-preview" hidden></div>
+                <p class="field-note">API keys now live in Settings. By default they stay only in memory unless you choose a persistence option.</p>
+                <p class="field-note">When online mode is used, your prompt text and API key are sent directly from this browser to the selected provider. Use only on a trusted page and device.</p>
+            </div>
+        </section>
+    </section>
+
+    <section class="settings-overlay" id="settingsOverlay" hidden>
+        <aside class="settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+            <div class="settings-header">
+                <h2 id="settingsTitle">Settings</h2>
+                <button type="button" id="closeSettingsButton">Close</button>
+            </div>
+            <div class="settings-content">
+                <p class="session-note">Provider keys stay in memory by default. You can optionally remember them for this tab or for two hours on this browser.</p>
+                <section class="settings-zone">
+                    <div class="settings-zone-header">
+                        <h3>Provider Keys</h3>
+                        <p>Online model requests use the key that matches the currently selected provider. Browser-side requests are inherently less private than routing through your own backend.</p>
+                    </div>
+                    <div class="settings-grid">
+                        <div class="field">
+                            <label for="openAiKeyInput">OpenAI API Key</label>
+                            <input type="password" id="openAiKeyInput" placeholder="Paste OpenAI key" autocomplete="new-password" spellcheck="false">
+                        </div>
+                        <div class="field">
+                            <label for="claudeKeyInput">Claude API Key</label>
+                            <input type="password" id="claudeKeyInput" placeholder="Paste Claude key" autocomplete="new-password" spellcheck="false">
+                        </div>
+                        <div class="field">
+                            <label for="geminiKeyInput">Gemini API Key</label>
+                            <input type="password" id="geminiKeyInput" placeholder="Paste Gemini key" autocomplete="new-password" spellcheck="false">
+                        </div>
+                    </div>
+                    <div class="storage-options" role="group" aria-labelledby="providerKeyStorageLabel">
+                        <p id="providerKeyStorageLabel" class="field-note">Persistence options</p>
+                        <label class="storage-option" for="rememberKeysForTabInput">
+                            <input type="checkbox" id="rememberKeysForTabInput">
+                            <span>
+                  <strong>Remember for this tab</strong>
+                  Saves keys in `sessionStorage` until this browser tab/session ends.
+                </span>
+                        </label>
+                        <label class="storage-option" for="rememberKeysForTwoHoursInput">
+                            <input type="checkbox" id="rememberKeysForTwoHoursInput">
+                            <span>
+                  <strong>Remember on this browser for 2 hours</strong>
+                  Less secure. Saves keys in browser storage until they expire or you clear them.
+                </span>
+                        </label>
+                    </div>
+                </section>
+                <section class="settings-zone">
+                    <div class="settings-zone-header">
+                        <h3>Presentation</h3>
+                        <p>Choose the font used across the interface. Helvetica is the default.</p>
+                    </div>
+                    <div class="field">
+                        <label for="fontFamilySelect">Font</label>
+                        <select id="fontFamilySelect">
+                            <option value="helvetica">Helvetica</option>
+                            <option value="georgia">Georgia</option>
+                            <option value="avenir">Avenir Next</option>
+                            <option value="courier">Courier New</option>
+                        </select>
+                    </div>
+                    <p class="field-note">The selected font is applied to the app layout, editors, previews, and model responses.</p>
+                </section>
+                <section class="settings-zone">
+                    <div class="settings-zone-header">
+                        <h3>Speech Controls</h3>
+                        <p>Choose the browser voice and shape how each prompt, comment, or model result is read aloud.</p>
+                    </div>
+                    <div class="field">
+                        <label for="voiceSelect">Speaker</label>
+                        <select id="voiceSelect"></select>
+                    </div>
+                    <div class="voice-grid">
+                        <div class="range-control">
+                            <div class="range-header">
+                                <label for="speechVolumeInput">Volume</label>
+                                <span id="speechVolumeValue" class="range-value">100%</span>
+                            </div>
+                            <input type="range" id="speechVolumeInput" min="0" max="1" step="0.05" value="1">
+                        </div>
+                        <div class="range-control">
+                            <div class="range-header">
+                                <label for="speechRateInput">Speed</label>
+                                <span id="speechRateValue" class="range-value">1.00x</span>
+                            </div>
+                            <input type="range" id="speechRateInput" min="0.5" max="1.5" step="0.05" value="1">
+                        </div>
+                        <div class="range-control">
+                            <div class="range-header">
+                                <label for="speechPitchInput">Tone</label>
+                                <span id="speechPitchValue" class="range-value">1.00</span>
+                            </div>
+                            <input type="range" id="speechPitchInput" min="0.5" max="1.5" step="0.05" value="1">
+                        </div>
+                    </div>
+                    <p class="field-note">Voice names, character, and any apparent gender come from the voices your browser and operating system expose.</p>
+                </section>
+                <div class="button-row">
+                    <button type="button" class="accent" id="saveSettingsButton">Save Settings</button>
+                    <button type="button" id="clearSettingsButton">Clear Keys</button>
+                </div>
+            </div>
+        </aside>
+    </section>
+</main>
+
+<script>
+    const SESSION_KEY_STORAGE = "prompt-demo-helper.provider-keys";
+    const LOCAL_KEY_STORAGE = "prompt-demo-helper.provider-keys.temporary";
+    const SESSION_SPEECH_STORAGE = "prompt-demo-helper.speech-settings";
+    const SESSION_DISPLAY_STORAGE = "prompt-demo-helper.display-settings";
+    const LOCAL_KEY_TTL_MS = 2 * 60 * 60 * 1000;
+    const ALLOW_BROWSER_KEY_STORAGE_FOR_TWO_HOURS = true;
+    const OPENAI_MODEL = "gpt-4.1-mini";
+    const CLAUDE_MODEL = "claude-sonnet-4-0";
+    const BASE_PROMPT_FONT_SIZE = 16;
+    const FONT_SIZE_STEP = 2;
+    const MODEL_RESPONSE_PLACEHOLDERS = [
+        "Online model responses will appear here.",
+        "Ready to send the current prompt to the online model."
+    ];
+
+    const state = {
+        prompts: [],
+        selectedIndex: -1,
+        currentFileName: "",
+        displaySettings: {
+            fontFamily: "helvetica"
+        },
+        providerKeys: {
+            chatgpt: "",
+            claude: "",
+            gemini: ""
+        },
+        providerKeyPersistence: "memory",
+        speechSettings: {
+            voiceURI: "",
+            volume: 1,
+            rate: 1,
+            pitch: 1
+        },
+        availableVoices: [],
+        activeSpeechTarget: ""
+    };
+
+    const dropzone = document.getElementById("dropzone");
+    const fileInput = document.getElementById("fileInput");
+    const chooseFileButton = document.getElementById("chooseFileButton");
+    const promptSelect = document.getElementById("promptSelect");
+    const prevButton = document.getElementById("prevButton");
+    const nextButton = document.getElementById("nextButton");
+    const copyButton = document.getElementById("copyButton");
+    const exportButton = document.getElementById("exportButton");
+    const addPromptButton = document.getElementById("addPromptButton");
+    const creationPanel = document.getElementById("creationPanel");
+    const newPromptIdInput = document.getElementById("newPromptIdInput");
+    const newPromptTextInput = document.getElementById("newPromptTextInput");
+    const newPromptCommentsInput = document.getElementById("newPromptCommentsInput");
+    const saveNewPromptButton = document.getElementById("saveNewPromptButton");
+    const cancelNewPromptButton = document.getElementById("cancelNewPromptButton");
+    const settingsButton = document.getElementById("settingsButton");
+    const settingsOverlay = document.getElementById("settingsOverlay");
+    const closeSettingsButton = document.getElementById("closeSettingsButton");
+    const saveSettingsButton = document.getElementById("saveSettingsButton");
+    const clearSettingsButton = document.getElementById("clearSettingsButton");
+    const speakButtons = Array.from(document.querySelectorAll("[data-speak-target]"));
+    const fontSizeSlider = document.getElementById("fontSizeSlider");
+    const fontSizeValue = document.getElementById("fontSizeValue");
+    const promptText = document.getElementById("promptText");
+    const commentsText = document.getElementById("commentsText");
+    const promptPreview = document.getElementById("promptPreview");
+    const commentsPreview = document.getElementById("commentsPreview");
+    const onlineModelToggle = document.getElementById("onlineModelToggle");
+    const saveResponsesToggle = document.getElementById("saveResponsesToggle");
+    const clearAllResponsesButton = document.getElementById("clearAllResponsesButton");
+    const onlinePanel = document.getElementById("onlinePanel");
+    const submitPromptButton = document.getElementById("submitPromptButton");
+    const providerSelect = document.getElementById("providerSelect");
+    const modelResponse = document.getElementById("modelResponse");
+    const clearResponseButton = document.getElementById("clearResponseButton");
+    const responsePreviewToggle = document.getElementById("responsePreviewToggle");
+    const modelResponsePreview = document.getElementById("modelResponsePreview");
+    const status = document.getElementById("status");
+    const fileName = document.getElementById("fileName");
+    const recordCount = document.getElementById("recordCount");
+    const openAiKeyInput = document.getElementById("openAiKeyInput");
+    const claudeKeyInput = document.getElementById("claudeKeyInput");
+    const geminiKeyInput = document.getElementById("geminiKeyInput");
+    const rememberKeysForTabInput = document.getElementById("rememberKeysForTabInput");
+    const rememberKeysForTwoHoursInput = document.getElementById("rememberKeysForTwoHoursInput");
+    const fontFamilySelect = document.getElementById("fontFamilySelect");
+    const voiceSelect = document.getElementById("voiceSelect");
+    const speechVolumeInput = document.getElementById("speechVolumeInput");
+    const speechVolumeValue = document.getElementById("speechVolumeValue");
+    const speechRateInput = document.getElementById("speechRateInput");
+    const speechRateValue = document.getElementById("speechRateValue");
+    const speechPitchInput = document.getElementById("speechPitchInput");
+    const speechPitchValue = document.getElementById("speechPitchValue");
+    const canSpeak = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+    const SPEECH_TARGETS = {
+        prompt: {
+            label: "prompt text",
+            getText: () => promptText.value.trim()
+        },
+        comments: {
+            label: "comments",
+            getText: () => commentsText.value.trim()
+        },
+        response: {
+            label: "model result",
+            getText: () => {
+                const text = modelResponse.textContent.trim();
+                return isModelResponsePlaceholder(text) ? "" : text;
+            }
+        }
+    };
+    const FONT_FAMILIES = {
+        helvetica: "\"Helvetica Neue\", Helvetica, Arial, sans-serif",
+        georgia: "Georgia, \"Times New Roman\", serif",
+        avenir: "\"Avenir Next\", Avenir, \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+        courier: "\"Courier New\", Courier, monospace"
+    };
+
+    chooseFileButton.addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", (event) => {
+        const [file] = event.target.files || [];
+        if (file) {
+            loadFile(file);
+        }
+    });
+
+    ["dragenter", "dragover"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            dropzone.classList.add("dragging");
+        });
+    });
+
+    ["dragleave", "dragend", "drop"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, (event) => {
+            event.preventDefault();
+            if (eventName !== "drop" || !dropzone.contains(event.relatedTarget)) {
+                dropzone.classList.remove("dragging");
+            }
+        });
+    });
+
+    dropzone.addEventListener("drop", (event) => {
+        const [file] = event.dataTransfer.files || [];
+        if (file) {
+            fileInput.files = event.dataTransfer.files;
+            loadFile(file);
+        }
+    });
+
+    promptSelect.addEventListener("change", () => {
+        const nextIndex = Number(promptSelect.value);
+        if (!Number.isNaN(nextIndex)) {
+            selectPrompt(nextIndex);
+        }
+    });
+
+    prevButton.addEventListener("click", () => navigate(-1));
+    nextButton.addEventListener("click", () => navigate(1));
+    copyButton.addEventListener("click", () => copyCurrentPrompt(true));
+    exportButton.addEventListener("click", exportCurrentJson);
+    addPromptButton.addEventListener("click", openPromptCreator);
+    saveNewPromptButton.addEventListener("click", createPromptFromInputs);
+    cancelNewPromptButton.addEventListener("click", closePromptCreator);
+    settingsButton.addEventListener("click", openSettings);
+    closeSettingsButton.addEventListener("click", closeSettings);
+    saveSettingsButton.addEventListener("click", saveSettings);
+    clearSettingsButton.addEventListener("click", clearSettings);
+    fontSizeSlider.addEventListener("input", applyPromptFontSize);
+    speakButtons.forEach((button) => {
+        button.addEventListener("click", () => toggleSpeech(button.dataset.speakTarget));
+    });
+    onlineModelToggle.addEventListener("change", updateOnlinePanelVisibility);
+    saveResponsesToggle.addEventListener("change", handleSaveResponsesToggle);
+    clearAllResponsesButton.addEventListener("click", clearAllSavedResponses);
+    submitPromptButton.addEventListener("click", submitPromptToOnlineModel);
+    providerSelect.addEventListener("change", handleProviderChange);
+    clearResponseButton.addEventListener("click", clearCurrentSavedResponse);
+    responsePreviewToggle.addEventListener("click", toggleResponsePreview);
+    promptText.addEventListener("input", () => handleFieldEdit("prompt_text", promptText.value, promptPreview));
+    commentsText.addEventListener("input", () => handleFieldEdit("comments", commentsText.value, commentsPreview));
+    speechVolumeInput.addEventListener("input", syncSpeechControls);
+    speechRateInput.addEventListener("input", syncSpeechControls);
+    speechPitchInput.addEventListener("input", syncSpeechControls);
+    voiceSelect.addEventListener("change", syncSpeechControls);
+    rememberKeysForTabInput.addEventListener("change", handleProviderKeyPersistenceToggle);
+    rememberKeysForTwoHoursInput.addEventListener("change", handleProviderKeyPersistenceToggle);
+    document.addEventListener("click", handleToolbarClick);
+    settingsOverlay.addEventListener("click", (event) => {
+        if (event.target === settingsOverlay) {
+            closeSettings();
+        }
+    });
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !settingsOverlay.hidden) {
+            closeSettings();
+        }
+    });
+    if (canSpeak) {
+        window.speechSynthesis.addEventListener("voiceschanged", loadAvailableVoices);
+    }
+
+    function setStatus(message, kind = "") {
+        status.textContent = message;
+        status.className = kind ? "status " + kind : "status";
+    }
+
+    function normalizeJson(text) {
+        return text
+            .replace(/^\uFEFF/, "")
+            .replace(/,\s*(\]|\})/g, "$1")
+            .trim();
+    }
+
+    function parsePrompts(rawText) {
+        const parsed = JSON.parse(normalizeJson(rawText));
+        if (!Array.isArray(parsed)) {
+            throw new Error("Expected the file to contain a JSON array.");
+        }
+
+        return parsed.map((item, index) => {
+            if (!item || typeof item !== "object" || Array.isArray(item)) {
+                throw new Error("Entry " + (index + 1) + " is not a JSON object.");
+            }
+
+            const id = item.prompt_id;
+            const text = item.prompt_text;
+            const comments = item.comments;
+            const savedResponses = normalizeSavedResponses(item.saved_responses);
+
+            if (typeof id !== "string" && typeof id !== "number") {
+                throw new Error("Entry " + (index + 1) + " has an invalid prompt_id.");
+            }
+
+            if (typeof text !== "string") {
+                throw new Error("Entry " + (index + 1) + " has an invalid prompt_text.");
+            }
+
+            if (comments !== undefined && comments !== null && typeof comments !== "string") {
+                throw new Error("Entry " + (index + 1) + " has invalid comments.");
+            }
+
+            return {
+                prompt_id: id,
+                prompt_text: text,
+                comments: typeof comments === "string" ? comments : "",
+                saved_responses: savedResponses
+            };
+        });
+    }
+
+    function normalizeSavedResponses(rawSavedResponses) {
+        if (!Array.isArray(rawSavedResponses)) {
+            return [];
+        }
+
+        return rawSavedResponses
+            .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+            .map((entry) => ({
+                provider: typeof entry.provider === "string" ? entry.provider : "",
+                model: typeof entry.model === "string" ? entry.model : "",
+                response: typeof entry.response === "string" ? entry.response : ""
+            }))
+            .filter((entry) => entry.provider && entry.model && entry.response.trim());
+    }
+
+    async function loadFile(file) {
+        try {
+            const text = await file.text();
+            const prompts = parsePrompts(text);
+
+            if (prompts.length === 0) {
+                throw new Error("The file does not contain any prompts.");
+            }
+
+            state.prompts = prompts;
+            state.selectedIndex = 0;
+            state.currentFileName = file.name;
+            updatePromptSetMeta();
+            rebuildSelect();
+            await selectPrompt(0, false);
+            setStatus("Loaded " + prompts.length + " prompts.", "success");
+        } catch (error) {
+            state.prompts = [];
+            state.selectedIndex = -1;
+            state.currentFileName = "";
+            rebuildSelect();
+            renderCurrentPrompt();
+            updatePromptSetMeta();
+            setStatus(error.message || "Could not read that file.", "error");
+        }
+    }
+
+    function updatePromptSetMeta() {
+        if (state.currentFileName) {
+            fileName.textContent = "Loaded: " + state.currentFileName;
+        } else if (state.prompts.length > 0) {
+            fileName.textContent = "Working set: unsaved prompts";
+        } else {
+            fileName.textContent = "No file loaded";
+        }
+
+        recordCount.textContent = state.prompts.length + (state.prompts.length === 1 ? " prompt" : " prompts");
+    }
+
+    function rebuildSelect() {
+        promptSelect.innerHTML = "";
+
+        if (state.prompts.length === 0) {
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "Load a JSON file or create a prompt";
+            promptSelect.appendChild(option);
+            promptSelect.disabled = true;
+            prevButton.disabled = true;
+            nextButton.disabled = true;
+            copyButton.disabled = true;
+            exportButton.disabled = true;
+            clearAllResponsesButton.disabled = true;
+            stopSpeech(true);
+            updateOnlineControls();
+            updateSpeakButtons();
+            return;
+        }
+
+        state.prompts.forEach((prompt, index) => {
+            const option = document.createElement("option");
+            option.value = String(index);
+            option.textContent = String(prompt.prompt_id);
+            promptSelect.appendChild(option);
+        });
+
+        promptSelect.disabled = false;
+        copyButton.disabled = false;
+        exportButton.disabled = false;
+        updateOnlineControls();
+        updateNavButtons();
+        updateSpeakButtons();
+    }
+
+    function openPromptCreator() {
+        creationPanel.hidden = false;
+        addPromptButton.disabled = true;
+        if (!newPromptIdInput.value) {
+            newPromptIdInput.value = buildDefaultPromptId();
+        }
+        newPromptIdInput.focus();
+    }
+
+    function closePromptCreator() {
+        creationPanel.hidden = true;
+        addPromptButton.disabled = false;
+        clearPromptCreator();
+    }
+
+    function clearPromptCreator() {
+        newPromptIdInput.value = "";
+        newPromptTextInput.value = "";
+        newPromptCommentsInput.value = "";
+    }
+
+    function buildDefaultPromptId() {
+        let index = state.prompts.length + 1;
+        let candidate = "prompt-" + String(index).padStart(3, "0");
+        while (state.prompts.some((prompt) => String(prompt.prompt_id) === candidate)) {
+            index += 1;
+            candidate = "prompt-" + String(index).padStart(3, "0");
+        }
+        return candidate;
+    }
+
+    async function createPromptFromInputs() {
+        const promptId = newPromptIdInput.value.trim();
+        const promptTextValue = newPromptTextInput.value.trim();
+        const commentsValue = newPromptCommentsInput.value.trim();
+
+        if (!promptId) {
+            setStatus("Enter a prompt ID before creating a prompt.", "error");
+            newPromptIdInput.focus();
+            return;
+        }
+
+        if (!promptTextValue) {
+            setStatus("Enter prompt text before creating a prompt.", "error");
+            newPromptTextInput.focus();
+            return;
+        }
+
+        if (state.prompts.some((prompt) => String(prompt.prompt_id) === promptId)) {
+            setStatus("Prompt ID " + promptId + " already exists. Choose a unique ID.", "error");
+            newPromptIdInput.focus();
+            return;
+        }
+
+        state.prompts.push({
+            prompt_id: promptId,
+            prompt_text: promptTextValue,
+            comments: commentsValue,
+            saved_responses: []
+        });
+        rebuildSelect();
+        closePromptCreator();
+        await selectPrompt(state.prompts.length - 1, false);
+        updatePromptSetMeta();
+        setStatus("Created prompt " + promptId + ". It is now part of the in-memory JSON and will be included in exports.", "success");
+    }
+
+    async function selectPrompt(index, updateStatus = true) {
+        if (index < 0 || index >= state.prompts.length) {
+            return;
+        }
+
+        state.selectedIndex = index;
+        promptSelect.value = String(index);
+        stopSpeech(true);
+        renderCurrentPrompt();
+        updateNavButtons();
+
+        if (updateStatus) {
+            const id = state.prompts[index].prompt_id;
+            if (onlineModelToggle.checked) {
+                setStatus("Prompt " + id + " selected.", "success");
+                return;
+            }
+
+            setStatus("Prompt " + id + " selected.", "success");
+        }
+    }
+
+    function renderCurrentPrompt() {
+        const current = state.prompts[state.selectedIndex];
+        promptText.value = current ? current.prompt_text : "";
+        commentsText.value = current ? current.comments || "" : "";
+        renderMarkdownPreview(promptPreview, promptText.value);
+        renderMarkdownPreview(commentsPreview, commentsText.value);
+        syncDisplayedResponse();
+        updateOnlineControls();
+        updateSpeakButtons();
+    }
+
+    function updateNavButtons() {
+        const hasPrompts = state.prompts.length > 0;
+        prevButton.disabled = !hasPrompts || state.selectedIndex <= 0;
+        nextButton.disabled = !hasPrompts || state.selectedIndex >= state.prompts.length - 1;
+    }
+
+    function navigate(direction) {
+        const nextIndex = state.selectedIndex + direction;
+        if (nextIndex >= 0 && nextIndex < state.prompts.length) {
+            selectPrompt(nextIndex);
+        }
+    }
+
+    async function copyCurrentPrompt(showStatus) {
+        const current = state.prompts[state.selectedIndex];
+        if (!current) {
+            return false;
+        }
+
+        try {
+            await navigator.clipboard.writeText(current.prompt_text);
+            if (showStatus) {
+                setStatus("Current prompt copied to clipboard.", "success");
+            }
+            return true;
+        } catch (error) {
+            if (showStatus) {
+                setStatus("Clipboard access failed. Your browser may require a direct user gesture.", "error");
+            }
+            return false;
+        }
+    }
+
+    function applyPromptFontSize() {
+        const offset = Number(fontSizeSlider.value);
+        const fontSize = BASE_PROMPT_FONT_SIZE + offset * FONT_SIZE_STEP;
+        promptText.style.fontSize = fontSize + "px";
+        fontSizeValue.textContent = Math.round((fontSize / BASE_PROMPT_FONT_SIZE) * 100) + "%";
+    }
+
+    function updateOnlinePanelVisibility() {
+        const enabled = onlineModelToggle.checked;
+        onlinePanel.hidden = !enabled;
+        if (enabled) {
+            setStatus("Online model mode enabled. Select a provider and the matching configured key will be used.");
+        }
+        syncDisplayedResponse();
+        updateOnlineControls();
+    }
+
+    function handleSaveResponsesToggle() {
+        updateOnlineControls();
+        if (saveResponsesToggle.checked) {
+            setStatus("Model responses will now be saved into the in-memory JSON and included in exports.", "success");
+            return;
+        }
+
+        setStatus("Model responses will no longer be saved. Existing saved responses remain until cleared.", "success");
+    }
+
+    function getProviderKey(provider) {
+        return state.providerKeys[provider] || "";
+    }
+
+    function providerLabel(provider) {
+        if (provider === "chatgpt") {
+            return "ChatGPT";
+        }
+        if (provider === "claude") {
+            return "Claude";
+        }
+        if (provider === "gemini") {
+            return "Gemini";
+        }
+        return provider;
+    }
+
+    function updateOnlineControls() {
+        const hasPrompt = Boolean(state.prompts[state.selectedIndex]);
+        const provider = providerSelect.value;
+        const hasApiKey = getProviderKey(provider).trim().length > 0;
+        submitPromptButton.disabled = !onlineModelToggle.checked || !hasPrompt || !hasApiKey;
+        clearAllResponsesButton.disabled = !hasAnySavedResponses();
+        clearResponseButton.disabled = !Boolean(getSavedResponseForCurrentPrompt(provider));
+    }
+
+    function setModelResponse(message) {
+        modelResponse.textContent = message;
+        renderResponsePreview(modelResponsePreview, message);
+        updateSpeakButtons();
+    }
+
+    function isModelResponsePlaceholder(text) {
+        return MODEL_RESPONSE_PLACEHOLDERS.includes(text)
+            || /^Ready to send the current prompt to /.test(text)
+            || /^Sending prompt to /.test(text);
+    }
+
+    function getCurrentPrompt() {
+        return state.prompts[state.selectedIndex] || null;
+    }
+
+    function getSavedResponseForCurrentPrompt(provider) {
+        const current = getCurrentPrompt();
+        if (!current || !Array.isArray(current.saved_responses)) {
+            return null;
+        }
+
+        return current.saved_responses.find((entry) => entry.provider === provider) || null;
+    }
+
+    function getResponsePlaceholder() {
+        if (!onlineModelToggle.checked) {
+            return "Online model responses will appear here.";
+        }
+
+        const provider = providerSelect.value;
+        return "Ready to send the current prompt to " + providerLabel(provider) + ".";
+    }
+
+    function syncDisplayedResponse() {
+        const provider = providerSelect.value;
+        const savedEntry = getSavedResponseForCurrentPrompt(provider);
+        if (savedEntry) {
+            setModelResponse(savedEntry.response);
+        } else {
+            setModelResponse(getResponsePlaceholder());
+        }
+        updateOnlineControls();
+    }
+
+    function renderResponsePreview(target, sourceText) {
+        const value = sourceText || "";
+        if (!value.trim()) {
+            target.innerHTML = "<p>Nothing to preview yet.</p>";
+            return;
+        }
+
+        renderMarkdownPreview(target, value);
+    }
+
+    function toggleResponsePreview() {
+        const isPreviewHidden = modelResponsePreview.hidden;
+        modelResponse.hidden = isPreviewHidden;
+        modelResponsePreview.hidden = !isPreviewHidden;
+        if (isPreviewHidden) {
+            renderResponsePreview(modelResponsePreview, modelResponse.textContent);
+        }
+        responsePreviewToggle.textContent = isPreviewHidden ? "Show Raw" : "Preview";
+        responsePreviewToggle.setAttribute("aria-expanded", String(isPreviewHidden));
+    }
+
+    function getProviderModelName(provider) {
+        if (provider === "chatgpt") {
+            return OPENAI_MODEL;
+        }
+
+        if (provider === "claude") {
+            return CLAUDE_MODEL;
+        }
+
+        if (provider === "gemini") {
+            return "gemini";
+        }
+
+        return provider;
+    }
+
+    function saveResponseForPrompt(prompt, provider, responseText) {
+        if (!prompt) {
+            return;
+        }
+
+        if (!Array.isArray(prompt.saved_responses)) {
+            prompt.saved_responses = [];
+        }
+
+        const entry = {
+            provider,
+            model: getProviderModelName(provider),
+            response: responseText
+        };
+        const existingIndex = prompt.saved_responses.findIndex((item) => item.provider === provider);
+        if (existingIndex >= 0) {
+            prompt.saved_responses[existingIndex] = entry;
+            return;
+        }
+
+        prompt.saved_responses.push(entry);
+    }
+
+    function clearSavedResponse(prompt, provider) {
+        if (!prompt || !Array.isArray(prompt.saved_responses)) {
+            return false;
+        }
+
+        const originalLength = prompt.saved_responses.length;
+        prompt.saved_responses = prompt.saved_responses.filter((entry) => entry.provider !== provider);
+        return prompt.saved_responses.length !== originalLength;
+    }
+
+    function hasAnySavedResponses() {
+        return state.prompts.some((prompt) => Array.isArray(prompt.saved_responses) && prompt.saved_responses.length > 0);
+    }
+
+    function clearAllSavedResponses() {
+        if (!hasAnySavedResponses()) {
+            return;
+        }
+
+        state.prompts.forEach((prompt) => {
+            prompt.saved_responses = [];
+        });
+        syncDisplayedResponse();
+        setStatus("Cleared all saved model responses from the in-memory JSON.", "success");
+    }
+
+    function clearCurrentSavedResponse() {
+        const current = getCurrentPrompt();
+        const provider = providerSelect.value;
+        if (!current) {
+            return;
+        }
+
+        const didClear = clearSavedResponse(current, provider);
+        syncDisplayedResponse();
+        if (didClear) {
+            setStatus("Cleared the saved " + providerLabel(provider) + " response for prompt " + current.prompt_id + ".", "success");
+            return;
+        }
+
+        setStatus("There is no saved " + providerLabel(provider) + " response to clear for this prompt.", "error");
+    }
+
+    function handleProviderChange() {
+        syncDisplayedResponse();
+    }
+
+    function extractOutputText(responseData) {
+        if (responseData && typeof responseData.output_text === "string" && responseData.output_text.trim()) {
+            return responseData.output_text.trim();
+        }
+
+        if (!responseData || !Array.isArray(responseData.output)) {
+            return "";
+        }
+
+        const chunks = [];
+        responseData.output.forEach((item) => {
+            if (!item || !Array.isArray(item.content)) {
+                return;
+            }
+
+            item.content.forEach((contentItem) => {
+                if (contentItem && contentItem.type === "output_text" && typeof contentItem.text === "string") {
+                    chunks.push(contentItem.text);
+                }
+            });
+        });
+
+        return chunks.join("\n\n").trim();
+    }
+
+    function extractClaudeOutputText(responseData) {
+        if (!responseData || !Array.isArray(responseData.content)) {
+            return "";
+        }
+
+        return responseData.content
+            .filter((item) => item && item.type === "text" && typeof item.text === "string")
+            .map((item) => item.text.trim())
+            .filter(Boolean)
+            .join("\n\n")
+            .trim();
+    }
+
+    function looksLikePromptText(value, currentPromptText) {
+        if (!value) {
+            return false;
+        }
+
+        const normalizedValue = value.trim();
+        const normalizedPrompt = (currentPromptText || "").trim();
+        if (!normalizedPrompt) {
+            return false;
+        }
+
+        return normalizedValue === normalizedPrompt
+            || normalizedPrompt.includes(normalizedValue)
+            || normalizedValue.includes(normalizedPrompt)
+            || /\s/.test(normalizedValue);
+    }
+
+    async function submitPromptToChatGpt(prompt, apiKey) {
+        const payload = {
+            model: OPENAI_MODEL,
+            input: prompt.prompt_text
+        };
+        const response = await fetch("https://api.openai.com/v1/responses", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + apiKey
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+            const message = data && data.error && data.error.message
+                ? data.error.message
+                : "The model request failed.";
+            throw new Error(message);
+        }
+
+        const outputText = extractOutputText(data);
+        if (!outputText) {
+            throw new Error("The model returned no text output.");
+        }
+
+        return outputText;
+    }
+
+    async function submitPromptToClaude(prompt, apiKey) {
+        const payload = {
+            model: CLAUDE_MODEL,
+            max_tokens: 1024,
+            messages: [
+                {
+                    role: "user",
+                    content: prompt.prompt_text
+                }
+            ]
+        };
+        const response = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-api-key": apiKey,
+                "anthropic-version": "2023-06-01",
+                "anthropic-dangerous-direct-browser-access": "true"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+            const message = data && data.error && data.error.message
+                ? data.error.message
+                : "The model request failed.";
+            throw new Error(message);
+        }
+
+        const outputText = extractClaudeOutputText(data);
+        if (!outputText) {
+            throw new Error("The model returned no text output.");
+        }
+
+        return outputText;
+    }
+
+    function getProviderRequestConfig(provider) {
+        if (provider === "chatgpt") {
+            return {
+                label: "ChatGPT",
+                submit: submitPromptToChatGpt
+            };
+        }
+
+        if (provider === "claude") {
+            return {
+                label: "Claude",
+                submit: submitPromptToClaude
+            };
+        }
+
+        return null;
+    }
+
+    async function submitPromptToOnlineModel() {
+        const current = state.prompts[state.selectedIndex];
+        const provider = providerSelect.value;
+        const apiKey = getProviderKey(provider).trim();
+        const providerConfig = getProviderRequestConfig(provider);
+
+        if (!current) {
+            setStatus("Select a prompt before sending it online.", "error");
+            return;
+        }
+
+        if (!apiKey) {
+            setStatus("Save a " + providerLabel(provider) + " API key in Settings before sending the prompt.", "error");
+            return;
+        }
+
+        if (looksLikePromptText(apiKey, current.prompt_text)) {
+            setModelResponse("The saved API key appears to contain prompt text instead of an API key.");
+            setStatus("The saved " + providerLabel(provider) + " key looks incorrect. It appears to contain prompt text.", "error");
+            return;
+        }
+
+        if (!providerConfig) {
+            setModelResponse(providerLabel(provider) + " wiring is not implemented yet. The key is stored and ready for when that transport is added.");
+            setStatus(providerLabel(provider) + " is selected, but that transport is not implemented yet.", "error");
+            return;
+        }
+
+        submitPromptButton.disabled = true;
+        setModelResponse("Sending prompt to " + providerConfig.label + "...");
+        setStatus("Submitting prompt " + current.prompt_id + " to " + providerConfig.label + ".", "success");
+
+        try {
+            const outputText = await providerConfig.submit(current, apiKey);
+            if (saveResponsesToggle.checked) {
+                saveResponseForPrompt(current, provider, outputText);
+            }
+            setModelResponse(outputText);
+            if (saveResponsesToggle.checked) {
+                setStatus("Received a response from " + providerConfig.label + " and saved it into the current JSON.", "success");
+            } else {
+                setStatus("Received a response from " + providerConfig.label + ".", "success");
+            }
+        } catch (error) {
+            setModelResponse("Request failed.\n\n" + (error.message || "Unknown error."));
+            setStatus(error.message || "Could not reach the online model.", "error");
+        } finally {
+            updateOnlineControls();
+        }
+    }
+
+    function buildExportPayload() {
+        return state.prompts.map((prompt) => {
+            const result = {
+                prompt_id: prompt.prompt_id,
+                prompt_text: prompt.prompt_text
+            };
+
+            if (prompt.comments && prompt.comments.trim()) {
+                result.comments = prompt.comments;
+            }
+
+            if (Array.isArray(prompt.saved_responses) && prompt.saved_responses.length > 0) {
+                result.saved_responses = prompt.saved_responses.map((entry) => ({
+                    provider: entry.provider,
+                    model: entry.model,
+                    response: entry.response
+                }));
+            }
+
+            return result;
+        });
+    }
+
+    function exportCurrentJson() {
+        if (state.prompts.length === 0) {
+            setStatus("Load a JSON file or create a prompt before exporting.", "error");
+            return;
+        }
+
+        const jsonText = JSON.stringify(buildExportPayload(), null, 2);
+        const blob = new Blob([jsonText], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        const baseName = state.currentFileName
+            ? state.currentFileName.replace(/\.json$/i, "")
+            : "prompts";
+
+        anchor.href = url;
+        anchor.download = baseName + "-edited.json";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
+        setStatus("Exported the current JSON view.", "success");
+    }
+
+    function handleFieldEdit(fieldName, value, previewElement) {
+        const current = state.prompts[state.selectedIndex];
+        if (!current) {
+            return;
+        }
+
+        current[fieldName] = value;
+        renderMarkdownPreview(previewElement, value);
+        updateOnlineControls();
+        updateSpeakButtons();
+        setStatus("Updated prompt " + current.prompt_id + ". Changes are now reflected in the in-memory JSON.", "success");
+    }
+
+    function escapeHtml(value) {
+        return value
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function renderInlineMarkdown(text) {
+        let html = escapeHtml(text);
+        html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+        html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+        html = html.replace(/_([^_]+)_/g, "<em>$1</em>");
+        return html;
+    }
+
+    function markdownToHtml(markdown) {
+        if (!markdown.trim()) {
+            return "<p>Nothing to preview yet.</p>";
+        }
+
+        const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+        const html = [];
+        let inList = false;
+        let inCodeBlock = false;
+        let codeLines = [];
+
+        function closeList() {
+            if (inList) {
+                html.push("</ul>");
+                inList = false;
+            }
+        }
+
+        function closeCodeBlock() {
+            if (inCodeBlock) {
+                html.push("<pre><code>" + escapeHtml(codeLines.join("\n")) + "</code></pre>");
+                inCodeBlock = false;
+                codeLines = [];
+            }
+        }
+
+        lines.forEach((line) => {
+            if (line.startsWith("```")) {
+                closeList();
+                if (inCodeBlock) {
+                    closeCodeBlock();
+                } else {
+                    inCodeBlock = true;
+                }
+                return;
+            }
+
+            if (inCodeBlock) {
+                codeLines.push(line);
+                return;
+            }
+
+            if (!line.trim()) {
+                closeList();
+                html.push("");
+                return;
+            }
+
+            if (/^###\s+/.test(line)) {
+                closeList();
+                html.push("<h3>" + renderInlineMarkdown(line.replace(/^###\s+/, "")) + "</h3>");
+                return;
+            }
+
+            if (/^##\s+/.test(line)) {
+                closeList();
+                html.push("<h2>" + renderInlineMarkdown(line.replace(/^##\s+/, "")) + "</h2>");
+                return;
+            }
+
+            if (/^#\s+/.test(line)) {
+                closeList();
+                html.push("<h1>" + renderInlineMarkdown(line.replace(/^#\s+/, "")) + "</h1>");
+                return;
+            }
+
+            if (/^>\s+/.test(line)) {
+                closeList();
+                html.push("<blockquote>" + renderInlineMarkdown(line.replace(/^>\s+/, "")) + "</blockquote>");
+                return;
+            }
+
+            if (/^-\s+/.test(line)) {
+                if (!inList) {
+                    html.push("<ul>");
+                    inList = true;
+                }
+                html.push("<li>" + renderInlineMarkdown(line.replace(/^-\s+/, "")) + "</li>");
+                return;
+            }
+
+            closeList();
+            html.push("<p>" + renderInlineMarkdown(line) + "</p>");
+        });
+
+        closeList();
+        closeCodeBlock();
+        return html.filter(Boolean).join("");
+    }
+
+    function renderMarkdownPreview(target, sourceText) {
+        target.innerHTML = markdownToHtml(sourceText || "");
+    }
+
+    function togglePreview(previewId, sourceId, button) {
+        const previewElement = document.getElementById(previewId);
+        const sourceElement = document.getElementById(sourceId);
+        const isHidden = previewElement.hidden;
+        previewElement.hidden = !isHidden;
+        if (isHidden) {
+            renderMarkdownPreview(previewElement, sourceElement.value);
+        }
+        button.textContent = isHidden ? "Hide Preview" : "Preview";
+    }
+
+    function wrapSelection(textarea, wrapToken) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selected = textarea.value.slice(start, end);
+        const nextValue = textarea.value.slice(0, start) + wrapToken + selected + wrapToken + textarea.value.slice(end);
+        textarea.value = nextValue;
+        textarea.focus();
+        const cursorStart = start + wrapToken.length;
+        const cursorEnd = cursorStart + selected.length;
+        textarea.setSelectionRange(cursorStart, cursorEnd);
+        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    function prefixSelection(textarea, prefix) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selected = textarea.value.slice(start, end);
+        const fallbackText = selected || " ";
+        const lines = fallbackText.split("\n");
+        const prefixed = lines.map((line) => prefix + line).join("\n");
+        const nextValue = textarea.value.slice(0, start) + prefixed + textarea.value.slice(end);
+        textarea.value = nextValue;
+        textarea.focus();
+        textarea.setSelectionRange(start, start + prefixed.length);
+        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    function handleToolbarClick(event) {
+        const previewToggle = event.target.closest("[data-preview-toggle]");
+        if (previewToggle) {
+            togglePreview(previewToggle.dataset.previewToggle, previewToggle.dataset.source, previewToggle);
+            return;
+        }
+
+        const toolbarButton = event.target.closest("[data-editor-target]");
+        if (!toolbarButton) {
+            return;
+        }
+
+        const textarea = document.getElementById(toolbarButton.dataset.editorTarget);
+        if (!textarea) {
+            return;
+        }
+
+        if (toolbarButton.dataset.wrap) {
+            wrapSelection(textarea, toolbarButton.dataset.wrap);
+            return;
+        }
+
+        if (toolbarButton.dataset.prefix) {
+            prefixSelection(textarea, toolbarButton.dataset.prefix);
+        }
+    }
+
+    function getEmptyProviderKeys() {
+        return {
+            chatgpt: "",
+            claude: "",
+            gemini: ""
+        };
+    }
+
+    function normalizeProviderKeys(rawKeys) {
+        return {
+            chatgpt: typeof rawKeys.chatgpt === "string" ? rawKeys.chatgpt : "",
+            claude: typeof rawKeys.claude === "string" ? rawKeys.claude : "",
+            gemini: typeof rawKeys.gemini === "string" ? rawKeys.gemini : ""
+        };
+    }
+
+    function clearPersistedProviderKeys() {
+        sessionStorage.removeItem(SESSION_KEY_STORAGE);
+        localStorage.removeItem(LOCAL_KEY_STORAGE);
+    }
+
+    function normalizeDisplaySettings(rawSettings) {
+        const fontFamily = rawSettings && typeof rawSettings.fontFamily === "string"
+            ? rawSettings.fontFamily
+            : "helvetica";
+        return {
+            fontFamily: FONT_FAMILIES[fontFamily] ? fontFamily : "helvetica"
+        };
+    }
+
+    function applyDisplaySettings() {
+        const selectedFont = FONT_FAMILIES[state.displaySettings.fontFamily] || FONT_FAMILIES.helvetica;
+        document.documentElement.style.setProperty("--app-font-family", selectedFont);
+    }
+
+    function persistProviderKeys() {
+        clearPersistedProviderKeys();
+
+        if (state.providerKeyPersistence === "session") {
+            sessionStorage.setItem(SESSION_KEY_STORAGE, JSON.stringify(state.providerKeys));
+            return;
+        }
+
+        if (state.providerKeyPersistence === "temporary") {
+            localStorage.setItem(LOCAL_KEY_STORAGE, JSON.stringify({
+                expiresAt: Date.now() + LOCAL_KEY_TTL_MS,
+                providerKeys: state.providerKeys
+            }));
+        }
+    }
+
+    function loadPersistedProviderKeys() {
+        if (ALLOW_BROWSER_KEY_STORAGE_FOR_TWO_HOURS) {
+            try {
+                const rawTemporary = localStorage.getItem(LOCAL_KEY_STORAGE);
+                if (rawTemporary) {
+                    const parsedTemporary = JSON.parse(rawTemporary);
+                    if (parsedTemporary && Number(parsedTemporary.expiresAt) > Date.now()) {
+                        state.providerKeys = normalizeProviderKeys(parsedTemporary.providerKeys || {});
+                        state.providerKeyPersistence = "temporary";
+                        return;
+                    }
+
+                    localStorage.removeItem(LOCAL_KEY_STORAGE);
+                }
+            } catch (error) {
+                localStorage.removeItem(LOCAL_KEY_STORAGE);
+            }
+        } else {
+            localStorage.removeItem(LOCAL_KEY_STORAGE);
+        }
+
+        try {
+            const rawSession = sessionStorage.getItem(SESSION_KEY_STORAGE);
+            if (rawSession) {
+                state.providerKeys = normalizeProviderKeys(JSON.parse(rawSession));
+                state.providerKeyPersistence = "session";
+                return;
+            }
+        } catch (error) {
+            sessionStorage.removeItem(SESSION_KEY_STORAGE);
+        }
+
+        state.providerKeys = getEmptyProviderKeys();
+        state.providerKeyPersistence = "memory";
+    }
+
+    function loadSettingsFromSession() {
+        loadPersistedProviderKeys();
+
+        try {
+            const rawDisplaySettings = sessionStorage.getItem(SESSION_DISPLAY_STORAGE);
+            if (rawDisplaySettings) {
+                state.displaySettings = normalizeDisplaySettings(JSON.parse(rawDisplaySettings));
+            }
+        } catch (error) {
+            state.displaySettings = { fontFamily: "helvetica" };
+        }
+
+        try {
+            const rawSpeech = sessionStorage.getItem(SESSION_SPEECH_STORAGE);
+            if (rawSpeech) {
+                const parsedSpeech = JSON.parse(rawSpeech);
+                state.speechSettings.voiceURI = typeof parsedSpeech.voiceURI === "string" ? parsedSpeech.voiceURI : "";
+                state.speechSettings.volume = normalizeSpeechRange(parsedSpeech.volume, 1, 0, 1);
+                state.speechSettings.rate = normalizeSpeechRange(parsedSpeech.rate, 1, 0.5, 1.5);
+                state.speechSettings.pitch = normalizeSpeechRange(parsedSpeech.pitch, 1, 0.5, 1.5);
+            }
+        } catch (error) {
+            state.speechSettings.voiceURI = "";
+            state.speechSettings.volume = 1;
+            state.speechSettings.rate = 1;
+            state.speechSettings.pitch = 1;
+        }
+
+        applyDisplaySettings();
+        syncSettingsInputs();
+    }
+
+    function syncSettingsInputs() {
+        openAiKeyInput.value = state.providerKeys.chatgpt;
+        claudeKeyInput.value = state.providerKeys.claude;
+        geminiKeyInput.value = state.providerKeys.gemini;
+        rememberKeysForTabInput.checked = state.providerKeyPersistence === "session";
+        rememberKeysForTwoHoursInput.checked = state.providerKeyPersistence === "temporary";
+        rememberKeysForTwoHoursInput.disabled = !ALLOW_BROWSER_KEY_STORAGE_FOR_TWO_HOURS;
+        rememberKeysForTwoHoursInput.closest("label").hidden = !ALLOW_BROWSER_KEY_STORAGE_FOR_TWO_HOURS;
+        fontFamilySelect.value = state.displaySettings.fontFamily;
+        speechVolumeInput.value = String(state.speechSettings.volume);
+        speechRateInput.value = String(state.speechSettings.rate);
+        speechPitchInput.value = String(state.speechSettings.pitch);
+        updateSpeechValueLabels();
+        populateVoiceOptions();
+        updateOnlineControls();
+    }
+
+    function saveSettings() {
+        state.providerKeys.chatgpt = openAiKeyInput.value.trim();
+        state.providerKeys.claude = claudeKeyInput.value.trim();
+        state.providerKeys.gemini = geminiKeyInput.value.trim();
+        state.displaySettings = normalizeDisplaySettings({
+            fontFamily: fontFamilySelect.value
+        });
+        syncSpeechControls();
+        persistProviderKeys();
+        sessionStorage.setItem(SESSION_DISPLAY_STORAGE, JSON.stringify(state.displaySettings));
+        sessionStorage.setItem(SESSION_SPEECH_STORAGE, JSON.stringify(state.speechSettings));
+        applyDisplaySettings();
+        updateOnlineControls();
+        if (state.providerKeyPersistence === "session") {
+            setStatus("Settings saved. API keys will be remembered for this browser session.", "success");
+        } else if (state.providerKeyPersistence === "temporary") {
+            setStatus("Settings saved. API keys will be remembered on this browser for 2 hours.", "success");
+        } else {
+            setStatus("Settings saved. API keys will stay only in memory until this page is closed or reloaded.", "success");
+        }
+        closeSettings();
+    }
+
+    function clearSettings() {
+        state.providerKeys = getEmptyProviderKeys();
+        state.providerKeyPersistence = "memory";
+        clearPersistedProviderKeys();
+        syncSettingsInputs();
+        updateOnlineControls();
+        setStatus("Saved API keys cleared.", "success");
+    }
+
+    function handleProviderKeyPersistenceToggle(event) {
+        if (event.target === rememberKeysForTwoHoursInput && rememberKeysForTwoHoursInput.checked) {
+            rememberKeysForTabInput.checked = false;
+        } else if (event.target === rememberKeysForTabInput && rememberKeysForTabInput.checked) {
+            rememberKeysForTwoHoursInput.checked = false;
+        }
+
+        if (rememberKeysForTwoHoursInput.checked) {
+            state.providerKeyPersistence = "temporary";
+            return;
+        }
+
+        if (rememberKeysForTabInput.checked) {
+            state.providerKeyPersistence = "session";
+            return;
+        }
+
+        state.providerKeyPersistence = "memory";
+    }
+
+    function openSettings() {
+        syncSettingsInputs();
+        settingsOverlay.hidden = false;
+        settingsButton.setAttribute("aria-expanded", "true");
+    }
+
+    function closeSettings() {
+        settingsOverlay.hidden = true;
+        settingsButton.setAttribute("aria-expanded", "false");
+    }
+
+    function normalizeSpeechRange(value, fallback, min, max) {
+        const numericValue = Number(value);
+        if (Number.isNaN(numericValue)) {
+            return fallback;
+        }
+
+        return Math.min(max, Math.max(min, numericValue));
+    }
+
+    function updateSpeechValueLabels() {
+        speechVolumeValue.textContent = Math.round(Number(speechVolumeInput.value) * 100) + "%";
+        speechRateValue.textContent = Number(speechRateInput.value).toFixed(2) + "x";
+        speechPitchValue.textContent = Number(speechPitchInput.value).toFixed(2);
+    }
+
+    function syncSpeechControls() {
+        state.speechSettings.voiceURI = voiceSelect.value;
+        state.speechSettings.volume = normalizeSpeechRange(speechVolumeInput.value, 1, 0, 1);
+        state.speechSettings.rate = normalizeSpeechRange(speechRateInput.value, 1, 0.5, 1.5);
+        state.speechSettings.pitch = normalizeSpeechRange(speechPitchInput.value, 1, 0.5, 1.5);
+        updateSpeechValueLabels();
+    }
+
+    function populateVoiceOptions() {
+        voiceSelect.innerHTML = "";
+
+        if (!canSpeak) {
+            const option = document.createElement("option");
+            option.value = "";
+            option.textContent = "Speech unavailable in this browser";
+            voiceSelect.appendChild(option);
+            voiceSelect.disabled = true;
+            return;
+        }
+
+        voiceSelect.disabled = false;
+
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.textContent = state.availableVoices.length > 0 ? "Browser default voice" : "Loading available voices...";
+        voiceSelect.appendChild(defaultOption);
+
+        state.availableVoices.forEach((voice) => {
+            const option = document.createElement("option");
+            option.value = voice.voiceURI;
+            option.textContent = voice.name + " (" + voice.lang + ")" + (voice.default ? " - default" : "");
+            voiceSelect.appendChild(option);
+        });
+
+        const voiceExists = state.availableVoices.some((voice) => voice.voiceURI === state.speechSettings.voiceURI);
+        voiceSelect.value = voiceExists ? state.speechSettings.voiceURI : "";
+    }
+
+    function loadAvailableVoices() {
+        if (!canSpeak) {
+            return;
+        }
+
+        state.availableVoices = window.speechSynthesis.getVoices()
+            .slice()
+            .sort((left, right) => left.name.localeCompare(right.name));
+        populateVoiceOptions();
+    }
+
+    function getSpeechText(target) {
+        const config = SPEECH_TARGETS[target];
+        return config ? config.getText() : "";
+    }
+
+    function updateSpeakButtons() {
+        speakButtons.forEach((button) => {
+            const target = button.dataset.speakTarget;
+            const label = button.querySelector(".speak-label");
+            const hasText = Boolean(getSpeechText(target));
+            const isActive = canSpeak && window.speechSynthesis.speaking && state.activeSpeechTarget === target;
+            button.disabled = !canSpeak || !hasText;
+            button.dataset.speaking = isActive ? "true" : "false";
+            label.textContent = !canSpeak ? "Unavailable" : isActive ? "Stop" : (button.dataset.defaultLabel || "Speak");
+        });
+    }
+
+    function stopSpeech(silent = false) {
+        if (!canSpeak) {
+            return;
+        }
+
+        const wasSpeaking = window.speechSynthesis.speaking;
+        window.speechSynthesis.cancel();
+        state.activeSpeechTarget = "";
+        updateSpeakButtons();
+
+        if (!silent && wasSpeaking) {
+            setStatus("Stopped speech playback.");
+        }
+    }
+
+    function toggleSpeech(target) {
+        if (!canSpeak) {
+            setStatus("Speech synthesis is not available in this browser.", "error");
+            return;
+        }
+
+        const speechTarget = SPEECH_TARGETS[target];
+        const text = getSpeechText(target);
+        if (!speechTarget || !text) {
+            return;
+        }
+
+        if (window.speechSynthesis.speaking && state.activeSpeechTarget === target) {
+            stopSpeech();
+            return;
+        }
+
+        syncSpeechControls();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        const selectedVoice = state.availableVoices.find((voice) => voice.voiceURI === state.speechSettings.voiceURI);
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+        utterance.volume = state.speechSettings.volume;
+        utterance.rate = state.speechSettings.rate;
+        utterance.pitch = state.speechSettings.pitch;
+        utterance.onstart = () => {
+            state.activeSpeechTarget = target;
+            updateSpeakButtons();
+            setStatus("Speaking the " + speechTarget.label + ".", "success");
+        };
+        utterance.onend = () => {
+            state.activeSpeechTarget = "";
+            updateSpeakButtons();
+        };
+        utterance.onerror = () => {
+            state.activeSpeechTarget = "";
+            updateSpeakButtons();
+            setStatus("Could not read the " + speechTarget.label + " aloud in this browser.", "error");
+        };
+
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+        updateSpeakButtons();
+    }
+
+    loadSettingsFromSession();
+    loadAvailableVoices();
+    applyPromptFontSize();
+    updateOnlinePanelVisibility();
+    updateSpeakButtons();
+</script>
+</body>
+</html>
