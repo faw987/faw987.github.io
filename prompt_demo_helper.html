@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -11,10 +10,12 @@
             --bg: #f2efe8;
             --panel: #fffaf2;
             --panel-strong: #f5ead8;
+            --panel-soft: #f9f1e5;
             --text: #1f1a14;
             --muted: #655746;
             --accent: #b7522d;
             --accent-strong: #8d3412;
+            --accent-soft: rgba(183, 82, 45, 0.12);
             --border: #d7c7b1;
             --drop: #fff2db;
             --success: #275d38;
@@ -328,9 +329,78 @@
 
         .online-submit-row {
             display: grid;
-            grid-template-columns: auto minmax(12rem, 14rem);
+            grid-template-columns: auto minmax(0, 1fr);
             gap: 12px;
             align-items: end;
+        }
+
+        .provider-strip {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            width: 100%;
+        }
+
+        .provider-chip {
+            min-height: 4.25rem;
+            padding: 12px 14px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), var(--panel-soft));
+            display: grid;
+            gap: 4px;
+            justify-items: start;
+            text-align: left;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+
+        .provider-chip:hover:not(:disabled) {
+            background: linear-gradient(180deg, #fff, #f6eadc);
+        }
+
+        .provider-chip.is-selected {
+            border-color: rgba(141, 52, 18, 0.45);
+            background:
+                    linear-gradient(180deg, rgba(183, 82, 45, 0.18), rgba(255, 244, 234, 0.96)),
+                    #fff;
+            box-shadow:
+                    0 0 0 3px rgba(183, 82, 45, 0.12),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+        }
+
+        .provider-chip.is-unavailable {
+            background: linear-gradient(180deg, rgba(242, 239, 232, 0.8), rgba(247, 240, 233, 0.94));
+            color: var(--muted);
+            border-style: dashed;
+        }
+
+        .provider-chip-label {
+            font-weight: 700;
+            font-size: 0.95rem;
+            line-height: 1.15;
+        }
+
+        .provider-chip-state {
+            font-size: 0.82rem;
+            color: var(--muted);
+        }
+
+        .provider-chip.is-selected .provider-chip-state {
+            color: #6f331e;
+        }
+
+        .provider-slot {
+            min-height: 4.25rem;
+            border-radius: 16px;
+            border: 1px dashed rgba(215, 199, 177, 0.8);
+            background:
+                    repeating-linear-gradient(
+                            135deg,
+                            rgba(255, 255, 255, 0.45),
+                            rgba(255, 255, 255, 0.45) 10px,
+                            rgba(249, 241, 229, 0.6) 10px,
+                            rgba(249, 241, 229, 0.6) 20px
+                    );
         }
 
         .field label {
@@ -405,6 +475,15 @@
         }
 
         .markdown-toolbar {
+            display: grid;
+            gap: 10px;
+            padding: 10px;
+            border: 1px solid rgba(215, 199, 177, 0.8);
+            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 241, 229, 0.92));
+        }
+
+        .toolbar-row {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
@@ -416,8 +495,56 @@
             border-radius: 999px;
         }
 
+        .toolbar-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .toolbar-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(186, 98, 54, 0.18);
+            background: rgba(255, 255, 255, 0.82);
+        }
+
+        .toolbar-button:hover:not(:disabled) {
+            border-color: rgba(186, 98, 54, 0.4);
+        }
+
+        .toolbar-icon {
+            width: 1.15rem;
+            text-align: center;
+            font-size: 0.95rem;
+            line-height: 1;
+            color: var(--accent-strong);
+        }
+
+        .toolbar-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 11px;
+            border-radius: 999px;
+            border: 1px solid rgba(183, 82, 45, 0.16);
+            background: rgba(183, 82, 45, 0.08);
+            color: #6d422f;
+            font-size: 0.84rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
         .toolbar-spacer {
             flex: 1;
+        }
+
+        .toolbar-meta {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
         }
 
         .speak-action {
@@ -717,6 +844,18 @@
                 grid-template-columns: 1fr;
             }
 
+            .provider-strip {
+                grid-template-columns: 1fr;
+            }
+
+            .toolbar-row {
+                align-items: stretch;
+            }
+
+            .toolbar-meta {
+                width: 100%;
+            }
+
             .settings-overlay {
                 padding: 10px;
             }
@@ -833,17 +972,56 @@
             </div>
             <div class="markdown-editor">
                 <div class="markdown-toolbar" data-editor-toolbar="promptText">
-                    <button type="button" data-wrap="**" data-editor-target="promptText">Bold</button>
-                    <button type="button" data-wrap="_" data-editor-target="promptText">Italic</button>
-                    <button type="button" data-prefix="## " data-editor-target="promptText">Heading</button>
-                    <button type="button" data-prefix="- " data-editor-target="promptText">Bullet</button>
-                    <button type="button" data-wrap="`" data-editor-target="promptText">Code</button>
-                    <span class="toolbar-spacer" aria-hidden="true"></span>
-                    <button type="button" class="speak-action" data-speak-target="prompt" data-default-label="Speak" disabled>
-                        <span class="speak-icon" aria-hidden="true"></span>
-                        <span class="speak-label">Speak</span>
-                    </button>
-                    <button type="button" class="markdown-toggle" data-preview-toggle="promptPreview" data-source="promptText">Preview</button>
+                    <div class="toolbar-row">
+                        <div class="toolbar-group">
+                            <button type="button" class="toolbar-button" data-wrap="**" data-editor-target="promptText" aria-label="Bold">
+                                <span class="toolbar-icon" aria-hidden="true">B</span>
+                                <span>Bold</span>
+                            </button>
+                            <button type="button" class="toolbar-button" data-wrap="_" data-editor-target="promptText" aria-label="Italic">
+                                <span class="toolbar-icon" aria-hidden="true">I</span>
+                                <span>Italic</span>
+                            </button>
+                            <button type="button" class="toolbar-button" data-prefix="## " data-editor-target="promptText" aria-label="Heading">
+                                <span class="toolbar-icon" aria-hidden="true">H</span>
+                                <span>Heading</span>
+                            </button>
+                            <button type="button" class="toolbar-button" data-prefix="> " data-editor-target="promptText" aria-label="Quote">
+                                <span class="toolbar-icon" aria-hidden="true">"</span>
+                                <span>Quote</span>
+                            </button>
+                            <button type="button" class="toolbar-button" data-prefix="- " data-editor-target="promptText" aria-label="Bullet list">
+                                <span class="toolbar-icon" aria-hidden="true">•</span>
+                                <span>Bullet</span>
+                            </button>
+                            <button type="button" class="toolbar-button" data-prefix="1. " data-editor-target="promptText" aria-label="Numbered list">
+                                <span class="toolbar-icon" aria-hidden="true">1.</span>
+                                <span>Numbered</span>
+                            </button>
+                            <button type="button" class="toolbar-button" data-wrap="`" data-editor-target="promptText" aria-label="Inline code">
+                                <span class="toolbar-icon" aria-hidden="true">{ }</span>
+                                <span>Code</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="toolbar-row">
+                        <div class="toolbar-meta">
+                <span class="toolbar-badge" data-voice-badge aria-label="Configured voice">
+                  <span aria-hidden="true">~</span>
+                  <span>Flow</span>
+                </span>
+                            <span class="toolbar-badge" data-language-badge aria-label="Configured language">
+                  <span aria-hidden="true">A</span>
+                  <span>English (US)</span>
+                </span>
+                        </div>
+                        <span class="toolbar-spacer" aria-hidden="true"></span>
+                        <button type="button" class="speak-action" data-speak-target="prompt" data-default-label="Speak" disabled>
+                            <span class="speak-icon" aria-hidden="true"></span>
+                            <span class="speak-label">Speak</span>
+                        </button>
+                        <button type="button" class="markdown-toggle" data-preview-toggle="promptPreview" data-source="promptText">Preview</button>
+                    </div>
                 </div>
                 <textarea id="promptText" placeholder="The selected prompt will appear here."></textarea>
                 <div id="promptPreview" class="panel markdown-preview" hidden></div>
@@ -854,17 +1032,56 @@
             <label for="commentsText">Comments</label>
             <div class="markdown-editor">
                 <div class="markdown-toolbar" data-editor-toolbar="commentsText">
-                    <button type="button" data-wrap="**" data-editor-target="commentsText">Bold</button>
-                    <button type="button" data-wrap="_" data-editor-target="commentsText">Italic</button>
-                    <button type="button" data-prefix="> " data-editor-target="commentsText">Quote</button>
-                    <button type="button" data-prefix="- " data-editor-target="commentsText">Bullet</button>
-                    <button type="button" data-wrap="`" data-editor-target="commentsText">Code</button>
-                    <span class="toolbar-spacer" aria-hidden="true"></span>
-                    <button type="button" class="speak-action" data-speak-target="comments" data-default-label="Speak" disabled>
-                        <span class="speak-icon" aria-hidden="true"></span>
-                        <span class="speak-label">Speak</span>
-                    </button>
-                    <button type="button" class="markdown-toggle" data-preview-toggle="commentsPreview" data-source="commentsText">Preview</button>
+                    <div class="toolbar-row">
+                        <div class="toolbar-group">
+                            <button type="button" class="toolbar-button" data-wrap="**" data-editor-target="commentsText" aria-label="Bold">
+                                <span class="toolbar-icon" aria-hidden="true">B</span>
+                                <span>Bold</span>
+                            </button>
+                            <button type="button" class="toolbar-button" data-wrap="_" data-editor-target="commentsText" aria-label="Italic">
+                                <span class="toolbar-icon" aria-hidden="true">I</span>
+                                <span>Italic</span>
+                            </button>
+                            <button type="button" class="toolbar-button" data-prefix="## " data-editor-target="commentsText" aria-label="Heading">
+                                <span class="toolbar-icon" aria-hidden="true">H</span>
+                                <span>Heading</span>
+                            </button>
+                            <button type="button" class="toolbar-button" data-prefix="> " data-editor-target="commentsText" aria-label="Quote">
+                                <span class="toolbar-icon" aria-hidden="true">"</span>
+                                <span>Quote</span>
+                            </button>
+                            <button type="button" class="toolbar-button" data-prefix="- " data-editor-target="commentsText" aria-label="Bullet list">
+                                <span class="toolbar-icon" aria-hidden="true">•</span>
+                                <span>Bullet</span>
+                            </button>
+                            <button type="button" class="toolbar-button" data-prefix="1. " data-editor-target="commentsText" aria-label="Numbered list">
+                                <span class="toolbar-icon" aria-hidden="true">1.</span>
+                                <span>Numbered</span>
+                            </button>
+                            <button type="button" class="toolbar-button" data-wrap="`" data-editor-target="commentsText" aria-label="Inline code">
+                                <span class="toolbar-icon" aria-hidden="true">{ }</span>
+                                <span>Code</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="toolbar-row">
+                        <div class="toolbar-meta">
+                <span class="toolbar-badge" data-voice-badge aria-label="Configured voice">
+                  <span aria-hidden="true">~</span>
+                  <span>Flow</span>
+                </span>
+                            <span class="toolbar-badge" data-language-badge aria-label="Configured language">
+                  <span aria-hidden="true">A</span>
+                  <span>English (US)</span>
+                </span>
+                        </div>
+                        <span class="toolbar-spacer" aria-hidden="true"></span>
+                        <button type="button" class="speak-action" data-speak-target="comments" data-default-label="Speak" disabled>
+                            <span class="speak-icon" aria-hidden="true"></span>
+                            <span class="speak-label">Speak</span>
+                        </button>
+                        <button type="button" class="markdown-toggle" data-preview-toggle="commentsPreview" data-source="commentsText">Preview</button>
+                    </div>
                 </div>
                 <textarea id="commentsText" placeholder="Comments will appear here when present."></textarea>
                 <div id="commentsPreview" class="panel markdown-preview" hidden></div>
@@ -881,12 +1098,22 @@
                 <div class="online-submit-row">
                     <button type="button" class="accent" id="submitPromptButton" disabled>Prompt With This Prompt</button>
                     <div class="field">
-                        <label for="providerSelect">Model Provider</label>
-                        <select id="providerSelect">
-                            <option value="chatgpt">ChatGPT</option>
-                            <option value="claude">Claude</option>
-                            <option value="gemini">Gemini</option>
-                        </select>
+                        <label>Model Providers</label>
+                        <div class="provider-strip" id="providerButtons" role="group" aria-label="Model providers">
+                            <button type="button" class="provider-chip" data-provider-button="chatgpt">
+                                <span class="provider-chip-label">ChatGPT</span>
+                                <span class="provider-chip-state">Unavailable</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-provider-button="claude">
+                                <span class="provider-chip-label">Claude</span>
+                                <span class="provider-chip-state">Unavailable</span>
+                            </button>
+                            <button type="button" class="provider-chip" data-provider-button="gemini">
+                                <span class="provider-chip-label">Gemini</span>
+                                <span class="provider-chip-state">Unavailable</span>
+                            </button>
+                            <div class="provider-slot" aria-hidden="true"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -1020,6 +1247,7 @@
     const ALLOW_BROWSER_KEY_STORAGE_FOR_TWO_HOURS = true;
     const OPENAI_MODEL = "gpt-4.1-mini";
     const CLAUDE_MODEL = "claude-sonnet-4-0";
+    const GEMINI_MODEL = "gemini-2.5-flash";
     const BASE_PROMPT_FONT_SIZE = 16;
     const FONT_SIZE_STEP = 2;
     const MODEL_RESPONSE_PLACEHOLDERS = [
@@ -1039,6 +1267,7 @@
             claude: "",
             gemini: ""
         },
+        selectedProvider: "chatgpt",
         providerKeyPersistence: "memory",
         speechSettings: {
             voiceURI: "",
@@ -1071,6 +1300,8 @@
     const saveSettingsButton = document.getElementById("saveSettingsButton");
     const clearSettingsButton = document.getElementById("clearSettingsButton");
     const speakButtons = Array.from(document.querySelectorAll("[data-speak-target]"));
+    const voiceBadges = Array.from(document.querySelectorAll("[data-voice-badge]"));
+    const languageBadges = Array.from(document.querySelectorAll("[data-language-badge]"));
     const fontSizeSlider = document.getElementById("fontSizeSlider");
     const fontSizeValue = document.getElementById("fontSizeValue");
     const promptText = document.getElementById("promptText");
@@ -1082,7 +1313,7 @@
     const clearAllResponsesButton = document.getElementById("clearAllResponsesButton");
     const onlinePanel = document.getElementById("onlinePanel");
     const submitPromptButton = document.getElementById("submitPromptButton");
-    const providerSelect = document.getElementById("providerSelect");
+    const providerButtons = Array.from(document.querySelectorAll("[data-provider-button]"));
     const modelResponse = document.getElementById("modelResponse");
     const clearResponseButton = document.getElementById("clearResponseButton");
     const responsePreviewToggle = document.getElementById("responsePreviewToggle");
@@ -1186,7 +1417,9 @@
     saveResponsesToggle.addEventListener("change", handleSaveResponsesToggle);
     clearAllResponsesButton.addEventListener("click", clearAllSavedResponses);
     submitPromptButton.addEventListener("click", submitPromptToOnlineModel);
-    providerSelect.addEventListener("change", handleProviderChange);
+    providerButtons.forEach((button) => {
+        button.addEventListener("click", () => handleProviderChange(button.dataset.providerButton));
+    });
     clearResponseButton.addEventListener("click", clearCurrentSavedResponse);
     responsePreviewToggle.addEventListener("click", toggleResponsePreview);
     promptText.addEventListener("input", () => handleFieldEdit("prompt_text", promptText.value, promptPreview));
@@ -1514,6 +1747,25 @@
         return state.providerKeys[provider] || "";
     }
 
+    function getSelectedProvider() {
+        return state.selectedProvider;
+    }
+
+    function getAvailableProviders() {
+        return ["chatgpt", "claude", "gemini"].filter((provider) => getProviderKey(provider).trim());
+    }
+
+    function ensureSelectedProvider() {
+        const selectedProvider = getSelectedProvider();
+        if (getProviderKey(selectedProvider).trim()) {
+            return selectedProvider;
+        }
+
+        const [nextProvider] = getAvailableProviders();
+        state.selectedProvider = nextProvider || "chatgpt";
+        return state.selectedProvider;
+    }
+
     function providerLabel(provider) {
         if (provider === "chatgpt") {
             return "ChatGPT";
@@ -1527,13 +1779,30 @@
         return provider;
     }
 
+    function updateProviderButtons() {
+        const selectedProvider = getSelectedProvider();
+        providerButtons.forEach((button) => {
+            const provider = button.dataset.providerButton;
+            const hasKey = getProviderKey(provider).trim().length > 0;
+            const stateLabel = button.querySelector(".provider-chip-state");
+            button.disabled = !hasKey;
+            button.classList.toggle("is-selected", provider === selectedProvider && hasKey);
+            button.classList.toggle("is-unavailable", !hasKey);
+            button.setAttribute("aria-pressed", String(provider === selectedProvider && hasKey));
+            if (stateLabel) {
+                stateLabel.textContent = hasKey ? providerLabel(provider) + " enabled" : "Add key in Settings";
+            }
+        });
+    }
+
     function updateOnlineControls() {
         const hasPrompt = Boolean(state.prompts[state.selectedIndex]);
-        const provider = providerSelect.value;
+        const provider = ensureSelectedProvider();
         const hasApiKey = getProviderKey(provider).trim().length > 0;
         submitPromptButton.disabled = !onlineModelToggle.checked || !hasPrompt || !hasApiKey;
         clearAllResponsesButton.disabled = !hasAnySavedResponses();
         clearResponseButton.disabled = !Boolean(getSavedResponseForCurrentPrompt(provider));
+        updateProviderButtons();
     }
 
     function setModelResponse(message) {
@@ -1566,12 +1835,16 @@
             return "Online model responses will appear here.";
         }
 
-        const provider = providerSelect.value;
+        if (getAvailableProviders().length === 0) {
+            return "Add a provider key in Settings to enable ChatGPT, Claude, or Gemini.";
+        }
+
+        const provider = ensureSelectedProvider();
         return "Ready to send the current prompt to " + providerLabel(provider) + ".";
     }
 
     function syncDisplayedResponse() {
-        const provider = providerSelect.value;
+        const provider = ensureSelectedProvider();
         const savedEntry = getSavedResponseForCurrentPrompt(provider);
         if (savedEntry) {
             setModelResponse(savedEntry.response);
@@ -1612,7 +1885,7 @@
         }
 
         if (provider === "gemini") {
-            return "gemini";
+            return GEMINI_MODEL;
         }
 
         return provider;
@@ -1669,7 +1942,7 @@
 
     function clearCurrentSavedResponse() {
         const current = getCurrentPrompt();
-        const provider = providerSelect.value;
+        const provider = ensureSelectedProvider();
         if (!current) {
             return;
         }
@@ -1684,7 +1957,12 @@
         setStatus("There is no saved " + providerLabel(provider) + " response to clear for this prompt.", "error");
     }
 
-    function handleProviderChange() {
+    function handleProviderChange(provider) {
+        if (provider && getProviderKey(provider).trim()) {
+            state.selectedProvider = provider;
+        } else {
+            ensureSelectedProvider();
+        }
         syncDisplayedResponse();
     }
 
@@ -1724,6 +2002,27 @@
             .filter(Boolean)
             .join("\n\n")
             .trim();
+    }
+
+    function extractGeminiOutputText(responseData) {
+        if (!responseData || !Array.isArray(responseData.candidates)) {
+            return "";
+        }
+
+        const chunks = [];
+        responseData.candidates.forEach((candidate) => {
+            if (!candidate || !candidate.content || !Array.isArray(candidate.content.parts)) {
+                return;
+            }
+
+            candidate.content.parts.forEach((part) => {
+                if (part && typeof part.text === "string" && part.text.trim()) {
+                    chunks.push(part.text.trim());
+                }
+            });
+        });
+
+        return chunks.join("\n\n").trim();
     }
 
     function looksLikePromptText(value, currentPromptText) {
@@ -1811,6 +2110,44 @@
         return outputText;
     }
 
+    async function submitPromptToGemini(prompt, apiKey) {
+        const payload = {
+            contents: [
+                {
+                    role: "user",
+                    parts: [
+                        {
+                            text: prompt.prompt_text
+                        }
+                    ]
+                }
+            ]
+        };
+        const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + GEMINI_MODEL + ":generateContent", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": apiKey
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+            const message = data && data.error && data.error.message
+                ? data.error.message
+                : "The model request failed.";
+            throw new Error(message);
+        }
+
+        const outputText = extractGeminiOutputText(data);
+        if (!outputText) {
+            throw new Error("The model returned no text output.");
+        }
+
+        return outputText;
+    }
+
     function getProviderRequestConfig(provider) {
         if (provider === "chatgpt") {
             return {
@@ -1826,12 +2163,19 @@
             };
         }
 
+        if (provider === "gemini") {
+            return {
+                label: "Gemini",
+                submit: submitPromptToGemini
+            };
+        }
+
         return null;
     }
 
     async function submitPromptToOnlineModel() {
         const current = state.prompts[state.selectedIndex];
-        const provider = providerSelect.value;
+        const provider = ensureSelectedProvider();
         const apiKey = getProviderKey(provider).trim();
         const providerConfig = getProviderRequestConfig(provider);
 
@@ -1848,12 +2192,6 @@
         if (looksLikePromptText(apiKey, current.prompt_text)) {
             setModelResponse("The saved API key appears to contain prompt text instead of an API key.");
             setStatus("The saved " + providerLabel(provider) + " key looks incorrect. It appears to contain prompt text.", "error");
-            return;
-        }
-
-        if (!providerConfig) {
-            setModelResponse(providerLabel(provider) + " wiring is not implemented yet. The key is stored and ready for when that transport is added.");
-            setStatus(providerLabel(provider) + " is selected, but that transport is not implemented yet.", "error");
             return;
         }
 
@@ -1962,14 +2300,25 @@
 
         const lines = markdown.replace(/\r\n/g, "\n").split("\n");
         const html = [];
-        let inList = false;
+        let activeListTag = "";
         let inCodeBlock = false;
         let codeLines = [];
 
         function closeList() {
-            if (inList) {
-                html.push("</ul>");
-                inList = false;
+            if (activeListTag) {
+                html.push("</" + activeListTag + ">");
+                activeListTag = "";
+            }
+        }
+
+        function openList(tagName) {
+            if (activeListTag && activeListTag !== tagName) {
+                closeList();
+            }
+
+            if (!activeListTag) {
+                html.push("<" + tagName + ">");
+                activeListTag = tagName;
             }
         }
 
@@ -2028,11 +2377,14 @@
             }
 
             if (/^-\s+/.test(line)) {
-                if (!inList) {
-                    html.push("<ul>");
-                    inList = true;
-                }
+                openList("ul");
                 html.push("<li>" + renderInlineMarkdown(line.replace(/^-\s+/, "")) + "</li>");
+                return;
+            }
+
+            if (/^\d+\.\s+/.test(line)) {
+                openList("ol");
+                html.push("<li>" + renderInlineMarkdown(line.replace(/^\d+\.\s+/, "")) + "</li>");
                 return;
             }
 
@@ -2111,6 +2463,7 @@
 
         if (toolbarButton.dataset.prefix) {
             prefixSelection(textarea, toolbarButton.dataset.prefix);
+            return;
         }
     }
 
@@ -2203,6 +2556,7 @@
 
     function loadSettingsFromSession() {
         loadPersistedProviderKeys();
+        ensureSelectedProvider();
 
         try {
             const rawDisplaySettings = sessionStorage.getItem(SESSION_DISPLAY_STORAGE);
@@ -2234,6 +2588,7 @@
     }
 
     function syncSettingsInputs() {
+        ensureSelectedProvider();
         openAiKeyInput.value = state.providerKeys.chatgpt;
         claudeKeyInput.value = state.providerKeys.claude;
         geminiKeyInput.value = state.providerKeys.gemini;
@@ -2254,6 +2609,7 @@
         state.providerKeys.chatgpt = openAiKeyInput.value.trim();
         state.providerKeys.claude = claudeKeyInput.value.trim();
         state.providerKeys.gemini = geminiKeyInput.value.trim();
+        ensureSelectedProvider();
         state.displaySettings = normalizeDisplaySettings({
             fontFamily: fontFamilySelect.value
         });
@@ -2262,6 +2618,7 @@
         sessionStorage.setItem(SESSION_DISPLAY_STORAGE, JSON.stringify(state.displaySettings));
         sessionStorage.setItem(SESSION_SPEECH_STORAGE, JSON.stringify(state.speechSettings));
         applyDisplaySettings();
+        syncDisplayedResponse();
         updateOnlineControls();
         if (state.providerKeyPersistence === "session") {
             setStatus("Settings saved. API keys will be remembered for this browser session.", "success");
@@ -2275,9 +2632,11 @@
 
     function clearSettings() {
         state.providerKeys = getEmptyProviderKeys();
+        state.selectedProvider = "chatgpt";
         state.providerKeyPersistence = "memory";
         clearPersistedProviderKeys();
         syncSettingsInputs();
+        syncDisplayedResponse();
         updateOnlineControls();
         setStatus("Saved API keys cleared.", "success");
     }
@@ -2328,12 +2687,83 @@
         speechPitchValue.textContent = Number(speechPitchInput.value).toFixed(2);
     }
 
+    function formatVoiceLanguage(lang) {
+        if (!lang) {
+            return "Default language";
+        }
+
+        const normalized = lang.replace("_", "-");
+        const [languageCode, regionCode] = normalized.split("-");
+        if (typeof Intl !== "undefined" && typeof Intl.DisplayNames === "function") {
+            try {
+                const languageNames = new Intl.DisplayNames(["en"], { type: "language" });
+                const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+                const languageName = languageCode ? languageNames.of(languageCode) : "";
+                const regionName = regionCode ? regionNames.of(regionCode.toUpperCase()) : "";
+                if (languageName && regionName) {
+                    return languageName + " (" + regionName + ")";
+                }
+                if (languageName) {
+                    return languageName;
+                }
+            } catch (error) {
+                // Fall through to the raw locale label.
+            }
+        }
+
+        return normalized;
+    }
+
+    function findPreferredVoice() {
+        if (!state.availableVoices.length) {
+            return null;
+        }
+
+        return state.availableVoices.find((voice) => /(^|\b)flow(\b|$)/i.test(voice.name))
+            || state.availableVoices.find((voice) => voice.default)
+            || state.availableVoices[0];
+    }
+
+    function getConfiguredSpeechVoice() {
+        if (!canSpeak) {
+            return null;
+        }
+
+        return state.availableVoices.find((voice) => voice.voiceURI === state.speechSettings.voiceURI)
+            || findPreferredVoice();
+    }
+
+    function updateVoiceBadges() {
+        const configuredVoice = getConfiguredSpeechVoice();
+        const voiceLabel = configuredVoice
+            ? configuredVoice.name
+            : canSpeak ? "Loading voice..." : "Speech unavailable";
+        const languageLabel = configuredVoice
+            ? formatVoiceLanguage(configuredVoice.lang)
+            : canSpeak ? "Waiting for voices" : "No voice";
+
+        voiceBadges.forEach((badge) => {
+            const label = badge.lastElementChild;
+            if (label) {
+                label.textContent = voiceLabel;
+            }
+        });
+
+        languageBadges.forEach((badge) => {
+            const label = badge.lastElementChild;
+            if (label) {
+                label.textContent = languageLabel;
+            }
+        });
+    }
+
     function syncSpeechControls() {
         state.speechSettings.voiceURI = voiceSelect.value;
         state.speechSettings.volume = normalizeSpeechRange(speechVolumeInput.value, 1, 0, 1);
         state.speechSettings.rate = normalizeSpeechRange(speechRateInput.value, 1, 0.5, 1.5);
         state.speechSettings.pitch = normalizeSpeechRange(speechPitchInput.value, 1, 0.5, 1.5);
         updateSpeechValueLabels();
+        updateVoiceBadges();
     }
 
     function populateVoiceOptions() {
@@ -2345,6 +2775,7 @@
             option.textContent = "Speech unavailable in this browser";
             voiceSelect.appendChild(option);
             voiceSelect.disabled = true;
+            updateVoiceBadges();
             return;
         }
 
@@ -2352,7 +2783,7 @@
 
         const defaultOption = document.createElement("option");
         defaultOption.value = "";
-        defaultOption.textContent = state.availableVoices.length > 0 ? "Browser default voice" : "Loading available voices...";
+        defaultOption.textContent = state.availableVoices.length > 0 ? "Preferred voice (auto)" : "Loading available voices...";
         voiceSelect.appendChild(defaultOption);
 
         state.availableVoices.forEach((voice) => {
@@ -2363,7 +2794,14 @@
         });
 
         const voiceExists = state.availableVoices.some((voice) => voice.voiceURI === state.speechSettings.voiceURI);
-        voiceSelect.value = voiceExists ? state.speechSettings.voiceURI : "";
+        if (voiceExists) {
+            voiceSelect.value = state.speechSettings.voiceURI;
+        } else {
+            const preferredVoice = findPreferredVoice();
+            state.speechSettings.voiceURI = preferredVoice ? preferredVoice.voiceURI : "";
+            voiceSelect.value = state.speechSettings.voiceURI;
+        }
+        updateVoiceBadges();
     }
 
     function loadAvailableVoices() {
@@ -2429,9 +2867,10 @@
         syncSpeechControls();
 
         const utterance = new SpeechSynthesisUtterance(text);
-        const selectedVoice = state.availableVoices.find((voice) => voice.voiceURI === state.speechSettings.voiceURI);
+        const selectedVoice = getConfiguredSpeechVoice();
         if (selectedVoice) {
             utterance.voice = selectedVoice;
+            utterance.lang = selectedVoice.lang;
         }
         utterance.volume = state.speechSettings.volume;
         utterance.rate = state.speechSettings.rate;
