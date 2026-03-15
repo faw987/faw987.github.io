@@ -23,6 +23,7 @@
             --shadow: 0 16px 40px rgba(74, 50, 24, 0.12);
             --code-bg: #f7efe2;
             --app-font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            --app-width-percent: 100%;
         }
 
         * {
@@ -42,7 +43,7 @@
         }
 
         .app {
-            max-width: 980px;
+            width: min(100%, var(--app-width-percent));
             margin: 0 auto;
             background: var(--panel);
             border: 1px solid var(--border);
@@ -485,19 +486,20 @@
 
         .toolbar-row {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
             align-items: center;
         }
 
         .markdown-toolbar button {
-            padding: 8px 12px;
+            padding: 7px 10px;
             border-radius: 999px;
+            font-size: 0.9rem;
         }
 
         .toolbar-group {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
             align-items: center;
         }
@@ -515,9 +517,9 @@
         }
 
         .toolbar-icon {
-            width: 1.15rem;
+            width: 1rem;
             text-align: center;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             line-height: 1;
             color: var(--accent-strong);
         }
@@ -974,6 +976,14 @@
                 <div class="markdown-toolbar" data-editor-toolbar="promptText">
                     <div class="toolbar-row">
                         <div class="toolbar-group">
+                            <button type="button" class="toolbar-button" data-history-action="undo" data-editor-target="promptText" aria-label="Undo last change">
+                                <span class="toolbar-icon" aria-hidden="true">&lt;-</span>
+                                <span>Undo</span>
+                            </button>
+                            <button type="button" class="toolbar-button" data-history-action="redo" data-editor-target="promptText" aria-label="Redo last change">
+                                <span class="toolbar-icon" aria-hidden="true">-&gt;</span>
+                                <span>Redo</span>
+                            </button>
                             <button type="button" class="toolbar-button" data-wrap="**" data-editor-target="promptText" aria-label="Bold">
                                 <span class="toolbar-icon" aria-hidden="true">B</span>
                                 <span>Bold</span>
@@ -1034,6 +1044,14 @@
                 <div class="markdown-toolbar" data-editor-toolbar="commentsText">
                     <div class="toolbar-row">
                         <div class="toolbar-group">
+                            <button type="button" class="toolbar-button" data-history-action="undo" data-editor-target="commentsText" aria-label="Undo last change">
+                                <span class="toolbar-icon" aria-hidden="true">&lt;-</span>
+                                <span>Undo</span>
+                            </button>
+                            <button type="button" class="toolbar-button" data-history-action="redo" data-editor-target="commentsText" aria-label="Redo last change">
+                                <span class="toolbar-icon" aria-hidden="true">-&gt;</span>
+                                <span>Redo</span>
+                            </button>
                             <button type="button" class="toolbar-button" data-wrap="**" data-editor-target="commentsText" aria-label="Bold">
                                 <span class="toolbar-icon" aria-hidden="true">B</span>
                                 <span>Bold</span>
@@ -1182,7 +1200,7 @@
                 <section class="settings-zone">
                     <div class="settings-zone-header">
                         <h3>Presentation</h3>
-                        <p>Choose the font used across the interface. Helvetica is the default.</p>
+                        <p>Choose the font used across the interface and how much browser width the stage should occupy.</p>
                     </div>
                     <div class="field">
                         <label for="fontFamilySelect">Font</label>
@@ -1193,7 +1211,14 @@
                             <option value="courier">Courier New</option>
                         </select>
                     </div>
-                    <p class="field-note">The selected font is applied to the app layout, editors, previews, and model responses.</p>
+                    <div class="range-control">
+                        <div class="range-header">
+                            <label for="pageWidthInput">Page Width</label>
+                            <span id="pageWidthValue" class="range-value">100%</span>
+                        </div>
+                        <input type="range" id="pageWidthInput" min="1" max="100" step="1" value="100">
+                    </div>
+                    <p class="field-note">The selected font is applied to the app layout, editors, previews, and model responses. Page width controls how much of the browser width the app uses.</p>
                 </section>
                 <section class="settings-zone">
                     <div class="settings-zone-header">
@@ -1260,7 +1285,8 @@
         selectedIndex: -1,
         currentFileName: "",
         displaySettings: {
-            fontFamily: "helvetica"
+            fontFamily: "helvetica",
+            pageWidth: 100
         },
         providerKeys: {
             chatgpt: "",
@@ -1299,6 +1325,7 @@
     const closeSettingsButton = document.getElementById("closeSettingsButton");
     const saveSettingsButton = document.getElementById("saveSettingsButton");
     const clearSettingsButton = document.getElementById("clearSettingsButton");
+    const appShell = document.querySelector(".app");
     const speakButtons = Array.from(document.querySelectorAll("[data-speak-target]"));
     const voiceBadges = Array.from(document.querySelectorAll("[data-voice-badge]"));
     const languageBadges = Array.from(document.querySelectorAll("[data-language-badge]"));
@@ -1327,6 +1354,8 @@
     const rememberKeysForTabInput = document.getElementById("rememberKeysForTabInput");
     const rememberKeysForTwoHoursInput = document.getElementById("rememberKeysForTwoHoursInput");
     const fontFamilySelect = document.getElementById("fontFamilySelect");
+    const pageWidthInput = document.getElementById("pageWidthInput");
+    const pageWidthValue = document.getElementById("pageWidthValue");
     const voiceSelect = document.getElementById("voiceSelect");
     const speechVolumeInput = document.getElementById("speechVolumeInput");
     const speechVolumeValue = document.getElementById("speechVolumeValue");
@@ -1335,6 +1364,17 @@
     const speechPitchInput = document.getElementById("speechPitchInput");
     const speechPitchValue = document.getElementById("speechPitchValue");
     const canSpeak = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+    const EDITOR_CONFIG = {
+        promptText: {
+            fieldName: "prompt_text",
+            previewElement: promptPreview
+        },
+        commentsText: {
+            fieldName: "comments",
+            previewElement: commentsPreview
+        }
+    };
+    const editorHistoryState = new Map();
     const SPEECH_TARGETS = {
         prompt: {
             label: "prompt text",
@@ -1410,6 +1450,7 @@
     saveSettingsButton.addEventListener("click", saveSettings);
     clearSettingsButton.addEventListener("click", clearSettings);
     fontSizeSlider.addEventListener("input", applyPromptFontSize);
+    pageWidthInput.addEventListener("input", updatePageWidthLabel);
     speakButtons.forEach((button) => {
         button.addEventListener("click", () => toggleSpeech(button.dataset.speakTarget));
     });
@@ -1422,8 +1463,8 @@
     });
     clearResponseButton.addEventListener("click", clearCurrentSavedResponse);
     responsePreviewToggle.addEventListener("click", toggleResponsePreview);
-    promptText.addEventListener("input", () => handleFieldEdit("prompt_text", promptText.value, promptPreview));
-    commentsText.addEventListener("input", () => handleFieldEdit("comments", commentsText.value, commentsPreview));
+    promptText.addEventListener("input", () => handleFieldEdit("prompt_text", promptText.value, promptPreview, "promptText"));
+    commentsText.addEventListener("input", () => handleFieldEdit("comments", commentsText.value, commentsPreview, "commentsText"));
     speechVolumeInput.addEventListener("input", syncSpeechControls);
     speechRateInput.addEventListener("input", syncSpeechControls);
     speechPitchInput.addEventListener("input", syncSpeechControls);
@@ -1676,6 +1717,8 @@
         const current = state.prompts[state.selectedIndex];
         promptText.value = current ? current.prompt_text : "";
         commentsText.value = current ? current.comments || "" : "";
+        syncEditorHistory("promptText", promptText.value);
+        syncEditorHistory("commentsText", commentsText.value);
         renderMarkdownPreview(promptPreview, promptText.value);
         renderMarkdownPreview(commentsPreview, commentsText.value);
         syncDisplayedResponse();
@@ -2264,12 +2307,117 @@
         setStatus("Exported the current JSON view.", "success");
     }
 
-    function handleFieldEdit(fieldName, value, previewElement) {
+    function getEditorHistoryKey(textareaId) {
+        const current = getCurrentPrompt();
+        if (!current) {
+            return "";
+        }
+
+        return String(current.prompt_id) + "::" + textareaId;
+    }
+
+    function getEditorHistory(textareaId, initialValue = "") {
+        const key = getEditorHistoryKey(textareaId);
+        if (!key) {
+            return null;
+        }
+
+        if (!editorHistoryState.has(key)) {
+            editorHistoryState.set(key, {
+                undoStack: [],
+                redoStack: [],
+                value: initialValue
+            });
+        }
+
+        return editorHistoryState.get(key);
+    }
+
+    function syncEditorHistory(textareaId, value) {
+        const history = getEditorHistory(textareaId, value);
+        if (!history) {
+            updateHistoryButtons(textareaId);
+            return;
+        }
+
+        history.value = value;
+        updateHistoryButtons(textareaId);
+    }
+
+    function captureEditorHistory(textareaId, value) {
+        const history = getEditorHistory(textareaId, value);
+        if (!history || history.value === value) {
+            return;
+        }
+
+        history.undoStack.push(history.value);
+        if (history.undoStack.length > 100) {
+            history.undoStack.shift();
+        }
+        history.redoStack = [];
+        history.value = value;
+        updateHistoryButtons(textareaId);
+    }
+
+    function updateHistoryButtons(textareaId) {
+        const history = getEditorHistory(textareaId);
+        const toolbarButtons = document.querySelectorAll("[data-history-action][data-editor-target=\"" + textareaId + "\"]");
+        toolbarButtons.forEach((button) => {
+            if (!history) {
+                button.disabled = true;
+                return;
+            }
+
+            if (button.dataset.historyAction === "undo") {
+                button.disabled = history.undoStack.length === 0;
+                return;
+            }
+
+            button.disabled = history.redoStack.length === 0;
+        });
+    }
+
+    function applyEditorValue(textarea, nextValue, selectionStart, selectionEnd, options = {}) {
+        const config = EDITOR_CONFIG[textarea.id];
+        if (!config) {
+            return;
+        }
+
+        textarea.value = nextValue;
+        textarea.focus();
+        textarea.setSelectionRange(selectionStart, selectionEnd);
+        handleFieldEdit(config.fieldName, nextValue, config.previewElement, textarea.id, options);
+    }
+
+    function runHistoryAction(textarea, action) {
+        const history = getEditorHistory(textarea.id, textarea.value);
+        if (!history) {
+            return;
+        }
+
+        const sourceStack = action === "undo" ? history.undoStack : history.redoStack;
+        const targetStack = action === "undo" ? history.redoStack : history.undoStack;
+        if (sourceStack.length === 0) {
+            updateHistoryButtons(textarea.id);
+            return;
+        }
+
+        targetStack.push(history.value);
+        const nextValue = sourceStack.pop();
+        history.value = nextValue;
+        applyEditorValue(textarea, nextValue, nextValue.length, nextValue.length, { recordHistory: false });
+        updateHistoryButtons(textarea.id);
+    }
+
+    function handleFieldEdit(fieldName, value, previewElement, textareaId, options = {}) {
         const current = state.prompts[state.selectedIndex];
         if (!current) {
             return;
         }
 
+        if (options.recordHistory !== false && textareaId) {
+            captureEditorHistory(textareaId, value);
+        }
         current[fieldName] = value;
         renderMarkdownPreview(previewElement, value);
         updateOnlineControls();
@@ -2417,12 +2565,9 @@
         const end = textarea.selectionEnd;
         const selected = textarea.value.slice(start, end);
         const nextValue = textarea.value.slice(0, start) + wrapToken + selected + wrapToken + textarea.value.slice(end);
-        textarea.value = nextValue;
-        textarea.focus();
         const cursorStart = start + wrapToken.length;
         const cursorEnd = cursorStart + selected.length;
-        textarea.setSelectionRange(cursorStart, cursorEnd);
-        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+        applyEditorValue(textarea, nextValue, cursorStart, cursorEnd);
     }
 
     function prefixSelection(textarea, prefix) {
@@ -2433,10 +2578,7 @@
         const lines = fallbackText.split("\n");
         const prefixed = lines.map((line) => prefix + line).join("\n");
         const nextValue = textarea.value.slice(0, start) + prefixed + textarea.value.slice(end);
-        textarea.value = nextValue;
-        textarea.focus();
-        textarea.setSelectionRange(start, start + prefixed.length);
-        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+        applyEditorValue(textarea, nextValue, start, start + prefixed.length);
     }
 
     function handleToolbarClick(event) {
@@ -2453,6 +2595,11 @@
 
         const textarea = document.getElementById(toolbarButton.dataset.editorTarget);
         if (!textarea) {
+            return;
+        }
+
+        if (toolbarButton.dataset.historyAction) {
+            runHistoryAction(textarea, toolbarButton.dataset.historyAction);
             return;
         }
 
@@ -2492,14 +2639,22 @@
         const fontFamily = rawSettings && typeof rawSettings.fontFamily === "string"
             ? rawSettings.fontFamily
             : "helvetica";
+        const pageWidthValue = Number(rawSettings && rawSettings.pageWidth);
         return {
-            fontFamily: FONT_FAMILIES[fontFamily] ? fontFamily : "helvetica"
+            fontFamily: FONT_FAMILIES[fontFamily] ? fontFamily : "helvetica",
+            pageWidth: Number.isFinite(pageWidthValue)
+                ? Math.min(100, Math.max(1, Math.round(pageWidthValue)))
+                : 100
         };
     }
 
     function applyDisplaySettings() {
         const selectedFont = FONT_FAMILIES[state.displaySettings.fontFamily] || FONT_FAMILIES.helvetica;
         document.documentElement.style.setProperty("--app-font-family", selectedFont);
+        document.documentElement.style.setProperty("--app-width-percent", state.displaySettings.pageWidth + "%");
+        if (appShell) {
+            appShell.setAttribute("data-page-width", String(state.displaySettings.pageWidth));
+        }
     }
 
     function persistProviderKeys() {
@@ -2564,7 +2719,7 @@
                 state.displaySettings = normalizeDisplaySettings(JSON.parse(rawDisplaySettings));
             }
         } catch (error) {
-            state.displaySettings = { fontFamily: "helvetica" };
+            state.displaySettings = { fontFamily: "helvetica", pageWidth: 100 };
         }
 
         try {
@@ -2597,6 +2752,8 @@
         rememberKeysForTwoHoursInput.disabled = !ALLOW_BROWSER_KEY_STORAGE_FOR_TWO_HOURS;
         rememberKeysForTwoHoursInput.closest("label").hidden = !ALLOW_BROWSER_KEY_STORAGE_FOR_TWO_HOURS;
         fontFamilySelect.value = state.displaySettings.fontFamily;
+        pageWidthInput.value = String(state.displaySettings.pageWidth);
+        updatePageWidthLabel();
         speechVolumeInput.value = String(state.speechSettings.volume);
         speechRateInput.value = String(state.speechSettings.rate);
         speechPitchInput.value = String(state.speechSettings.pitch);
@@ -2611,7 +2768,8 @@
         state.providerKeys.gemini = geminiKeyInput.value.trim();
         ensureSelectedProvider();
         state.displaySettings = normalizeDisplaySettings({
-            fontFamily: fontFamilySelect.value
+            fontFamily: fontFamilySelect.value,
+            pageWidth: pageWidthInput.value
         });
         syncSpeechControls();
         persistProviderKeys();
@@ -2685,6 +2843,10 @@
         speechVolumeValue.textContent = Math.round(Number(speechVolumeInput.value) * 100) + "%";
         speechRateValue.textContent = Number(speechRateInput.value).toFixed(2) + "x";
         speechPitchValue.textContent = Number(speechPitchInput.value).toFixed(2);
+    }
+
+    function updatePageWidthLabel() {
+        pageWidthValue.textContent = Math.round(Number(pageWidthInput.value) || 100) + "%";
     }
 
     function formatVoiceLanguage(lang) {
@@ -2900,6 +3062,8 @@
     applyPromptFontSize();
     updateOnlinePanelVisibility();
     updateSpeakButtons();
+    updateHistoryButtons("promptText");
+    updateHistoryButtons("commentsText");
 </script>
 </body>
 </html>
