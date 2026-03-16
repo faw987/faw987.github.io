@@ -1,0 +1,682 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bump Map Viewer</title>
+    <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+            integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+            crossorigin=""
+    >
+    <style>
+        :root {
+            --bg: #f3efe4;
+            --panel: rgba(255, 250, 240, 0.94);
+            --line: #c6baa3;
+            --ink: #1d2b1f;
+            --muted: #5f685d;
+            --accent: #1e6b52;
+            --shadow: 0 16px 40px rgba(32, 32, 24, 0.16);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Georgia, "Times New Roman", serif;
+            color: var(--ink);
+            background:
+                    radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 28%),
+                    linear-gradient(135deg, #efe7d4, #d5e3d4 55%, #bed0d3);
+        }
+
+        .app {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            padding: 24px;
+            background: rgba(245, 238, 225, 0.88);
+            backdrop-filter: blur(8px);
+            border-right: 1px solid rgba(116, 104, 86, 0.18);
+            overflow-y: auto;
+        }
+
+        .title {
+            margin: 0 0 8px;
+            font-size: 2rem;
+            line-height: 1;
+            letter-spacing: 0.03em;
+        }
+
+        .subtitle {
+            margin: 0 0 24px;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .panel {
+            margin-bottom: 18px;
+            padding: 18px;
+            background: var(--panel);
+            border: 1px solid rgba(107, 94, 78, 0.14);
+            border-radius: 18px;
+            box-shadow: var(--shadow);
+        }
+
+        .dropzone {
+            border: 2px dashed var(--line);
+            border-radius: 18px;
+            padding: 22px;
+            text-align: center;
+            transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+            background: rgba(255, 255, 255, 0.45);
+        }
+
+        .dropzone.dragover {
+            transform: translateY(-2px);
+            border-color: var(--accent);
+            background: rgba(222, 242, 230, 0.9);
+        }
+
+        .button-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        button,
+        .file-button {
+            appearance: none;
+            border: 0;
+            border-radius: 999px;
+            padding: 11px 16px;
+            font: inherit;
+            cursor: pointer;
+            background: var(--accent);
+            color: white;
+            text-decoration: none;
+            transition: transform 160ms ease, opacity 160ms ease;
+        }
+
+        button.secondary {
+            background: #7b6c57;
+        }
+
+        button:hover,
+        .file-button:hover {
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .stat {
+            padding: 12px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.68);
+            border: 1px solid rgba(107, 94, 78, 0.12);
+        }
+
+        .stat-label {
+            display: block;
+            color: var(--muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .stat-value {
+            display: block;
+            margin-top: 6px;
+            font-size: 1.3rem;
+        }
+
+        .legend {
+            display: grid;
+            gap: 10px;
+        }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95rem;
+        }
+
+        .swatch {
+            width: 16px;
+            height: 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 0, 0, 0.16);
+            flex: 0 0 auto;
+        }
+
+        .files-list,
+        .messages {
+            margin: 0;
+            padding-left: 18px;
+            line-height: 1.5;
+        }
+
+        .messages {
+            color: var(--muted);
+        }
+
+        .map-wrap {
+            position: relative;
+            min-height: 100vh;
+            padding: 18px;
+        }
+
+        #map {
+            width: 100%;
+            height: calc(100vh - 36px);
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(107, 94, 78, 0.18);
+        }
+
+        .map-overlay {
+            position: absolute;
+            top: 34px;
+            right: 34px;
+            z-index: 500;
+            max-width: 320px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            background: rgba(255, 250, 240, 0.92);
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(107, 94, 78, 0.14);
+            line-height: 1.45;
+        }
+
+        .map-overlay h2 {
+            margin: 0 0 6px;
+            font-size: 1rem;
+        }
+
+        .map-overlay p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .leaflet-popup-content {
+            font-family: Georgia, "Times New Roman", serif;
+            line-height: 1.45;
+        }
+
+        .pulse-marker {
+            animation: pulse-alert 1s infinite;
+        }
+
+        @keyframes pulse-alert {
+            0% {
+                stroke-opacity: 1;
+                fill-opacity: 0.95;
+            }
+            50% {
+                stroke-opacity: 0.35;
+                fill-opacity: 0.35;
+            }
+            100% {
+                stroke-opacity: 1;
+                fill-opacity: 0.95;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .app {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                border-right: 0;
+                border-bottom: 1px solid rgba(116, 104, 86, 0.18);
+            }
+
+            .map-wrap {
+                min-height: auto;
+            }
+
+            #map {
+                height: 72vh;
+            }
+
+            .map-overlay {
+                position: static;
+                max-width: none;
+                margin-bottom: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <aside class="sidebar">
+        <h1 class="title">Bump Map Viewer</h1>
+        <p class="subtitle">
+            Load one or more files containing latitude, longitude, and intensity values.
+            Each record is plotted in file order and colored by intensity.
+        </p>
+
+        <section class="panel">
+            <div id="dropzone" class="dropzone">
+                <strong>Drop files here</strong>
+                <div style="margin-top: 8px; color: var(--muted);">CSV, TSV, or plain text with 3 fields per row</div>
+                <div class="button-row">
+                    <label class="file-button" for="fileInput">Choose Files</label>
+                    <button id="plotButton" type="button" disabled>Plot Data</button>
+                    <button id="clearButton" class="secondary" type="button">Clear</button>
+                </div>
+            </div>
+            <input id="fileInput" type="file" multiple accept=".txt,.csv,.tsv,.dat,.log">
+        </section>
+
+        <section class="panel">
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat-label">Files</span>
+                    <span id="fileCount" class="stat-value">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Records</span>
+                    <span id="recordCount" class="stat-value">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Plotted</span>
+                    <span id="plottedCount" class="stat-value">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Rejected</span>
+                    <span id="rejectedCount" class="stat-value">0</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2 style="margin-top: 0;">Legend</h2>
+            <div id="legend" class="legend"></div>
+        </section>
+
+        <section class="panel">
+            <h2 style="margin-top: 0;">Loaded Files</h2>
+            <ul id="filesList" class="files-list">
+                <li>No files loaded yet.</li>
+            </ul>
+        </section>
+
+        <section class="panel">
+            <h2 style="margin-top: 0;">Status</h2>
+            <ul id="messages" class="messages">
+                <li>Waiting for files.</li>
+            </ul>
+        </section>
+    </aside>
+
+    <main class="map-wrap">
+        <div class="map-overlay">
+            <h2>How it works</h2>
+            <p>
+                The app reads rows in order, extracts latitude, longitude, and intensity,
+                then adds map markers one by one. Thresholds are defined in the config block in this file.
+            </p>
+        </div>
+        <div id="map" aria-label="Map displaying bump intensity points"></div>
+    </main>
+</div>
+
+<script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""
+></script>
+<script>
+    const CONFIG = {
+        plotDelayMs: 80,
+        markerRadius: 7,
+        thresholds: [
+            { max: 19.999, label: "Low", color: "#2b9348", flash: false },
+            { max: 49.999, label: "Moderate", color: "#ffb703", flash: false },
+            { max: 79.999, label: "High", color: "#d62828", flash: false },
+            { max: Infinity, label: "Critical", color: "#9d0208", flash: true }
+        ]
+    };
+
+    const state = {
+        files: [],
+        records: [],
+        rejected: [],
+        plottedCount: 0,
+        playbackTimer: null,
+        markersLayer: null,
+        bounds: null
+    };
+
+    const fileInput = document.getElementById("fileInput");
+    const dropzone = document.getElementById("dropzone");
+    const plotButton = document.getElementById("plotButton");
+    const clearButton = document.getElementById("clearButton");
+    const fileCount = document.getElementById("fileCount");
+    const recordCount = document.getElementById("recordCount");
+    const plottedCount = document.getElementById("plottedCount");
+    const rejectedCount = document.getElementById("rejectedCount");
+    const filesList = document.getElementById("filesList");
+    const messages = document.getElementById("messages");
+    const legend = document.getElementById("legend");
+
+    const map = L.map("map", {
+        worldCopyJump: true
+    }).setView([20, 0], 2);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+    }).addTo(map);
+
+    state.markersLayer = L.layerGroup().addTo(map);
+
+    renderLegend();
+    bindEvents();
+    updateSidebar();
+
+    function bindEvents() {
+        fileInput.addEventListener("change", async (event) => {
+            await handleFiles(Array.from(event.target.files || []));
+            fileInput.value = "";
+        });
+
+        ["dragenter", "dragover"].forEach((eventName) => {
+            dropzone.addEventListener(eventName, (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                dropzone.classList.add("dragover");
+            });
+        });
+
+        ["dragleave", "drop"].forEach((eventName) => {
+            dropzone.addEventListener(eventName, (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                dropzone.classList.remove("dragover");
+            });
+        });
+
+        dropzone.addEventListener("drop", async (event) => {
+            const files = Array.from(event.dataTransfer?.files || []);
+            await handleFiles(files);
+        });
+
+        plotButton.addEventListener("click", startPlotting);
+        clearButton.addEventListener("click", clearAll);
+    }
+
+    async function handleFiles(files) {
+        if (!files.length) {
+            pushMessage("No files were provided.");
+            return;
+        }
+
+        clearPlayback();
+
+        for (const file of files) {
+            const text = await file.text();
+            state.files.push({
+                name: file.name,
+                size: file.size
+            });
+            parseTextFile(file.name, text);
+        }
+
+        pushMessage(`Loaded ${files.length} file(s). Ready to plot ${state.records.length} record(s).`);
+        updateSidebar();
+    }
+
+    function parseTextFile(fileName, text) {
+        const lines = text.split(/\r?\n/);
+
+        lines.forEach((line, index) => {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith("#")) {
+                return;
+            }
+
+            const fields = splitFields(trimmed);
+            if (fields.length < 3) {
+                rejectRecord(fileName, index + 1, line, "Expected at least 3 fields");
+                return;
+            }
+
+            const latitude = Number(fields[0]);
+            const longitude = Number(fields[1]);
+            const intensity = Number(fields[2]);
+
+            if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+                rejectRecord(fileName, index + 1, line, "Invalid latitude");
+                return;
+            }
+
+            if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+                rejectRecord(fileName, index + 1, line, "Invalid longitude");
+                return;
+            }
+
+            if (!Number.isFinite(intensity)) {
+                rejectRecord(fileName, index + 1, line, "Invalid intensity");
+                return;
+            }
+
+            state.records.push({
+                fileName,
+                lineNumber: index + 1,
+                latitude,
+                longitude,
+                intensity,
+                raw: line
+            });
+        });
+    }
+
+    function splitFields(line) {
+        if (line.includes(",")) {
+            return line.split(",").map((field) => field.trim());
+        }
+
+        if (line.includes("\t")) {
+            return line.split("\t").map((field) => field.trim());
+        }
+
+        return line.split(/\s+/).map((field) => field.trim());
+    }
+
+    function rejectRecord(fileName, lineNumber, raw, reason) {
+        state.rejected.push({ fileName, lineNumber, raw, reason });
+    }
+
+    function startPlotting() {
+        clearMapMarkers();
+        clearPlayback();
+        state.plottedCount = 0;
+        state.bounds = L.latLngBounds([]);
+        updateSidebar();
+
+        if (!state.records.length) {
+            pushMessage("Nothing to plot yet.");
+            return;
+        }
+
+        const records = [...state.records];
+        pushMessage(`Plotting ${records.length} record(s) in source order.`);
+
+        state.playbackTimer = window.setInterval(() => {
+            const record = records.shift();
+            if (!record) {
+                clearPlayback();
+                if (state.bounds.isValid()) {
+                    map.fitBounds(state.bounds.pad(0.2));
+                }
+                pushMessage("Plotting complete.");
+                return;
+            }
+
+            addMarker(record);
+            state.plottedCount += 1;
+            updateSidebar();
+        }, CONFIG.plotDelayMs);
+    }
+
+    function addMarker(record) {
+        const tier = getTier(record.intensity);
+        const marker = L.circleMarker([record.latitude, record.longitude], {
+            radius: CONFIG.markerRadius,
+            color: tier.color,
+            fillColor: tier.color,
+            fillOpacity: 0.9,
+            weight: 2,
+            className: tier.flash ? "pulse-marker" : ""
+        });
+
+        marker.bindPopup(`
+        <strong>${escapeHtml(record.fileName)}</strong><br>
+        Line ${record.lineNumber}<br>
+        Lat: ${record.latitude}<br>
+        Lon: ${record.longitude}<br>
+        Intensity: ${record.intensity}<br>
+        Band: ${escapeHtml(tier.label)}
+      `);
+
+        marker.addTo(state.markersLayer);
+        state.bounds.extend([record.latitude, record.longitude]);
+    }
+
+    function getTier(intensity) {
+        return CONFIG.thresholds.find((threshold) => intensity <= threshold.max) || CONFIG.thresholds[CONFIG.thresholds.length - 1];
+    }
+
+    function clearAll() {
+        clearPlayback();
+        clearMapMarkers();
+        state.files = [];
+        state.records = [];
+        state.rejected = [];
+        state.plottedCount = 0;
+        state.bounds = null;
+        messages.innerHTML = "<li>Waiting for files.</li>";
+        updateSidebar();
+        map.setView([20, 0], 2);
+    }
+
+    function clearMapMarkers() {
+        state.markersLayer.clearLayers();
+    }
+
+    function clearPlayback() {
+        if (state.playbackTimer !== null) {
+            window.clearInterval(state.playbackTimer);
+            state.playbackTimer = null;
+        }
+    }
+
+    function updateSidebar() {
+        fileCount.textContent = String(state.files.length);
+        recordCount.textContent = String(state.records.length);
+        plottedCount.textContent = String(state.plottedCount);
+        rejectedCount.textContent = String(state.rejected.length);
+        plotButton.disabled = state.records.length === 0;
+
+        if (!state.files.length) {
+            filesList.innerHTML = "<li>No files loaded yet.</li>";
+        } else {
+            filesList.innerHTML = state.files
+                .map((file) => `<li>${escapeHtml(file.name)} (${formatBytes(file.size)})</li>`)
+                .join("");
+        }
+    }
+
+    function renderLegend() {
+        legend.innerHTML = CONFIG.thresholds
+            .map((threshold, index) => {
+                const lowerBound = index === 0 ? 0 : CONFIG.thresholds[index - 1].max;
+                const rangeLabel = Number.isFinite(threshold.max)
+                    ? `${formatRangeStart(lowerBound)} to ${stripTrailingZeros(threshold.max)}`
+                    : `>${stripTrailingZeros(lowerBound)}`;
+                const effect = threshold.flash ? "Flashing" : "Solid";
+
+                return `
+            <div class="legend-row">
+              <span class="swatch" style="background:${threshold.color};"></span>
+              <span>${escapeHtml(threshold.label)}: ${rangeLabel} (${effect})</span>
+            </div>
+          `;
+            })
+            .join("");
+    }
+
+    function formatRangeStart(value) {
+        if (value === 0) {
+            return "0";
+        }
+        return stripTrailingZeros(value + 0.001);
+    }
+
+    function stripTrailingZeros(value) {
+        return Number(value).toFixed(3).replace(/\.?0+$/, "");
+    }
+
+    function pushMessage(message) {
+        const item = document.createElement("li");
+        item.textContent = message;
+        messages.prepend(item);
+
+        while (messages.children.length > 8) {
+            messages.removeChild(messages.lastChild);
+        }
+    }
+
+    function formatBytes(bytes) {
+        if (bytes < 1024) {
+            return `${bytes} B`;
+        }
+
+        if (bytes < 1024 * 1024) {
+            return `${(bytes / 1024).toFixed(1)} KB`;
+        }
+
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    function escapeHtml(value) {
+        return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+</script>
+</body>
+</html>
