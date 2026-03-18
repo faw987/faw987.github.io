@@ -1,0 +1,441 @@
+[
+  {
+    "prompt_id": 1,
+    "prompt_text": "What is generative artificial intelligence?"
+  },
+  {
+    "prompt_id": 2,
+    "prompt_text": "What is a prompt for ChatGPT and what does prompt\nengineering entail?"
+  },
+  {
+    "prompt_id": 3,
+    "prompt_text": "What are LLMs and what is their origin?",
+    "saved_responses": [
+      {
+        "provider": "claude",
+        "model": "claude-sonnet-4-0",
+        "response": "## What are LLMs?\n\n**Large Language Models (LLMs)** are AI systems trained on vast amounts of text data to understand and generate human-like language. They use deep learning architectures, particularly transformers, to process and produce text by predicting what words or tokens should come next in a sequence.\n\nKey characteristics:\n- **Scale**: Trained on billions or trillions of parameters\n- **Versatility**: Can perform many language tasks without task-specific training\n- **Emergent abilities**: Display capabilities that weren't explicitly programmed\n\n## Origin and Evolution\n\n### Early Foundations (1950s-2000s)\n- **1950s**: Alan Turing's work on machine intelligence\n- **1980s-90s**: Neural networks and early language models\n- **2000s**: Statistical language models and n-grams\n\n### Key Breakthrough: Transformers (2017)\n- **\"Attention Is All You Need\"** paper by Vaswani et al. introduced the transformer architecture\n- Revolutionized how models process sequential data through self-attention mechanisms\n\n### The LLM Era (2018-present)\n- **2018**: GPT-1 by OpenAI - first major transformer-based language model\n- **2019**: GPT-2 - demonstrated scaling effects\n- **2020**: GPT-3 - showed emergent abilities with 175B parameters\n- **2022**: ChatGPT launch brought LLMs to mainstream attention\n- **2023-present**: Rapid proliferation with models like GPT-4, Claude, Gemini, and many open-source alternatives\n\nThe field has evolved from academic research to practical applications, transforming how we interact with AI and opening new possibilities across industries."
+      }
+    ]
+  },
+  {
+    "prompt_id": 4,
+    "prompt_text": "Could you recommend me 5movies to watch tonight?"
+  },
+  {
+    "prompt_id": 5,
+    "prompt_text": "Could you recommend me 5movies to watch tonight with\nmy girlfriend?"
+  },
+  {
+    "prompt_id": 6,
+    "prompt_text": "I like the suggestions, but could you recommend some\nmore movies with Hugh Grant as the main character and\nwith a happy ending?"
+  },
+  {
+    "prompt_id": 7,
+    "prompt_text": "Can you recommend me a physical training plan for the\ngym this afternoon?"
+  },
+  {
+    "prompt_id": 8,
+    "prompt_text": "Can you recommend me a physical training plan for\nthe gym this afternoon? I only have 45minutes and I’m\ninterested in working muscle groups to reduce back pain."
+  },
+  {
+    "prompt_id": 9,
+    "prompt_text": "Can you recommend me a physical training plan for\nthe gym this afternoon? I only have 45minutes and I’m\ninterested in working muscle groups to reduce back pain.\nI’m a 60-year-old woman, 1.60meters tall, and weight 55\nkilograms."
+  },
+  {
+    "prompt_id": 10,
+    "prompt_text": "Can you recommend me a physical training plan for the\ngym this afternoon? I would like to go around 1hour, 3\ndays a week."
+  },
+  {
+    "prompt_id": 11,
+    "prompt_text": "Consider you are a nutrition assistant. I need to lose 5\nkilos. Can you prepare a diet for one week? I cannot eat\nfish due to alergic reactions. I am 45years old and my\nheight is 180cm and weight is 90kilos"
+  },
+  {
+    "prompt_id": 12,
+    "prompt_text": "What is cancer?"
+  },
+  {
+    "prompt_id": 13,
+    "prompt_text": "What is cancer? Give me a one-paragraph summary."
+  },
+  {
+    "prompt_id": 14,
+    "prompt_text": "Write a 2000 word essay about cancer. I need you to\nstructure the information as follows: first an introduction\nexplaining what cancer is. Then a section on the most\ncommon types of cancer in men and women. Next, explain\nthe most common treatments to fight cancer. Finally, write\na conclusion in a single paragraph."
+  },
+  {
+    "prompt_id": 15,
+    "prompt_text": "Explains how a star is born for a primary school child."
+  },
+  {
+    "prompt_id": 16,
+    "prompt_text": "Explains how a baby is born in poetic style"
+  },
+  {
+    "prompt_id": 17,
+    "prompt_text": "Explain what the end of the world would be like if a\nmeteorite fell to Earth using rap song style."
+  },
+  {
+    "prompt_id": 18,
+    "prompt_text": "Tell me a joke on death with Monty Python’s style"
+  },
+  {
+    "prompt_id": 19,
+    "prompt_text": "Please explain how Christopher Columbus arrived in\nAmerica as if JRR Tolkien had written it."
+  },
+  {
+    "prompt_id": 20,
+    "prompt_text": "Write the first paragraph of the book Don Quixote by\nMiguel de Cervantes. Then, assume the role of JRR Tolkien\nand rewrite the same paragraph in Tolkien’s style."
+  },
+  {
+    "prompt_id": 21,
+    "prompt_text": "According to the Spanish National Institute of Statistics,\nhow many people died due to traffic accidents between\n2015 and2020 ? Structure the information in a table with\ntwo columns, the first column being the year and the\nsecond column the number of fatalities that year.\nGemini answers...\nAccording to the Spanish National Institute of Statistics, between 2015\nand2020 ,31,897people died due to traffic accidents. The information is\npresented in the following table:\nYear - Number of deceased\n2015 -3.329\n2016 -3.372"
+  },
+  {
+    "prompt_id": 22,
+    "prompt_text": "can you translate this text to Spanish from Spain: \"I need to\ncatch the bus\""
+  },
+  {
+    "prompt_id": 23,
+    "prompt_text": "can you translate this text to Spanish from Mexico: \"I need\nto catch the bus\""
+  },
+  {
+    "prompt_id": 24,
+    "prompt_text": "Can you tell me in which language is the following text: \"le\nntombazane iyawathanda amakhekhe\" and translate it into\nItalian?"
+  },
+  {
+    "prompt_id": 25,
+    "prompt_text": "Can you improve the following text in Spanish and correct\nits grammar and style: \"ayer, mi amigo ve un coche\naccidente sobre la carretera. La policía entró una hora\ndespués y ayudó al motorista\"."
+  },
+  {
+    "prompt_id": 26,
+    "prompt_text": "How would you say in classical Latin: \"I drove to work\nyesterday\"?"
+  },
+  {
+    "prompt_id": 27,
+    "prompt_text": "Can you provide me with a swear phrase in English to send\nsomeone to hell?"
+  },
+  {
+    "prompt_id": 28,
+    "prompt_text": "What is friendship?\nGemini answers...\nFriendship is a close relationship between people who share common\ninterests and offer each other trust, support, and affection. It’s more than\njust an acquaintance; it involves a deeper bond built on mutual respect\nand understanding. Here are some key aspects of friendship:\n- Reciprocity: Friends give and take from each other. They offer help and\nsupport when needed and expect the same in return.\n- Trust and emotional intimacy: Friendships involve a level of trust\nwhere you feel comfortable sharing your thoughts and feelings, even\nvulnerabilities, knowing they won’t be judged."
+  },
+  {
+    "prompt_id": 29,
+    "prompt_text": "¿What is friendship? Please answer in 100words."
+  },
+  {
+    "prompt_id": 30,
+    "prompt_text": "Assume the role of Aristotle to explain what friendship is.\nGenerate a 100-word response."
+  },
+  {
+    "prompt_id": 31,
+    "prompt_text": "Assume the role of Frodo from Lord of the Rings to explain\nwhat friendship is. Generate a 100-word response."
+  },
+  {
+    "prompt_id": 32,
+    "prompt_text": "Assume the role of Gandhi to explain what friendship is.\nGenerate a 100-word response."
+  },
+  {
+    "prompt_id": 33,
+    "prompt_text": "Assume the role of a Buddhist to explain what friendship\nis. Generate a 100-word response."
+  },
+  {
+    "prompt_id": 34,
+    "prompt_text": "Assume the role of Sir Isaac Newton in explaining gravity."
+  },
+  {
+    "prompt_id": 35,
+    "prompt_text": "Assume Albert Einstein’s role in explaining gravity."
+  },
+  {
+    "prompt_id": 36,
+    "prompt_text": "The ice cream is very good: Positive\nThis camera is terrible: Negative\nNew York is awesome: Positive\nThis book is a bit bland:"
+  },
+  {
+    "prompt_id": 37,
+    "prompt_text": "Below is a review of a coffee shop. I would like you to tell\nme the 3most likely feelings of the person who wrote the\nreview in order of importance:\nNeighborhood coffee shop, nice atmosphere and good\ncustomer service.\nThey always play romantic music at breakfast time. Nice to\nhear music from two decades ago from time to time.\nThe place is clean.\nWhen I order coffee they don’t look at me like they’re\ndoing me a favor. It’s nice too.\nI always have breakfast there when I can.\nRecommended"
+  },
+  {
+    "prompt_id": 38,
+    "prompt_text": "Below is a review of a coffee shop. If the text contains\na positive review, I would like you to generate a polite\nresponse thanking the customer. If it is negative, I would\nlike you to generate a polite response with an apology:\nNeighborhood coffee shop, nice atmosphere and good\ncustomer service.\nThey always play romantic music at breakfast time. Nice to\nhear music from two decades ago from time to time.\nThe place is clean.\nWhen I order coffee they don’t look at me like they’re\ndoing me a favor. It’s nice too.\nWhenever I can, I have breakfast there.\nRecommended"
+  },
+  {
+    "prompt_id": 39,
+    "prompt_text": "Give me a summary of the movie Quo Vadis and tell me\nif the character of Nero resembles the real Nero of ancient\nRome."
+  },
+  {
+    "prompt_id": 40,
+    "prompt_text": "From 0to10where 0is not at all similar and 10is totally\nsimilar, how much would you say the character of Nero in\nQuo Vadis resembles the real Nero who lived in the Roman\nEmpire?"
+  },
+  {
+    "prompt_id": 41,
+    "prompt_text": "Imagine you are a police officer in charge of solving a\nmurder crime. Order me from highest to lowest which\nfactor is most important in identifying the killer: person\nwith some positive or negative sentimental tie to the victim,\nsomeone who stands to benefit financially from the victim’s\ndeath, someone accidental who happened to be passing by."
+  },
+  {
+    "prompt_id": 42,
+    "prompt_text": "Rank the following causes of death in order from most\ndeadly to least deadly in Spain: death by lightning, death\nby plane crash, death by terrorist act, death by colon cancer,\ndeath by suicide."
+  },
+  {
+    "prompt_id": 43,
+    "prompt_text": "I want to have a barbecue for 50guests and I need\nyour help with the shopping list. First we will grill\nassorted vegetables (onion, zucchini, bell bell pepper and\nmushrooms) for starters. Then we will cook meat (sausages\nand chicken thighs). How much of each item do I need to\nbuy for the 50people?"
+  },
+  {
+    "prompt_id": 44,
+    "prompt_text": "Assume the role of financial planner. How much would it\ncost me to get married in a mid-range restaurant in Madrid\nSpain? Calculate a cost for the banquet assuming 100\nguests, a 15-day honeymoon in New York and a wedding\nattire budget for the bride and groom."
+  },
+  {
+    "prompt_id": 45,
+    "prompt_text": "Car A costs 30,000euros, uses 7liters of gasoline every\n100km and has a durability of 20years. Car B costs 25000\neuros, spends 6liters of gasoline every 100km and has a\ndurability of 17years. Assuming that I drive 10000 km per\nyear and the price of gasoline is 1.5euros per liter, which\ncar is more profitable to buy? First calculate the total cost\nof gasoline for each year, then multiply it by the number of\nyears, and finally add the purchase price. Finally divide the\ntotal by its duration. Let’s think step by step."
+  },
+  {
+    "prompt_id": 46,
+    "prompt_text": "I need you to calculate the number of kilometers to travel\nwith a car to have a traffic accident. Let’s think step by\nstep. First you have to find the number of traffic accidents\nin Spain in 2022 and we call that number X. Then, you have\nto find the number of vehicles (trucks, cars and motorcycles\nincluded) registered in Spain in 2022 , and we call that\nnumber Y. Then, you have to find the average number\nof kilometers traveled by a vehicle and we call it Z. With\nthe parameters X, Y, Z we will calculate the number of\nkilometers per accident as Y*Z/X. Let’s think step by step."
+  },
+  {
+    "prompt_id": 47,
+    "prompt_text": "An apartment of 100meters and 4rooms costs 200000\nand another of 150meters and 3rooms costs 240000 and\nanother of 80meters and 2rooms costs 95000 euros. How\nmuch would an apartment of 100meters and 2rooms cost?\nLet’s think step by step."
+  },
+  {
+    "prompt_id": 48,
+    "prompt_text": "Assume the role of mathematical and statistical expert. I\nhave two samples of patients, one of smokers and one of\nnon-smokers. For the sample of smokers, the ages at death\nare: ( 89,76,56,65,90,45). For the non-smokers, the ages\nat death are: ( 99,67,88,84). Can you tell me if smoking\nhas an impact on life expectancy according to this sample?\nSolve the problem step by step and tell me on average how\nmuch longer a smoker lives than a non-smoker according\nto these samples."
+  },
+  {
+    "prompt_id": 49,
+    "prompt_text": "Pursuant to this clause\nThe joint and several bond agreed in the present contract,\nand which contains the express waiver of the surety/s\nto the benefits of division, exclusion and order, implies\nfor express waiver of the guarantor/s to the benefits of\ndivision, excusion and order, implies for the same/s that\nit/they are liable before the BANK for all the economic\nconsequences of the economic consequences of the contract\n(debt for all the concepts; for principal, ordinary and/or\ndelay interest ordinary and/or of delay, commissions,\nexpenses, etc.) in the same terms as the borrower, so that\nhe/she/they are liable to the BANK for all the borrower, so\nthat, in the event of non-payment by the borrower and/or\ntermination and early maturity of the loan, the borrower\nshall of the loan, the guarantor(s) is/are responsible for\nthe totality of the borrower’s debt of the borrower, without\nthe BANK having to proceed judicially before against the\nborrower, nor the borrower having the borrower or that the\nborrower has become insolvent due to insufficient assets.\nIf I act as guarantor, what risks do I assume?"
+  },
+  {
+    "prompt_id": 50,
+    "prompt_text": "Can you draw up a contract for the rental of a parking\nspace with a deposit of one month, a deposit of 30euros\nfor the loan of the remote control and with a clause for the\nprice to be updated with the Inflation?"
+  },
+  {
+    "prompt_id": 51,
+    "prompt_text": "In my community of neighbors, some neighbors do not\nrespect the regulations and take their dogs out into the\nstreet and common areas without being leashed. Can\nyou write a letter of complaint highlighting that the\nregulations are not being complied with and that this\nbehavior generates risks for the rest of the neighbors? The\nletter should be polite but at the same time firm."
+  },
+  {
+    "prompt_id": 52,
+    "prompt_text": "Can you propose 10math problems for children 6year old?"
+  },
+  {
+    "prompt_id": 53,
+    "prompt_text": "Can you generate a quiz with four multiple-choice\nquestions on fundamental aspects of the American\nConstitution?"
+  },
+  {
+    "prompt_id": 54,
+    "prompt_text": "Can you summarise the first amendment of the US\nConstitution in 300words?"
+  },
+  {
+    "prompt_id": 55,
+    "prompt_text": "Can you write a fun birthday party invitation?"
+  },
+  {
+    "prompt_id": 56,
+    "prompt_text": "Can you write an e-mail excusing my presence at a meeting\ndue to an unforeseen event?"
+  },
+  {
+    "prompt_id": 57,
+    "prompt_text": "Can you generate a letter of recommendation of an\nemployee that works with me: he is very hard worker and\nclever, he can learn almost anything (he likes self-studying).\nHis background is mathematics and computer science. He\nalso works well in teams and has good communication\nskills, and knows a bit of French"
+  },
+  {
+    "prompt_id": 58,
+    "prompt_text": "Please write an analysis of the following table of data:\n2020 2021 2021 2022 2023\nNumber of students 24 19 25 30 30\nMales 14 11 14 16 16\nFemales 10 9 11 14\nAverage grade 5.5 5.7 5.9 5.9 6.1"
+  },
+  {
+    "prompt_id": 59,
+    "prompt_text": "Can you give me the formula in excel that if A 1is greater\nthan A 2add A 1, A2and A 3divide by three and otherwise\nreturn the sum of twice A 2and A 3divided by three?"
+  },
+  {
+    "prompt_id": 60,
+    "prompt_text": "Can you explain in a nutshell what this Excel formula does:\nIF(A1>A2; (A1+A2+A3)/3; (2*A2+A3)/3)?"
+  },
+  {
+    "prompt_id": 61,
+    "prompt_text": "For an average family with two small children, what\napproximate annual savings can we make by buying milk\n20euro cents cheaper?"
+  },
+  {
+    "prompt_id": 62,
+    "prompt_text": "Assume the role of real estate analyst and home renovation\nexpert. How much would it cost to renovate an entire\nkitchen? Prepare a budget that includes changing\nplumbing and pipes, new floor and wall and kitchen\nfurniture. The kitchen is 15square meters in size."
+  },
+  {
+    "prompt_id": 63,
+    "prompt_text": "Can you prepare a job description for a human resources\nmanager of a company in the industrial sector that has a\nnational presence and plans for international development?"
+  },
+  {
+    "prompt_id": 64,
+    "prompt_text": "In the attached image, do you think the teeth are well cared\nfor and healthy?"
+  },
+  {
+    "prompt_id": 65,
+    "prompt_text": "Attached is an x-ray of a person’s lungs. Assume the role\nof a medical specialist. What can you tell me about this\nperson’s lungs?\nFigure 6.2: X-ray of a person’s lungs"
+  },
+  {
+    "prompt_id": 66,
+    "prompt_text": "Would you say the image corresponds to a smoker yes or\nno?"
+  },
+  {
+    "prompt_id": 67,
+    "prompt_text": "Can you explain these blood test results?\nFigure 6.3: A Blood test"
+  },
+  {
+    "prompt_id": 68,
+    "prompt_text": "According to this document, is it a healthy food or not?\nFigure 6.4: Nutritional value of a baby food"
+  },
+  {
+    "prompt_id": 69,
+    "prompt_text": "Can you translate this Latin inscription for me?\nFigure 6.5: Latin inscription"
+  },
+  {
+    "prompt_id": 70,
+    "prompt_text": "On the following invoice, can you give me a table with the\nfollowing information: company, total cost, invoice number\nand date?"
+  },
+  {
+    "prompt_id": 71,
+    "prompt_text": "What information does this image provide?\nFigure 6.7: USA population 2022"
+  },
+  {
+    "prompt_id": 72,
+    "prompt_text": "Can you make a graph of what the population pyramid\nwould look like in 20years?"
+  },
+  {
+    "prompt_id": 73,
+    "prompt_text": "Yes please"
+  },
+  {
+    "prompt_id": 74,
+    "prompt_text": "Can you explain to me what the average annual growth\nrate is in this image?"
+  },
+  {
+    "prompt_id": 75,
+    "prompt_text": "Yes, in 1918 the value is 8and in 1993 the value is 1024 ."
+  },
+  {
+    "prompt_id": 76,
+    "prompt_text": "Analyzing the trend in this graph, what would CO 2\nemissions be like in the year 2030 ?"
+  },
+  {
+    "prompt_id": 77,
+    "prompt_text": "Yes, please make a visual estimate."
+  },
+  {
+    "prompt_id": 78,
+    "prompt_text": "The image in the figure shows a damaged car. I need you\nto draw up a damage report as if you were an expert and\ngive me an estimate of how much it would cost to repair\neach damaged element."
+  },
+  {
+    "prompt_id": 79,
+    "prompt_text": "Can you provide an approximate estimate for the repair of\neach of the damages?"
+  },
+  {
+    "prompt_id": 80,
+    "prompt_text": "Take on the role of an expert blogger in technology and\ncell phones. Can you make a comparison of these four cell\nphones? At the end, draw up an order with the best value\nfor money.\nFigure 6.13: Comparing mobile phones"
+  },
+  {
+    "prompt_id": 81,
+    "prompt_text": "In the following essay by a sixth grader, I need you to\nevaluate with a score from 0to10the following aspects:\nclarity, lexical richness, spelling mistakes. Suppose you are\na very demanding language and literature teacher.\nFigure 6.14: Writing a sixth grader"
+  },
+  {
+    "prompt_id": 82,
+    "prompt_text": "Explain to me if my son has solved these exercises well."
+  },
+  {
+    "prompt_id": 83,
+    "prompt_text": "Can you identify Spanish words in this alphabet soup?"
+  },
+  {
+    "prompt_id": 84,
+    "prompt_text": "Can you find the word VAGO?"
+  },
+  {
+    "prompt_id": 85,
+    "prompt_text": "Can you explain to me what happened in this chess game\nand who is the winner?\nFigure 6.17: Chess"
+  },
+  {
+    "prompt_id": 86,
+    "prompt_text": "Can you explain to me what is going on in this photo and\nwhat is the joke if there is one?\nFigure 6.18: A joke"
+  },
+  {
+    "prompt_id": 87,
+    "prompt_text": "What season of the year would you say is in this image?\nFigure 6.19: Snowy landscape"
+  },
+  {
+    "prompt_id": 88,
+    "prompt_text": "In this image, can you tell me what feelings the person is\nshowing in each case?\nFigure 6.20: Sentiment analysis and facial recognition"
+  },
+  {
+    "prompt_id": 89,
+    "prompt_text": "Is there a dead person in this image? Do you think he\ncommitted suicide or was it a murder? Justify your answer\nFigure 6.21: Murder or suicide?"
+  },
+  {
+    "prompt_id": 90,
+    "prompt_text": "If you had to give a value from 0to10where 0is certain\nsuicide and 10is certain murder, what value would you\ngive?"
+  },
+  {
+    "prompt_id": 91,
+    "prompt_text": "A dog tending in a bakery, disney style, detailed, realistic,\nanimation\nPrompt 92\nA dog attending in a bakery, illustration drawn by a child,\ncrayons.\nPrompt 93\nA dog attending to a bakery, cubist painting, drawn by\nPicasso.\nPrompt 94\nA dog attending a bakery, drawing made with a single line,\nsimple, minimalist, few details."
+  },
+  {
+    "prompt_id": 92,
+    "prompt_text": "A dog serving in a bakery, anime style\nPrompt 97\nA dog whose head is made of bread and pastels, surrealist\npainting.\nPrompt 98\nA golden retriever dog, standing at the table of a bakery\ndelivering freshly baked bread to customers, realistic,\ndetailed photo.\nWith this simple example of the dog in the bakery, we have\nseen how we can generate different types of images by choosing"
+  },
+  {
+    "prompt_id": 93,
+    "prompt_text": "Can you change the shades of pink to blue in this room?"
+  },
+  {
+    "prompt_id": 94,
+    "prompt_text": "I need you to create a logo with a yellow tiger and a red\ndragon for a martial arts club."
+  },
+  {
+    "prompt_id": 95,
+    "prompt_text": "I need a banner for a coffee shop called Cafetería Asturias.\nThe banner should have bright and flashy colors, with an\nimage that evokes Asturias, for example an orreo, and with\na typical medieval font style."
+  },
+  {
+    "prompt_id": 96,
+    "prompt_text": "I need an image for a poster related to mythological horror\nbeings. It should include a hydra, a dragon, a werewolf, a\ngorgon, a vampire and Jack the Ripper."
+  },
+  {
+    "prompt_id": 97,
+    "prompt_text": "I need a cybersecurity and hacker related wallpaper with\nmatrix style."
+  },
+  {
+    "prompt_id": 98,
+    "prompt_text": "I need help with a presentation. I will share the details\nbelow and I want your advice on how to make it better.\nAlso, can you think of questions people might ask during\nthe presentation?"
+  },
+  {
+    "prompt_id": 99,
+    "prompt_text": "I am now going to record my grandmother explaining a\nrecipe to me. Please organize the recipe in a readable way\nand add tips or recommendations to it."
+  },
+  {
+    "prompt_id": 100,
+    "prompt_text": "I’d like to practice my conversation skills by simulating an\neveryday conversation with you. In this scenario, you will\nplay the role of a coffee shop employee, interacting with\ncustomers and dealing with typical coffee shop situations.\nI will be a customer. Please guide me in using vocabulary\nrelated to customer service and coffee preparation. Start the\nconversation by welcoming me and asking what I would\nlike to order."
+  },
+  {
+    "prompt_id": 101,
+    "prompt_text": "Let’s simulate a negotiation situation in which I want to\npractice my skills. You will assume the role of a landlord\nwho insists on a rent of 2000 €without allowing any works\nin the space. I will act as a potential tenant interested in\ndiscussing the possibility of reducing the cost of the rent\nand carrying out minimal works to adapt the premises\nto my needs. Your objective is to maintain a firm stance,\ndefend your initial conditions and present solid arguments\nagainst my proposed modifications."
+  },
+  {
+    "prompt_id": 102,
+    "prompt_text": "Who was Napoleon?"
+  },
+  {
+    "prompt_id": 103,
+    "prompt_text": "-Who was Napoleon?"
+  },
+  {
+    "prompt_id": 104,
+    "prompt_text": "Tell me the result of the following operation: 552x788"
+  },
+  {
+    "prompt_id": 105,
+    "prompt_text": "Tell me the result of the following operation: 552x788"
+  },
+  {
+    "prompt_id": 106,
+    "prompt_text": "Solve the following equation:\n6x+y= 25\n2x3y=25"
+  },
+  {
+    "prompt_id": 107,
+    "prompt_text": "Tell me the result of the following operation: 552x788. If\nyou do not know the answer, please tell me that you cannot\nfind the answer."
+  },
+  {
+    "prompt_id": 108,
+    "prompt_text": "How would you end the last paragraph of a ChatGPT book\nfor beginners?"
+  }
+]
