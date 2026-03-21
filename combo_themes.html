@@ -1,0 +1,3306 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Prompt Demo Combo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ══════════════════════════════════════════
+       THEME SYSTEM — three themes via data-theme
+       Default (no attribute) = light
+       data-theme="slate"     = intermediate
+       data-theme="dark"      = dark
+    ══════════════════════════════════════════ */
+
+    /* Shared structural tokens */
+    :root {
+      --app-font-family: "DM Sans", system-ui, sans-serif;
+      --mono-font: "DM Mono", "SFMono-Regular", monospace;
+      --app-width-percent: 100%;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+      --radius-2xl: 24px;
+    }
+
+    /* ── LIGHT theme (default) ── */
+    :root,
+    [data-theme="light"] {
+      --bg: #f5f6f8;
+      --surface-0: #ffffff;
+      --surface-1: #f8f9fb;
+      --surface-2: #eef0f4;
+      --surface-3: #e4e7ed;
+
+      --panel: rgba(255, 255, 255, 0.97);
+      --panel-strong: #ffffff;
+      --panel-soft: #f0f2f6;
+
+      --text: #111318;
+      --text-dim: #4b5263;
+      --muted: #8b92a3;
+
+      --accent: #5548d9;
+      --accent-strong: #4138c0;
+      --accent-soft: rgba(85, 72, 217, 0.1);
+      --accent-glow: rgba(85, 72, 217, 0.2);
+
+      --border: rgba(0, 0, 0, 0.08);
+      --border-strong: rgba(0, 0, 0, 0.14);
+      --line: rgba(0, 0, 0, 0.06);
+
+      --drop: rgba(85, 72, 217, 0.04);
+      --success: #166534;
+      --error: #991b1b;
+
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.07);
+      --shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.06);
+
+      --assistant: #eef0f5;
+      --user: #1a1740;
+      --user-text: #eeeeff;
+
+      --body-bg: #eaecf2;
+      --hero-top-line: rgba(85, 72, 217, 0.3);
+    }
+
+    /* ── SLATE theme (intermediate) ── */
+    [data-theme="slate"] {
+      --bg: #1e2330;
+      --surface-0: #252b3b;
+      --surface-1: #2c3347;
+      --surface-2: #333b54;
+      --surface-3: #3b4460;
+
+      --panel: rgba(44, 51, 71, 0.97);
+      --panel-strong: #2c3347;
+      --panel-soft: #303850;
+
+      --text: #d8dce8;
+      --text-dim: #8b93ac;
+      --muted: #5d6680;
+
+      --accent: #7c6af5;
+      --accent-strong: #6354e8;
+      --accent-soft: rgba(124, 106, 245, 0.12);
+      --accent-glow: rgba(124, 106, 245, 0.25);
+
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.14);
+      --line: rgba(255, 255, 255, 0.05);
+
+      --drop: rgba(124, 110, 255, 0.07);
+      --success: #34d399;
+      --error: #f87171;
+
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --shadow: 0 6px 24px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.2);
+      --shadow-lg: 0 20px 56px rgba(0, 0, 0, 0.45), 0 4px 14px rgba(0, 0, 0, 0.3);
+
+      --assistant: #323a52;
+      --user: #282255;
+      --user-text: #dddeff;
+
+      --body-bg: #181e2c;
+      --hero-top-line: rgba(124, 110, 255, 0.35);
+    }
+
+    /* ── DARK theme ── */
+    [data-theme="dark"] {
+      --bg: #0e0f11;
+      --surface-0: #13151a;
+      --surface-1: #1a1d24;
+      --surface-2: #21252f;
+      --surface-3: #272c38;
+
+      --panel: rgba(26, 29, 36, 0.96);
+      --panel-strong: #1a1d24;
+      --panel-soft: #1e2229;
+
+      --text: #e8eaf0;
+      --text-dim: #9da3b4;
+      --muted: #6b7280;
+
+      --accent: #7c6af5;
+      --accent-strong: #6354e8;
+      --accent-soft: rgba(124, 106, 245, 0.12);
+      --accent-glow: rgba(124, 106, 245, 0.25);
+
+      --border: rgba(255, 255, 255, 0.07);
+      --border-strong: rgba(255, 255, 255, 0.12);
+      --line: rgba(255, 255, 255, 0.05);
+
+      --drop: rgba(124, 106, 245, 0.06);
+      --success: #34d399;
+      --error: #f87171;
+
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.6), 0 4px 16px rgba(0, 0, 0, 0.4);
+
+      --assistant: #21252f;
+      --user: #2e2b52;
+      --user-text: #e8eaf0;
+
+      --body-bg: #0e0f11;
+      --hero-top-line: rgba(124, 106, 245, 0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: var(--app-font-family);
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    body {
+      padding: 20px;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% -10%, var(--accent-soft) 0%, transparent 60%),
+        var(--body-bg, var(--bg));
+      transition: background 300ms ease, color 300ms ease;
+    }
+
+    button,
+    select,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    button,
+    select,
+    input[type="text"],
+    input[type="password"],
+    textarea {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface-1);
+      color: var(--text);
+    }
+
+    button {
+      cursor: pointer;
+      transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--surface-2);
+      border-color: var(--border-strong);
+    }
+
+    button:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    button:disabled,
+    select:disabled,
+    input:disabled,
+    textarea:disabled {
+      cursor: not-allowed;
+      opacity: 0.35;
+    }
+
+    textarea,
+    input[type="text"],
+    input[type="password"],
+    select {
+      width: 100%;
+      padding: 10px 13px;
+      outline: none;
+      transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+      background: var(--surface-1);
+      color: var(--text);
+    }
+
+    textarea::placeholder,
+    input::placeholder {
+      color: var(--muted);
+    }
+
+    select option {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    textarea:focus,
+    input:focus,
+    select:focus {
+      border-color: rgba(124, 106, 245, 0.5);
+      box-shadow: 0 0 0 3px rgba(124, 106, 245, 0.12);
+      background: var(--surface-2);
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    /* ── Accent primary button ── */
+    .accent {
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      border-color: transparent;
+      color: #fff;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 0 0 0 var(--accent-glow);
+      transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .accent:hover:not(:disabled) {
+      background: linear-gradient(135deg, #8b7bf7, var(--accent));
+      box-shadow: 0 4px 16px rgba(124, 106, 245, 0.4), 0 1px 2px rgba(0,0,0,0.3);
+      transform: translateY(-1px);
+    }
+
+    .accent:active:not(:disabled) {
+      transform: scale(0.98) translateY(0);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+
+    .ghost-button {
+      background: var(--surface-2);
+      border-color: var(--border-strong);
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    .ghost-button:hover:not(:disabled) {
+      color: var(--text);
+      background: var(--surface-3);
+    }
+
+    /* ── App shell ── */
+    .app {
+      width: min(100%, var(--app-width-percent));
+      margin: 0 auto;
+      background: var(--surface-0);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      position: relative;
+      transition: background 300ms ease, border-color 300ms ease, box-shadow 300ms ease;
+    }
+
+    /* ── Hero header ── */
+    .hero {
+      padding: 22px 28px 20px;
+      background: linear-gradient(180deg, var(--surface-1) 0%, var(--surface-0) 100%);
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--hero-top-line, rgba(99,85,232,0.3)), transparent);
+    }
+
+    .hero-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .hero h1 {
+      margin: 0 0 6px;
+      font-size: clamp(1.5rem, 3vw, 2.1rem);
+      letter-spacing: -0.04em;
+      line-height: 1;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .subtitle {
+      margin: 0;
+      max-width: 58rem;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.9rem;
+      font-weight: 400;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .menu-button {
+      min-width: 2.5rem;
+      padding: 8px 12px;
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    /* ── Workspace layout ── */
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(340px, 1.05fr) minmax(360px, 1fr);
+      gap: 0;
+      min-height: 76vh;
+    }
+
+    .pane {
+      padding: 20px 24px 24px;
+    }
+
+    .pane + .pane {
+      border-left: 1px solid var(--border);
+    }
+
+    /* ── Stack + Panel ── */
+    .stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .panel {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: 14px;
+      transition: border-color 150ms ease;
+    }
+
+    .panel:focus-within {
+      border-color: var(--border-strong);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .panel-title,
+    label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field-note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    /* ── Drop zone ── */
+    .dropzone {
+      position: relative;
+      border: 1.5px dashed var(--border-strong);
+      border-radius: var(--radius-lg);
+      background: var(--drop);
+      padding: 24px 20px;
+      text-align: center;
+      transition: all 150ms ease;
+      cursor: pointer;
+    }
+
+    .dropzone:hover {
+      border-color: rgba(124, 106, 245, 0.4);
+      background: rgba(124, 106, 245, 0.05);
+    }
+
+    .dropzone.dragging {
+      border-color: var(--accent);
+      background: rgba(124, 106, 245, 0.1);
+      box-shadow: 0 0 0 4px rgba(124, 106, 245, 0.12);
+    }
+
+    .dropzone strong {
+      display: block;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .dropzone p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .dropzone input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    /* ── Import grid ── */
+    .import-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .import-panel {
+      min-height: 100%;
+    }
+
+    .preset-panel {
+      display: grid;
+      gap: 10px;
+      min-height: 100%;
+      padding: 14px;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+    }
+
+    .preset-panel h3 {
+      margin: 0;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .preset-panel p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .preset-list {
+      display: grid;
+      gap: 6px;
+      max-height: 12.75rem;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .preset-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .preset-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .preset-list::-webkit-scrollbar-thumb {
+      background: var(--border-strong);
+      border-radius: 4px;
+    }
+
+    .preset-item {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      text-align: left;
+      background: var(--surface-2);
+      border: 1px solid transparent;
+      transition: all 150ms ease;
+      color: var(--text);
+    }
+
+    .preset-item:hover:not(:disabled) {
+      background: var(--surface-3);
+      border-color: var(--border-strong);
+    }
+
+    .preset-item.is-active {
+      background: var(--accent-soft);
+      border-color: rgba(124, 106, 245, 0.3);
+    }
+
+    .preset-item-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 3px;
+    }
+
+    .preset-name {
+      font-weight: 600;
+      font-size: 0.88rem;
+    }
+
+    .preset-fetch-status {
+      flex-shrink: 0;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .preset-fetch-status.success {
+      color: var(--success);
+    }
+
+    .preset-fetch-status.error {
+      color: var(--error);
+    }
+
+    .preset-source {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+      word-break: break-word;
+    }
+
+    /* ── Row utilities ── */
+    .button-row,
+    .picker-row,
+    .meta,
+    .chat-toolbar,
+    .composer-actions,
+    .settings-actions,
+    .inline-actions,
+    .toolbar-row,
+    .toolbar-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .picker-row select {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 0.82rem;
+      gap: 12px;
+    }
+
+    /* ── Prompt textarea ── */
+    #promptText {
+      min-height: 18rem;
+    }
+
+    #commentsText {
+      min-height: 9rem;
+    }
+
+    /* ── Markdown editor + toolbar ── */
+    .markdown-editor {
+      display: grid;
+      gap: 10px;
+    }
+
+    .markdown-toolbar {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface-0);
+    }
+
+    .toolbar-row {
+      justify-content: space-between;
+    }
+
+    .toolbar-group {
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-spacer {
+      flex: 1;
+    }
+
+    .toolbar-button,
+    .visualize-button {
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+      border-color: transparent;
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      transition: all 150ms ease;
+    }
+
+    .toolbar-button:hover:not(:disabled),
+    .visualize-button:hover:not(:disabled) {
+      background: var(--surface-3);
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+
+    .toolbar-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .toolbar-icon {
+      min-width: 1.1rem;
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    /* ── Status bar ── */
+    .status {
+      min-height: 1.4em;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 500;
+    }
+
+    .status.success {
+      color: var(--success);
+    }
+
+    .status.error {
+      color: var(--error);
+    }
+
+    /* ── Chat shell ── */
+    .chat-shell {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .chat-topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px;
+      border-radius: var(--radius-xl);
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+    }
+
+    .chat-title h2 {
+      margin: 0 0 5px;
+      font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+      letter-spacing: -0.03em;
+      font-weight: 700;
+    }
+
+    .chat-title p,
+    .chat-status {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.82rem;
+    }
+
+    .chat-status {
+      text-align: right;
+      max-width: 18rem;
+      font-size: 0.78rem;
+    }
+
+    .provider-picker {
+      min-width: 11rem;
+      padding: 8px 12px;
+      border-radius: var(--radius-md);
+    }
+
+    /* ── Messages ── */
+    .messages {
+      min-height: 0;
+      overflow: auto;
+      border-radius: var(--radius-xl);
+      padding: 16px 14px 20px;
+      background: var(--surface-0);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scroll-behavior: smooth;
+    }
+
+    .messages::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .messages::-webkit-scrollbar-thumb {
+      background: var(--border-strong);
+      border-radius: 4px;
+    }
+
+    /* ── Chat hero state ── */
+    .chat-hero {
+      padding: 20px;
+      border-radius: var(--radius-lg);
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+    }
+
+    .chat-hero h3 {
+      margin: 0 0 8px;
+      font-size: clamp(1.2rem, 3vw, 1.7rem);
+      line-height: 1;
+      letter-spacing: -0.04em;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--text) 40%, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .chat-hero p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.875rem;
+    }
+
+    /* ── Chat bubbles ── */
+    .message {
+      display: flex;
+      animation: rise 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .message.user {
+      justify-content: flex-end;
+    }
+
+    .bubble {
+      max-width: min(40rem, 92%);
+      padding: 12px 16px;
+      border-radius: var(--radius-xl);
+      line-height: 1.65;
+      word-break: break-word;
+      font-size: 0.9rem;
+    }
+
+    .bubble-content > :first-child,
+    .preview-body > :first-child {
+      margin-top: 0;
+    }
+
+    .bubble-content > :last-child,
+    .preview-body > :last-child {
+      margin-bottom: 0;
+    }
+
+    .bubble-content p,
+    .bubble-content ul,
+    .bubble-content ol,
+    .bubble-content blockquote,
+    .bubble-content pre,
+    .preview-body p,
+    .preview-body ul,
+    .preview-body ol,
+    .preview-body blockquote,
+    .preview-body pre {
+      margin: 0 0 0.85rem;
+    }
+
+    .bubble-content h1,
+    .bubble-content h2,
+    .bubble-content h3,
+    .preview-body h1,
+    .preview-body h2,
+    .preview-body h3 {
+      margin: 0 0 0.65rem;
+      line-height: 1.1;
+    }
+
+    .bubble-content code,
+    .preview-body code {
+      padding: 0.1rem 0.32rem;
+      border-radius: var(--radius-sm);
+      background: rgba(124, 106, 245, 0.15);
+      font-family: var(--mono-font);
+      font-size: 0.88em;
+      color: #a99ef7;
+    }
+
+    .bubble-content pre,
+    .preview-body pre {
+      padding: 0.85rem 1rem;
+      border-radius: var(--radius-md);
+      background: var(--surface-0);
+      border: 1px solid var(--border);
+      overflow: auto;
+    }
+
+    .bubble-content pre code,
+    .preview-body pre code {
+      padding: 0;
+      background: transparent;
+      color: var(--text-dim);
+    }
+
+    .bubble-content blockquote,
+    .preview-body blockquote {
+      padding-left: 0.9rem;
+      border-left: 2px solid var(--accent);
+      color: var(--text-dim);
+      font-style: italic;
+    }
+
+    .assistant .bubble {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-top-left-radius: 6px;
+      color: var(--text);
+    }
+
+    .user .bubble {
+      background: var(--user);
+      color: var(--user-text);
+      border-top-right-radius: 6px;
+      border: 1px solid rgba(124, 106, 245, 0.2);
+    }
+
+    .message-meta {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+
+    /* ── Typing indicator ── */
+    .typing {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .typing-dots {
+      display: inline-flex;
+      gap: 4px;
+    }
+
+    .typing-dots span {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+      opacity: 0.5;
+      animation: pulse 1.4s infinite ease-in-out;
+    }
+
+    .typing-dots span:nth-child(2) {
+      animation-delay: 0.18s;
+    }
+
+    .typing-dots span:nth-child(3) {
+      animation-delay: 0.36s;
+    }
+
+    /* ── Composer ── */
+    .composer {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border-radius: var(--radius-xl);
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      transition: border-color 150ms ease;
+    }
+
+    .composer:focus-within {
+      border-color: rgba(124, 106, 245, 0.4);
+    }
+
+    .composer textarea {
+      min-height: 64px;
+      max-height: 200px;
+      background: var(--surface-0);
+      border-color: var(--border);
+      border-radius: var(--radius-md);
+    }
+
+    .composer-hint {
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .send-button {
+      min-width: 120px;
+      padding: 10px 18px;
+    }
+
+    .secondary-button {
+      padding: 8px 13px;
+    }
+
+    /* ── Settings overlay ── */
+    .settings-overlay[hidden] {
+      display: none;
+    }
+
+    .settings-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(4px);
+      display: flex;
+      justify-content: flex-end;
+      padding: 16px;
+      z-index: 10;
+    }
+
+    .settings-drawer {
+      width: min(100%, 30rem);
+      height: 100%;
+      overflow: auto;
+      background: var(--surface-1);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-lg);
+      padding: 18px;
+    }
+
+    .settings-drawer::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .settings-drawer::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .settings-drawer::-webkit-scrollbar-thumb {
+      background: var(--border-strong);
+      border-radius: 4px;
+    }
+
+    .settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .settings-header h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .settings-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .settings-zone {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface-2);
+    }
+
+    .settings-zone h3,
+    .creation-panel h3 {
+      margin: 0;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+    }
+
+    .settings-zone p,
+    .creation-panel p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .model-status {
+      min-height: 1.2em;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .range-control {
+      display: grid;
+      gap: 8px;
+    }
+
+    .range-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.82rem;
+    }
+
+    .range-control input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .range-value {
+      color: var(--text-dim);
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+
+    /* ── Search row ── */
+    .search-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: end;
+      margin-top: 10px;
+    }
+
+    .search-row .field {
+      gap: 6px;
+    }
+
+    .search-note {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.4;
+    }
+
+    .search-button {
+      min-width: 7rem;
+      padding: 10px 14px;
+    }
+
+    /* ── Creation panel ── */
+    .creation-panel[hidden] {
+      display: none;
+    }
+
+    .creation-panel {
+      display: grid;
+      gap: 14px;
+    }
+
+    .creation-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* ── Search overlay ── */
+    .search-overlay[hidden] {
+      display: none;
+    }
+
+    .search-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(4px);
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      z-index: 11;
+    }
+
+    .search-dialog {
+      width: min(100%, 52rem);
+      max-height: min(80vh, 48rem);
+      overflow: auto;
+      background: var(--surface-1);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-lg);
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .search-dialog-header,
+    .search-dialog-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .search-dialog-header h2,
+    .search-results-empty h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .search-dialog-copy,
+    .search-results-empty p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.82rem;
+    }
+
+    .search-results {
+      display: grid;
+      gap: 8px;
+    }
+
+    .search-result {
+      width: 100%;
+      text-align: left;
+      padding: 12px 14px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      display: grid;
+      gap: 5px;
+      transition: all 150ms ease;
+      color: var(--text);
+    }
+
+    .search-result:hover:not(:disabled) {
+      background: var(--surface-3);
+      border-color: var(--border-strong);
+    }
+
+    .search-result.is-active {
+      border-color: rgba(124, 106, 245, 0.4);
+      box-shadow: 0 0 0 3px rgba(124, 106, 245, 0.1);
+      background: var(--accent-soft);
+    }
+
+    .search-result-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+
+    .search-result-meta {
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+
+    .search-result-context {
+      color: var(--text-dim);
+      line-height: 1.5;
+      white-space: normal;
+      word-break: break-word;
+      font-size: 0.85rem;
+    }
+
+    .search-result mark {
+      background: rgba(124, 106, 245, 0.2);
+      color: #a99ef7;
+      padding: 0 0.12rem;
+      border-radius: 4px;
+    }
+
+    .search-results-empty {
+      padding: 18px;
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius-lg);
+      background: var(--surface-2);
+      display: grid;
+      gap: 8px;
+    }
+
+    /* ── Preview window ── */
+    .preview-window-shell {
+      font-family: var(--app-font-family);
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px;
+    }
+
+    .preview-window {
+      max-width: 54rem;
+      margin: 0 auto;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+
+    .preview-header {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-2);
+    }
+
+    .preview-header h1 {
+      margin: 0 0 5px;
+      font-size: 1.4rem;
+      letter-spacing: -0.03em;
+      font-weight: 700;
+    }
+
+    .preview-header p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.85rem;
+    }
+
+    .preview-body {
+      padding: 22px;
+      line-height: 1.7;
+    }
+
+    .preview-transcript {
+      display: grid;
+      gap: 14px;
+    }
+
+    .preview-entry {
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface-2);
+    }
+
+    .preview-entry.user {
+      background: var(--user);
+      color: var(--user-text);
+      border-color: rgba(124, 106, 245, 0.2);
+    }
+
+    .preview-entry-label {
+      margin-bottom: 8px;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .preview-entry.user .preview-entry-label {
+      color: rgba(168, 160, 248, 0.8);
+    }
+
+    /* ── Accessibility ── */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* ── Animations ── */
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes pulse {
+      0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.4;
+      }
+      40% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 980px) {
+      body {
+        padding: 12px;
+      }
+
+      .import-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .pane + .pane {
+        border-left: 0;
+        border-top: 1px solid var(--border);
+      }
+
+      .hero,
+      .pane {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+
+      .chat-topbar {
+        flex-direction: column;
+      }
+
+      .chat-status {
+        text-align: left;
+        max-width: none;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .hero-top,
+      .picker-row,
+      .search-row,
+      .button-row,
+      .composer-actions,
+      .inline-actions {
+        align-items: stretch;
+      }
+
+      .field-row {
+        grid-template-columns: 1fr;
+      }
+
+      .picker-row button,
+      .search-row button,
+      .button-row button,
+      .composer-actions button,
+      .hero-actions button {
+        width: 100%;
+      }
+
+      .settings-overlay {
+        padding: 10px;
+      }
+
+      .settings-drawer {
+        width: 100%;
+      }
+    }
+    /* ── Theme toggle ── */
+    .theme-toggle {
+      display: flex;
+      gap: 4px;
+      padding: 4px;
+      background: var(--surface-2);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+    }
+
+    .theme-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 150ms ease;
+      white-space: nowrap;
+    }
+
+    .theme-btn:hover:not(.is-active) {
+      color: var(--text-dim);
+      background: var(--surface-3);
+      transform: none;
+    }
+
+    .theme-btn.is-active {
+      background: var(--surface-0);
+      border-color: var(--border-strong);
+      color: var(--accent);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .theme-btn .theme-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .theme-btn[data-theme-value="light"] .theme-dot  { background: #e2e5ee; border: 1.5px solid #b0b8cc; }
+    .theme-btn[data-theme-value="slate"] .theme-dot  { background: #4a5270; border: 1.5px solid #6b7499; }
+    .theme-btn[data-theme-value="dark"]  .theme-dot  { background: #21252f; border: 1.5px solid #454d60; }
+
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <h1>Prompt Demo Combo</h1>
+          <p class="subtitle">Load a prompt JSON file, select and edit a prompt, then send that prompt into a live language model conversation that continues turn by turn in the same screen.</p>
+        </div>
+        <div class="hero-actions">
+          <button type="button" id="exportButton" class="ghost-button" disabled>Export JSON</button>
+          <button type="button" id="settingsButton" class="menu-button" aria-haspopup="dialog" aria-controls="settingsOverlay" aria-expanded="false">&#9776; <span class="sr-only">Open settings</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <section class="pane">
+        <div class="stack">
+          <section class="import-grid">
+            <label class="dropzone import-panel" id="dropzone">
+              <strong>Drop a JSON file here</strong>
+              <p>or click anywhere in this box to choose a file</p>
+              <button type="button" class="accent" id="chooseFileButton">Choose JSON File</button>
+              <input type="file" id="fileInput" accept=".json,application/json">
+            </label>
+
+            <section class="panel preset-panel" aria-labelledby="presetPanelTitle">
+              <h3 id="presetPanelTitle">Load From GitHub</h3>
+              <p>Select a hosted prompt set instead of downloading it first.</p>
+              <div class="preset-list" id="presetList"></div>
+            </section>
+          </section>
+
+          <section class="panel creation-panel" id="creationPanel" hidden>
+            <div>
+              <h3>Create Prompt</h3>
+              <p>Provide a prompt ID, prompt text, and an optional comment.</p>
+            </div>
+            <div class="creation-grid">
+              <div class="field">
+                <label for="newPromptIdInput">Prompt ID</label>
+                <input type="text" id="newPromptIdInput" placeholder="Example: demo-001" spellcheck="false">
+              </div>
+              <div class="field">
+                <label for="newPromptTextInput">Prompt Text</label>
+                <textarea id="newPromptTextInput" placeholder="Write the new prompt here."></textarea>
+              </div>
+              <div class="field">
+                <label for="newPromptCommentsInput">Initial Comment</label>
+                <textarea id="newPromptCommentsInput" placeholder="Optional notes or comments."></textarea>
+              </div>
+            </div>
+            <div class="inline-actions">
+              <button type="button" class="accent" id="saveNewPromptButton">Create Prompt</button>
+              <button type="button" id="cancelNewPromptButton">Cancel</button>
+            </div>
+          </section>
+
+          <div class="panel">
+            <div class="panel-header">
+              <div class="meta">
+                <span id="fileName">No file loaded</span>
+                <span id="recordCount">0 prompts</span>
+              </div>
+              <button type="button" id="addPromptButton" class="accent">Add New Prompt</button>
+            </div>
+
+            <div class="picker-row">
+              <button type="button" id="prevButton" disabled>&larr; Previous</button>
+              <select id="promptSelect" disabled>
+                <option value="">Load a JSON file or create a prompt</option>
+              </select>
+              <button type="button" id="nextButton" disabled>Next &rarr;</button>
+            </div>
+
+            <div class="search-row">
+              <div class="field">
+                <label for="searchInput">Search</label>
+                <input type="text" id="searchInput" placeholder="Regex or simple text" spellcheck="false" disabled>
+                <p class="search-note">Searches prompt ID, prompt text, and comments.</p>
+              </div>
+              <button type="button" id="searchButton" class="search-button" disabled>Search</button>
+            </div>
+          </div>
+
+          <section class="panel">
+            <div class="panel-header">
+              <label for="promptText">Prompt Text</label>
+              <div class="inline-actions">
+                <button type="button" id="previewPromptButton" class="visualize-button" disabled>Show Formatted</button>
+                <button type="button" id="sendPromptButton" class="accent" disabled>Send Selected Prompt</button>
+              </div>
+            </div>
+            <div class="markdown-editor">
+              <div class="markdown-toolbar" data-editor-toolbar="promptText">
+                <div class="toolbar-row">
+                  <div class="toolbar-group">
+                    <button type="button" class="toolbar-button" data-history-action="undo" data-editor-target="promptText" aria-label="Undo last change">
+                      <span class="toolbar-icon" aria-hidden="true">&lt;-</span>
+                      <span>Undo</span>
+                    </button>
+                    <button type="button" class="toolbar-button" data-history-action="redo" data-editor-target="promptText" aria-label="Redo last change">
+                      <span class="toolbar-icon" aria-hidden="true">-&gt;</span>
+                      <span>Redo</span>
+                    </button>
+                    <button type="button" class="toolbar-button" data-wrap="**" data-editor-target="promptText" aria-label="Bold">
+                      <span class="toolbar-icon" aria-hidden="true">B</span>
+                      <span>Bold</span>
+                    </button>
+                    <button type="button" class="toolbar-button" data-wrap="_" data-editor-target="promptText" aria-label="Italic">
+                      <span class="toolbar-icon" aria-hidden="true">I</span>
+                      <span>Italic</span>
+                    </button>
+                    <button type="button" class="toolbar-button" data-prefix="## " data-editor-target="promptText" aria-label="Heading">
+                      <span class="toolbar-icon" aria-hidden="true">H</span>
+                      <span>Heading</span>
+                    </button>
+                    <button type="button" class="toolbar-button" data-prefix="> " data-editor-target="promptText" aria-label="Quote">
+                      <span class="toolbar-icon" aria-hidden="true">"</span>
+                      <span>Quote</span>
+                    </button>
+                    <button type="button" class="toolbar-button" data-prefix="- " data-editor-target="promptText" aria-label="Bullet list">
+                      <span class="toolbar-icon" aria-hidden="true">•</span>
+                      <span>Bullet</span>
+                    </button>
+                    <button type="button" class="toolbar-button" data-prefix="1. " data-editor-target="promptText" aria-label="Numbered list">
+                      <span class="toolbar-icon" aria-hidden="true">1.</span>
+                      <span>Numbered</span>
+                    </button>
+                    <button type="button" class="toolbar-button" data-wrap="`" data-editor-target="promptText" aria-label="Inline code">
+                      <span class="toolbar-icon" aria-hidden="true">{ }</span>
+                      <span>Code</span>
+                    </button>
+                  </div>
+                  <span class="toolbar-spacer" aria-hidden="true"></span>
+                </div>
+              </div>
+              <textarea id="promptText" placeholder="The selected prompt will appear here."></textarea>
+            </div>
+          </section>
+
+          <section class="panel">
+            <label for="commentsText">Comments</label>
+            <textarea id="commentsText" placeholder="Comments will appear here when present."></textarea>
+          </section>
+
+          <div class="button-row">
+            <button type="button" id="copyButton" disabled>Copy Current Prompt</button>
+            <div id="status" class="status" aria-live="polite"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane">
+        <div class="chat-shell">
+          <header class="chat-topbar">
+            <div class="chat-title">
+              <h2>Interactive Model Thread</h2>
+              <p>The selected prompt starts the conversation. Follow-up messages continue through the same model response chain for that prompt.</p>
+            </div>
+            <div class="chat-toolbar">
+              <button type="button" id="previewChatButton" class="visualize-button" disabled>Show Formatted</button>
+              <button type="button" id="newChatButton" class="secondary-button">New Chat For Prompt</button>
+              <p class="chat-status" id="chatStatus">Open Settings to configure the gateway URL.</p>
+            </div>
+          </header>
+
+          <section class="messages" id="messages" aria-live="polite">
+            <div class="chat-hero" id="chatHero">
+              <h3>Pick a prompt and start.</h3>
+              <p>Load a JSON prompt set, select one entry, then send that prompt through the configured gateway. Each prompt keeps a separate in-memory transcript in this browser session.</p>
+            </div>
+          </section>
+
+          <form class="composer" id="composer">
+            <label class="sr-only" for="messageInput">Follow-up message</label>
+            <textarea
+              id="messageInput"
+              name="message"
+              placeholder="Send a follow-up message for the selected prompt..."
+              rows="3"
+              aria-label="Follow-up message"
+              autocapitalize="sentences"
+              autocorrect="on"
+              spellcheck="true"
+              enterkeyhint="send"
+            ></textarea>
+            <div class="composer-actions">
+              <div class="composer-hint">Press <code>Enter</code> to send. Use <code>Shift</code> + <code>Enter</code> for a new line.</div>
+              <div class="inline-actions">
+                <button type="button" class="secondary-button" id="insertPromptButton">Insert Selected Prompt</button>
+                <button type="submit" class="accent send-button" id="sendButton">Send Follow-up</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </section>
+    </section>
+
+    <section class="settings-overlay" id="settingsOverlay" hidden>
+      <aside class="settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+        <div class="settings-header">
+          <h2 id="settingsTitle">Settings</h2>
+          <button type="button" id="closeSettingsButton">Close</button>
+        </div>
+
+        <div class="settings-grid">
+          <section class="settings-zone">
+            <div>
+              <h3>Gateway</h3>
+              <p>This page sends chat requests through your gateway. Provider credentials stay on the server.</p>
+            </div>
+
+            <div class="field">
+              <label for="baseUrlInput">Gateway Base URL</label>
+              <input id="baseUrlInput" type="url" placeholder="https://your-gateway.example.com" autocomplete="off" spellcheck="false">
+              <p class="field-note">Leave blank to use the current site origin. Cross-origin gateways must allow CORS for <code>POST /chat</code>.</p>
+            </div>
+
+            <div class="field">
+              <label for="modelInput">Model</label>
+              <input id="modelInput" type="text" value="gpt-4.1-mini" spellcheck="false" autocomplete="off">
+              <div class="model-status" id="chatgptModelStatus" aria-live="polite"></div>
+              <p class="field-note">Optional. If left blank, the gateway decides. For now the app defaults to <code>gpt-4.1-mini</code>.</p>
+            </div>
+
+            <div class="field">
+              <label for="systemPromptInput">System Prompt</label>
+              <textarea id="systemPromptInput" rows="6" placeholder="You are a concise and helpful assistant."></textarea>
+              <p class="field-note">Applied when a prompt starts a fresh conversation thread.</p>
+            </div>
+          </section>
+
+          <section class="settings-zone">
+            <div>
+              <h3>Presentation</h3>
+              <p>Use the prompt helper styling controls in the combined view.</p>
+            </div>
+
+            <div class="field">
+              <label>Theme</label>
+              <div class="theme-toggle" id="themeToggle" role="group" aria-label="Color theme">
+                <button type="button" class="theme-btn is-active" data-theme-value="light">
+                  <span class="theme-dot" aria-hidden="true"></span> Light
+                </button>
+                <button type="button" class="theme-btn" data-theme-value="slate">
+                  <span class="theme-dot" aria-hidden="true"></span> Slate
+                </button>
+                <button type="button" class="theme-btn" data-theme-value="dark">
+                  <span class="theme-dot" aria-hidden="true"></span> Dark
+                </button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="fontFamilySelect">Font</label>
+              <select id="fontFamilySelect">
+                <option value="helvetica">Helvetica</option>
+                <option value="georgia">Georgia</option>
+                <option value="avenir">Avenir Next</option>
+                <option value="courier">Courier New</option>
+              </select>
+            </div>
+
+            <div class="range-control">
+              <div class="range-header">
+                <label for="pageWidthInput">Page Width</label>
+                <span id="pageWidthValue" class="range-value">100%</span>
+              </div>
+              <input type="range" id="pageWidthInput" min="1" max="100" step="1" value="100">
+            </div>
+          </section>
+
+          <div class="settings-actions">
+            <button type="button" class="accent" id="saveSettingsButton">Save Settings</button>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="search-overlay" id="searchOverlay" hidden>
+      <aside class="search-dialog" role="dialog" aria-modal="true" aria-labelledby="searchResultsTitle">
+        <div class="search-dialog-header">
+          <div>
+            <h2 id="searchResultsTitle">Search Results</h2>
+            <p class="search-dialog-copy" id="searchResultsSummary">No search run yet.</p>
+          </div>
+          <button type="button" id="closeSearchButton">Close</button>
+        </div>
+
+        <div class="search-results" id="searchResults"></div>
+
+        <div class="search-dialog-footer">
+          <p class="search-dialog-copy">Double-click a result to jump to that prompt.</p>
+          <button type="button" class="accent" id="openSearchResultButton" disabled>Open Selected Result</button>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEYS = {
+      settings: "prompt-demo-combo.settings",
+      theme: "prompt-demo-combo.theme"
+    };
+
+    const DEFAULT_GATEWAY_BASE_URL = getDefaultGatewayBaseUrl();
+    const DEFAULT_MODEL = "gpt-4.1-mini";
+    const FONT_FAMILIES = {
+      helvetica: "\"DM Sans\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      georgia: "Georgia, \"Times New Roman\", serif",
+      avenir: "\"Avenir Next\", Avenir, \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+      courier: "\"DM Mono\", \"Courier New\", Courier, monospace"
+    };
+
+    const state = {
+      prompts: [],
+      selectedIndex: -1,
+      currentFileName: "",
+      presetFetchStatus: {},
+      settings: {
+        baseUrl: DEFAULT_GATEWAY_BASE_URL,
+        model: DEFAULT_MODEL,
+        systemPrompt: "",
+        fontFamily: "helvetica",
+        pageWidth: 100
+      },
+      promptSessions: {},
+      isLoading: false,
+      activeRequestPromptKey: "",
+      isComposing: false,
+      searchResults: [],
+      activeSearchResultIndex: -1
+    };
+
+    const elements = {
+      app: document.querySelector(".app"),
+      dropzone: document.getElementById("dropzone"),
+      fileInput: document.getElementById("fileInput"),
+      chooseFileButton: document.getElementById("chooseFileButton"),
+      presetList: document.getElementById("presetList"),
+      exportButton: document.getElementById("exportButton"),
+      settingsButton: document.getElementById("settingsButton"),
+      settingsOverlay: document.getElementById("settingsOverlay"),
+      closeSettingsButton: document.getElementById("closeSettingsButton"),
+      saveSettingsButton: document.getElementById("saveSettingsButton"),
+      searchInput: document.getElementById("searchInput"),
+      searchButton: document.getElementById("searchButton"),
+      searchOverlay: document.getElementById("searchOverlay"),
+      closeSearchButton: document.getElementById("closeSearchButton"),
+      searchResults: document.getElementById("searchResults"),
+      searchResultsSummary: document.getElementById("searchResultsSummary"),
+      openSearchResultButton: document.getElementById("openSearchResultButton"),
+      baseUrlInput: document.getElementById("baseUrlInput"),
+      modelInput: document.getElementById("modelInput"),
+      chatgptModelStatus: document.getElementById("chatgptModelStatus"),
+      systemPromptInput: document.getElementById("systemPromptInput"),
+      fontFamilySelect: document.getElementById("fontFamilySelect"),
+      pageWidthInput: document.getElementById("pageWidthInput"),
+      pageWidthValue: document.getElementById("pageWidthValue"),
+      addPromptButton: document.getElementById("addPromptButton"),
+      creationPanel: document.getElementById("creationPanel"),
+      newPromptIdInput: document.getElementById("newPromptIdInput"),
+      newPromptTextInput: document.getElementById("newPromptTextInput"),
+      newPromptCommentsInput: document.getElementById("newPromptCommentsInput"),
+      saveNewPromptButton: document.getElementById("saveNewPromptButton"),
+      cancelNewPromptButton: document.getElementById("cancelNewPromptButton"),
+      fileName: document.getElementById("fileName"),
+      recordCount: document.getElementById("recordCount"),
+      prevButton: document.getElementById("prevButton"),
+      nextButton: document.getElementById("nextButton"),
+      promptSelect: document.getElementById("promptSelect"),
+      promptText: document.getElementById("promptText"),
+      commentsText: document.getElementById("commentsText"),
+      copyButton: document.getElementById("copyButton"),
+      status: document.getElementById("status"),
+      previewPromptButton: document.getElementById("previewPromptButton"),
+      sendPromptButton: document.getElementById("sendPromptButton"),
+      previewChatButton: document.getElementById("previewChatButton"),
+      newChatButton: document.getElementById("newChatButton"),
+      chatStatus: document.getElementById("chatStatus"),
+      messages: document.getElementById("messages"),
+      chatHero: document.getElementById("chatHero"),
+      composer: document.getElementById("composer"),
+      messageInput: document.getElementById("messageInput"),
+      insertPromptButton: document.getElementById("insertPromptButton"),
+      sendButton: document.getElementById("sendButton")
+    };
+
+    function getDefaultGatewayBaseUrl() {
+      return /^https?:$/.test(window.location.protocol) ? window.location.origin : "";
+    }
+
+    function getGatewayTargetLabel(baseUrl) {
+      return baseUrl ? baseUrl + "/chat" : "the current site's /chat endpoint";
+    }
+
+    const editorHistoryState = new Map();
+
+    const EDITOR_CONFIG = {
+      promptText: {
+        fieldName: "prompt_text"
+      }
+    };
+    const GITHUB_PROMPT_BASE_URL = "https://raw.githubusercontent.com/faw987/faw987.github.io/main/";
+    const GITHUB_PROMPT_PRESETS = [
+      "prompts_set_00",
+      "prompts_set_01"
+    ];
+
+    function getPresetFileName(presetName) {
+      return presetName + "_draft.json";
+    }
+
+    function buildPresetUrl(presetName) {
+      return GITHUB_PROMPT_BASE_URL + getPresetFileName(presetName);
+    }
+
+    function setPresetFetchStatus(presetName, label, kind = "") {
+      state.presetFetchStatus[presetName] = {
+        label,
+        kind
+      };
+    }
+
+    function renderPresetList(activeFileName = "") {
+      elements.presetList.innerHTML = "";
+
+      GITHUB_PROMPT_PRESETS.forEach((presetName) => {
+        const presetFileName = getPresetFileName(presetName);
+        const fetchStatus = state.presetFetchStatus[presetName] || null;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "preset-item" + (activeFileName === presetFileName ? " is-active" : "");
+        button.innerHTML =
+          "<span class=\"preset-item-top\">" +
+            "<span class=\"preset-name\">" + presetName + "</span>" +
+            "<span class=\"preset-fetch-status" + (fetchStatus && fetchStatus.kind ? " " + fetchStatus.kind : "") + "\">" + (fetchStatus ? fetchStatus.label : "") + "</span>" +
+          "</span>" +
+          "<span class=\"preset-source\">" + presetFileName + "</span>";
+        button.addEventListener("click", () => loadPresetFromGitHub(presetName));
+        elements.presetList.appendChild(button);
+      });
+    }
+
+    function setStatus(message, kind = "") {
+      elements.status.textContent = message;
+      elements.status.className = kind ? "status " + kind : "status";
+    }
+
+    function setChatStatus(message) {
+      elements.chatStatus.textContent = message;
+    }
+
+    function normalizeJson(text) {
+      return text
+        .replace(/^\uFEFF/, "")
+        .replace(/,\s*(\]|\})/g, "$1")
+        .trim();
+    }
+
+    function assignPromptKey(prompt, index) {
+      if (prompt.__comboKey) {
+        return prompt.__comboKey;
+      }
+      const base = String(prompt.prompt_id ?? index ?? "prompt");
+      prompt.__comboKey = base + "::" + index + "::" + crypto.randomUUID();
+      return prompt.__comboKey;
+    }
+
+    function createPromptConversationId(prompt = getCurrentPrompt()) {
+      const rawId = prompt && prompt.prompt_id !== undefined && prompt.prompt_id !== null
+        ? String(prompt.prompt_id)
+        : "prompt";
+      const safeId = rawId.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "prompt";
+      return "combo-" + safeId + "-" + crypto.randomUUID();
+    }
+
+    function parsePrompts(rawText) {
+      const parsed = JSON.parse(normalizeJson(rawText));
+      if (!Array.isArray(parsed)) {
+        throw new Error("Expected the file to contain a JSON array.");
+      }
+
+      return parsed.map((item, index) => {
+        if (!item || typeof item !== "object" || Array.isArray(item)) {
+          throw new Error("Entry " + (index + 1) + " is not a JSON object.");
+        }
+
+        if (typeof item.prompt_id !== "string" && typeof item.prompt_id !== "number") {
+          throw new Error("Entry " + (index + 1) + " has an invalid prompt_id.");
+        }
+
+        if (typeof item.prompt_text !== "string") {
+          throw new Error("Entry " + (index + 1) + " has an invalid prompt_text.");
+        }
+
+        if (item.comments !== undefined && item.comments !== null && typeof item.comments !== "string") {
+          throw new Error("Entry " + (index + 1) + " has invalid comments.");
+        }
+
+        const prompt = {
+          prompt_id: item.prompt_id,
+          prompt_text: item.prompt_text,
+          comments: typeof item.comments === "string" ? item.comments : ""
+        };
+        assignPromptKey(prompt, index);
+        return prompt;
+      });
+    }
+
+    function buildExportPayload() {
+      return state.prompts.map((prompt) => ({
+        prompt_id: prompt.prompt_id,
+        prompt_text: prompt.prompt_text,
+        ...(prompt.comments && prompt.comments.trim() ? { comments: prompt.comments } : {})
+      }));
+    }
+
+    function exportCurrentJson() {
+      if (state.prompts.length === 0) {
+        setStatus("Load a JSON file or create a prompt before exporting.", "error");
+        return;
+      }
+
+      const jsonText = JSON.stringify(buildExportPayload(), null, 2);
+      const blob = new Blob([jsonText], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const baseName = state.currentFileName
+        ? state.currentFileName.replace(/\.json$/i, "")
+        : "prompts";
+      anchor.href = url;
+      anchor.download = baseName + "-edited.json";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setStatus("Exported the current JSON view.", "success");
+    }
+
+    function updatePromptSetMeta() {
+      if (state.currentFileName) {
+        elements.fileName.textContent = "Loaded: " + state.currentFileName;
+      } else if (state.prompts.length) {
+        elements.fileName.textContent = "Working set: unsaved prompts";
+      } else {
+        elements.fileName.textContent = "No file loaded";
+      }
+
+      elements.recordCount.textContent = state.prompts.length + (state.prompts.length === 1 ? " prompt" : " prompts");
+    }
+
+    function getCurrentPrompt() {
+      return state.prompts[state.selectedIndex] || null;
+    }
+
+    function getPromptKey(prompt = getCurrentPrompt()) {
+      if (!prompt) {
+        return "";
+      }
+      return assignPromptKey(prompt, state.prompts.indexOf(prompt));
+    }
+
+    function getProviderLabel() {
+      return "OpenAI";
+    }
+
+    function getProviderModel() {
+      return typeof state.settings.model === "string" && state.settings.model.trim()
+        ? state.settings.model.trim()
+        : DEFAULT_MODEL;
+    }
+
+    function normalizeBaseUrl(value) {
+      return (value || "").trim().replace(/\/+$/, "");
+    }
+
+    function describeGatewayError(baseUrl, error) {
+      const message = error && typeof error.message === "string" ? error.message : "Unknown error";
+      const isFetchFailure = error instanceof TypeError || /failed to fetch/i.test(message);
+
+      if (!isFetchFailure) {
+        return message;
+      }
+
+      try {
+        const gatewayOrigin = new URL(baseUrl).origin;
+        if (gatewayOrigin !== window.location.origin) {
+          return "Failed to fetch. The gateway is cross-origin and likely missing CORS support for OPTIONS /chat or Access-Control-Allow-Origin on the response.";
+        }
+      } catch (_unused) {
+        return "Failed to fetch. Check the gateway URL, TLS certificate, and browser console for network or CORS errors.";
+      }
+
+      return "Failed to fetch. Check the gateway URL, server availability, and browser console.";
+    }
+
+    function getSessionForPrompt(prompt = getCurrentPrompt()) {
+      const key = getPromptKey(prompt);
+      if (!key) {
+        return null;
+      }
+      if (!state.promptSessions[key]) {
+        state.promptSessions[key] = {
+          messages: [],
+          lastResponseId: null,
+          conversationId: createPromptConversationId(prompt)
+        };
+      }
+      return state.promptSessions[key];
+    }
+
+    function updateNavButtons() {
+      const hasPrompts = state.prompts.length > 0;
+      elements.prevButton.disabled = !hasPrompts || state.selectedIndex <= 0 || state.isLoading;
+      elements.nextButton.disabled = !hasPrompts || state.selectedIndex >= state.prompts.length - 1 || state.isLoading;
+    }
+
+    function updatePromptActions() {
+      const hasPrompt = Boolean(getCurrentPrompt());
+      const hasPrompts = state.prompts.length > 0;
+      elements.promptSelect.disabled = state.prompts.length === 0 || state.isLoading;
+      elements.searchInput.disabled = !hasPrompts || state.isLoading;
+      elements.searchButton.disabled = !hasPrompts || state.isLoading;
+      elements.copyButton.disabled = !hasPrompt;
+      elements.exportButton.disabled = state.prompts.length === 0;
+      elements.previewPromptButton.disabled = !hasPrompt;
+      elements.sendPromptButton.disabled = !hasPrompt || state.isLoading;
+      elements.previewChatButton.disabled = !hasPrompt;
+      elements.newChatButton.disabled = !hasPrompt || state.isLoading;
+      elements.insertPromptButton.disabled = !hasPrompt || state.isLoading;
+      elements.messageInput.disabled = !hasPrompt || state.isLoading;
+      elements.sendButton.disabled = !hasPrompt || state.isLoading;
+      updateNavButtons();
+    }
+
+    function rebuildSelect() {
+      elements.promptSelect.innerHTML = "";
+
+      if (state.prompts.length === 0) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "Load a JSON file or create a prompt";
+        elements.promptSelect.appendChild(option);
+        elements.promptText.value = "";
+        elements.commentsText.value = "";
+        updateHistoryButtons("promptText");
+        renderMessages();
+        updatePromptActions();
+        return;
+      }
+
+      state.prompts.forEach((prompt, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = String(prompt.prompt_id);
+        elements.promptSelect.appendChild(option);
+      });
+
+      elements.promptSelect.disabled = state.isLoading;
+      updatePromptActions();
+    }
+
+    function renderCurrentPrompt() {
+      const current = getCurrentPrompt();
+      elements.promptText.value = current ? current.prompt_text : "";
+      elements.commentsText.value = current ? current.comments || "" : "";
+      syncEditorHistory("promptText", elements.promptText.value);
+      renderMessages();
+      updatePromptActions();
+    }
+
+    async function selectPrompt(index, showStatus = true) {
+      if (index < 0 || index >= state.prompts.length) {
+        return;
+      }
+
+      state.selectedIndex = index;
+      elements.promptSelect.value = String(index);
+      renderCurrentPrompt();
+      if (showStatus) {
+        setStatus("Prompt " + state.prompts[index].prompt_id + " selected.", "success");
+      }
+    }
+
+    function navigate(direction) {
+      const nextIndex = state.selectedIndex + direction;
+      if (nextIndex >= 0 && nextIndex < state.prompts.length) {
+        selectPrompt(nextIndex);
+      }
+    }
+
+    async function loadPromptsFromText(rawText, sourceName) {
+      try {
+        const prompts = parsePrompts(rawText);
+        if (prompts.length === 0) {
+          throw new Error("The file does not contain any prompts.");
+        }
+
+        state.prompts = prompts;
+        state.currentFileName = sourceName;
+        state.promptSessions = {};
+        updatePromptSetMeta();
+        rebuildSelect();
+        await selectPrompt(0, false);
+        renderPresetList(sourceName);
+        setStatus("Loaded " + prompts.length + " prompts.", "success");
+      } catch (error) {
+        state.prompts = [];
+        state.selectedIndex = -1;
+        state.currentFileName = "";
+        state.promptSessions = {};
+        updatePromptSetMeta();
+        rebuildSelect();
+        renderPresetList();
+        setStatus(error.message || "Could not read that file.", "error");
+      }
+    }
+
+    async function loadFile(file) {
+      const text = await file.text();
+      elements.fileInput.value = "";
+      return loadPromptsFromText(text, file.name);
+    }
+
+    async function loadPresetFromGitHub(presetName) {
+      const presetFileName = getPresetFileName(presetName);
+
+      try {
+        setPresetFetchStatus(presetName, "loading...");
+        setStatus("Loading " + presetFileName + " from GitHub...", "");
+        renderPresetList(presetFileName);
+        const response = await fetch(buildPresetUrl(presetName), {
+          mode: "cors",
+          cache: "no-store"
+        });
+
+        if (!response.ok) {
+          setPresetFetchStatus(presetName, "failed (" + response.status + ")", "error");
+          throw new Error("Could not load " + presetFileName + " from GitHub (" + response.status + ").");
+        }
+
+        const text = await response.text();
+        setPresetFetchStatus(presetName, "success", "success");
+        await loadPromptsFromText(text, presetFileName);
+      } catch (error) {
+        if (!state.presetFetchStatus[presetName] || state.presetFetchStatus[presetName].label === "loading...") {
+          setPresetFetchStatus(presetName, "failed", "error");
+        }
+        renderPresetList(state.currentFileName);
+        setStatus(error.message || "Could not load that GitHub prompt set.", "error");
+      }
+    }
+
+    function openPromptCreator() {
+      elements.creationPanel.hidden = false;
+      elements.addPromptButton.disabled = true;
+      if (!elements.newPromptIdInput.value) {
+        elements.newPromptIdInput.value = buildDefaultPromptId();
+      }
+      elements.newPromptIdInput.focus();
+    }
+
+    function closePromptCreator() {
+      elements.creationPanel.hidden = true;
+      elements.addPromptButton.disabled = false;
+      elements.newPromptIdInput.value = "";
+      elements.newPromptTextInput.value = "";
+      elements.newPromptCommentsInput.value = "";
+    }
+
+    function buildDefaultPromptId() {
+      let index = state.prompts.length + 1;
+      let candidate = "prompt-" + String(index).padStart(3, "0");
+      while (state.prompts.some((prompt) => String(prompt.prompt_id) === candidate)) {
+        index += 1;
+        candidate = "prompt-" + String(index).padStart(3, "0");
+      }
+      return candidate;
+    }
+
+    async function createPromptFromInputs() {
+      const promptId = elements.newPromptIdInput.value.trim();
+      const promptText = elements.newPromptTextInput.value.trim();
+      const comments = elements.newPromptCommentsInput.value.trim();
+
+      if (!promptId) {
+        setStatus("Enter a prompt ID before creating a prompt.", "error");
+        elements.newPromptIdInput.focus();
+        return;
+      }
+
+      if (!promptText) {
+        setStatus("Enter prompt text before creating a prompt.", "error");
+        elements.newPromptTextInput.focus();
+        return;
+      }
+
+      if (state.prompts.some((prompt) => String(prompt.prompt_id) === promptId)) {
+        setStatus("Prompt ID " + promptId + " already exists. Choose a unique ID.", "error");
+        elements.newPromptIdInput.focus();
+        return;
+      }
+
+      const prompt = {
+        prompt_id: promptId,
+        prompt_text: promptText,
+        comments
+      };
+      assignPromptKey(prompt, state.prompts.length);
+      state.prompts.push(prompt);
+      updatePromptSetMeta();
+      rebuildSelect();
+      closePromptCreator();
+      await selectPrompt(state.prompts.length - 1, false);
+      setStatus("Created prompt " + promptId + ".", "success");
+    }
+
+    async function copyCurrentPrompt() {
+      const current = getCurrentPrompt();
+      if (!current) {
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(current.prompt_text);
+        setStatus("Current prompt copied to clipboard.", "success");
+      } catch (error) {
+        setStatus("Clipboard access failed. Your browser may require a direct user gesture.", "error");
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function renderInlineMarkdown(text) {
+      let html = escapeHtml(text);
+      html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+      html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      html = html.replace(/_([^_]+)_/g, "<em>$1</em>");
+      return html;
+    }
+
+    function markdownToHtml(markdown) {
+      if (!String(markdown || "").trim()) {
+        return "<p>Nothing to preview yet.</p>";
+      }
+
+      const lines = String(markdown).replace(/\r\n/g, "\n").split("\n");
+      const html = [];
+      let activeListTag = "";
+      let inCodeBlock = false;
+      let codeLines = [];
+
+      function closeList() {
+        if (activeListTag) {
+          html.push("</" + activeListTag + ">");
+          activeListTag = "";
+        }
+      }
+
+      function openList(tagName) {
+        if (activeListTag && activeListTag !== tagName) {
+          closeList();
+        }
+
+        if (!activeListTag) {
+          html.push("<" + tagName + ">");
+          activeListTag = tagName;
+        }
+      }
+
+      function closeCodeBlock() {
+        if (inCodeBlock) {
+          html.push("<pre><code>" + escapeHtml(codeLines.join("\n")) + "</code></pre>");
+          inCodeBlock = false;
+          codeLines = [];
+        }
+      }
+
+      lines.forEach((line) => {
+        if (line.startsWith("```")) {
+          closeList();
+          if (inCodeBlock) {
+            closeCodeBlock();
+          } else {
+            inCodeBlock = true;
+          }
+          return;
+        }
+
+        if (inCodeBlock) {
+          codeLines.push(line);
+          return;
+        }
+
+        if (!line.trim()) {
+          closeList();
+          html.push("");
+          return;
+        }
+
+        if (/^###\s+/.test(line)) {
+          closeList();
+          html.push("<h3>" + renderInlineMarkdown(line.replace(/^###\s+/, "")) + "</h3>");
+          return;
+        }
+
+        if (/^##\s+/.test(line)) {
+          closeList();
+          html.push("<h2>" + renderInlineMarkdown(line.replace(/^##\s+/, "")) + "</h2>");
+          return;
+        }
+
+        if (/^#\s+/.test(line)) {
+          closeList();
+          html.push("<h1>" + renderInlineMarkdown(line.replace(/^#\s+/, "")) + "</h1>");
+          return;
+        }
+
+        if (/^>\s+/.test(line)) {
+          closeList();
+          html.push("<blockquote>" + renderInlineMarkdown(line.replace(/^>\s+/, "")) + "</blockquote>");
+          return;
+        }
+
+        if (/^-\s+/.test(line)) {
+          openList("ul");
+          html.push("<li>" + renderInlineMarkdown(line.replace(/^-\s+/, "")) + "</li>");
+          return;
+        }
+
+        if (/^\d+\.\s+/.test(line)) {
+          openList("ol");
+          html.push("<li>" + renderInlineMarkdown(line.replace(/^\d+\.\s+/, "")) + "</li>");
+          return;
+        }
+
+        closeList();
+        html.push("<p>" + renderInlineMarkdown(line) + "</p>");
+      });
+
+      closeList();
+      closeCodeBlock();
+      return html.filter(Boolean).join("");
+    }
+
+    function getEditorHistoryKey(textareaId) {
+      const current = getCurrentPrompt();
+      if (!current) {
+        return "";
+      }
+
+      return String(current.prompt_id) + "::" + textareaId;
+    }
+
+    function getEditorHistory(textareaId, initialValue = "") {
+      const key = getEditorHistoryKey(textareaId);
+      if (!key) {
+        return null;
+      }
+
+      if (!editorHistoryState.has(key)) {
+        editorHistoryState.set(key, {
+          undoStack: [],
+          redoStack: [],
+          value: initialValue
+        });
+      }
+
+      return editorHistoryState.get(key);
+    }
+
+    function updateHistoryButtons(textareaId) {
+      const history = getEditorHistory(textareaId);
+      const toolbarButtons = document.querySelectorAll("[data-history-action][data-editor-target=\"" + textareaId + "\"]");
+      toolbarButtons.forEach((button) => {
+        if (!history) {
+          button.disabled = true;
+          return;
+        }
+
+        if (button.dataset.historyAction === "undo") {
+          button.disabled = history.undoStack.length === 0;
+          return;
+        }
+
+        button.disabled = history.redoStack.length === 0;
+      });
+    }
+
+    function syncEditorHistory(textareaId, value) {
+      const history = getEditorHistory(textareaId, value);
+      if (!history) {
+        updateHistoryButtons(textareaId);
+        return;
+      }
+
+      history.value = value;
+      updateHistoryButtons(textareaId);
+    }
+
+    function captureEditorHistory(textareaId, value) {
+      const history = getEditorHistory(textareaId, value);
+      if (!history || history.value === value) {
+        return;
+      }
+
+      history.undoStack.push(history.value);
+      if (history.undoStack.length > 100) {
+        history.undoStack.shift();
+      }
+      history.redoStack = [];
+      history.value = value;
+      updateHistoryButtons(textareaId);
+    }
+
+    function applyEditorValue(textarea, nextValue, selectionStart, selectionEnd, options = {}) {
+      const config = EDITOR_CONFIG[textarea.id];
+      if (!config) {
+        return;
+      }
+
+      textarea.value = nextValue;
+      textarea.focus();
+      textarea.setSelectionRange(selectionStart, selectionEnd);
+      handlePromptFieldEdit(config.fieldName, nextValue, textarea.id, options);
+    }
+
+    function runHistoryAction(textarea, action) {
+      const history = getEditorHistory(textarea.id, textarea.value);
+      if (!history) {
+        return;
+      }
+
+      const sourceStack = action === "undo" ? history.undoStack : history.redoStack;
+      const targetStack = action === "undo" ? history.redoStack : history.undoStack;
+      if (sourceStack.length === 0) {
+        updateHistoryButtons(textarea.id);
+        return;
+      }
+
+      targetStack.push(history.value);
+      const nextValue = sourceStack.pop();
+      history.value = nextValue;
+      applyEditorValue(textarea, nextValue, nextValue.length, nextValue.length, { recordHistory: false });
+      updateHistoryButtons(textarea.id);
+    }
+
+    function wrapSelection(textarea, wrapToken) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const selected = textarea.value.slice(start, end);
+      const nextValue = textarea.value.slice(0, start) + wrapToken + selected + wrapToken + textarea.value.slice(end);
+      const cursorStart = start + wrapToken.length;
+      const cursorEnd = cursorStart + selected.length;
+      applyEditorValue(textarea, nextValue, cursorStart, cursorEnd);
+    }
+
+    function prefixSelection(textarea, prefix) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const selected = textarea.value.slice(start, end);
+      const fallbackText = selected || " ";
+      const lines = fallbackText.split("\n");
+      const prefixed = lines.map((line) => prefix + line).join("\n");
+      const nextValue = textarea.value.slice(0, start) + prefixed + textarea.value.slice(end);
+      applyEditorValue(textarea, nextValue, start, start + prefixed.length);
+    }
+
+    function handleToolbarClick(event) {
+      const toolbarButton = event.target.closest("[data-editor-target]");
+      if (!toolbarButton) {
+        return;
+      }
+
+      const textarea = document.getElementById(toolbarButton.dataset.editorTarget);
+      if (!textarea) {
+        return;
+      }
+
+      if (toolbarButton.dataset.historyAction) {
+        runHistoryAction(textarea, toolbarButton.dataset.historyAction);
+        return;
+      }
+
+      if (toolbarButton.dataset.wrap) {
+        wrapSelection(textarea, toolbarButton.dataset.wrap);
+        return;
+      }
+
+      if (toolbarButton.dataset.prefix) {
+        prefixSelection(textarea, toolbarButton.dataset.prefix);
+      }
+    }
+
+    function openPreviewWindow({ title, subtitle, bodyHtml }) {
+      const previewWindow = window.open("", "_blank", "popup=yes,width=920,height=760,resizable=yes,scrollbars=yes");
+      if (!previewWindow) {
+        setStatus("The preview window was blocked by the browser. Allow pop-ups for this page and try again.", "error");
+        return;
+      }
+
+      previewWindow.document.title = title;
+      previewWindow.document.documentElement.innerHTML = [
+        "<head>",
+        "<meta charset=\"utf-8\">",
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
+        "<title>" + escapeHtml(title) + "</title>",
+        "<style>" + document.querySelector("style").textContent + "</style>",
+        "</head>",
+        "<body class=\"preview-window-shell\">",
+        "<main class=\"preview-window\">",
+        "<header class=\"preview-header\">",
+        "<h1>" + escapeHtml(title) + "</h1>",
+        "<p>" + escapeHtml(subtitle) + "</p>",
+        "</header>",
+        "<section class=\"preview-body\">",
+        bodyHtml,
+        "</section>",
+        "</main>",
+        "</body>"
+      ].join("");
+      previewWindow.document.close();
+      previewWindow.focus();
+    }
+
+    function openPromptPreview() {
+      const current = getCurrentPrompt();
+      if (!current) {
+        return;
+      }
+
+      openPreviewWindow({
+        title: "Prompt " + current.prompt_id,
+        subtitle: "Rendered preview of the selected repository entry.",
+        bodyHtml: markdownToHtml(current.prompt_text || "")
+      });
+    }
+
+    function openChatPreview() {
+      const current = getCurrentPrompt();
+      if (!current) {
+        return;
+      }
+
+      const session = getSessionForPrompt(current);
+      const messages = session ? session.messages : [];
+      const bodyHtml = messages.length
+        ? "<div class=\"preview-transcript\">" + messages.map((message) => [
+            "<article class=\"preview-entry " + escapeHtml(message.role) + "\">",
+            "<div class=\"preview-entry-label\">" + (message.role === "user" ? "You" : "Assistant") + "</div>",
+            markdownToHtml(message.text || ""),
+            "</article>"
+          ].join("")).join("") + "</div>"
+        : "<p>No chat turns yet for this prompt.</p>";
+
+      openPreviewWindow({
+        title: "Conversation " + current.prompt_id,
+        subtitle: "Rendered preview of the " + getProviderLabel() + " transcript for this prompt.",
+        bodyHtml
+      });
+    }
+
+    function escapeRegExp(value) {
+      return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
+    function getSearchMatcher(query) {
+      const trimmed = String(query || "").trim();
+      if (!trimmed) {
+        throw new Error("Enter a search value first.");
+      }
+
+      const slashMatch = trimmed.match(/^\/([\s\S]*)\/([dgimsuvy]*)$/);
+      if (slashMatch) {
+        return new RegExp(slashMatch[1], slashMatch[2]);
+      }
+
+      return new RegExp(escapeRegExp(trimmed), "i");
+    }
+
+    function stripContextWhitespace(value) {
+      return String(value || "").replace(/\s+/g, " ").trim();
+    }
+
+    function buildSearchSnippet(text, matchIndex, matchLength) {
+      const normalized = stripContextWhitespace(text);
+      if (!normalized) {
+        return "";
+      }
+
+      const safeIndex = Math.max(0, matchIndex);
+      const start = Math.max(0, safeIndex - 48);
+      const end = Math.min(normalized.length, safeIndex + Math.max(matchLength, 1) + 72);
+      const prefix = start > 0 ? "..." : "";
+      const suffix = end < normalized.length ? "..." : "";
+      return prefix + normalized.slice(start, end) + suffix;
+    }
+
+    function buildSearchResults(query) {
+      const matcher = getSearchMatcher(query);
+      const results = [];
+
+      state.prompts.forEach((prompt, index) => {
+        const fields = [
+          { label: "Prompt ID", text: String(prompt.prompt_id ?? "") },
+          { label: "Prompt Text", text: prompt.prompt_text || "" },
+          { label: "Comments", text: prompt.comments || "" }
+        ];
+
+        for (const field of fields) {
+          if (!field.text) {
+            continue;
+          }
+
+          const match = field.text.match(matcher);
+          if (!match || typeof match.index !== "number") {
+            continue;
+          }
+
+          results.push({
+            promptIndex: index,
+            promptId: String(prompt.prompt_id),
+            fieldLabel: field.label,
+            snippet: buildSearchSnippet(field.text, match.index, match[0] ? match[0].length : 0)
+          });
+          break;
+        }
+      });
+
+      return results;
+    }
+
+    function highlightSearchSnippet(snippet, query) {
+      const matcher = getSearchMatcher(query);
+      if (!snippet) {
+        return "";
+      }
+
+      const source = String(snippet);
+      const flags = matcher.flags.includes("g") ? matcher.flags : matcher.flags + "g";
+      const highlighter = new RegExp(matcher.source, flags);
+      let lastIndex = 0;
+      let html = "";
+
+      source.replace(highlighter, (matched, offset) => {
+        html += escapeHtml(source.slice(lastIndex, offset));
+        html += "<mark>" + escapeHtml(matched) + "</mark>";
+        lastIndex = offset + matched.length;
+        return matched;
+      });
+
+      html += escapeHtml(source.slice(lastIndex));
+      return html;
+    }
+
+    function setActiveSearchResult(index) {
+      state.activeSearchResultIndex = index;
+      const resultButtons = elements.searchResults.querySelectorAll("[data-search-result-index]");
+      resultButtons.forEach((button) => {
+        const isActive = Number(button.dataset.searchResultIndex) === index;
+        button.classList.toggle("is-active", isActive);
+      });
+      elements.openSearchResultButton.disabled = index < 0;
+    }
+
+    function renderSearchResults(query) {
+      elements.searchResults.replaceChildren();
+      const results = state.searchResults;
+      elements.searchResultsSummary.textContent = results.length
+        ? results.length + (results.length === 1 ? " result" : " results") + " for " + query + "."
+        : "No prompts matched " + query + ".";
+
+      if (!results.length) {
+        const empty = document.createElement("div");
+        empty.className = "search-results-empty";
+        empty.innerHTML = [
+          "<h3>No matches found</h3>",
+          "<p>Try a different string, or use a regular expression like <code>rule\\s+\\d+</code> or <code>/rule\\s+\\d+/i</code>.</p>"
+        ].join("");
+        elements.searchResults.appendChild(empty);
+        setActiveSearchResult(-1);
+        return;
+      }
+
+      results.forEach((result, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "search-result";
+        button.dataset.searchResultIndex = String(index);
+        button.innerHTML = [
+          '<div class="search-result-title">' + escapeHtml(result.promptId) + "</div>",
+          '<div class="search-result-meta">' + escapeHtml(result.fieldLabel) + "</div>",
+          '<div class="search-result-context">' + highlightSearchSnippet(result.snippet, query) + "</div>"
+        ].join("");
+        button.addEventListener("click", () => setActiveSearchResult(index));
+        button.addEventListener("dblclick", async () => {
+          setActiveSearchResult(index);
+          await openActiveSearchResult();
+        });
+        elements.searchResults.appendChild(button);
+      });
+
+      setActiveSearchResult(0);
+    }
+
+    function openSearchResults() {
+      elements.searchOverlay.hidden = false;
+    }
+
+    function closeSearchResults() {
+      elements.searchOverlay.hidden = true;
+    }
+
+    async function openActiveSearchResult() {
+      const result = state.searchResults[state.activeSearchResultIndex];
+      if (!result) {
+        return;
+      }
+
+      closeSearchResults();
+      await selectPrompt(result.promptIndex);
+      setStatus("Opened prompt " + result.promptId + " from search results.", "success");
+    }
+
+    function runPromptSearch() {
+      if (state.isLoading || state.prompts.length === 0) {
+        return;
+      }
+
+      const query = elements.searchInput.value.trim();
+      try {
+        state.searchResults = buildSearchResults(query);
+        renderSearchResults(query);
+        openSearchResults();
+      } catch (error) {
+        setStatus(error.message || "Search could not be completed.", "error");
+      }
+    }
+
+    function newMessage(role, text) {
+      return {
+        id: crypto.randomUUID(),
+        role,
+        text
+      };
+    }
+
+    function scrollMessagesToBottom() {
+      requestAnimationFrame(() => {
+        elements.messages.scrollTop = elements.messages.scrollHeight;
+      });
+    }
+
+    function renderMessages() {
+      const current = getCurrentPrompt();
+      const session = getSessionForPrompt(current);
+      const messages = session ? session.messages : [];
+      const providerLabel = getProviderLabel();
+      const modelName = getProviderModel();
+
+      elements.messages.querySelectorAll(".message").forEach((node) => node.remove());
+      elements.chatHero.classList.toggle("hidden", Boolean(current) && messages.length > 0);
+
+      if (!current) {
+        elements.chatHero.classList.remove("hidden");
+        elements.chatHero.innerHTML = [
+          "<h3>Pick a prompt and start.</h3>",
+          "<p>Load a JSON prompt set, select one entry, then send that prompt through the configured gateway. Each prompt keeps a separate in-memory transcript in this browser session.</p>"
+        ].join("");
+        setChatStatus("Select a prompt to begin with " + providerLabel + ".");
+        return;
+      }
+
+      if (messages.length === 0) {
+        elements.chatHero.innerHTML = [
+          "<h3>Prompt " + escapeHtml(String(current.prompt_id)) + " is ready.</h3>",
+          "<p>Use <strong>Send Selected Prompt</strong> to seed a " + escapeHtml(providerLabel) + " conversation with the current prompt text, or type your own opening turn below.</p>"
+        ].join("");
+        setChatStatus("Prompt " + current.prompt_id + " is ready. Provider: " + providerLabel + ". Send the selected prompt to start the thread.");
+        return;
+      }
+
+      for (const message of messages) {
+        const wrapper = document.createElement("article");
+        wrapper.className = "message " + message.role;
+        wrapper.dataset.messageId = message.id;
+        wrapper.innerHTML = [
+          '<div class="bubble">',
+          '<div class="message-meta">' + (message.role === "user" ? "You" : "Assistant") + "</div>",
+          '<div class="bubble-content">' + markdownToHtml(message.text || "") + "</div>",
+          "</div>"
+        ].join("");
+        elements.messages.appendChild(wrapper);
+      }
+
+      if (state.isLoading && state.activeRequestPromptKey === getPromptKey(current)) {
+        const typing = document.createElement("article");
+        typing.className = "message assistant";
+        typing.innerHTML = [
+          '<div class="bubble">',
+          '<div class="message-meta">Assistant</div>',
+          '<div class="typing">',
+          "<span>Thinking</span>",
+          '<span class="typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>',
+          "</div>",
+          "</div>"
+        ].join("");
+        elements.messages.appendChild(typing);
+      }
+
+      setChatStatus("Thread for prompt " + current.prompt_id + ". Provider: " + providerLabel + ". Model: " + modelName + ".");
+      scrollMessagesToBottom();
+    }
+
+    function resetCurrentChat() {
+      const current = getCurrentPrompt();
+      if (!current || state.isLoading) {
+        return;
+      }
+
+      const session = getSessionForPrompt(current);
+      session.messages = [];
+      session.lastResponseId = null;
+      session.conversationId = createPromptConversationId(current);
+      renderMessages();
+      setChatStatus("Started a new " + getProviderLabel() + " chat for prompt " + current.prompt_id + ".");
+      setStatus("Cleared the " + getProviderLabel() + " chat thread for prompt " + current.prompt_id + ".", "success");
+    }
+
+    function setLoading(isLoading, promptKey = "") {
+      state.isLoading = isLoading;
+      state.activeRequestPromptKey = isLoading ? promptKey : "";
+      elements.sendPromptButton.disabled = !getCurrentPrompt() || isLoading;
+      elements.newChatButton.disabled = !getCurrentPrompt() || isLoading;
+      elements.sendButton.disabled = !getCurrentPrompt() || isLoading;
+      elements.messageInput.disabled = !getCurrentPrompt() || isLoading;
+      elements.promptSelect.disabled = state.prompts.length === 0 || isLoading;
+      elements.prevButton.disabled = state.prompts.length === 0 || state.selectedIndex <= 0 || isLoading;
+      elements.nextButton.disabled = state.prompts.length === 0 || state.selectedIndex >= state.prompts.length - 1 || isLoading;
+      elements.sendButton.textContent = isLoading ? "Working..." : "Send Follow-up";
+      renderMessages();
+    }
+
+    async function sendChatMessage(userText, options = {}) {
+      const current = getCurrentPrompt();
+      if (!current || state.isLoading) {
+        return;
+      }
+
+      const providerLabel = getProviderLabel();
+      const baseUrl = normalizeBaseUrl(state.settings.baseUrl) || DEFAULT_GATEWAY_BASE_URL;
+      const model = getProviderModel();
+      const systemPrompt = state.settings.systemPrompt.trim();
+      const promptKey = getPromptKey(current);
+      const session = getSessionForPrompt(current);
+
+      if (!baseUrl) {
+        setChatStatus("Add your gateway URL in Settings before sending a message.");
+        openSettings();
+        elements.baseUrlInput.focus();
+        return;
+      }
+
+      session.messages.push(newMessage("user", userText));
+      elements.messageInput.value = options.clearComposer === false ? elements.messageInput.value : "";
+      setLoading(true, promptKey);
+      setChatStatus("Waiting for " + providerLabel + " (" + model + ") through the gateway...");
+
+      try {
+        const payload = {
+          provider: "openai",
+          model,
+          message: session.lastResponseId || !systemPrompt
+            ? userText
+            : "System instructions:\n" + systemPrompt + "\n\nUser message:\n" + userText,
+          conversation_id: session.conversationId,
+          stream: false
+        };
+
+        if (session.lastResponseId) {
+          payload.previous_response_id = session.lastResponseId;
+        }
+
+        const response = await fetch(baseUrl + "/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          const errorMessage = data && typeof data.error === "string"
+            ? data.error
+            : "The gateway chat request failed.";
+          throw new Error(errorMessage);
+        }
+
+        const assistantText = data && typeof data.response === "string" && data.response.trim()
+          ? data.response.trim()
+          : "No text response was returned.";
+        session.lastResponseId = data && typeof data.response_id === "string" ? data.response_id : null;
+        session.conversationId = data && typeof data.conversation_id === "string" && data.conversation_id.trim()
+          ? data.conversation_id
+          : session.conversationId;
+
+        session.messages.push(newMessage("assistant", assistantText));
+        setChatStatus("Connected to " + providerLabel + " (" + model + ").");
+        setStatus(
+          "Received a " + providerLabel + " response for prompt " + current.prompt_id + "."
+            + (data && data.request_id ? " Request: " + data.request_id + "." : ""),
+          "success"
+        );
+      } catch (error) {
+        const errorMessage = describeGatewayError(baseUrl, error);
+        session.messages.push(newMessage("assistant", "Request failed: " + errorMessage));
+        setChatStatus("Request failed.");
+        setStatus(errorMessage, "error");
+      } finally {
+        setLoading(false);
+        renderMessages();
+        elements.messageInput.focus();
+      }
+    }
+
+    function insertSelectedPromptIntoComposer() {
+      const current = getCurrentPrompt();
+      if (!current) {
+        return;
+      }
+
+      const prefix = elements.messageInput.value.trim();
+      elements.messageInput.value = prefix
+        ? prefix + "\n\n" + current.prompt_text
+        : current.prompt_text;
+      elements.messageInput.focus();
+      elements.messageInput.setSelectionRange(elements.messageInput.value.length, elements.messageInput.value.length);
+    }
+
+    function setChatGptModelStatus(message) {
+      elements.chatgptModelStatus.textContent = message;
+    }
+
+    function normalizeSettings(raw) {
+      const settings = raw && typeof raw === "object" ? raw : {};
+      const legacyModel = typeof settings.model === "string" && settings.model.trim() ? settings.model.trim() : DEFAULT_MODEL;
+      const fontFamily = typeof settings.fontFamily === "string" && FONT_FAMILIES[settings.fontFamily]
+        ? settings.fontFamily
+        : "helvetica";
+      const pageWidth = Number(settings.pageWidth);
+      const theme = ["light", "slate", "dark"].includes(settings.theme) ? settings.theme : "light";
+      return {
+        baseUrl: typeof settings.baseUrl === "string" && settings.baseUrl.trim()
+          ? normalizeBaseUrl(settings.baseUrl)
+          : DEFAULT_GATEWAY_BASE_URL,
+        model: settings.providerModels && typeof settings.providerModels.chatgpt === "string" && settings.providerModels.chatgpt.trim()
+          ? settings.providerModels.chatgpt.trim()
+          : legacyModel,
+        systemPrompt: typeof settings.systemPrompt === "string" ? settings.systemPrompt : "",
+        fontFamily,
+        pageWidth: Number.isFinite(pageWidth) ? Math.min(100, Math.max(1, Math.round(pageWidth))) : 100,
+        theme
+      };
+    }
+
+    function loadSettings() {
+      try {
+        const rawSettings = JSON.parse(localStorage.getItem(STORAGE_KEYS.settings) || "{}");
+        state.settings = normalizeSettings(rawSettings);
+      } catch (error) {
+        state.settings = normalizeSettings({});
+      }
+    }
+
+    function saveSettingsToStorage() {
+      localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(state.settings));
+    }
+
+    function applyDisplaySettings() {
+      document.documentElement.style.setProperty("--app-font-family", FONT_FAMILIES[state.settings.fontFamily] || FONT_FAMILIES.helvetica);
+      document.documentElement.style.setProperty("--app-width-percent", state.settings.pageWidth + "%");
+      elements.pageWidthValue.textContent = state.settings.pageWidth + "%";
+      applyTheme(state.settings.theme);
+    }
+
+    function applyTheme(theme) {
+      const t = ["light", "slate", "dark"].includes(theme) ? theme : "light";
+      if (t === "light") {
+        document.documentElement.removeAttribute("data-theme");
+      } else {
+        document.documentElement.setAttribute("data-theme", t);
+      }
+      // sync toggle button states
+      document.querySelectorAll(".theme-btn").forEach(btn => {
+        btn.classList.toggle("is-active", btn.dataset.themeValue === t);
+      });
+    }
+
+    function syncSettingsForm() {
+      elements.baseUrlInput.value = state.settings.baseUrl;
+      elements.modelInput.value = getProviderModel();
+      elements.systemPromptInput.value = state.settings.systemPrompt;
+      elements.fontFamilySelect.value = state.settings.fontFamily;
+      elements.pageWidthInput.value = String(state.settings.pageWidth);
+      elements.pageWidthValue.textContent = state.settings.pageWidth + "%";
+      setChatGptModelStatus("Requests will be sent to " + getGatewayTargetLabel(normalizeBaseUrl(state.settings.baseUrl)) + ".");
+      // sync theme buttons
+      const currentTheme = document.documentElement.getAttribute("data-theme") || "light";
+      document.querySelectorAll(".theme-btn").forEach(btn => {
+        btn.classList.toggle("is-active", btn.dataset.themeValue === currentTheme);
+      });
+    }
+
+    function openSettings() {
+      syncSettingsForm();
+      elements.settingsOverlay.hidden = false;
+      elements.settingsButton.setAttribute("aria-expanded", "true");
+    }
+
+    function closeSettings() {
+      elements.settingsOverlay.hidden = true;
+      elements.settingsButton.setAttribute("aria-expanded", "false");
+    }
+
+    function handleSaveSettings() {
+      state.settings.baseUrl = normalizeBaseUrl(elements.baseUrlInput.value) || DEFAULT_GATEWAY_BASE_URL;
+      state.settings.model = elements.modelInput.value.trim() || DEFAULT_MODEL;
+      state.settings.systemPrompt = elements.systemPromptInput.value.trim();
+      state.settings.fontFamily = elements.fontFamilySelect.value;
+      state.settings.pageWidth = Math.min(100, Math.max(1, Number(elements.pageWidthInput.value) || 100));
+      // theme is set live on click; just persist whatever is current
+      state.settings.theme = document.documentElement.getAttribute("data-theme") || "light";
+      saveSettingsToStorage();
+      applyDisplaySettings();
+      closeSettings();
+      setChatGptModelStatus("Requests will be sent to " + getGatewayTargetLabel(state.settings.baseUrl) + ".");
+      setChatStatus("Settings saved. Ready with " + getProviderLabel() + " (" + getProviderModel() + ").");
+      setStatus("Settings saved. Model: " + getProviderModel() + ".", "success");
+      renderMessages();
+    }
+
+    function handlePromptFieldEdit(fieldName, value, textareaId = "", options = {}) {
+      const current = getCurrentPrompt();
+      if (!current) {
+        return;
+      }
+
+      if (options.recordHistory !== false && textareaId) {
+        captureEditorHistory(textareaId, value);
+      }
+      current[fieldName] = value;
+      setStatus("Updated prompt " + current.prompt_id + ".", "success");
+    }
+
+    elements.chooseFileButton.addEventListener("click", () => elements.fileInput.click());
+    elements.fileInput.addEventListener("change", (event) => {
+      const [file] = event.target.files || [];
+      if (file) {
+        loadFile(file);
+      }
+    });
+
+    ["dragenter", "dragover"].forEach((eventName) => {
+      elements.dropzone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        elements.dropzone.classList.add("dragging");
+      });
+    });
+
+    ["dragleave", "dragend", "drop"].forEach((eventName) => {
+      elements.dropzone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        if (eventName !== "drop" || !elements.dropzone.contains(event.relatedTarget)) {
+          elements.dropzone.classList.remove("dragging");
+        }
+      });
+    });
+
+    elements.dropzone.addEventListener("drop", (event) => {
+      const [file] = event.dataTransfer.files || [];
+      if (file) {
+        elements.fileInput.files = event.dataTransfer.files;
+        loadFile(file);
+      }
+    });
+
+    elements.exportButton.addEventListener("click", exportCurrentJson);
+    elements.settingsButton.addEventListener("click", openSettings);
+    elements.closeSettingsButton.addEventListener("click", closeSettings);
+
+    // Live theme switching — apply immediately on button click
+    document.getElementById("themeToggle").addEventListener("click", (event) => {
+      const btn = event.target.closest(".theme-btn");
+      if (!btn) return;
+      const theme = btn.dataset.themeValue;
+      state.settings.theme = theme;
+      applyTheme(theme);
+    });
+    elements.settingsOverlay.addEventListener("click", (event) => {
+      if (event.target === elements.settingsOverlay) {
+        closeSettings();
+      }
+    });
+    elements.saveSettingsButton.addEventListener("click", handleSaveSettings);
+    elements.searchButton.addEventListener("click", runPromptSearch);
+    elements.closeSearchButton.addEventListener("click", closeSearchResults);
+    elements.openSearchResultButton.addEventListener("click", openActiveSearchResult);
+    elements.searchOverlay.addEventListener("click", (event) => {
+      if (event.target === elements.searchOverlay) {
+        closeSearchResults();
+      }
+    });
+    elements.addPromptButton.addEventListener("click", openPromptCreator);
+    elements.cancelNewPromptButton.addEventListener("click", closePromptCreator);
+    elements.saveNewPromptButton.addEventListener("click", createPromptFromInputs);
+
+    elements.prevButton.addEventListener("click", () => navigate(-1));
+    elements.nextButton.addEventListener("click", () => navigate(1));
+    elements.promptSelect.addEventListener("change", () => {
+      const nextIndex = Number(elements.promptSelect.value);
+      if (!Number.isNaN(nextIndex)) {
+        selectPrompt(nextIndex);
+      }
+    });
+    elements.searchInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        runPromptSearch();
+      }
+    });
+
+    elements.promptText.addEventListener("input", () => {
+      handlePromptFieldEdit("prompt_text", elements.promptText.value, "promptText");
+    });
+    elements.commentsText.addEventListener("input", () => {
+      handlePromptFieldEdit("comments", elements.commentsText.value);
+    });
+    elements.copyButton.addEventListener("click", copyCurrentPrompt);
+    elements.previewPromptButton.addEventListener("click", openPromptPreview);
+    elements.previewChatButton.addEventListener("click", openChatPreview);
+    document.addEventListener("click", handleToolbarClick);
+
+    elements.sendPromptButton.addEventListener("click", async () => {
+      const current = getCurrentPrompt();
+      if (!current) {
+        return;
+      }
+      await sendChatMessage(current.prompt_text);
+    });
+
+    elements.newChatButton.addEventListener("click", resetCurrentChat);
+    elements.insertPromptButton.addEventListener("click", insertSelectedPromptIntoComposer);
+
+    elements.composer.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const text = elements.messageInput.value.trim();
+      if (!text) {
+        return;
+      }
+      await sendChatMessage(text);
+    });
+
+    elements.messageInput.addEventListener("keydown", async (event) => {
+      if (event.key === "Enter" && !event.shiftKey && !event.isComposing && !state.isComposing) {
+        event.preventDefault();
+        const text = elements.messageInput.value.trim();
+        if (!text) {
+          return;
+        }
+        await sendChatMessage(text);
+      }
+    });
+
+    elements.messageInput.addEventListener("compositionstart", () => {
+      state.isComposing = true;
+    });
+
+    elements.messageInput.addEventListener("compositionend", () => {
+      state.isComposing = false;
+    });
+
+    elements.pageWidthInput.addEventListener("input", () => {
+      elements.pageWidthValue.textContent = (Number(elements.pageWidthInput.value) || 100) + "%";
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !elements.settingsOverlay.hidden) {
+        closeSettings();
+        return;
+      }
+      if (event.key === "Escape" && !elements.searchOverlay.hidden) {
+        closeSearchResults();
+      }
+    });
+
+    loadSettings();
+    applyDisplaySettings();
+    syncSettingsForm();
+    renderPresetList();
+    updatePromptSetMeta();
+    rebuildSelect();
+    updatePromptActions();
+    updateHistoryButtons("promptText");
+
+    setChatStatus("Ready. Provider: " + getProviderLabel() + ". Model: " + getProviderModel() + ".");
+    setChatGptModelStatus("Requests will be sent to " + getGatewayTargetLabel(normalizeBaseUrl(state.settings.baseUrl)) + ".");
+
+    elements.messageInput.focus();
+  </script>
+</body>
+</html>
