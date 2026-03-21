@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gateway Chat Client</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #d1d5db;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
+      --success: #059669;
+      --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f172a;
+        --panel: #111827;
+        --text: #e5e7eb;
+        --muted: #9ca3af;
+        --border: #374151;
+        --accent: #3b82f6;
+        --accent-hover: #60a5fa;
+        --danger: #ef4444;
+        --danger-hover: #f87171;
+        --success: #10b981;
+        --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.4;
+    }
+
+    .wrap {
+      max-width: 1000px;
+      margin: 32px auto;
+      padding: 0 16px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .header {
+      padding: 20px 24px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+
+    .header p {
+      margin: 8px 0 0;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      padding: 20px 24px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      font-weight: 600;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 140px;
+    }
+
+    .output {
+      min-height: 220px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      background: rgba(127, 127, 127, 0.06);
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 0 24px 24px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.02s ease, opacity 0.2s ease, background 0.2s ease;
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .primary:hover:enabled {
+      background: var(--accent-hover);
+    }
+
+    .secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .danger:hover:enabled {
+      background: var(--danger-hover);
+    }
+
+    .status {
+      padding: 0 24px 24px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .status strong {
+      color: var(--text);
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 0 24px 24px;
+    }
+
+    .pill {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 0.9rem;
+      color: var(--muted);
+      background: rgba(127, 127, 127, 0.06);
+    }
+
+    .ok {
+      color: var(--success);
+    }
+
+    @media (max-width: 720px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <h1>Gateway Chat Client</h1>
+        <p>Single-file HTML client for your <code>/chat</code> gateway, with conversation tracking and previous response chaining.</p>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label for="baseUrl">Gateway Base URL</label>
+          <input id="baseUrl" type="text" value="http://localhost:8080" spellcheck="false" />
+        </div>
+
+        <div class="field">
+          <label for="model">Model</label>
+          <input id="model" type="text" value="gpt-4.1-mini" spellcheck="false" />
+        </div>
+
+        <div class="field">
+          <label for="conversationId">Conversation ID</label>
+          <input id="conversationId" type="text" spellcheck="false" />
+        </div>
+
+        <div class="field">
+          <label for="streamMode">Mode</label>
+          <select id="streamMode">
+            <option value="false" selected>Standard JSON</option>
+            <option value="true">Streaming SSE</option>
+          </select>
+        </div>
+
+        <div class="field full">
+          <label for="prompt">Prompt</label>
+          <textarea id="prompt" placeholder="Type your message here..."></textarea>
+        </div>
+
+        <div class="field full">
+          <label for="response">Response</label>
+          <textarea id="response" class="output" readonly placeholder="The assistant response will appear here..."></textarea>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="sendButton" class="primary">Send Message</button>
+        <button id="clearPromptButton" class="secondary">Clear Prompt</button>
+        <button id="clearResponseButton" class="secondary">Clear Response</button>
+        <button id="clearAllButton" class="danger">Clear Both Screens</button>
+      </div>
+
+      <div class="pill-row">
+        <div class="pill">Provider: <strong>openai</strong></div>
+        <div class="pill">Previous Response ID: <span id="previousResponseIdLabel">(none)</span></div>
+        <div class="pill">Last Response ID: <span id="lastResponseIdLabel">(none)</span></div>
+        <div class="pill">Last Request ID: <span id="requestIdLabel">(none)</span></div>
+      </div>
+
+      <div class="status" id="status">Ready.</div>
+    </div>
+  </div>
+
+  <script>
+    const els = {
+      baseUrl: document.getElementById('baseUrl'),
+      model: document.getElementById('model'),
+      conversationId: document.getElementById('conversationId'),
+      streamMode: document.getElementById('streamMode'),
+      prompt: document.getElementById('prompt'),
+      response: document.getElementById('response'),
+      sendButton: document.getElementById('sendButton'),
+      clearPromptButton: document.getElementById('clearPromptButton'),
+      clearResponseButton: document.getElementById('clearResponseButton'),
+      clearAllButton: document.getElementById('clearAllButton'),
+      previousResponseIdLabel: document.getElementById('previousResponseIdLabel'),
+      lastResponseIdLabel: document.getElementById('lastResponseIdLabel'),
+      requestIdLabel: document.getElementById('requestIdLabel'),
+      status: document.getElementById('status')
+    };
+
+    const storageKeys = {
+      baseUrl: 'gatewayChat.baseUrl',
+      model: 'gatewayChat.model',
+      conversationId: 'gatewayChat.conversationId',
+      previousResponseId: 'gatewayChat.previousResponseId',
+      streamMode: 'gatewayChat.streamMode'
+    };
+
+    function generateConversationId() {
+      if (window.crypto && crypto.randomUUID) {
+        return `web-${crypto.randomUUID()}`;
+      }
+      return `web-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
+    function loadState() {
+      const savedBaseUrl = localStorage.getItem(storageKeys.baseUrl);
+      const savedModel = localStorage.getItem(storageKeys.model);
+      const savedConversationId = localStorage.getItem(storageKeys.conversationId);
+      const savedPreviousResponseId = localStorage.getItem(storageKeys.previousResponseId);
+      const savedStreamMode = localStorage.getItem(storageKeys.streamMode);
+
+      if (savedBaseUrl) els.baseUrl.value = savedBaseUrl;
+      if (savedModel) els.model.value = savedModel;
+      if (savedStreamMode === 'true' || savedStreamMode === 'false') {
+        els.streamMode.value = savedStreamMode;
+      }
+
+      els.conversationId.value = savedConversationId || generateConversationId();
+      updateResponseIdLabels(savedPreviousResponseId || '', '');
+    }
+
+    function saveState() {
+      localStorage.setItem(storageKeys.baseUrl, els.baseUrl.value.trim());
+      localStorage.setItem(storageKeys.model, els.model.value.trim());
+      localStorage.setItem(storageKeys.conversationId, els.conversationId.value.trim());
+      localStorage.setItem(storageKeys.streamMode, els.streamMode.value);
+    }
+
+    function getPreviousResponseId() {
+      return localStorage.getItem(storageKeys.previousResponseId) || '';
+    }
+
+    function setPreviousResponseId(value) {
+      if (value) {
+        localStorage.setItem(storageKeys.previousResponseId, value);
+      } else {
+        localStorage.removeItem(storageKeys.previousResponseId);
+      }
+      updateResponseIdLabels(value, els.lastResponseIdLabel.textContent === '(none)' ? '' : els.lastResponseIdLabel.textContent);
+    }
+
+    function updateResponseIdLabels(previousId, lastId) {
+      els.previousResponseIdLabel.textContent = previousId || '(none)';
+      els.lastResponseIdLabel.textContent = lastId || '(none)';
+    }
+
+    function setRequestIdLabel(requestId) {
+      els.requestIdLabel.textContent = requestId || '(none)';
+    }
+
+    function setStatus(message, isError = false) {
+      els.status.innerHTML = isError ? `<strong>${escapeHtml(message)}</strong>` : escapeHtml(message);
+      els.status.classList.toggle('ok', !isError);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function setBusy(isBusy) {
+      els.sendButton.disabled = isBusy;
+      els.clearPromptButton.disabled = isBusy;
+      els.clearResponseButton.disabled = isBusy;
+      els.clearAllButton.disabled = isBusy;
+    }
+
+    async function sendChat() {
+      const baseUrl = els.baseUrl.value.trim().replace(/\/$/, '');
+      const model = els.model.value.trim();
+      const conversationId = els.conversationId.value.trim() || generateConversationId();
+      const message = els.prompt.value.trim();
+      const stream = els.streamMode.value === 'true';
+      const previousResponseId = getPreviousResponseId();
+
+      els.conversationId.value = conversationId;
+      saveState();
+
+      if (!baseUrl) {
+        setStatus('Please enter a gateway base URL.', true);
+        return;
+      }
+
+      if (!message) {
+        setStatus('Please enter a prompt.', true);
+        return;
+      }
+
+      setBusy(true);
+      els.response.value = '';
+      setRequestIdLabel('');
+      updateResponseIdLabels(previousResponseId, '');
+      setStatus(stream ? 'Streaming response...' : 'Sending request...');
+
+      try {
+        if (stream) {
+          await sendStreaming({ baseUrl, model, conversationId, previousResponseId, message });
+        } else {
+          await sendStandard({ baseUrl, model, conversationId, previousResponseId, message });
+        }
+      } catch (error) {
+        setStatus(error.message || 'Request failed.', true);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function sendStandard({ baseUrl, model, conversationId, previousResponseId, message }) {
+      const response = await fetch(`${baseUrl}/chat`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          provider: 'openai',
+          model,
+          message,
+          conversation_id: conversationId,
+          previous_response_id: previousResponseId || undefined,
+          stream: false
+        })
+      });
+
+      const requestId = response.headers.get('x-request-id') || '';
+      setRequestIdLabel(requestId);
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Chat request failed');
+      }
+
+      els.response.value = data.response || '';
+
+      const newResponseId = data.response_id || '';
+      setPreviousResponseId(newResponseId);
+      updateResponseIdLabels(newResponseId, newResponseId);
+      setRequestIdLabel(data.request_id || requestId);
+      setStatus('Response received.');
+    }
+
+    async function sendStreaming({ baseUrl, model, conversationId, previousResponseId, message }) {
+      const response = await fetch(`${baseUrl}/chat`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          provider: 'openai',
+          model,
+          message,
+          conversation_id: conversationId,
+          previous_response_id: previousResponseId || undefined,
+          stream: true
+        })
+      });
+
+      const requestId = response.headers.get('x-request-id') || '';
+      setRequestIdLabel(requestId);
+
+      if (!response.ok || !response.body) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Streaming chat request failed');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let capturedResponseId = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';
+
+        for (const rawEvent of events) {
+          const dataLines = rawEvent
+            .split('\n')
+            .filter((line) => line.startsWith('data:'))
+            .map((line) => line.slice(5).trim());
+
+          for (const dataLine of dataLines) {
+            if (dataLine === '[DONE]') {
+              if (capturedResponseId) {
+                setPreviousResponseId(capturedResponseId);
+                updateResponseIdLabels(capturedResponseId, capturedResponseId);
+              }
+              setStatus('Streaming complete.');
+              return;
+            }
+
+            let event;
+            try {
+              event = JSON.parse(dataLine);
+            } catch {
+              continue;
+            }
+
+            if (event.type === 'response.output_text.delta' && typeof event.delta === 'string') {
+              els.response.value += event.delta;
+            }
+
+            if (
+              (event.type === 'response.created' || event.type === 'response.completed') &&
+              typeof event.response?.id === 'string'
+            ) {
+              capturedResponseId = event.response.id;
+              updateResponseIdLabels(previousResponseId, capturedResponseId);
+            }
+          }
+        }
+      }
+
+      if (capturedResponseId) {
+        setPreviousResponseId(capturedResponseId);
+        updateResponseIdLabels(capturedResponseId, capturedResponseId);
+      }
+      setStatus('Streaming finished.');
+    }
+
+    function clearPrompt() {
+      els.prompt.value = '';
+      setStatus('Prompt cleared.');
+    }
+
+    function clearResponse() {
+      els.response.value = '';
+      setStatus('Response cleared.');
+    }
+
+    function clearAll() {
+      els.prompt.value = '';
+      els.response.value = '';
+      const newConversationId = generateConversationId();
+      els.conversationId.value = newConversationId;
+      setPreviousResponseId('');
+      updateResponseIdLabels('', '');
+      setRequestIdLabel('');
+      saveState();
+      setStatus('Prompt, response, and conversation chain cleared.');
+    }
+
+    els.sendButton.addEventListener('click', sendChat);
+    els.clearPromptButton.addEventListener('click', clearPrompt);
+    els.clearResponseButton.addEventListener('click', clearResponse);
+    els.clearAllButton.addEventListener('click', clearAll);
+
+    [els.baseUrl, els.model, els.conversationId, els.streamMode].forEach((el) => {
+      el.addEventListener('change', saveState);
+    });
+
+    els.prompt.addEventListener('keydown', (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        sendChat();
+      }
+    });
+
+    loadState();
+    saveState();
+  </script>
+</body>
+</html>
