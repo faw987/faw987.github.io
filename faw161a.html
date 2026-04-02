@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Weather v3.1 — Daily → Hourly drilldown</title>
+    <title>Weather v3.2 — Daily → Hourly drilldown</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -16,9 +16,10 @@
         h1 { margin:0; font-size: clamp(22px, 2.8vw, 32px); }
         .sub { color: var(--muted); }
         .panel { background:#11172b; border:1px solid #1c2a4d; border-radius:16px; box-shadow: var(--shadow); padding:14px; }
-        .controls { display:grid; gap:12px; }
-        .row { display:grid; gap:12px; grid-template-columns: 1fr 1fr; }
-        @media (max-width: 900px){ .row{ grid-template-columns: 1fr; } }
+        .controls { display:grid; gap:10px; }
+        .row { display:grid; gap:10px; grid-template-columns: 1fr 1fr; }
+        .row4 { display:grid; gap:10px; grid-template-columns: 1fr 1fr 1fr 1fr; }
+        @media (max-width: 900px){ .row, .row4 { grid-template-columns: 1fr; } }
         label { font-weight:600; font-size:14px; color:var(--muted); }
         input[type="text"], input[type="number"], input[type="file"], textarea {
             width:100%; box-sizing:border-box; padding:10px 12px; border-radius:10px;
@@ -27,8 +28,11 @@
         textarea { resize:vertical; min-height:96px; }
         .btn { border:1px solid #2a3a6a; color:var(--text); background:#0b142c; padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:600; }
         .btn:hover { background:#12214a; border-color:#3b57a3; }
-        .dropzone { border:2px dashed #2a3a6a; border-radius:16px; padding:18px; text-align:center; color:var(--muted); }
+        .dropzone { border:2px dashed #2a3a6a; border-radius:16px; padding:14px; text-align:center; color:var(--muted); cursor:pointer; }
+        .dropzone:hover { border-color:#3b57a3; background: rgba(64,105,215,0.06); }
         .dropzone.dragover { background: rgba(64,105,215,0.12); border-color:#6ea8fe; color: var(--text); }
+        .btn-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        .btn-row label { margin-right:4px; }
         .grid { display:grid; grid-template-columns: 1fr; gap:16px; margin-top:16px; }
         .card { background:#11172b; border:1px solid #1b2647; border-radius:16px; padding:10px; box-shadow: var(--shadow); position: relative; }
         .card h3 { margin:6px 8px 0; font-size:16px; font-weight:700; color:var(--text); }
@@ -64,70 +68,57 @@
 <body>
 <div class="wrap">
     <header>
-        <h1>Weather v3.1 — Daily → Hourly Drilldown</h1>
+        <h1>Weather v3.2</h1>
         <p class="sub">Click a day to append an hourly table. Click an hour to open weather.com for that place/hour.</p>
     </header>
 
     <section class="panel controls">
-        <div class="row">
+        <div class="row4">
             <div>
-                <label for="prefState">Preferred State/Province</label>
+                <label for="prefState">State/Province</label>
                 <input id="prefState" type="text" value="New Jersey" />
             </div>
             <div>
-                <label for="prefCountry">Preferred Country</label>
+                <label for="prefCountry">Country</label>
                 <input id="prefCountry" type="text" value="United States" />
             </div>
-        </div>
-
-        <div class="row">
             <div>
-                <label for="startHour">Start hour (0–23)</label>
+                <label for="startHour">Start hour</label>
                 <input id="startHour" type="number" min="0" max="23" step="1" value="8" />
             </div>
             <div>
-                <label for="endHour">End hour (0–23)</label>
+                <label for="endHour">End hour</label>
                 <input id="endHour" type="number" min="0" max="23" step="1" value="17" />
             </div>
         </div>
 
-        <div class="row">
-            <div>
-                <label for="numDays"># Days (1–14)</label>
-                <input id="numDays" type="number" min="1" max="14" step="1" value="7" />
-            </div>
-            <div class="inline" style="margin-top: 26px;">
-                <label><input id="showDecimals" type="checkbox" checked /> Show decimals</label>
-                <label><input id="cityOnly" type="checkbox" checked /> City-only map labels</label>
-                <label><input id="onlyIcons" type="checkbox" /> Only icons (hide tables)</label>
-                <button id="run" class="btn" type="button">Generate</button>
-            </div>
+        <div class="btn-row">
+            <label for="numDays"># Days</label>
+            <input id="numDays" type="number" min="1" max="14" step="1" value="7" style="width:60px" />
+            <label><input id="showDecimals" type="checkbox" checked /> Decimals</label>
+            <label><input id="cityOnly" type="checkbox" checked /> City-only labels</label>
+            <label><input id="onlyIcons" type="checkbox" /> Icons only</label>
+            <button id="run" class="btn" type="button">Generate</button>
+            <button id="clearBtn" class="btn" type="button">Clear</button>
         </div>
 
-        <div id="drop" class="dropzone" tabindex="0" aria-label="Drop directive files here">
-            <strong>Drop file(s) here</strong>
-            <div class="sub">Directives: <code>place</code>, <code>color</code>, <code>hours</code>, <code>days</code>, <code>add</code>. Lines starting with <code>#</code> are comments.</div>
+        <div id="drop" class="dropzone" tabindex="0" aria-label="Drop or click to load directive files">
+            <input id="file" type="file" accept=".txt,.csv,text/plain" multiple style="display:none" />
+            <strong>Drop file(s) here or click to browse</strong>
+            <div class="sub">Files may contain <code>place</code>, <code>color</code>, <code>hours</code>, <code>days</code>, <code>add</code> directives. Lines starting with <code>#</code> are comments.</div>
         </div>
 
         <div class="row">
             <div>
-                <label for="file">Pick file(s)</label>
-                <input id="file" type="file" accept=".txt,.csv,text/plain" multiple />
-            </div>
-            <div>
-                <label for="paste">Or paste directives</label>
-                <textarea id="paste" placeholder="Examples:
-place Piscataway, NJ
+                <label for="paste">Place directives</label>
+                <textarea id="paste" placeholder="place Piscataway, NJ
 place 40.728,-73.995,Greenwich Village
 hours 8 17
-days 7
-color High(F)=..."></textarea>
+days 7"></textarea>
             </div>
-        </div>
-
-        <div>
-            <label for="rules">Color Rules</label>
-            <textarea id="rules" spellcheck="false">High(F)=-99#50.999:blue,51#65.999:lightgreen,66#85.999:green,85#110:red
+            <div>
+                <label for="rules">Color rules</label>
+                <textarea id="rules" spellcheck="false">High(F)=-99#50.999:blue,51#65.999:lightgreen,66#85.999:green,85#110:red
 Low(F)=-99#40.999:red,41#65.999:pink,66#85:green
 Temp (°F)=-99#40.999:red,41#65.999:yellow,66#85:green
 Precip (in)=0.00#0.0999:green,0.10#0.1999:yellow,0.20#10.0:red
@@ -136,6 +127,7 @@ Wind (mph)=0#15.999:lightgreen,16#25.999:yellow,26#200:red
 Gust (mph)=0#15.999:lightgreen,16#25.999:yellow,26#200:red
 RH (%)=0#60.999:lightgreen,61#75.999:green,76#100:yellow
 Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pink,Drizzle light:red,Drizzle mod:red,Drizzle heavy:red,Rain light:red,Rain mod:red,Rain heavy:red,Overcast:green,Rain showers:red,Rain shw mod:red</textarea>
+            </div>
         </div>
     </section>
 
@@ -743,6 +735,8 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
         const endHourBox = document.getElementById("endHour");
         const numDaysBox = document.getElementById("numDays");
 
+        const clearBtn = document.getElementById("clearBtn");
+
         function clearAll(){
             grid.innerHTML = "";
             featureGroup.clearLayers();
@@ -750,7 +744,6 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
         }
 
         async function processDirectives(rootText, fileSet){
-            clearAll();
             const parsed = await parseDirectives(rootText, fileSet);
             if (parsed.hours){
                 startHourBox.value = String(parsed.hours.start);
@@ -774,8 +767,20 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
 
             for (const it of parsed.places) {
                 let coords;
-                if (it.type === "coords") coords = { lat: it.lat, lon: it.lon, label: it.label };
-                else coords = await geocode(it, prefs);
+                try {
+                    if (it.type === "coords") coords = { lat: it.lat, lon: it.lon, label: it.label };
+                    else coords = await geocode(it, prefs);
+                } catch(err) {
+                    const label = it.raw || it.city || "Unknown";
+                    const card = el("section", { class:"card", role:"region" });
+                    const title = el("h3", { text: label });
+                    const close = el("button", { class:"close-btn", type:"button", text:"Close" });
+                    close.addEventListener("click", () => card.remove());
+                    const msg = el("p", { class:"meta bad", text: String(err && err.message ? err.message : err) });
+                    card.append(title, close, msg);
+                    grid.prepend(card);
+                    continue;
+                }
                 await buildCard(grid, coords, rules, showDecimals, startHour, endHour, numDays);
             }
 
@@ -789,26 +794,36 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
             return fs;
         }
 
+        async function processFiles(files){
+            if (!files || !files.length) return;
+            const fs = fileListToSet(files);
+            // Load file contents into paste textarea, then process
+            const texts = [];
+            for (const f of files) texts.push(await f.text());
+            const combined = texts.join("\n");
+            if (pasteArea) {
+                const prev = pasteArea.value.trim();
+                pasteArea.value = prev ? prev + "\n" + combined : combined;
+            }
+            await processDirectives(combined, fs);
+        }
+
         if (dz) {
             dz.addEventListener("dragover", (e)=>{ e.preventDefault(); dz.classList.add("dragover"); });
             dz.addEventListener("dragleave", ()=> dz.classList.remove("dragover"));
             dz.addEventListener("drop", async (e)=>{
                 e.preventDefault(); dz.classList.remove("dragover");
-                const files = e.dataTransfer.files;
-                if(!files || !files.length) return;
-                const fs = fileListToSet(files);
-                const rootText = await files[0].text();
-                await processDirectives(rootText, fs);
+                await processFiles(e.dataTransfer.files);
+            });
+            dz.addEventListener("click", (e)=>{
+                if (e.target === fileInput) return;
+                fileInput.click();
             });
         }
 
         if (fileInput) {
-            fileInput.addEventListener("change", async (e)=>{
-                const files = e.target.files;
-                if(!files || !files.length) return;
-                const fs = fileListToSet(files);
-                const rootText = await files[0].text();
-                await processDirectives(rootText, fs);
+            fileInput.addEventListener("change", async ()=>{
+                await processFiles(fileInput.files);
                 fileInput.value = "";
             });
         }
@@ -816,9 +831,13 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
         if (runBtn) {
             runBtn.addEventListener("click", async ()=>{
                 const text = (pasteArea && pasteArea.value ? pasteArea.value : "").trim();
-                if(!text){ alert("Provide directives by file, drop, or paste."); return; }
+                if(!text){ alert("Enter place directives or drop a file."); return; }
                 await processDirectives(text, new FileSet());
             });
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener("click", clearAll);
         }
 
         // Map click → add a new place
