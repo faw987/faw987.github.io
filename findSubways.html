@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find Nearby Subway Entrances</title>
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin=""
+>
+<style>
+  :root {
+    --bg: #f3efe6;
+    --panel: rgba(255, 252, 246, 0.9);
+    --ink: #1f2f2b;
+    --muted: #586764;
+    --accent: #0f7c67;
+    --accent-2: #f2a541;
+    --line: rgba(31, 47, 43, 0.14);
+    --shadow: 0 18px 45px rgba(31, 47, 43, 0.12);
+    --danger: #c0392b;
+    --success: #207f49;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    font-family: Georgia, "Times New Roman", serif;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at top left, rgba(15, 124, 103, 0.12), transparent 28%),
+      radial-gradient(circle at top right, rgba(242, 165, 65, 0.18), transparent 26%),
+      linear-gradient(180deg, #f7f4ed 0%, #efe7d9 100%);
+    min-height: 100vh;
+  }
+
+  .page {
+    width: min(1200px, calc(100vw - 32px));
+    margin: 24px auto 40px;
+  }
+
+  .hero,
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(8px);
+  }
+
+  .hero {
+    padding: 28px 28px 24px;
+    margin-bottom: 18px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::after {
+    content: "";
+    position: absolute;
+    width: 240px;
+    height: 240px;
+    right: -40px;
+    top: -60px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(15, 124, 103, 0.14), rgba(15, 124, 103, 0));
+    pointer-events: none;
+  }
+
+  h1 {
+    margin: 0 0 8px;
+    font-size: clamp(2rem, 3vw, 3.1rem);
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: var(--muted);
+    max-width: 72ch;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  .panel {
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+
+  .section-title {
+    margin: 0 0 10px;
+    font-size: 1.2rem;
+    letter-spacing: 0.01em;
+  }
+
+  .section-note {
+    margin: 0 0 14px;
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.45;
+  }
+
+  .grid {
+    display: grid;
+    gap: 14px;
+  }
+
+  .controls {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: end;
+  }
+
+  .split {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: 1.25fr 0.95fr;
+  }
+
+  label {
+    display: block;
+    font-size: 0.88rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  input,
+  textarea,
+  button {
+    font: inherit;
+  }
+
+  input,
+  textarea {
+    width: 100%;
+    border: 1px solid rgba(31, 47, 43, 0.18);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.76);
+    color: var(--ink);
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+  }
+
+  input:focus,
+  textarea:focus {
+    border-color: rgba(15, 124, 103, 0.45);
+    box-shadow: 0 0 0 4px rgba(15, 124, 103, 0.11);
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 140px;
+    line-height: 1.45;
+  }
+
+  #data-source {
+    min-height: 220px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+  }
+
+  .button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-top: 12px;
+  }
+
+  button {
+    border: none;
+    border-radius: 999px;
+    padding: 11px 18px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.14s ease, opacity 0.14s ease, box-shadow 0.14s ease;
+  }
+
+  button:hover {
+    transform: translateY(-1px);
+  }
+
+  button:active {
+    transform: translateY(0);
+  }
+
+  .primary-btn {
+    background: var(--accent);
+    color: #f8fbfa;
+    box-shadow: 0 10px 24px rgba(15, 124, 103, 0.18);
+  }
+
+  .secondary-btn {
+    background: #e8ddd0;
+    color: var(--ink);
+  }
+
+  .warm-btn {
+    background: var(--accent-2);
+    color: #2f2316;
+    box-shadow: 0 10px 24px rgba(242, 165, 65, 0.2);
+  }
+
+  .status {
+    min-height: 22px;
+    margin-top: 10px;
+    font-size: 0.93rem;
+    color: var(--muted);
+  }
+
+  .status.error {
+    color: var(--danger);
+  }
+
+  .status.success {
+    color: var(--success);
+  }
+
+  .stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  .stat-chip {
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: rgba(15, 124, 103, 0.08);
+    color: var(--ink);
+    font-size: 0.9rem;
+  }
+
+  .results-window,
+  .coords-window {
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.62);
+    overflow: hidden;
+  }
+
+  .results-window {
+    min-height: 320px;
+    max-height: 620px;
+    overflow-y: auto;
+    padding: 14px;
+  }
+
+  .coords-window {
+    padding: 14px;
+  }
+
+  .result-card {
+    border: 1px solid rgba(31, 47, 43, 0.12);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 14px 14px 12px;
+  }
+
+  .result-card + .result-card {
+    margin-top: 12px;
+  }
+
+  .result-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: start;
+    margin-bottom: 8px;
+  }
+
+  .result-rank {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(15, 124, 103, 0.1);
+    color: var(--accent);
+    font-weight: 700;
+    flex: 0 0 auto;
+  }
+
+  .result-title {
+    margin: 0 0 4px;
+    font-size: 1.06rem;
+  }
+
+  .result-meta {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  .result-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.92rem;
+    white-space: nowrap;
+  }
+
+  .result-link:hover {
+    text-decoration: underline;
+  }
+
+  .station-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 14px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(31, 47, 43, 0.14);
+  }
+
+  .station-field {
+    min-width: 0;
+  }
+
+  .station-label {
+    display: block;
+    margin-bottom: 2px;
+    color: var(--muted);
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .station-value {
+    display: block;
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+  }
+
+  .empty-state {
+    min-height: 290px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--muted);
+    padding: 20px;
+    line-height: 1.6;
+  }
+
+  .coords-help {
+    margin: 0 0 10px;
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  #coordinates-box {
+    min-height: 220px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.9rem;
+  }
+
+  #map {
+    width: 100%;
+    height: 560px;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: #d9e5e0;
+  }
+
+  .map-note {
+    margin: 0 0 12px;
+    color: var(--muted);
+    font-size: 0.93rem;
+  }
+
+  .popup-info {
+    font-size: 0.88rem;
+    line-height: 1.4;
+  }
+
+  .popup-info strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.98rem;
+  }
+
+  @media (max-width: 980px) {
+    .split {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 820px) {
+    .controls {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .station-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .page {
+      width: min(100vw - 18px, 100%);
+      margin-top: 10px;
+    }
+
+    .hero,
+    .panel {
+      border-radius: 18px;
+    }
+
+    .controls {
+      grid-template-columns: 1fr;
+    }
+
+    .result-head {
+      flex-direction: column;
+    }
+
+    #map {
+      height: 420px;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <h1>Find Nearby Subway Entrances</h1>
+      <p class="subtitle">
+        Search NYC subway entrances by latitude and longitude, inspect station details from the generated subway API, edit the returned coordinates, and plot them on a map with the search origin.
+      </p>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Subway Data API</h2>
+      <p class="section-note">
+        The generated subway lookup data is now bundled directly into this page. There is nothing to paste. The app uses the embedded <code>closeBy()</code>, <code>getStationInfo()</code>, and station tables automatically on load.
+      </p>
+      <div id="data-status" class="status"></div>
+      <div id="data-stats" class="stats" hidden>
+        <span class="stat-chip" id="entries-count-chip">0 entrances</span>
+        <span class="stat-chip" id="stations-count-chip">0 stations</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Search</h2>
+      <div class="grid controls">
+        <div>
+          <label for="origin-lat">Latitude</label>
+          <input id="origin-lat" type="number" step="any" value="40.7484">
+        </div>
+        <div>
+          <label for="origin-lon">Longitude</label>
+          <input id="origin-lon" type="number" step="any" value="-73.9857">
+        </div>
+        <div>
+          <label for="max-results">Max results</label>
+          <input id="max-results" type="number" min="1" step="1" value="8">
+        </div>
+        <div>
+          <label for="cutoff-meters">Cutoff meters</label>
+          <input id="cutoff-meters" type="number" min="1" step="1" value="1500">
+        </div>
+      </div>
+      <div class="button-row">
+        <button id="find-btn" class="warm-btn">Find Nearby</button>
+      </div>
+      <div id="search-status" class="status"></div>
+    </section>
+
+    <section class="split">
+      <section class="panel">
+        <h2 class="section-title">Nearby Results</h2>
+        <div id="results-window" class="results-window">
+          <div class="empty-state">
+            Load the subway data block, enter a location, then run a search.
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 class="section-title">Coordinate List</h2>
+        <div class="coords-window">
+          <p class="coords-help">
+            This box is filled from the nearby-results list using only <code>lat, lon</code> pairs. Edit the list however you want before mapping it.
+          </p>
+          <textarea id="coordinates-box" spellcheck="false" placeholder="40.7484, -73.9857"></textarea>
+          <div class="button-row">
+            <button id="map-btn" class="primary-btn">Map It</button>
+          </div>
+          <div id="map-status" class="status"></div>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title">Map</h2>
+      <p class="map-note">
+        Green markers come from the editable coordinate box. The red marker is the search origin. Click markers for station details when the point matches a recent search result.
+      </p>
+      <div id="map"></div>
+    </section>
+  </div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script>
+// Generated by NYC Subway Station Data tool
+// 868 entrances/exits processed
+// 151 stations in stationInfo
+
+const METERS_PER_DEG_LAT = 111320;
+const LAT0 = 40.783;
+const COS_LAT0 = Math.cos(LAT0 * Math.PI / 180);
+const METERS_PER_DEG_LON = METERS_PER_DEG_LAT * COS_LAT0;
+
+function toLocalXY(lat, lon) {
+  return {
+    x: Math.round(lon * METERS_PER_DEG_LON),
+    y: Math.round(lat * METERS_PER_DEG_LAT)
+  };
+}
+
+// entriesExits array — each entry is a semicolon-separated string:
+// stationName;lat;lon;x;y;mapsLink;stationId
+var entriesExits = [];
+  entriesExits[1] = "1 Av;40.7310897;-73.9826309;-6236016;4534185;https://www.google.com/maps?q=40.7310897,-73.9826309;119";
+  entriesExits[2] = "1 Av;40.7312094;-73.9825455;-6236009;4534198;https://www.google.com/maps?q=40.7312094,-73.9825455;119";
+  entriesExits[3] = "1 Av;40.7314941;-73.9821471;-6235975;4534230;https://www.google.com/maps?q=40.7314941,-73.9821471;119";
+  entriesExits[4] = "1 Av;40.7314051;-73.9821094;-6235972;4534220;https://www.google.com/maps?q=40.7314051,-73.9821094;119";
+  entriesExits[5] = "1 Av;40.7305731;-73.9805094;-6235837;4534127;https://www.google.com/maps?q=40.7305731,-73.9805094;119";
+  entriesExits[6] = "1 Av;40.7307014;-73.9807914;-6235861;4534142;https://www.google.com/maps?q=40.7307014,-73.9807914;119";
+  entriesExits[7] = "1 Av;40.7304478;-73.9806762;-6235851;4534113;https://www.google.com/maps?q=40.7304478,-73.9806762;119";
+  entriesExits[8] = "1 Av;40.7304066;-73.9805757;-6235843;4534109;https://www.google.com/maps?q=40.7304066,-73.9805757;119";
+  entriesExits[9] = "1 Av;40.7306737;-73.9807198;-6235855;4534139;https://www.google.com/maps?q=40.7306737,-73.9807198;119";
+  entriesExits[10] = "1 Av;40.7305247;-73.9808688;-6235867;4534122;https://www.google.com/maps?q=40.7305247,-73.9808688;119";
+  entriesExits[11] = "103 St;40.7962977;-73.9616715;-6234249;4541444;https://www.google.com/maps?q=40.7962977,-73.9616715;156";
+  entriesExits[12] = "103 St;40.7992939;-73.9686826;-6234840;4541777;https://www.google.com/maps?q=40.7992939,-73.9686826;309";
+  entriesExits[13] = "103 St;40.7994274;-73.9686148;-6234834;4541792;https://www.google.com/maps?q=40.7994274,-73.9686148;309";
+  entriesExits[14] = "103 St;40.7991316;-73.9683278;-6234810;4541759;https://www.google.com/maps?q=40.7991316,-73.9683278;309";
+  entriesExits[15] = "103 St;40.7992499;-73.9682674;-6234805;4541772;https://www.google.com/maps?q=40.7992499,-73.9682674;309";
+  entriesExits[16] = "103 St;40.799598;-73.9680972;-6234791;4541811;https://www.google.com/maps?q=40.799598,-73.9680972;309";
+  entriesExits[17] = "103 St;40.7902953;-73.9478574;-6233085;4540776;https://www.google.com/maps?q=40.7902953,-73.9478574;395";
+  entriesExits[18] = "103 St;40.7902061;-73.9476498;-6233067;4540766;https://www.google.com/maps?q=40.7902061,-73.9476498;395";
+  entriesExits[19] = "110 St;40.7948147;-73.9446136;-6232811;4541279;https://www.google.com/maps?q=40.7948147,-73.9446136;394";
+  entriesExits[20] = "110 St;40.7949376;-73.9445008;-6232802;4541292;https://www.google.com/maps?q=40.7949376,-73.9445008;394";
+  entriesExits[21] = "110 St;40.794699;-73.9443307;-6232787;4541266;https://www.google.com/maps?q=40.794699,-73.9443307;394";
+  entriesExits[22] = "110 St;40.7948241;-73.9442436;-6232780;4541280;https://www.google.com/maps?q=40.7948241,-73.9442436;394";
+  entriesExits[23] = "110 St-Malcolm X Plaza;40.7985092;-73.9526653;-6233490;4541690;https://www.google.com/maps?q=40.7985092,-73.9526653;441";
+  entriesExits[24] = "110 St-Malcolm X Plaza;40.7990355;-73.952064;-6233439;4541749;https://www.google.com/maps?q=40.7990355,-73.952064;441";
+  entriesExits[25] = "116 St;40.80433;-73.9556383;-6233741;4542338;https://www.google.com/maps?q=40.80433,-73.9556383;154";
+  entriesExits[26] = "116 St;40.8046561;-73.9555601;-6233734;4542374;https://www.google.com/maps?q=40.8046561,-73.9555601;154";
+  entriesExits[27] = "116 St;40.8041847;-73.9551335;-6233698;4542322;https://www.google.com/maps?q=40.8041847,-73.9551335;154";
+  entriesExits[28] = "116 St;40.8044406;-73.9550429;-6233690;4542350;https://www.google.com/maps?q=40.8044406,-73.9550429;154";
+  entriesExits[29] = "116 St;40.7984748;-73.9418872;-6232581;4541686;https://www.google.com/maps?q=40.7984748,-73.9418872;393";
+  entriesExits[30] = "116 St;40.798417;-73.9416508;-6232562;4541680;https://www.google.com/maps?q=40.798417,-73.9416508;393";
+  entriesExits[31] = "116 St;40.7988534;-73.9416082;-6232558;4541728;https://www.google.com/maps?q=40.7988534,-73.9416082;393";
+  entriesExits[32] = "116 St;40.7987512;-73.9414039;-6232541;4541717;https://www.google.com/maps?q=40.7987512,-73.9414039;393";
+  entriesExits[33] = "116 St;40.801945;-73.949943;-6233261;4542073;https://www.google.com/maps?q=40.801945,-73.949943;440";
+  entriesExits[34] = "116 St;40.8022341;-73.9497353;-6233243;4542105;https://www.google.com/maps?q=40.8022341,-73.9497353;440";
+  entriesExits[35] = "116 St;40.8018347;-73.9496507;-6233236;4542060;https://www.google.com/maps?q=40.8018347,-73.9496507;440";
+  entriesExits[36] = "116 St;40.8021201;-73.9494404;-6233218;4542092;https://www.google.com/maps?q=40.8021201,-73.9494404;440";
+  entriesExits[37] = "116 St-Columbia University;40.8075562;-73.9640135;-6234447;4542697;https://www.google.com/maps?q=40.8075562,-73.9640135;307";
+  entriesExits[38] = "116 St-Columbia University;40.8082656;-73.9639636;-6234442;4542776;https://www.google.com/maps?q=40.8082656,-73.9639636;307";
+  entriesExits[39] = "116 St-Columbia University;40.8084113;-73.9638543;-6234433;4542792;https://www.google.com/maps?q=40.8084113,-73.9638543;307";
+  entriesExits[40] = "116 St-Columbia University;40.8081156;-73.9636063;-6234412;4542759;https://www.google.com/maps?q=40.8081156,-73.9636063;307";
+  entriesExits[41] = "116 St-Columbia University;40.8082611;-73.9634977;-6234403;4542776;https://www.google.com/maps?q=40.8082611,-73.9634977;307";
+  entriesExits[42] = "125 St;40.8106533;-73.9528842;-6233508;4543042;https://www.google.com/maps?q=40.8106533,-73.9528842;153";
+  entriesExits[43] = "125 St;40.8110144;-73.952615;-6233486;4543082;https://www.google.com/maps?q=40.8110144,-73.952615;153";
+  entriesExits[44] = "125 St;40.8105235;-73.9525916;-6233484;4543027;https://www.google.com/maps?q=40.8105235,-73.9525916;153";
+  entriesExits[45] = "125 St;40.8108896;-73.9523308;-6233462;4543068;https://www.google.com/maps?q=40.8108896,-73.9523308;153";
+  entriesExits[46] = "125 St;40.812002;-73.9517467;-6233413;4543192;https://www.google.com/maps?q=40.812002,-73.9517467;153";
+  entriesExits[47] = "125 St;40.8118703;-73.9513473;-6233379;4543177;https://www.google.com/maps?q=40.8118703,-73.9513473;153";
+  entriesExits[48] = "125 St;40.8107815;-73.9528525;-6233506;4543056;https://www.google.com/maps?q=40.8107815,-73.9528525;153";
+  entriesExits[49] = "125 St;40.8153339;-73.9588257;-6234009;4543563;https://www.google.com/maps?q=40.8153339,-73.9588257;306";
+  entriesExits[50] = "125 St;40.8157388;-73.9585275;-6233984;4543608;https://www.google.com/maps?q=40.8157388,-73.9585275;306";
+  entriesExits[51] = "125 St;40.8151608;-73.9584439;-6233977;4543544;https://www.google.com/maps?q=40.8151608,-73.9584439;306";
+  entriesExits[52] = "125 St;40.8152606;-73.9583715;-6233971;4543555;https://www.google.com/maps?q=40.8152606,-73.9583715;306";
+  entriesExits[53] = "125 St;40.8042618;-73.9376559;-6232225;4542330;https://www.google.com/maps?q=40.8042618,-73.9376559;392";
+  entriesExits[54] = "125 St;40.8041772;-73.9374408;-6232207;4542321;https://www.google.com/maps?q=40.8041772,-73.9374408;392";
+  entriesExits[55] = "125 St;40.8046136;-73.9374016;-6232203;4542370;https://www.google.com/maps?q=40.8046136,-73.9374016;392";
+  entriesExits[56] = "125 St;40.8044243;-73.9372301;-6232189;4542349;https://www.google.com/maps?q=40.8044243,-73.9372301;392";
+  entriesExits[57] = "125 St;40.8045377;-73.9371809;-6232185;4542361;https://www.google.com/maps?q=40.8045377,-73.9371809;392";
+  entriesExits[58] = "125 St;40.8076973;-73.9457523;-6232907;4542713;https://www.google.com/maps?q=40.8076973,-73.9457523;439";
+  entriesExits[59] = "125 St;40.8079975;-73.94553;-6232889;4542746;https://www.google.com/maps?q=40.8079975,-73.94553;439";
+  entriesExits[60] = "125 St;40.8075694;-73.9454604;-6232883;4542699;https://www.google.com/maps?q=40.8075694,-73.9454604;439";
+  entriesExits[61] = "125 St;40.8078903;-73.9452282;-6232863;4542734;https://www.google.com/maps?q=40.8078903,-73.9452282;439";
+  entriesExits[62] = "135 St;40.8171366;-73.948229;-6233116;4543764;https://www.google.com/maps?q=40.8171366,-73.948229;152";
+  entriesExits[63] = "135 St;40.8168892;-73.9479548;-6233093;4543736;https://www.google.com/maps?q=40.8168892,-73.9479548;152";
+  entriesExits[64] = "135 St;40.8169097;-73.9478184;-6233081;4543738;https://www.google.com/maps?q=40.8169097,-73.9478184;152";
+  entriesExits[65] = "135 St;40.8172018;-73.9476887;-6233070;4543771;https://www.google.com/maps?q=40.8172018,-73.9476887;152";
+  entriesExits[66] = "135 St;40.8185182;-73.9475789;-6233061;4543917;https://www.google.com/maps?q=40.8185182,-73.9475789;152";
+  entriesExits[67] = "135 St;40.8183718;-73.947201;-6233029;4543901;https://www.google.com/maps?q=40.8183718,-73.947201;152";
+  entriesExits[68] = "135 St;40.8140321;-73.9411204;-6232517;4543418;https://www.google.com/maps?q=40.8140321,-73.9411204;438";
+  entriesExits[69] = "135 St;40.814316;-73.94091;-6232499;4543450;https://www.google.com/maps?q=40.814316,-73.94091;438";
+  entriesExits[70] = "135 St;40.8139129;-73.9408289;-6232492;4543405;https://www.google.com/maps?q=40.8139129,-73.9408289;438";
+  entriesExits[71] = "135 St;40.8142863;-73.94056;-6232470;4543446;https://www.google.com/maps?q=40.8142863,-73.94056;438";
+  entriesExits[72] = "135 St;40.8139935;-73.9411593;-6232520;4543414;https://www.google.com/maps?q=40.8139935,-73.9411593;438";
+  entriesExits[73] = "135 St;40.8141678;-73.9406402;-6232476;4543433;https://www.google.com/maps?q=40.8141678,-73.9406402;438";
+  entriesExits[74] = "137 St-City College;40.8213608;-73.9544144;-6233637;4544234;https://www.google.com/maps?q=40.8213608,-73.9544144;305";
+  entriesExits[75] = "137 St-City College;40.8215954;-73.9542336;-6233622;4544260;https://www.google.com/maps?q=40.8215954,-73.9542336;305";
+  entriesExits[76] = "137 St-City College;40.8213989;-73.9539105;-6233595;4544238;https://www.google.com/maps?q=40.8213989,-73.9539105;305";
+  entriesExits[77] = "137 St-City College;40.8214651;-73.9538617;-6233591;4544245;https://www.google.com/maps?q=40.8214651,-73.9538617;305";
+  entriesExits[78] = "14 St-Union Sq;40.735276;-73.9910998;-6236730;4534651;https://www.google.com/maps?q=40.735276,-73.9910998;12";
+  entriesExits[79] = "14 St-Union Sq;40.7363092;-73.9906322;-6236690;4534766;https://www.google.com/maps?q=40.7363092,-73.9906322;12";
+  entriesExits[80] = "14 St-Union Sq;40.7365493;-73.9904348;-6236674;4534793;https://www.google.com/maps?q=40.7365493,-73.9904348;12";
+  entriesExits[81] = "14 St-Union Sq;40.735311;-73.990265;-6236659;4534655;https://www.google.com/maps?q=40.735311,-73.990265;12";
+  entriesExits[82] = "14 St-Union Sq;40.7348918;-73.9913166;-6236748;4534608;https://www.google.com/maps?q=40.7348918,-73.9913166;117";
+  entriesExits[83] = "14 St-Union Sq;40.734755;-73.990991;-6236720;4534593;https://www.google.com/maps?q=40.734755,-73.990991;117";
+  entriesExits[84] = "14 St-Union Sq;40.7345416;-73.9903207;-6236664;4534569;https://www.google.com/maps?q=40.7345416,-73.9903207;406";
+  entriesExits[85] = "14 St-Union Sq;40.7344735;-73.9901619;-6236651;4534562;https://www.google.com/maps?q=40.7344735,-73.9901619;406";
+  entriesExits[86] = "14 St-Union Sq;40.7351896;-73.9897744;-6236618;4534641;https://www.google.com/maps?q=40.7351896,-73.9897744;406";
+  entriesExits[87] = "14 St-Union Sq;40.7342562;-73.9896953;-6236611;4534537;https://www.google.com/maps?q=40.7342562,-73.9896953;406";
+  entriesExits[88] = "14 St-Union Sq;40.7342034;-73.9895337;-6236598;4534532;https://www.google.com/maps?q=40.7342034,-73.9895337;406";
+  entriesExits[89] = "14 St-Union Sq;40.7344166;-73.9894647;-6236592;4534555;https://www.google.com/maps?q=40.7344166,-73.9894647;406";
+  entriesExits[90] = "14 St/6 Av;40.7372217;-73.9967281;-6237204;4534868;https://www.google.com/maps?q=40.7372217,-73.9967281;116";
+  entriesExits[91] = "14 St/6 Av;40.7371466;-73.9965569;-6237190;4534859;https://www.google.com/maps?q=40.7371466,-73.9965569;116";
+  entriesExits[92] = "14 St/6 Av;40.7374199;-73.9971973;-6237244;4534890;https://www.google.com/maps?q=40.7374199,-73.9971973;229";
+  entriesExits[93] = "14 St/6 Av;40.7375639;-73.9970916;-6237235;4534906;https://www.google.com/maps?q=40.7375639,-73.9970916;229";
+  entriesExits[94] = "14 St/6 Av;40.7373646;-73.9970658;-6237233;4534883;https://www.google.com/maps?q=40.7373646,-73.9970658;229";
+  entriesExits[95] = "14 St/6 Av;40.7375147;-73.9969619;-6237224;4534900;https://www.google.com/maps?q=40.7375147,-73.9969619;229";
+  entriesExits[96] = "14 St/6 Av;40.7373522;-73.9965383;-6237188;4534882;https://www.google.com/maps?q=40.7373522,-73.9965383;229";
+  entriesExits[97] = "14 St/6 Av;40.7372847;-73.9964203;-6237178;4534875;https://www.google.com/maps?q=40.7372847,-73.9964203;229";
+  entriesExits[98] = "14 St/6 Av;40.7387078;-73.9961093;-6237152;4535033;https://www.google.com/maps?q=40.7387078,-73.9961093;229";
+  entriesExits[99] = "14 St/6 Av;40.738836;-73.9960133;-6237144;4535047;https://www.google.com/maps?q=40.738836,-73.9960133;229";
+  entriesExits[100] = "14 St/6 Av;40.7385661;-73.9957692;-6237123;4535017;https://www.google.com/maps?q=40.7385661,-73.9957692;229";
+  entriesExits[101] = "14 St/6 Av;40.7386847;-73.9956583;-6237114;4535030;https://www.google.com/maps?q=40.7386847,-73.9956583;229";
+  entriesExits[102] = "14 St/6 Av;40.7374025;-74.0008499;-6237551;4534888;https://www.google.com/maps?q=40.7374025,-74.0008499;322";
+  entriesExits[103] = "14 St/6 Av;40.7372034;-74.0003842;-6237512;4534865;https://www.google.com/maps?q=40.7372034,-74.0003842;322";
+  entriesExits[104] = "14 St/6 Av;40.7380271;-74.0003571;-6237510;4534957;https://www.google.com/maps?q=40.7380271,-74.0003571;322";
+  entriesExits[105] = "14 St/6 Av;40.7385531;-74.0000082;-6237481;4535016;https://www.google.com/maps?q=40.7385531,-74.0000082;322";
+  entriesExits[106] = "14 St/6 Av;40.7378432;-73.9999159;-6237473;4534937;https://www.google.com/maps?q=40.7378432,-73.9999159;322";
+  entriesExits[107] = "14 St/6 Av;40.7388022;-73.9997036;-6237455;4535043;https://www.google.com/maps?q=40.7388022,-73.9997036;322";
+  entriesExits[108] = "14 St/6 Av;40.7383157;-73.9996827;-6237453;4534989;https://www.google.com/maps?q=40.7383157,-73.9996827;322";
+  entriesExits[109] = "14 St/6 Av;40.7385817;-73.9993871;-6237428;4535019;https://www.google.com/maps?q=40.7385817,-73.9993871;322";
+  entriesExits[110] = "14 St/8 Av;40.739744;-74.0028317;-6237719;4535148;https://www.google.com/maps?q=40.739744,-74.0028317;115";
+  entriesExits[111] = "14 St/8 Av;40.7395548;-74.002379;-6237680;4535127;https://www.google.com/maps?q=40.7395548,-74.002379;115";
+  entriesExits[112] = "14 St/8 Av;40.7399648;-74.0026775;-6237706;4535173;https://www.google.com/maps?q=40.7399648,-74.0026775;166";
+  entriesExits[113] = "14 St/8 Av;40.7397744;-74.0022228;-6237667;4535152;https://www.google.com/maps?q=40.7397744,-74.0022228;166";
+  entriesExits[114] = "14 St/8 Av;40.740613;-74.0022132;-6237666;4535245;https://www.google.com/maps?q=40.740613,-74.0022132;166";
+  entriesExits[115] = "14 St/8 Av;40.7409998;-74.0018465;-6237635;4535288;https://www.google.com/maps?q=40.7409998,-74.0018465;166";
+  entriesExits[116] = "14 St/8 Av;40.740423;-74.0017648;-6237629;4535224;https://www.google.com/maps?q=40.740423,-74.0017648;166";
+  entriesExits[117] = "14 St/8 Av;40.7412488;-74.001743;-6237627;4535316;https://www.google.com/maps?q=40.7412488,-74.001743;166";
+  entriesExits[118] = "14 St/8 Av;40.7409261;-74.0013738;-6237596;4535280;https://www.google.com/maps?q=40.7409261,-74.0013738;166";
+  entriesExits[119] = "14 St/8 Av;40.7410587;-74.0012814;-6237588;4535295;https://www.google.com/maps?q=40.7410587,-74.0012814;166";
+  entriesExits[120] = "14 St/8 Av;40.7399468;-74.0027236;-6237709;4535171;https://www.google.com/maps?q=40.7399468,-74.0027236;166";
+  entriesExits[121] = "145 St;40.8239303;-73.9450243;-6232846;4544520;https://www.google.com/maps?q=40.8239303,-73.9450243;151";
+  entriesExits[122] = "145 St;40.824244;-73.944931;-6232838;4544555;https://www.google.com/maps?q=40.824244,-73.944931;151";
+  entriesExits[123] = "145 St;40.823804;-73.9447385;-6232822;4544506;https://www.google.com/maps?q=40.823804,-73.9447385;151";
+  entriesExits[124] = "145 St;40.8240409;-73.9444173;-6232795;4544532;https://www.google.com/maps?q=40.8240409,-73.9444173;151";
+  entriesExits[125] = "145 St;40.825652;-73.9438059;-6232743;4544712;https://www.google.com/maps?q=40.825652,-73.9438059;151";
+  entriesExits[126] = "145 St;40.8255977;-73.9434494;-6232713;4544706;https://www.google.com/maps?q=40.8255977,-73.9434494;151";
+  entriesExits[127] = "145 St;40.8266705;-73.9505231;-6233309;4544825;https://www.google.com/maps?q=40.8266705,-73.9505231;304";
+  entriesExits[128] = "145 St;40.8262103;-73.9503932;-6233298;4544774;https://www.google.com/maps?q=40.8262103,-73.9503932;304";
+  entriesExits[129] = "145 St;40.8265309;-73.9501591;-6233279;4544809;https://www.google.com/maps?q=40.8265309,-73.9501591;304";
+  entriesExits[130] = "145 St;40.820343;-73.936508;-6232128;4544121;https://www.google.com/maps?q=40.820343,-73.936508;437";
+  entriesExits[131] = "145 St;40.8206788;-73.936268;-6232108;4544158;https://www.google.com/maps?q=40.8206788,-73.936268;437";
+  entriesExits[132] = "145 St;40.820161;-73.936253;-6232107;4544100;https://www.google.com/maps?q=40.820161,-73.936253;437";
+  entriesExits[133] = "145 St;40.820602;-73.935933;-6232080;4544149;https://www.google.com/maps?q=40.820602,-73.935933;437";
+  entriesExits[134] = "155 St;40.830875;-73.9416528;-6232562;4545293;https://www.google.com/maps?q=40.830875,-73.9416528;150";
+  entriesExits[135] = "155 St;40.8307797;-73.9415935;-6232557;4545282;https://www.google.com/maps?q=40.8307797,-73.9415935;150";
+  entriesExits[136] = "155 St;40.8311232;-73.9415596;-6232554;4545321;https://www.google.com/maps?q=40.8311232,-73.9415596;150";
+  entriesExits[137] = "155 St;40.8311566;-73.9414537;-6232545;4545324;https://www.google.com/maps?q=40.8311566,-73.9414537;150";
+  entriesExits[138] = "155 St;40.8310439;-73.9411527;-6232520;4545312;https://www.google.com/maps?q=40.8310439,-73.9411527;150";
+  entriesExits[139] = "155 St;40.8309304;-73.9411061;-6232516;4545299;https://www.google.com/maps?q=40.8309304,-73.9411061;150";
+  entriesExits[140] = "155 St;40.830313;-73.936687;-6232143;4545230;https://www.google.com/maps?q=40.830313,-73.936687;220";
+  entriesExits[141] = "157 St;40.8342854;-73.9451903;-6232860;4545673;https://www.google.com/maps?q=40.8342854,-73.9451903;303";
+  entriesExits[142] = "157 St;40.8342392;-73.9450726;-6232850;4545668;https://www.google.com/maps?q=40.8342392,-73.9450726;303";
+  entriesExits[143] = "157 St;40.8338535;-73.9447553;-6232823;4545625;https://www.google.com/maps?q=40.8338535,-73.9447553;303";
+  entriesExits[144] = "157 St;40.8338703;-73.9445935;-6232810;4545626;https://www.google.com/maps?q=40.8338703,-73.9445935;303";
+  entriesExits[145] = "163 St-Amsterdam Av;40.835192;-73.940146;-6232435;4545774;https://www.google.com/maps?q=40.835192,-73.940146;149";
+  entriesExits[146] = "163 St-Amsterdam Av;40.8358559;-73.9400923;-6232430;4545847;https://www.google.com/maps?q=40.8358559,-73.9400923;149";
+  entriesExits[147] = "163 St-Amsterdam Av;40.835291;-73.9396266;-6232391;4545785;https://www.google.com/maps?q=40.835291,-73.9396266;149";
+  entriesExits[148] = "168 St-Washington Hts;40.8418738;-73.939572;-6232386;4546517;https://www.google.com/maps?q=40.8418738,-73.939572;148";
+  entriesExits[149] = "168 St-Washington Hts;40.8419367;-73.9394614;-6232377;4546524;https://www.google.com/maps?q=40.8419367,-73.9394614;148";
+  entriesExits[150] = "168 St-Washington Hts;40.8407547;-73.9392446;-6232359;4546393;https://www.google.com/maps?q=40.8407547,-73.9392446;148";
+  entriesExits[151] = "168 St-Washington Hts;40.8417771;-73.9390663;-6232344;4546507;https://www.google.com/maps?q=40.8417771,-73.9390663;148";
+  entriesExits[152] = "168 St-Washington Hts;40.8407386;-73.9394342;-6232375;4546391;https://www.google.com/maps?q=40.8407386,-73.9394342;148";
+  entriesExits[153] = "168 St-Washington Hts;40.8408691;-73.9402106;-6232440;4546406;https://www.google.com/maps?q=40.8408691,-73.9402106;302";
+  entriesExits[154] = "168 St-Washington Hts;40.8410336;-73.9400969;-6232431;4546424;https://www.google.com/maps?q=40.8410336,-73.9400969;302";
+  entriesExits[155] = "168 St-Washington Hts;40.8407262;-73.9397252;-6232399;4546390;https://www.google.com/maps?q=40.8407262,-73.9397252;302";
+  entriesExits[156] = "175 St;40.8463795;-73.9402964;-6232447;4547019;https://www.google.com/maps?q=40.8463795,-73.9402964;147";
+  entriesExits[157] = "175 St;40.8464212;-73.9398567;-6232410;4547024;https://www.google.com/maps?q=40.8464212,-73.9398567;147";
+  entriesExits[158] = "175 St;40.8478249;-73.939798;-6232405;4547180;https://www.google.com/maps?q=40.8478249,-73.939798;147";
+  entriesExits[159] = "175 St;40.8479603;-73.9396895;-6232396;4547195;https://www.google.com/maps?q=40.8479603,-73.9396895;147";
+  entriesExits[160] = "175 St;40.8480045;-73.939575;-6232387;4547200;https://www.google.com/maps?q=40.8480045,-73.939575;147";
+  entriesExits[161] = "175 St;40.8479668;-73.9393756;-6232370;4547196;https://www.google.com/maps?q=40.8479668,-73.9393756;147";
+  entriesExits[162] = "175 St;40.8478741;-73.9392845;-6232362;4547185;https://www.google.com/maps?q=40.8478741,-73.9392845;147";
+  entriesExits[163] = "175 St;40.8481362;-73.9393681;-6232369;4547215;https://www.google.com/maps?q=40.8481362,-73.9393681;147";
+  entriesExits[164] = "18 St;40.7410753;-73.9980934;-6237319;4535297;https://www.google.com/maps?q=40.7410753,-73.9980934;321";
+  entriesExits[165] = "18 St;40.7412046;-73.9980115;-6237312;4535311;https://www.google.com/maps?q=40.7412046,-73.9980115;321";
+  entriesExits[166] = "18 St;40.7409199;-73.9977262;-6237288;4535279;https://www.google.com/maps?q=40.7409199,-73.9977262;321";
+  entriesExits[167] = "18 St;40.7410343;-73.9976084;-6237278;4535292;https://www.google.com/maps?q=40.7410343,-73.9976084;321";
+  entriesExits[168] = "18 St;40.7417984;-73.9975938;-6237277;4535377;https://www.google.com/maps?q=40.7417984,-73.9975938;321";
+  entriesExits[169] = "18 St;40.7416195;-73.997168;-6237241;4535357;https://www.google.com/maps?q=40.7416195,-73.997168;321";
+  entriesExits[170] = "181 St;40.8508848;-73.9385335;-6232299;4547520;https://www.google.com/maps?q=40.8508848,-73.9385335;146";
+  entriesExits[171] = "181 St;40.8507955;-73.9384747;-6232294;4547511;https://www.google.com/maps?q=40.8507955,-73.9384747;146";
+  entriesExits[172] = "181 St;40.8506956;-73.9382451;-6232274;4547499;https://www.google.com/maps?q=40.8506956,-73.9382451;146";
+  entriesExits[173] = "181 St;40.8507602;-73.9380902;-6232261;4547507;https://www.google.com/maps?q=40.8507602,-73.9380902;146";
+  entriesExits[174] = "181 St;40.852759;-73.936636;-6232139;4547729;https://www.google.com/maps?q=40.852759,-73.936636;146";
+  entriesExits[175] = "181 St;40.8529297;-73.9374299;-6232206;4547748;https://www.google.com/maps?q=40.8529297,-73.9374299;146";
+  entriesExits[176] = "181 St;40.8491054;-73.9337519;-6231896;4547322;https://www.google.com/maps?q=40.8491054,-73.9337519;301";
+  entriesExits[177] = "181 St;40.8495727;-73.933351;-6231862;4547374;https://www.google.com/maps?q=40.8495727,-73.933351;301";
+  entriesExits[178] = "190 St;40.858902;-73.9342217;-6231935;4548413;https://www.google.com/maps?q=40.858902,-73.9342217;145";
+  entriesExits[179] = "190 St;40.858899;-73.932702;-6231807;4548413;https://www.google.com/maps?q=40.858899,-73.932702;145";
+  entriesExits[180] = "191 St;40.856413;-73.932605;-6231799;4548136;https://www.google.com/maps?q=40.856413,-73.932605;300";
+  entriesExits[181] = "191 St;40.855374;-73.929536;-6231540;4548020;https://www.google.com/maps?q=40.855374,-73.929536;300";
+  entriesExits[182] = "2 Av;40.723682;-73.9916677;-6236777;4533360;https://www.google.com/maps?q=40.723682,-73.9916677;232";
+  entriesExits[183] = "2 Av;40.7239689;-73.9912799;-6236745;4533392;https://www.google.com/maps?q=40.7239689,-73.9912799;232";
+  entriesExits[184] = "2 Av;40.7227919;-73.9889701;-6236550;4533261;https://www.google.com/maps?q=40.7227919,-73.9889701;232";
+  entriesExits[185] = "2 Av;40.7232077;-73.9888803;-6236543;4533307;https://www.google.com/maps?q=40.7232077,-73.9888803;232";
+  entriesExits[186] = "207 St;40.8642822;-73.9192293;-6230672;4549012;https://www.google.com/maps?q=40.8642822,-73.9192293;298";
+  entriesExits[187] = "207 St;40.8642605;-73.9189461;-6230648;4549009;https://www.google.com/maps?q=40.8642605,-73.9189461;298";
+  entriesExits[188] = "207 St;40.8647513;-73.9188745;-6230642;4549064;https://www.google.com/maps?q=40.8647513,-73.9188745;298";
+  entriesExits[189] = "207 St;40.8646144;-73.9186888;-6230626;4549049;https://www.google.com/maps?q=40.8646144,-73.9186888;298";
+  entriesExits[190] = "215 St;40.869428;-73.9154543;-6230353;4549585;https://www.google.com/maps?q=40.869428,-73.9154543;297";
+  entriesExits[191] = "215 St;40.8693302;-73.9152315;-6230335;4549574;https://www.google.com/maps?q=40.8693302,-73.9152315;297";
+  entriesExits[192] = "215 St;40.8697981;-73.915179;-6230330;4549626;https://www.google.com/maps?q=40.8697981,-73.915179;297";
+  entriesExits[193] = "215 St;40.8697076;-73.9149548;-6230311;4549616;https://www.google.com/maps?q=40.8697076,-73.9149548;297";
+  entriesExits[194] = "23 St;40.741247;-73.9896749;-6236610;4535316;https://www.google.com/maps?q=40.741247,-73.9896749;14";
+  entriesExits[195] = "23 St;40.7407915;-73.989661;-6236608;4535265;https://www.google.com/maps?q=40.7407915,-73.989661;14";
+  entriesExits[196] = "23 St;40.7419224;-73.989431;-6236589;4535391;https://www.google.com/maps?q=40.7419224,-73.989431;14";
+  entriesExits[197] = "23 St;40.740643;-73.989217;-6236571;4535248;https://www.google.com/maps?q=40.740643,-73.989217;14";
+  entriesExits[198] = "23 St;40.74108;-73.989083;-6236560;4535297;https://www.google.com/maps?q=40.74108,-73.989083;14";
+  entriesExits[199] = "23 St;40.7415795;-73.9889941;-6236552;4535353;https://www.google.com/maps?q=40.7415795,-73.9889941;14";
+  entriesExits[200] = "23 St;40.741142;-73.988956;-6236549;4535304;https://www.google.com/maps?q=40.741142,-73.988956;14";
+  entriesExits[201] = "23 St;40.7413694;-73.9888623;-6236541;4535329;https://www.google.com/maps?q=40.7413694,-73.9888623;14";
+  entriesExits[202] = "23 St;40.7452647;-73.9987538;-6237375;4535763;https://www.google.com/maps?q=40.7452647,-73.9987538;165";
+  entriesExits[203] = "23 St;40.7455254;-73.9986724;-6237368;4535792;https://www.google.com/maps?q=40.7455254,-73.9986724;165";
+  entriesExits[204] = "23 St;40.7451194;-73.9984005;-6237345;4535747;https://www.google.com/maps?q=40.7451194,-73.9984005;165";
+  entriesExits[205] = "23 St;40.7461243;-73.9981866;-6237327;4535859;https://www.google.com/maps?q=40.7461243,-73.9981866;165";
+  entriesExits[206] = "23 St;40.7452896;-73.9981389;-6237323;4535766;https://www.google.com/maps?q=40.7452896,-73.9981389;165";
+  entriesExits[207] = "23 St;40.7458188;-73.9978378;-6237298;4535825;https://www.google.com/maps?q=40.7458188,-73.9978378;165";
+  entriesExits[208] = "23 St;40.7465992;-73.9977858;-6237293;4535911;https://www.google.com/maps?q=40.7465992,-73.9977858;165";
+  entriesExits[209] = "23 St;40.7467263;-73.9976859;-6237285;4535926;https://www.google.com/maps?q=40.7467263,-73.9976859;165";
+  entriesExits[210] = "23 St;40.7464485;-73.997426;-6237263;4535895;https://www.google.com/maps?q=40.7464485,-73.997426;165";
+  entriesExits[211] = "23 St;40.7465766;-73.9973307;-6237255;4535909;https://www.google.com/maps?q=40.7465766,-73.9973307;165";
+  entriesExits[212] = "23 St;40.7465177;-73.9971926;-6237243;4535902;https://www.google.com/maps?q=40.7465177,-73.9971926;165";
+  entriesExits[213] = "23 St;40.7429882;-73.9932331;-6236909;4535509;https://www.google.com/maps?q=40.7429882,-73.9932331;228";
+  entriesExits[214] = "23 St;40.7431327;-73.9931221;-6236900;4535526;https://www.google.com/maps?q=40.7431327,-73.9931221;228";
+  entriesExits[215] = "23 St;40.7429076;-73.9930407;-6236893;4535500;https://www.google.com/maps?q=40.7429076,-73.9930407;228";
+  entriesExits[216] = "23 St;40.7430566;-73.9929343;-6236884;4535517;https://www.google.com/maps?q=40.7430566,-73.9929343;228";
+  entriesExits[217] = "23 St;40.7427557;-73.9926758;-6236862;4535484;https://www.google.com/maps?q=40.7427557,-73.9926758;228";
+  entriesExits[218] = "23 St;40.7429067;-73.9925842;-6236855;4535500;https://www.google.com/maps?q=40.7429067,-73.9925842;228";
+  entriesExits[219] = "23 St;40.7426666;-73.9924656;-6236845;4535474;https://www.google.com/maps?q=40.7426666,-73.9924656;228";
+  entriesExits[220] = "23 St;40.7428161;-73.9923624;-6236836;4535490;https://www.google.com/maps?q=40.7428161,-73.9923624;228";
+  entriesExits[221] = "23 St;40.7440065;-73.9959143;-6237135;4535623;https://www.google.com/maps?q=40.7440065,-73.9959143;320";
+  entriesExits[222] = "23 St;40.7443252;-73.9958344;-6237129;4535658;https://www.google.com/maps?q=40.7443252,-73.9958344;320";
+  entriesExits[223] = "23 St;40.7438738;-73.9956323;-6237112;4535608;https://www.google.com/maps?q=40.7438738,-73.9956323;320";
+  entriesExits[224] = "23 St;40.7441139;-73.995324;-6237086;4535635;https://www.google.com/maps?q=40.7441139,-73.995324;320";
+  entriesExits[225] = "23 St-Baruch College;40.739497;-73.9871065;-6236393;4535121;https://www.google.com/maps?q=40.739497,-73.9871065;405";
+  entriesExits[226] = "23 St-Baruch College;40.7397029;-73.9870722;-6236390;4535144;https://www.google.com/maps?q=40.7397029,-73.9870722;405";
+  entriesExits[227] = "23 St-Baruch College;40.7402572;-73.9867682;-6236365;4535205;https://www.google.com/maps?q=40.7402572,-73.9867682;405";
+  entriesExits[228] = "23 St-Baruch College;40.7400353;-73.9866692;-6236356;4535181;https://www.google.com/maps?q=40.7400353,-73.9866692;405";
+  entriesExits[229] = "23 St-Baruch College;40.7404209;-73.9865423;-6236345;4535224;https://www.google.com/maps?q=40.7404209,-73.9865423;405";
+  entriesExits[230] = "23 St-Baruch College;40.7394821;-73.9865417;-6236345;4535119;https://www.google.com/maps?q=40.7394821,-73.9865417;405";
+  entriesExits[231] = "23 St-Baruch College;40.7399784;-73.9863362;-6236328;4535174;https://www.google.com/maps?q=40.7399784,-73.9863362;405";
+  entriesExits[232] = "23 St-Baruch College;40.7399737;-73.9861913;-6236316;4535174;https://www.google.com/maps?q=40.7399737,-73.9861913;405";
+  entriesExits[233] = "23 St-Baruch College;40.7401236;-73.9859708;-6236297;4535191;https://www.google.com/maps?q=40.7401236,-73.9859708;405";
+  entriesExits[234] = "23 St-Baruch College;40.7401896;-73.9860916;-6236307;4535198;https://www.google.com/maps?q=40.7401896,-73.9860916;405";
+  entriesExits[235] = "23 St-Baruch College;40.7403755;-73.986545;-6236346;4535219;https://www.google.com/maps?q=40.7403755,-73.986545;405";
+  entriesExits[236] = "23 St-Baruch College;40.7393572;-73.9867884;-6236366;4535105;https://www.google.com/maps?q=40.7393572,-73.9867884;405";
+  entriesExits[237] = "23 St-Baruch College;40.740447;-73.9864514;-6236338;4535227;https://www.google.com/maps?q=40.740447,-73.9864514;405";
+  entriesExits[238] = "28 St;40.745509;-73.989051;-6236557;4535790;https://www.google.com/maps?q=40.745509,-73.989051;13";
+  entriesExits[239] = "28 St;40.7452802;-73.9889048;-6236545;4535765;https://www.google.com/maps?q=40.7452802,-73.9889048;13";
+  entriesExits[240] = "28 St;40.7453112;-73.9885799;-6236517;4535768;https://www.google.com/maps?q=40.7453112,-73.9885799;13";
+  entriesExits[241] = "28 St;40.745127600000004;-73.9885424;-6236514;4535748;https://www.google.com/maps?q=40.7451276,-73.9885424;13";
+  entriesExits[242] = "28 St;40.746787;-73.993955;-6236970;4535932;https://www.google.com/maps?q=40.746787,-73.993955;319";
+  entriesExits[243] = "28 St;40.7472595;-73.9935916;-6236940;4535985;https://www.google.com/maps?q=40.7472595,-73.9935916;319";
+  entriesExits[244] = "28 St;40.7466097;-73.9935733;-6236938;4535913;https://www.google.com/maps?q=40.7466097,-73.9935733;319";
+  entriesExits[245] = "28 St;40.7473836;-73.9934959;-6236932;4535999;https://www.google.com/maps?q=40.7473836,-73.9934959;319";
+  entriesExits[246] = "28 St;40.7470999;-73.9932219;-6236908;4535967;https://www.google.com/maps?q=40.7470999,-73.9932219;319";
+  entriesExits[247] = "28 St;40.7472356;-73.9931424;-6236902;4535982;https://www.google.com/maps?q=40.7472356,-73.9931424;319";
+  entriesExits[248] = "28 St;40.7433326;-73.9843798;-6236163;4535548;https://www.google.com/maps?q=40.7433326,-73.9843798;404";
+  entriesExits[249] = "28 St;40.7435435;-73.9843465;-6236160;4535571;https://www.google.com/maps?q=40.7435435,-73.9843465;404";
+  entriesExits[250] = "28 St;40.7432107;-73.9839527;-6236127;4535534;https://www.google.com/maps?q=40.7432107,-73.9839527;404";
+  entriesExits[251] = "28 St;40.7433134;-73.9838806;-6236121;4535546;https://www.google.com/maps?q=40.7433134,-73.9838806;404";
+  entriesExits[252] = "28 St;40.743153;-73.9838174;-6236116;4535528;https://www.google.com/maps?q=40.743153,-73.9838174;404";
+  entriesExits[253] = "28 St;40.743257;-73.983738;-6236109;4535539;https://www.google.com/maps?q=40.743257,-73.983738;404";
+  entriesExits[254] = "28 St;40.7425051;-73.9851163;-6236225;4535456;https://www.google.com/maps?q=40.7425051,-73.9851163;404";
+  entriesExits[255] = "28 St;40.7425871;-73.985057;-6236220;4535465;https://www.google.com/maps?q=40.7425871,-73.985057;404";
+  entriesExits[256] = "3 Av;40.7331516;-73.9870664;-6236390;4534414;https://www.google.com/maps?q=40.7331516,-73.9870664;118";
+  entriesExits[257] = "3 Av;40.7332929;-73.9869546;-6236380;4534430;https://www.google.com/maps?q=40.7332929,-73.9869546;118";
+  entriesExits[258] = "3 Av;40.7329604;-73.9866278;-6236353;4534393;https://www.google.com/maps?q=40.7329604,-73.9866278;118";
+  entriesExits[259] = "3 Av;40.733112;-73.9865119;-6236343;4534410;https://www.google.com/maps?q=40.733112,-73.9865119;118";
+  entriesExits[260] = "33 St;40.7458701;-73.9826382;-6236016;4535830;https://www.google.com/maps?q=40.7458701,-73.9826382;403";
+  entriesExits[261] = "33 St;40.7457096;-73.982544;-6236008;4535812;https://www.google.com/maps?q=40.7457096,-73.982544;403";
+  entriesExits[262] = "33 St;40.7455956;-73.9822425;-6235983;4535800;https://www.google.com/maps?q=40.7455956,-73.9822425;403";
+  entriesExits[263] = "33 St;40.7465019;-73.9822146;-6235981;4535901;https://www.google.com/maps?q=40.7465019,-73.9822146;403";
+  entriesExits[264] = "33 St;40.7456432;-73.982089;-6235970;4535805;https://www.google.com/maps?q=40.7456432,-73.982089;403";
+  entriesExits[265] = "33 St;40.7466574;-73.9818752;-6235952;4535918;https://www.google.com/maps?q=40.7466574,-73.9818752;403";
+  entriesExits[266] = "33 St;40.746256;-73.9816418;-6235932;4535873;https://www.google.com/maps?q=40.746256,-73.9816418;403";
+  entriesExits[267] = "33 St;40.7465891;-73.9815176;-6235922;4535910;https://www.google.com/maps?q=40.7465891,-73.9815176;403";
+  entriesExits[268] = "33 St;40.7462031;-73.9815063;-6235921;4535867;https://www.google.com/maps?q=40.7462031,-73.9815063;403";
+  entriesExits[269] = "34 St - Hudson Yards;40.755766;-74.0002359;-6237500;4536932;https://www.google.com/maps?q=40.755766,-74.0002359;471";
+  entriesExits[270] = "34 St-Herald Sq;40.7484603;-73.9883026;-6236494;4536119;https://www.google.com/maps?q=40.7484603,-73.9883026;12";
+  entriesExits[271] = "34 St-Herald Sq;40.7483074;-73.9880268;-6236471;4536102;https://www.google.com/maps?q=40.7483074,-73.9880268;12";
+  entriesExits[272] = "34 St-Herald Sq;40.7495823;-73.9876057;-6236435;4536244;https://www.google.com/maps?q=40.7495823,-73.9876057;12";
+  entriesExits[273] = "34 St-Herald Sq;40.7499328;-73.9875036;-6236427;4536283;https://www.google.com/maps?q=40.7499328,-73.9875036;12";
+  entriesExits[274] = "34 St-Herald Sq;40.7485524;-73.9885035;-6236511;4536129;https://www.google.com/maps?q=40.7485524,-73.9885035;12";
+  entriesExits[275] = "34 St-Herald Sq;40.74875;-73.9887643;-6236533;4536151;https://www.google.com/maps?q=40.74875,-73.9887643;227";
+  entriesExits[276] = "34 St-Herald Sq;40.7489087;-73.9886438;-6236523;4536169;https://www.google.com/maps?q=40.7489087,-73.9886438;227";
+  entriesExits[277] = "34 St-Herald Sq;40.7498382;-73.9881986;-6236485;4536272;https://www.google.com/maps?q=40.7498382,-73.9881986;227";
+  entriesExits[278] = "34 St-Herald Sq;40.749625;-73.9881642;-6236482;4536248;https://www.google.com/maps?q=40.749625,-73.9881642;227";
+  entriesExits[279] = "34 St-Herald Sq;40.7500954;-73.9881516;-6236481;4536301;https://www.google.com/maps?q=40.7500954,-73.9881516;227";
+  entriesExits[280] = "34 St-Herald Sq;40.75089;-73.9881058;-6236477;4536389;https://www.google.com/maps?q=40.75089,-73.9881058;227";
+  entriesExits[281] = "34 St-Herald Sq;40.7507006;-73.9880439;-6236472;4536368;https://www.google.com/maps?q=40.7507006,-73.9880439;227";
+  entriesExits[282] = "34 St-Herald Sq;40.750665;-73.9873465;-6236413;4536364;https://www.google.com/maps?q=40.750665,-73.9873465;227";
+  entriesExits[283] = "34 St-Herald Sq;40.7502992;-73.9870932;-6236392;4536323;https://www.google.com/maps?q=40.7502992,-73.9870932;227";
+  entriesExits[284] = "34 St-Herald Sq;40.7504148;-73.9869775;-6236382;4536336;https://www.google.com/maps?q=40.7504148,-73.9869775;227";
+  entriesExits[285] = "34 St-Herald Square;40.748851;-73.988718;-6236529;4536162;https://www.google.com/maps?q=40.748851,-73.988718;227";
+  entriesExits[286] = "34 St-Hudson Yards;40.754904;-74.001323;-6237591;4536836;https://www.google.com/maps?q=40.754904,-74.001323;471";
+  entriesExits[287] = "34 St-Hudson Yards;40.7549612;-74.0009265;-6237558;4536842;https://www.google.com/maps?q=40.7549612,-74.0009265;471";
+  entriesExits[288] = "34 St-Penn Station;40.7517496;-73.9942753;-6236997;4536485;https://www.google.com/maps?q=40.7517496,-73.9942753;164";
+  entriesExits[289] = "34 St-Penn Station;40.7515212;-73.9942373;-6236994;4536459;https://www.google.com/maps?q=40.7515212,-73.9942373;164";
+  entriesExits[290] = "34 St-Penn Station;40.751281;-73.9939183;-6236967;4536433;https://www.google.com/maps?q=40.751281,-73.9939183;164";
+  entriesExits[291] = "34 St-Penn Station;40.7522195;-73.9938635;-6236963;4536537;https://www.google.com/maps?q=40.7522195,-73.9938635;164";
+  entriesExits[292] = "34 St-Penn Station;40.7524423;-73.9936995;-6236949;4536562;https://www.google.com/maps?q=40.7524423,-73.9936995;164";
+  entriesExits[293] = "34 St-Penn Station;40.7514264;-73.9935073;-6236933;4536449;https://www.google.com/maps?q=40.7514264,-73.9935073;164";
+  entriesExits[294] = "34 St-Penn Station;40.7529333;-73.9933463;-6236919;4536617;https://www.google.com/maps?q=40.7529333,-73.9933463;164";
+  entriesExits[295] = "34 St-Penn Station;40.7520165;-73.9933356;-6236918;4536514;https://www.google.com/maps?q=40.7520165,-73.9933356;164";
+  entriesExits[296] = "34 St-Penn Station;40.7530677;-73.9932666;-6236912;4536631;https://www.google.com/maps?q=40.7530677,-73.9932666;164";
+  entriesExits[297] = "34 St-Penn Station;40.7519575;-73.9932163;-6236908;4536508;https://www.google.com/maps?q=40.7519575,-73.9932163;164";
+  entriesExits[298] = "34 St-Penn Station;40.7530103;-73.9931291;-6236901;4536625;https://www.google.com/maps?q=40.7530103,-73.9931291;164";
+  entriesExits[299] = "34 St-Penn Station;40.7521806;-73.9930803;-6236897;4536533;https://www.google.com/maps?q=40.7521806,-73.9930803;164";
+  entriesExits[300] = "34 St-Penn Station;40.7527203;-73.992839;-6236876;4536593;https://www.google.com/maps?q=40.7527203,-73.992839;164";
+  entriesExits[301] = "34 St-Penn Station;40.7528575;-73.9927606;-6236870;4536608;https://www.google.com/maps?q=40.7528575,-73.9927606;164";
+  entriesExits[302] = "34 St-Penn Station;40.7528022;-73.9926229;-6236858;4536602;https://www.google.com/maps?q=40.7528022,-73.9926229;164";
+  entriesExits[303] = "34 St-Penn Station;40.7515869;-73.9938673;-6236963;4536467;https://www.google.com/maps?q=40.7515869,-73.9938673;164";
+  entriesExits[304] = "34 St-Penn Station;40.7513819;-73.993664;-6236946;4536444;https://www.google.com/maps?q=40.7513819,-73.993664;164";
+  entriesExits[305] = "34 St-Penn Station;40.7498879;-73.9918114;-6236790;4536278;https://www.google.com/maps?q=40.7498879,-73.9918114;318";
+  entriesExits[306] = "34 St-Penn Station;40.7505404;-73.9913529;-6236751;4536350;https://www.google.com/maps?q=40.7505404,-73.9913529;318";
+  entriesExits[307] = "34 St-Penn Station;40.751066;-73.9911404;-6236733;4536409;https://www.google.com/maps?q=40.751066,-73.9911404;318";
+  entriesExits[308] = "34 St-Penn Station;40.7496113;-73.9910228;-6236723;4536247;https://www.google.com/maps?q=40.7496113,-73.9910228;318";
+  entriesExits[309] = "34 St-Penn Station;40.7509665;-73.9908876;-6236712;4536398;https://www.google.com/maps?q=40.7509665,-73.9908876;318";
+  entriesExits[310] = "34 St-Penn Station;40.7503272;-73.9908869;-6236712;4536326;https://www.google.com/maps?q=40.7503272,-73.9908869;318";
+  entriesExits[311] = "34 St-Penn Station;40.7512038;-73.9907529;-6236700;4536424;https://www.google.com/maps?q=40.7512038,-73.9907529;318";
+  entriesExits[312] = "34 St-Penn Station;40.7500804;-73.9907021;-6236696;4536299;https://www.google.com/maps?q=40.7500804,-73.9907021;318";
+  entriesExits[313] = "34 St-Penn Station;40.7507624;-73.9903986;-6236671;4536375;https://www.google.com/maps?q=40.7507624,-73.9903986;318";
+  entriesExits[314] = "34 St-Penn Station;40.751027;-73.9903473;-6236666;4536404;https://www.google.com/maps?q=40.751027,-73.9903473;318";
+  entriesExits[315] = "34 St-Penn Station;40.7503288;-73.9914807;-6236762;4536327;https://www.google.com/maps?q=40.7503288,-73.9914807;318";
+  entriesExits[316] = "42 St-Bryant Pk/5 Av;40.7537136;-73.985193;-6236232;4536703;https://www.google.com/maps?q=40.7537136,-73.985193;226";
+  entriesExits[317] = "42 St-Bryant Pk/5 Av;40.7533955;-73.9848446;-6236202;4536668;https://www.google.com/maps?q=40.7533955,-73.9848446;226";
+  entriesExits[318] = "42 St-Bryant Pk/5 Av;40.7535053;-73.9847341;-6236193;4536680;https://www.google.com/maps?q=40.7535053,-73.9847341;226";
+  entriesExits[319] = "42 St-Bryant Pk/5 Av;40.7549381;-73.9846882;-6236189;4536840;https://www.google.com/maps?q=40.7549381,-73.9846882;226";
+  entriesExits[320] = "42 St-Bryant Pk/5 Av;40.7550511;-73.9841897;-6236147;4536852;https://www.google.com/maps?q=40.7550511,-73.9841897;226";
+  entriesExits[321] = "42 St-Bryant Pk/5 Av;40.7552322;-73.9840526;-6236136;4536872;https://www.google.com/maps?q=40.7552322,-73.9840526;226";
+  entriesExits[322] = "42 St-Bryant Pk/5 Av;40.7545962;-73.9838771;-6236121;4536802;https://www.google.com/maps?q=40.7545962,-73.9838771;226";
+  entriesExits[323] = "42 St-Bryant Pk/5 Av;40.7550226;-73.9837875;-6236113;4536849;https://www.google.com/maps?q=40.7550226,-73.9837875;226";
+  entriesExits[324] = "42 St-Bryant Pk/5 Av;40.7531465;-73.9855491;-6236262;4536640;https://www.google.com/maps?q=40.7531465,-73.9855491;226";
+  entriesExits[325] = "42 St-Bryant Pk/5 Av;40.7531005;-73.9856594;-6236271;4536635;https://www.google.com/maps?q=40.7531005,-73.9856594;226";
+  entriesExits[326] = "42 St-Bryant Pk/5 Av;40.7551429;-73.9841152;-6236141;4536863;https://www.google.com/maps?q=40.7551429,-73.9841152;226";
+  entriesExits[327] = "42 St-Bryant Pk/5 Av;40.7542646;-73.9831451;-6236059;4536765;https://www.google.com/maps?q=40.7542646,-73.9831451;466";
+  entriesExits[328] = "42 St-Bryant Pk/5 Av;40.7542373;-73.9830705;-6236053;4536762;https://www.google.com/maps?q=40.7542373,-73.9830705;466";
+  entriesExits[329] = "42 St-Bryant Pk/5 Av;40.7535726;-73.9814889;-6235920;4536688;https://www.google.com/maps?q=40.7535726,-73.9814889;466";
+  entriesExits[330] = "47-50 Sts-Rockefeller Ctr;40.7580251;-73.9821103;-6235972;4537183;https://www.google.com/maps?q=40.7580251,-73.9821103;225";
+  entriesExits[331] = "47-50 Sts-Rockefeller Ctr;40.7578149;-73.9817936;-6235945;4537160;https://www.google.com/maps?q=40.7578149,-73.9817936;225";
+  entriesExits[332] = "47-50 Sts-Rockefeller Ctr;40.7586676;-73.9816419;-6235932;4537255;https://www.google.com/maps?q=40.7586676,-73.9816419;225";
+  entriesExits[333] = "47-50 Sts-Rockefeller Ctr;40.7578802;-73.9816131;-6235930;4537167;https://www.google.com/maps?q=40.7578802,-73.9816131;225";
+  entriesExits[334] = "47-50 Sts-Rockefeller Ctr;40.7579787;-73.9815345;-6235923;4537178;https://www.google.com/maps?q=40.7579787,-73.9815345;225";
+  entriesExits[335] = "47-50 Sts-Rockefeller Ctr;40.7590434;-73.98132;-6235905;4537297;https://www.google.com/maps?q=40.7590434,-73.98132;225";
+  entriesExits[336] = "47-50 Sts-Rockefeller Ctr;40.75848;-73.98114;-6235890;4537234;https://www.google.com/maps?q=40.75848,-73.98114;225";
+  entriesExits[337] = "47-50 Sts-Rockefeller Ctr;40.759442;-73.981112;-6235888;4537341;https://www.google.com/maps?q=40.759442,-73.981112;225";
+  entriesExits[338] = "47-50 Sts-Rockefeller Ctr;40.7586206;-73.9810724;-6235884;4537250;https://www.google.com/maps?q=40.7586206,-73.9810724;225";
+  entriesExits[339] = "47-50 Sts-Rockefeller Ctr;40.7594551;-73.9810633;-6235884;4537343;https://www.google.com/maps?q=40.7594551,-73.9810633;225";
+  entriesExits[340] = "47-50 Sts-Rockefeller Ctr;40.7590201;-73.9808688;-6235867;4537294;https://www.google.com/maps?q=40.7590201,-73.9808688;225";
+  entriesExits[341] = "47-50 Sts-Rockefeller Ctr;40.7599252;-73.9807323;-6235856;4537395;https://www.google.com/maps?q=40.7599252,-73.9807323;225";
+  entriesExits[342] = "47-50 Sts-Rockefeller Ctr;40.7593732;-73.980623;-6235847;4537333;https://www.google.com/maps?q=40.7593732,-73.980623;225";
+  entriesExits[343] = "47-50 Sts-Rockefeller Ctr;40.7601466;-73.9804899;-6235835;4537420;https://www.google.com/maps?q=40.7601466,-73.9804899;225";
+  entriesExits[344] = "47-50 Sts-Rockefeller Ctr;40.7600375;-73.9801239;-6235804;4537407;https://www.google.com/maps?q=40.7600375,-73.9801239;225";
+  entriesExits[345] = "47-50 Sts-Rockefeller Ctr;40.7578742;-73.9820852;-6235970;4537167;https://www.google.com/maps?q=40.7578742,-73.9820852;225";
+  entriesExits[346] = "47-50 Sts-Rockefeller Ctr;40.7583667;-73.9818694;-6235952;4537221;https://www.google.com/maps?q=40.7583667,-73.9818694;225";
+  entriesExits[347] = "47-50 Sts-Rockefeller Ctr;40.7588352;-73.9807921;-6235861;4537274;https://www.google.com/maps?q=40.7588352,-73.9807921;225";
+  entriesExits[348] = "47-50 Sts-Rockefeller Ctr;40.7585566;-73.9817222;-6235939;4537243;https://www.google.com/maps?q=40.7585566,-73.9817222;225";
+  entriesExits[349] = "47-50 Sts-Rockefeller Ctr;40.7596484;-73.9809099;-6235871;4537364;https://www.google.com/maps?q=40.7596484,-73.9809099;225";
+  entriesExits[350] = "47-50 Sts-Rockefeller Ctr;40.760109;-73.980582;-6235843;4537415;https://www.google.com/maps?q=40.760109,-73.980582;225";
+  entriesExits[351] = "47-50 Sts-Rockefeller Ctr;40.7593998;-73.9803382;-6235823;4537336;https://www.google.com/maps?q=40.7593998,-73.9803382;225";
+  entriesExits[352] = "47-50 Sts-Rockefeller Ctr;40.7592389;-73.981182;-6235894;4537318;https://www.google.com/maps?q=40.7592389,-73.981182;225";
+  entriesExits[353] = "49 St;40.7594831;-73.9848474;-6236203;4537346;https://www.google.com/maps?q=40.7594831,-73.9848474;10";
+  entriesExits[354] = "49 St;40.7594309;-73.9846966;-6236190;4537340;https://www.google.com/maps?q=40.7594309,-73.9846966;10";
+  entriesExits[355] = "49 St;40.75903;-73.984412;-6236166;4537295;https://www.google.com/maps?q=40.75903,-73.984412;10";
+  entriesExits[356] = "49 St;40.7604794;-73.9839245;-6236125;4537457;https://www.google.com/maps?q=40.7604794,-73.9839245;10";
+  entriesExits[357] = "49 St;40.760652;-73.9838835;-6236121;4537476;https://www.google.com/maps?q=40.760652,-73.9838835;10";
+  entriesExits[358] = "49 St;40.7603322;-73.9835424;-6236093;4537440;https://www.google.com/maps?q=40.7603322,-73.9835424;10";
+  entriesExits[359] = "49 St;40.7604752;-73.9834438;-6236084;4537456;https://www.google.com/maps?q=40.7604752,-73.9834438;10";
+  entriesExits[360] = "5 Av/53 St;40.7606388;-73.9764862;-6235498;4537474;https://www.google.com/maps?q=40.7606388,-73.9764862;276";
+  entriesExits[361] = "5 Av/53 St;40.7602156;-73.975496;-6235414;4537427;https://www.google.com/maps?q=40.7602156,-73.975496;276";
+  entriesExits[362] = "5 Av/53 St;40.7603321;-73.9754237;-6235408;4537440;https://www.google.com/maps?q=40.7603321,-73.9754237;276";
+  entriesExits[363] = "5 Av/53 St;40.759559;-73.9739911;-6235288;4537354;https://www.google.com/maps?q=40.759559,-73.9739911;276";
+  entriesExits[364] = "5 Av/53 St;40.7596258;-73.9737347;-6235266;4537362;https://www.google.com/maps?q=40.7596258,-73.9737347;276";
+  entriesExits[365] = "5 Av/59 St;40.7651969;-73.9747154;-6235349;4537982;https://www.google.com/maps?q=40.7651969,-73.9747154;8";
+  entriesExits[366] = "5 Av/59 St;40.7648951;-73.9747024;-6235347;4537948;https://www.google.com/maps?q=40.7648951,-73.9747024;8";
+  entriesExits[367] = "5 Av/59 St;40.7651096;-73.9744829;-6235329;4537972;https://www.google.com/maps?q=40.7651096,-73.9744829;8";
+  entriesExits[368] = "5 Av/59 St;40.7653602;-73.9724734;-6235160;4538000;https://www.google.com/maps?q=40.7653602,-73.9724734;8";
+  entriesExits[369] = "5 Av/59 St;40.7647645;-73.9724467;-6235157;4537934;https://www.google.com/maps?q=40.7647645,-73.9724467;8";
+  entriesExits[370] = "5 Av/59 St;40.7647033;-73.9723011;-6235145;4537927;https://www.google.com/maps?q=40.7647033,-73.9723011;8";
+  entriesExits[371] = "5 Av/59 St;40.7648261;-73.9721997;-6235137;4537940;https://www.google.com/maps?q=40.7648261,-73.9721997;8";
+  entriesExits[372] = "50 St;40.7617615;-73.9869788;-6236382;4537599;https://www.google.com/maps?q=40.7617615,-73.9869788;162";
+  entriesExits[373] = "50 St;40.7618796;-73.9868361;-6236370;4537612;https://www.google.com/maps?q=40.7618796,-73.9868361;162";
+  entriesExits[374] = "50 St;40.7616972;-73.986825;-6236369;4537592;https://www.google.com/maps?q=40.7616972,-73.986825;162";
+  entriesExits[375] = "50 St;40.762367;-73.9864705;-6236339;4537667;https://www.google.com/maps?q=40.762367,-73.9864705;162";
+  entriesExits[376] = "50 St;40.7624623;-73.9862793;-6236323;4537677;https://www.google.com/maps?q=40.7624623,-73.9862793;162";
+  entriesExits[377] = "50 St;40.7621301;-73.9859331;-6236294;4537640;https://www.google.com/maps?q=40.7621301,-73.9859331;162";
+  entriesExits[378] = "50 St;40.762258;-73.9858519;-6236287;4537655;https://www.google.com/maps?q=40.762258,-73.9858519;162";
+  entriesExits[379] = "50 St;40.7629145;-73.9854329;-6236252;4537728;https://www.google.com/maps?q=40.7629145,-73.9854329;162";
+  entriesExits[380] = "50 St;40.7616592;-73.9843289;-6236159;4537588;https://www.google.com/maps?q=40.7616592,-73.9843289;162";
+  entriesExits[381] = "50 St;40.7615236;-73.9844507;-6236169;4537573;https://www.google.com/maps?q=40.7615236,-73.9844507;316";
+  entriesExits[382] = "50 St;40.7616592;-73.9843289;-6236159;4537588;https://www.google.com/maps?q=40.7616592,-73.9843289;316";
+  entriesExits[383] = "50 St;40.7612765;-73.9838216;-6236116;4537545;https://www.google.com/maps?q=40.7612765,-73.9838216;316";
+  entriesExits[384] = "50 St;40.761364;-73.9837605;-6236111;4537555;https://www.google.com/maps?q=40.761364,-73.9837605;316";
+  entriesExits[385] = "50 St;40.7611955;-73.9837075;-6236107;4537536;https://www.google.com/maps?q=40.7611955,-73.9837075;316";
+  entriesExits[386] = "50 St;40.761325;-73.9836631;-6236103;4537551;https://www.google.com/maps?q=40.761325,-73.9836631;316";
+  entriesExits[387] = "57 St;40.7634853;-73.9779774;-6235624;4537791;https://www.google.com/maps?q=40.7634853,-73.9779774;224";
+  entriesExits[388] = "57 St;40.7633797;-73.9777271;-6235602;4537779;https://www.google.com/maps?q=40.7633797,-73.9777271;224";
+  entriesExits[389] = "57 St;40.7638466;-73.977723;-6235602;4537831;https://www.google.com/maps?q=40.7638466,-73.977723;224";
+  entriesExits[390] = "57 St;40.764223;-73.977439;-6235578;4537873;https://www.google.com/maps?q=40.764223,-73.977439;224";
+  entriesExits[391] = "57 St;40.763903;-73.977348;-6235570;4537838;https://www.google.com/maps?q=40.763903,-73.977348;224";
+  entriesExits[392] = "57 St;40.7640108;-73.9772741;-6235564;4537850;https://www.google.com/maps?q=40.7640108,-73.9772741;224";
+  entriesExits[393] = "57 St;40.7646549;-73.9771234;-6235552;4537921;https://www.google.com/maps?q=40.7646549,-73.9771234;224";
+  entriesExits[394] = "57 St;40.7645565;-73.9768746;-6235531;4537910;https://www.google.com/maps?q=40.7645565,-73.9768746;224";
+  entriesExits[395] = "57 St-7 Av;40.7642779;-73.9812874;-6235903;4537879;https://www.google.com/maps?q=40.7642779,-73.9812874;9";
+  entriesExits[396] = "57 St-7 Av;40.7643974;-73.9811892;-6235894;4537893;https://www.google.com/maps?q=40.7643974,-73.9811892;9";
+  entriesExits[397] = "57 St-7 Av;40.7640707;-73.9808046;-6235862;4537856;https://www.google.com/maps?q=40.7640707,-73.9808046;9";
+  entriesExits[398] = "57 St-7 Av;40.7641775;-73.9806726;-6235851;4537868;https://www.google.com/maps?q=40.7641775,-73.9806726;9";
+  entriesExits[399] = "57 St-7 Av;40.7653672;-73.9803555;-6235824;4538001;https://www.google.com/maps?q=40.7653672,-73.9803555;9";
+  entriesExits[400] = "57 St-7 Av;40.7652809;-73.9800466;-6235798;4537991;https://www.google.com/maps?q=40.7652809,-73.9800466;9";
+  entriesExits[401] = "57 St-7 Av;40.7657965;-73.9800241;-6235796;4538048;https://www.google.com/maps?q=40.7657965,-73.9800241;9";
+  entriesExits[402] = "57 St-7 Av;40.7656338;-73.9797767;-6235775;4538030;https://www.google.com/maps?q=40.7656338,-73.9797767;9";
+  entriesExits[403] = "57 St-7 Av;40.7641774;-73.9807454;-6235857;4537868;https://www.google.com/maps?q=40.7641774,-73.9807454;9";
+  entriesExits[404] = "57 St-7 Av;40.7655213;-73.9803002;-6235819;4538018;https://www.google.com/maps?q=40.7655213,-73.9803002;9";
+  entriesExits[405] = "59 St-Columbus Circle;40.7667708;-73.9833664;-6236078;4538157;https://www.google.com/maps?q=40.7667708,-73.9833664;161";
+  entriesExits[406] = "59 St-Columbus Circle;40.7664984;-73.9832643;-6236069;4538127;https://www.google.com/maps?q=40.7664984,-73.9832643;161";
+  entriesExits[407] = "59 St-Columbus Circle;40.7669768;-73.9829544;-6236043;4538180;https://www.google.com/maps?q=40.7669768,-73.9829544;161";
+  entriesExits[408] = "59 St-Columbus Circle;40.7664893;-73.9826848;-6236020;4538126;https://www.google.com/maps?q=40.7664893,-73.9826848;161";
+  entriesExits[409] = "59 St-Columbus Circle;40.7667421;-73.9825714;-6236011;4538154;https://www.google.com/maps?q=40.7667421,-73.9825714;161";
+  entriesExits[410] = "59 St-Columbus Circle;40.7677166;-73.9827407;-6236025;4538262;https://www.google.com/maps?q=40.7677166,-73.9827407;161";
+  entriesExits[411] = "59 St-Columbus Circle;40.7677979;-73.9825917;-6236012;4538271;https://www.google.com/maps?q=40.7677979,-73.9825917;161";
+  entriesExits[412] = "59 St-Columbus Circle;40.7676894;-73.982496;-6236004;4538259;https://www.google.com/maps?q=40.7676894,-73.982496;161";
+  entriesExits[413] = "59 St-Columbus Circle;40.7673965;-73.9821741;-6235977;4538227;https://www.google.com/maps?q=40.7673965,-73.9821741;161";
+  entriesExits[414] = "59 St-Columbus Circle;40.7687301;-73.9817917;-6235945;4538375;https://www.google.com/maps?q=40.7687301,-73.9817917;161";
+  entriesExits[415] = "59 St-Columbus Circle;40.7686784;-73.9811728;-6235893;4538369;https://www.google.com/maps?q=40.7686784,-73.9811728;161";
+  entriesExits[416] = "59 St-Columbus Circle;40.768695;-73.98159;-6235928;4538371;https://www.google.com/maps?q=40.768695,-73.98159;161";
+  entriesExits[417] = "59 St-Columbus Circle;40.7693477;-73.9823068;-6235988;4538444;https://www.google.com/maps?q=40.7693477,-73.9823068;315";
+  entriesExits[418] = "59 St-Columbus Circle;40.7692671;-73.9823068;-6235988;4538435;https://www.google.com/maps?q=40.7692671,-73.9823068;315";
+  entriesExits[419] = "59 St-Columbus Circle;40.7688277;-73.9821169;-6235972;4538386;https://www.google.com/maps?q=40.7688277,-73.9821169;315";
+  entriesExits[420] = "59 St-Columbus Circle;40.7676644;-73.9814388;-6235915;4538256;https://www.google.com/maps?q=40.7676644,-73.9814388;315";
+  entriesExits[421] = "59 St-Columbus Circle;40.7676504;-73.9812302;-6235898;4538255;https://www.google.com/maps?q=40.7676504,-73.9812302;315";
+  entriesExits[422] = "59 St-Columbus Circle;40.7685822;-73.982112;-6235972;4538359;https://www.google.com/maps?q=40.7685822,-73.982112;315";
+  entriesExits[423] = "66 St-Lincoln Center;40.7735889;-73.9820215;-6235964;4538916;https://www.google.com/maps?q=40.7735889,-73.9820215;314";
+  entriesExits[424] = "66 St-Lincoln Center;40.7737597;-73.9824364;-6235999;4538935;https://www.google.com/maps?q=40.7737597,-73.9824364;314";
+  entriesExits[425] = "66 St-Lincoln Center;40.773829;-73.982433;-6235999;4538943;https://www.google.com/maps?q=40.773829,-73.982433;314";
+  entriesExits[426] = "66 St-Lincoln Center;40.7736414;-73.982431;-6235999;4538922;https://www.google.com/maps?q=40.7736414,-73.982431;314";
+  entriesExits[427] = "66 St-Lincoln Center;40.7736961;-73.98202;-6235964;4538928;https://www.google.com/maps?q=40.7736961,-73.98202;314";
+  entriesExits[428] = "66 St-Lincoln Center;40.7734779;-73.982018;-6235964;4538904;https://www.google.com/maps?q=40.7734779,-73.982018;314";
+  entriesExits[429] = "66 St-Lincoln Center;40.7726185;-73.9825096;-6236006;4538808;https://www.google.com/maps?q=40.7726185,-73.9825096;314";
+  entriesExits[430] = "66 St-Lincoln Center;40.772741;-73.9825462;-6236009;4538822;https://www.google.com/maps?q=40.772741,-73.9825462;314";
+  entriesExits[431] = "68 St-Hunter College;40.7678158;-73.9643754;-6234477;4538273;https://www.google.com/maps?q=40.7678158,-73.9643754;399";
+  entriesExits[432] = "68 St-Hunter College;40.76794;-73.96429;-6234470;4538287;https://www.google.com/maps?q=40.76794,-73.96429;399";
+  entriesExits[433] = "68 St-Hunter College;40.7679892;-73.9641725;-6234460;4538293;https://www.google.com/maps?q=40.7679892,-73.9641725;399";
+  entriesExits[434] = "68 St-Hunter College;40.7676379;-73.9639659;-6234443;4538253;https://www.google.com/maps?q=40.7676379,-73.9639659;399";
+  entriesExits[435] = "68 St-Hunter College;40.767882;-73.9639184;-6234438;4538281;https://www.google.com/maps?q=40.767882,-73.9639184;399";
+  entriesExits[436] = "68 St-Hunter College;40.7680987;-73.96375124;-6234424;4538305;https://www.google.com/maps?q=40.7680987,-73.96375124;399";
+  entriesExits[437] = "7 Av;40.7632069;-73.9826682;-6236019;4537760;https://www.google.com/maps?q=40.7632069,-73.9826682;277";
+  entriesExits[438] = "7 Av;40.7633428;-73.9825738;-6236011;4537775;https://www.google.com/maps?q=40.7633428,-73.9825738;277";
+  entriesExits[439] = "7 Av;40.7628075;-73.9817178;-6235939;4537716;https://www.google.com/maps?q=40.7628075,-73.9817178;277";
+  entriesExits[440] = "7 Av;40.7629497;-73.9816298;-6235931;4537732;https://www.google.com/maps?q=40.7629497,-73.9816298;277";
+  entriesExits[441] = "72 St;40.7749488;-73.9771817;-6235556;4539067;https://www.google.com/maps?q=40.7749488,-73.9771817;160";
+  entriesExits[442] = "72 St;40.7762139;-73.976297;-6235482;4539208;https://www.google.com/maps?q=40.7762139,-73.976297;160";
+  entriesExits[443] = "72 St;40.7764555;-73.975976;-6235455;4539235;https://www.google.com/maps?q=40.7764555,-73.975976;160";
+  entriesExits[444] = "72 St;40.7784472;-73.9819528;-6235959;4539457;https://www.google.com/maps?q=40.7784472,-73.9819528;313";
+  entriesExits[445] = "72 St;40.77860001;-73.9819322;-6235957;4539474;https://www.google.com/maps?q=40.77860001,-73.9819322;313";
+  entriesExits[446] = "72 St;40.7788959;-73.9818868;-6235953;4539507;https://www.google.com/maps?q=40.7788959,-73.9818868;313";
+  entriesExits[447] = "72 St;40.7791489;-73.9818312;-6235948;4539535;https://www.google.com/maps?q=40.7791489,-73.9818312;313";
+  entriesExits[448] = "72 St;40.7669623;-73.9595894;-6234074;4538178;https://www.google.com/maps?q=40.7669623,-73.9595894;477";
+  entriesExits[449] = "72 St;40.7672033;-73.9594195;-6234059;4538205;https://www.google.com/maps?q=40.7672033,-73.9594195;477";
+  entriesExits[450] = "72 St;40.7685671;-73.9583424;-6233968;4538357;https://www.google.com/maps?q=40.7685671,-73.9583424;477";
+  entriesExits[451] = "72 St;40.7691118;-73.9583566;-6233970;4538418;https://www.google.com/maps?q=40.7691118,-73.9583566;477";
+  entriesExits[452] = "77 St;40.77371;-73.9602094;-6234126;4538929;https://www.google.com/maps?q=40.77371,-73.9602094;398";
+  entriesExits[453] = "77 St;40.7738339;-73.9601428;-6234120;4538943;https://www.google.com/maps?q=40.7738339,-73.9601428;398";
+  entriesExits[454] = "77 St;40.7736406;-73.9600418;-6234112;4538922;https://www.google.com/maps?q=40.7736406,-73.9600418;398";
+  entriesExits[455] = "77 St;40.7737663;-73.9599436;-6234103;4538936;https://www.google.com/maps?q=40.7737663,-73.9599436;398";
+  entriesExits[456] = "77 St;40.7735331;-73.9597876;-6234090;4538910;https://www.google.com/maps?q=40.7735331,-73.9597876;398";
+  entriesExits[457] = "77 St;40.7736662;-73.9596955;-6234083;4538925;https://www.google.com/maps?q=40.7736662,-73.9596955;398";
+  entriesExits[458] = "77 St;40.7734786;-73.959652;-6234079;4538904;https://www.google.com/maps?q=40.7734786,-73.959652;398";
+  entriesExits[459] = "77 St;40.7736059;-73.9595618;-6234071;4538918;https://www.google.com/maps?q=40.7736059,-73.9595618;398";
+  entriesExits[460] = "79 St;40.7837622;-73.9802909;-6235819;4540048;https://www.google.com/maps?q=40.7837622,-73.9802909;312";
+  entriesExits[461] = "79 St;40.7840876;-73.980049;-6235798;4540085;https://www.google.com/maps?q=40.7840876,-73.980049;312";
+  entriesExits[462] = "79 St;40.7836285;-73.9799341;-6235788;4540034;https://www.google.com/maps?q=40.7836285,-73.9799341;312";
+  entriesExits[463] = "79 St;40.7839996;-73.9796573;-6235765;4540075;https://www.google.com/maps?q=40.7839996,-73.9796573;312";
+  entriesExits[464] = "8 St-NYU;40.729778;-73.993262;-6236912;4534039;https://www.google.com/maps?q=40.729778,-73.993262;16";
+  entriesExits[465] = "8 St-NYU;40.729692;-73.9930389;-6236893;4534029;https://www.google.com/maps?q=40.729692,-73.9930389;16";
+  entriesExits[466] = "8 St-NYU;40.7306565;-73.9927468;-6236868;4534137;https://www.google.com/maps?q=40.7306565,-73.9927468;16";
+  entriesExits[467] = "8 St-NYU;40.7307797;-73.9926496;-6236860;4534150;https://www.google.com/maps?q=40.7307797,-73.9926496;16";
+  entriesExits[468] = "8 St-NYU;40.7305944;-73.9925979;-6236856;4534130;https://www.google.com/maps?q=40.7305944,-73.9925979;16";
+  entriesExits[469] = "8 St-NYU;40.7307252;-73.9925101;-6236849;4534144;https://www.google.com/maps?q=40.7307252,-73.9925101;16";
+  entriesExits[470] = "8 St-NYU;40.7305076;-73.9923238;-6236833;4534120;https://www.google.com/maps?q=40.7305076,-73.9923238;16";
+  entriesExits[471] = "8 St-NYU;40.7306012;-73.9922105;-6236823;4534131;https://www.google.com/maps?q=40.7306012,-73.9922105;16";
+  entriesExits[472] = "81 St-Museum of Natural History;40.7803452;-73.9731888;-6235220;4539668;https://www.google.com/maps?q=40.7803452,-73.9731888;159";
+  entriesExits[473] = "81 St-Museum of Natural History;40.7808674;-73.9728943;-6235195;4539726;https://www.google.com/maps?q=40.7808674,-73.9728943;159";
+  entriesExits[474] = "81 St-Museum of Natural History;40.7819909;-73.972034;-6235123;4539851;https://www.google.com/maps?q=40.7819909,-73.972034;159";
+  entriesExits[475] = "81 St-Museum of Natural History;40.782254;-73.971741;-6235098;4539881;https://www.google.com/maps?q=40.782254,-73.971741;159";
+  entriesExits[476] = "86 St;40.7852968;-73.969672;-6234923;4540219;https://www.google.com/maps?q=40.7852968,-73.969672;158";
+  entriesExits[477] = "86 St;40.78521;-73.9695929;-6234917;4540210;https://www.google.com/maps?q=40.78521,-73.9695929;158";
+  entriesExits[478] = "86 St;40.7855033;-73.9694622;-6234906;4540242;https://www.google.com/maps?q=40.7855033,-73.9694622;158";
+  entriesExits[479] = "86 St;40.7861364;-73.9690231;-6234869;4540313;https://www.google.com/maps?q=40.7861364,-73.9690231;158";
+  entriesExits[480] = "86 St;40.7867828;-73.9684492;-6234820;4540385;https://www.google.com/maps?q=40.7867828,-73.9684492;158";
+  entriesExits[481] = "86 St;40.7883789;-73.9768956;-6235532;4540562;https://www.google.com/maps?q=40.7883789,-73.9768956;311";
+  entriesExits[482] = "86 St;40.7885233;-73.9767421;-6235519;4540578;https://www.google.com/maps?q=40.7885233,-73.9767421;311";
+  entriesExits[483] = "86 St;40.7890395;-73.9763287;-6235485;4540636;https://www.google.com/maps?q=40.7890395,-73.9763287;311";
+  entriesExits[484] = "86 St;40.7881232;-73.9762958;-6235482;4540534;https://www.google.com/maps?q=40.7881232,-73.9762958;311";
+  entriesExits[485] = "86 St;40.7882875;-73.9760838;-6235464;4540552;https://www.google.com/maps?q=40.7882875,-73.9760838;311";
+  entriesExits[486] = "86 St;40.7795043;-73.9559174;-6233764;4539574;https://www.google.com/maps?q=40.7795043,-73.9559174;397";
+  entriesExits[487] = "86 St;40.779753;-73.9557985;-6233754;4539602;https://www.google.com/maps?q=40.779753,-73.9557985;397";
+  entriesExits[488] = "86 St;40.7794474;-73.9557947;-6233754;4539568;https://www.google.com/maps?q=40.7794474,-73.9557947;397";
+  entriesExits[489] = "86 St;40.7797358;-73.9555878;-6233736;4539600;https://www.google.com/maps?q=40.7797358,-73.9555878;397";
+  entriesExits[490] = "86 St;40.7793464;-73.9555549;-6233734;4539557;https://www.google.com/maps?q=40.7793464,-73.9555549;397";
+  entriesExits[491] = "86 St;40.7792892;-73.9554214;-6233722;4539550;https://www.google.com/maps?q=40.7792892,-73.9554214;397";
+  entriesExits[492] = "86 St;40.7796814;-73.9553101;-6233713;4539594;https://www.google.com/maps?q=40.7796814,-73.9553101;397";
+  entriesExits[493] = "86 St;40.7794665;-73.9552146;-6233705;4539570;https://www.google.com/maps?q=40.7794665,-73.9552146;397";
+  entriesExits[494] = "86 St;40.776063;-73.9528518;-6233506;4539191;https://www.google.com/maps?q=40.776063,-73.9528518;476";
+  entriesExits[495] = "86 St;40.7775983;-73.9508257;-6233335;4539362;https://www.google.com/maps?q=40.7775983,-73.9508257;476";
+  entriesExits[496] = "86 St;40.7778649;-73.9514473;-6233387;4539392;https://www.google.com/maps?q=40.7778649,-73.9514473;476";
+  entriesExits[497] = "86 St;40.7777238;-73.951593;-6233400;4539376;https://www.google.com/maps?q=40.7777238,-73.951593;476";
+  entriesExits[498] = "86 Street;40.7795098;-73.9553242;-6233714;4539575;https://www.google.com/maps?q=40.7795098,-73.9553242;397";
+  entriesExits[499] = "96 St;40.7916384;-73.9649398;-6234525;4540925;https://www.google.com/maps?q=40.7916384,-73.9649398;157";
+  entriesExits[500] = "96 St;40.7922926;-73.9644275;-6234481;4540998;https://www.google.com/maps?q=40.7922926,-73.9644275;157";
+  entriesExits[501] = "96 St;40.7926081;-73.9643213;-6234472;4541033;https://www.google.com/maps?q=40.7926081,-73.9643213;157";
+  entriesExits[502] = "96 St;40.793077;-73.9731789;-6235219;4541085;https://www.google.com/maps?q=40.793077,-73.9731789;310";
+  entriesExits[503] = "96 St;40.7932219;-73.9730778;-6235211;4541101;https://www.google.com/maps?q=40.7932219,-73.9730778;310";
+  entriesExits[504] = "96 St;40.7929331;-73.9728322;-6235190;4541069;https://www.google.com/maps?q=40.7929331,-73.9728322;310";
+  entriesExits[505] = "96 St;40.7930775;-73.9727315;-6235181;4541085;https://www.google.com/maps?q=40.7930775,-73.9727315;310";
+  entriesExits[506] = "96 St;40.7940752;-73.9722294;-6235139;4541196;https://www.google.com/maps?q=40.7940752,-73.9722294;310";
+  entriesExits[507] = "96 St;40.7943215;-73.9720456;-6235124;4541224;https://www.google.com/maps?q=40.7943215,-73.9720456;310";
+  entriesExits[508] = "96 St;40.7858743;-73.9512769;-6233373;4540284;https://www.google.com/maps?q=40.7858743,-73.9512769;396";
+  entriesExits[509] = "96 St;40.786073;-73.9510616;-6233355;4540306;https://www.google.com/maps?q=40.786073,-73.9510616;396";
+  entriesExits[510] = "96 St;40.7856482;-73.950932;-6233344;4540258;https://www.google.com/maps?q=40.7856482,-73.950932;396";
+  entriesExits[511] = "96 St;40.7859144;-73.9506924;-6233324;4540288;https://www.google.com/maps?q=40.7859144,-73.9506924;396";
+  entriesExits[512] = "96 St;40.7830595;-73.9477571;-6233076;4539970;https://www.google.com/maps?q=40.7830595,-73.9477571;475";
+  entriesExits[513] = "96 St;40.7828049;-73.9483903;-6233130;4539942;https://www.google.com/maps?q=40.7828049,-73.9483903;475";
+  entriesExits[514] = "96 St;40.7839153;-73.9475601;-6233060;4540065;https://www.google.com/maps?q=40.7839153,-73.9475601;475";
+  entriesExits[515] = "96 St;40.7841841;-73.9474;-6233046;4540095;https://www.google.com/maps?q=40.7841841,-73.9474;475";
+  entriesExits[516] = "Astor Pl;40.7300186;-73.9914524;-6236759;4534066;https://www.google.com/maps?q=40.7300186,-73.9914524;407";
+  entriesExits[517] = "Astor Pl;40.7301227;-73.990823;-6236706;4534077;https://www.google.com/maps?q=40.7301227,-73.990823;407";
+  entriesExits[518] = "Bowery;40.7199997;-73.9935462;-6236936;4532950;https://www.google.com/maps?q=40.7199997,-73.9935462;103";
+  entriesExits[519] = "Bowery;40.7203022;-73.9934097;-6236924;4532984;https://www.google.com/maps?q=40.7203022,-73.9934097;103";
+  entriesExits[520] = "Bowling Green;40.7048374;-74.0145964;-6238710;4531262;https://www.google.com/maps?q=40.7048374,-74.0145964;414";
+  entriesExits[521] = "Bowling Green;40.704157;-74.014509;-6238703;4531187;https://www.google.com/maps?q=40.704157,-74.014509;414";
+  entriesExits[522] = "Bowling Green;40.7048029;-74.0144281;-6238696;4531259;https://www.google.com/maps?q=40.7048029,-74.0144281;414";
+  entriesExits[523] = "Bowling Green;40.7046839;-74.0139298;-6238654;4531245;https://www.google.com/maps?q=40.7046839,-74.0139298;414";
+  entriesExits[524] = "Bowling Green;40.7046471;-74.0135005;-6238618;4531241;https://www.google.com/maps?q=40.7046471,-74.0135005;414";
+  entriesExits[525] = "Bowling Green;40.7040496;-74.0145537;-6238707;4531175;https://www.google.com/maps?q=40.7040496,-74.0145537;414";
+  entriesExits[526] = "Broad St;40.705747;-74.011554;-6238454;4531364;https://www.google.com/maps?q=40.705747,-74.011554;107";
+  entriesExits[527] = "Broad St;40.706001;-74.011497;-6238449;4531392;https://www.google.com/maps?q=40.706001,-74.011497;107";
+  entriesExits[528] = "Broad St;40.706439;-74.011263;-6238429;4531441;https://www.google.com/maps?q=40.706439,-74.011263;107";
+  entriesExits[529] = "Broad St;40.7059737;-74.0112223;-6238426;4531389;https://www.google.com/maps?q=40.7059737,-74.0112223;107";
+  entriesExits[530] = "Broad St;40.7061973;-74.0110885;-6238414;4531414;https://www.google.com/maps?q=40.7061973,-74.0110885;107";
+  entriesExits[531] = "Broad St;40.706887;-74.010687;-6238381;4531491;https://www.google.com/maps?q=40.706887,-74.010687;107";
+  entriesExits[532] = "Broad St;40.706911;-74.010494;-6238364;4531493;https://www.google.com/maps?q=40.706911,-74.010494;107";
+  entriesExits[533] = "Broad St;40.7080774;-74.0097526;-6238302;4531623;https://www.google.com/maps?q=40.7080774,-74.0097526;107";
+  entriesExits[534] = "Broad St;40.708035;-74.010665;-6238379;4531618;https://www.google.com/maps?q=40.708035,-74.010665;107";
+  entriesExits[535] = "Broadway-Lafayette St/Bleecker St;40.7252073;-73.9965618;-6237190;4533530;https://www.google.com/maps?q=40.7252073,-73.9965618;230";
+  entriesExits[536] = "Broadway-Lafayette St/Bleecker St;40.7255227;-73.9963556;-6237173;4533565;https://www.google.com/maps?q=40.7255227,-73.9963556;230";
+  entriesExits[537] = "Broadway-Lafayette St/Bleecker St;40.7250257;-73.9957848;-6237125;4533510;https://www.google.com/maps?q=40.7250257,-73.9957848;230";
+  entriesExits[538] = "Broadway-Lafayette St/Bleecker St;40.7253547;-73.9956173;-6237110;4533546;https://www.google.com/maps?q=40.7253547,-73.9956173;230";
+  entriesExits[539] = "Broadway-Lafayette St/Bleecker St;40.7249867;-73.9956115;-6237110;4533506;https://www.google.com/maps?q=40.7249867,-73.9956115;230";
+  entriesExits[540] = "Broadway-Lafayette St/Bleecker St;40.7253157;-73.9954983;-6237100;4533542;https://www.google.com/maps?q=40.7253157,-73.9954983;230";
+  entriesExits[541] = "Broadway-Lafayette St/Bleecker St;40.7249151;-73.9952877;-6237083;4533498;https://www.google.com/maps?q=40.7249151,-73.9952877;408";
+  entriesExits[542] = "Broadway-Lafayette St/Bleecker St;40.725195;-73.9948982;-6237050;4533529;https://www.google.com/maps?q=40.725195,-73.9948982;408";
+  entriesExits[543] = "Broadway-Lafayette St/Bleecker St;40.7259506;-73.9948122;-6237043;4533613;https://www.google.com/maps?q=40.7259506,-73.9948122;408";
+  entriesExits[544] = "Broadway-Lafayette St/Bleecker St;40.726046;-73.9947451;-6237037;4533623;https://www.google.com/maps?q=40.726046,-73.9947451;408";
+  entriesExits[545] = "Broadway-Lafayette St/Bleecker St;40.7257192;-73.9945921;-6237024;4533587;https://www.google.com/maps?q=40.7257192,-73.9945921;408";
+  entriesExits[546] = "Broadway-Lafayette St/Bleecker St;40.7257567;-73.9943374;-6237003;4533591;https://www.google.com/maps?q=40.7257567,-73.9943374;408";
+  entriesExits[547] = "Broadway-Lafayette St/Bleecker St;40.7258499;-73.9942979;-6236999;4533602;https://www.google.com/maps?q=40.7258499,-73.9942979;408";
+  entriesExits[548] = "Brooklyn Bridge-City Hall/Chambers St;40.712699;-74.004099;-6237825;4532138;https://www.google.com/maps?q=40.712699,-74.004099;105";
+  entriesExits[549] = "Brooklyn Bridge-City Hall/Chambers St;40.714199;-74.003187;-6237748;4532305;https://www.google.com/maps?q=40.714199,-74.003187;105";
+  entriesExits[550] = "Brooklyn Bridge-City Hall/Chambers St;40.7118958;-74.0051917;-6237917;4532048;https://www.google.com/maps?q=40.7118958,-74.0051917;411";
+  entriesExits[551] = "Brooklyn Bridge-City Hall/Chambers St;40.7118104;-74.005035;-6237904;4532039;https://www.google.com/maps?q=40.7118104,-74.005035;411";
+  entriesExits[552] = "Brooklyn Bridge-City Hall/Chambers St;40.7126808;-74.0050245;-6237903;4532136;https://www.google.com/maps?q=40.7126808,-74.0050245;411";
+  entriesExits[553] = "Brooklyn Bridge-City Hall/Chambers St;40.712882;-74.0047881;-6237883;4532158;https://www.google.com/maps?q=40.712882,-74.0047881;411";
+  entriesExits[554] = "Brooklyn Bridge-City Hall/Chambers St;40.7123823;-74.0043668;-6237848;4532102;https://www.google.com/maps?q=40.7123823,-74.0043668;411";
+  entriesExits[555] = "Brooklyn Bridge-City Hall/Chambers St;40.713846;-74.0038595;-6237805;4532265;https://www.google.com/maps?q=40.713846,-74.0038595;411";
+  entriesExits[556] = "Brooklyn Bridge-City Hall/Chambers St;40.7139166;-74.0036413;-6237787;4532273;https://www.google.com/maps?q=40.7139166,-74.0036413;411";
+  entriesExits[557] = "Brooklyn Bridge-City Hall/Chambers St;40.7127938;-74.0049162;-6237894;4532148;https://www.google.com/maps?q=40.7127938,-74.0049162;411";
+  entriesExits[558] = "Canal St;40.7194985;-74.0022722;-6237671;4532895;https://www.google.com/maps?q=40.7194985,-74.0022722;18";
+  entriesExits[559] = "Canal St;40.7194186;-74.002157;-6237662;4532886;https://www.google.com/maps?q=40.7194186,-74.002157;18";
+  entriesExits[560] = "Canal St;40.7196643;-74.0020178;-6237650;4532913;https://www.google.com/maps?q=40.7196643,-74.0020178;18";
+  entriesExits[561] = "Canal St;40.719587;-74.0019079;-6237641;4532904;https://www.google.com/maps?q=40.719587,-74.0019079;18";
+  entriesExits[562] = "Canal St;40.7191996;-74.0018441;-6237635;4532861;https://www.google.com/maps?q=40.7191996,-74.0018441;18";
+  entriesExits[563] = "Canal St;40.7191509;-74.0017816;-6237630;4532856;https://www.google.com/maps?q=40.7191509,-74.0017816;18";
+  entriesExits[564] = "Canal St;40.7195185;-74.0016183;-6237616;4532897;https://www.google.com/maps?q=40.7195185,-74.0016183;18";
+  entriesExits[565] = "Canal St;40.7178377;-74.0002765;-6237503;4532710;https://www.google.com/maps?q=40.7178377,-74.0002765;104";
+  entriesExits[566] = "Canal St;40.7216563;-74.0056651;-6237957;4533135;https://www.google.com/maps?q=40.7216563,-74.0056651;169";
+  entriesExits[567] = "Canal St;40.720758;-74.005399;-6237935;4533035;https://www.google.com/maps?q=40.720758,-74.005399;169";
+  entriesExits[568] = "Canal St;40.7219301;-74.0050459;-6237905;4533165;https://www.google.com/maps?q=40.7219301,-74.0050459;169";
+  entriesExits[569] = "Canal St;40.7198613;-74.0050282;-6237904;4532935;https://www.google.com/maps?q=40.7198613,-74.0050282;169";
+  entriesExits[570] = "Canal St;40.7206887;-74.0050041;-6237902;4533027;https://www.google.com/maps?q=40.7206887,-74.0050041;169";
+  entriesExits[571] = "Canal St;40.7200419;-74.0049774;-6237899;4532955;https://www.google.com/maps?q=40.7200419,-74.0049774;169";
+  entriesExits[572] = "Canal St;40.7229619;-74.0066299;-6238039;4533280;https://www.google.com/maps?q=40.7229619,-74.0066299;325";
+  entriesExits[573] = "Canal St;40.7228699;-74.0065011;-6238028;4533270;https://www.google.com/maps?q=40.7228699,-74.0065011;325";
+  entriesExits[574] = "Canal St;40.7225992;-74.0061226;-6237996;4533240;https://www.google.com/maps?q=40.7225992,-74.0061226;325";
+  entriesExits[575] = "Canal St;40.7224921;-74.0059728;-6237983;4533228;https://www.google.com/maps?q=40.7224921,-74.0059728;325";
+  entriesExits[576] = "Canal St;40.7185261;-74.0008493;-6237551;4532786;https://www.google.com/maps?q=40.7185261,-74.0008493;410";
+  entriesExits[577] = "Canal St;40.7186913;-74.0007097;-6237540;4532805;https://www.google.com/maps?q=40.7186913,-74.0007097;410";
+  entriesExits[578] = "Canal St;40.7186253;-74.0006026;-6237531;4532797;https://www.google.com/maps?q=40.7186253,-74.0006026;410";
+  entriesExits[579] = "Canal St;40.718197;-74.000388;-6237513;4532750;https://www.google.com/maps?q=40.718197,-74.000388;410";
+  entriesExits[580] = "Canal St;40.7181392;-74.0003139;-6237506;4532743;https://www.google.com/maps?q=40.7181392,-74.0003139;410";
+  entriesExits[581] = "Canal St;40.7183418;-74.00023;-6237499;4532766;https://www.google.com/maps?q=40.7183418,-74.00023;410";
+  entriesExits[582] = "Canal St;40.7182795;-74.0001254;-6237490;4532759;https://www.google.com/maps?q=40.7182795,-74.0001254;410";
+  entriesExits[583] = "Cathedral Pkwy (110 St);40.8000144;-73.9588852;-6234014;4541858;https://www.google.com/maps?q=40.8000144,-73.9588852;155";
+  entriesExits[584] = "Cathedral Pkwy (110 St);40.8008738;-73.9584206;-6233975;4541953;https://www.google.com/maps?q=40.8008738,-73.9584206;155";
+  entriesExits[585] = "Cathedral Pkwy (110 St);40.8000042;-73.9584074;-6233974;4541856;https://www.google.com/maps?q=40.8000042,-73.9584074;155";
+  entriesExits[586] = "Cathedral Pkwy (110 St);40.8044061;-73.966777;-6234679;4542346;https://www.google.com/maps?q=40.8044061,-73.966777;308";
+  entriesExits[587] = "Cathedral Pkwy (110 St);40.8039646;-73.9666339;-6234667;4542297;https://www.google.com/maps?q=40.8039646,-73.9666339;308";
+  entriesExits[588] = "Cathedral Pkwy (110 St);40.8042714;-73.966413;-6234649;4542331;https://www.google.com/maps?q=40.8042714,-73.966413;308";
+  entriesExits[589] = "Chambers St;40.7155528;-74.0094938;-6238280;4532455;https://www.google.com/maps?q=40.7155528,-74.0094938;327";
+  entriesExits[590] = "Chambers St;40.7154451;-74.009467;-6238278;4532443;https://www.google.com/maps?q=40.7154451,-74.009467;327";
+  entriesExits[591] = "Chambers St;40.7157126;-74.0093289;-6238266;4532473;https://www.google.com/maps?q=40.7157126,-74.0093289;327";
+  entriesExits[592] = "Chambers St;40.7153917;-74.0091988;-6238255;4532437;https://www.google.com/maps?q=40.7153917,-74.0091988;327";
+  entriesExits[593] = "Chambers St;40.7155616;-74.009076;-6238245;4532456;https://www.google.com/maps?q=40.7155616,-74.009076;327";
+  entriesExits[594] = "Chambers St;40.7158293;-74.009318;-6238265;4532486;https://www.google.com/maps?q=40.7158293,-74.009318;327";
+  entriesExits[595] = "Chambers St/WTC/Park Place/Cortlandt St;40.7101434;-74.0111427;-6238419;4531853;https://www.google.com/maps?q=40.7101434,-74.0111427;21";
+  entriesExits[596] = "Chambers St/WTC/Park Place/Cortlandt St;40.710424;-74.0110847;-6238414;4531884;https://www.google.com/maps?q=40.710424,-74.0110847;21";
+  entriesExits[597] = "Chambers St/WTC/Park Place/Cortlandt St;40.7109036;-74.0107616;-6238387;4531938;https://www.google.com/maps?q=40.7109036,-74.0107616;21";
+  entriesExits[598] = "Chambers St/WTC/Park Place/Cortlandt St;40.7111261;-74.0106162;-6238375;4531963;https://www.google.com/maps?q=40.7111261,-74.0106162;21";
+  entriesExits[599] = "Chambers St/WTC/Park Place/Cortlandt St;40.7100644;-74.0115928;-6238457;4531844;https://www.google.com/maps?q=40.7100644,-74.0115928;21";
+  entriesExits[600] = "Chambers St/WTC/Park Place/Cortlandt St;40.711142;-74.0108202;-6238392;4531964;https://www.google.com/maps?q=40.711142,-74.0108202;21";
+  entriesExits[601] = "Chambers St/WTC/Park Place/Cortlandt St;40.7112115;-74.0106761;-6238380;4531972;https://www.google.com/maps?q=40.7112115,-74.0106761;21";
+  entriesExits[602] = "Chambers St/WTC/Park Place/Cortlandt St;40.7110042;-74.0107888;-6238389;4531949;https://www.google.com/maps?q=40.7110042,-74.0107888;21";
+  entriesExits[603] = "Chambers St/WTC/Park Place/Cortlandt St;40.710165;-74.009182;-6238254;4531856;https://www.google.com/maps?q=40.710165,-74.009182;21";
+  entriesExits[604] = "Chambers St/WTC/Park Place/Cortlandt St;40.7097799;-74.0102942;-6238348;4531813;https://www.google.com/maps?q=40.7097799,-74.0102942;21";
+  entriesExits[605] = "Chambers St/WTC/Park Place/Cortlandt St;40.7104593;-74.0092735;-6238261;4531888;https://www.google.com/maps?q=40.7104593,-74.0092735;21";
+  entriesExits[606] = "Chambers St/WTC/Park Place/Cortlandt St;40.7107493;-74.0090283;-6238241;4531921;https://www.google.com/maps?q=40.7107493,-74.0090283;21";
+  entriesExits[607] = "Chambers St/WTC/Park Place/Cortlandt St;40.7107448;-74.0089504;-6238234;4531920;https://www.google.com/maps?q=40.7107448,-74.0089504;21";
+  entriesExits[608] = "Chambers St/WTC/Park Place/Cortlandt St;40.71056;-74.0085957;-6238204;4531900;https://www.google.com/maps?q=40.71056,-74.0085957;21";
+  entriesExits[609] = "Chambers St/WTC/Park Place/Cortlandt St;40.7137352;-74.0090664;-6238244;4532253;https://www.google.com/maps?q=40.7137352,-74.0090664;170";
+  entriesExits[610] = "Chambers St/WTC/Park Place/Cortlandt St;40.7139627;-74.0089871;-6238237;4532278;https://www.google.com/maps?q=40.7139627,-74.0089871;170";
+  entriesExits[611] = "Chambers St/WTC/Park Place/Cortlandt St;40.7143032;-74.0086227;-6238207;4532316;https://www.google.com/maps?q=40.7143032,-74.0086227;170";
+  entriesExits[612] = "Chambers St/WTC/Park Place/Cortlandt St;40.7145589;-74.0084198;-6238190;4532345;https://www.google.com/maps?q=40.7145589,-74.0084198;170";
+  entriesExits[613] = "Chambers St/WTC/Park Place/Cortlandt St;40.7141841;-74.0083703;-6238185;4532303;https://www.google.com/maps?q=40.7141841,-74.0083703;170";
+  entriesExits[614] = "Chambers St/WTC/Park Place/Cortlandt St;40.7148711;-74.0081736;-6238169;4532379;https://www.google.com/maps?q=40.7148711,-74.0081736;170";
+  entriesExits[615] = "Chambers St/WTC/Park Place/Cortlandt St;40.7151176;-74.0079793;-6238152;4532407;https://www.google.com/maps?q=40.7151176,-74.0079793;170";
+  entriesExits[616] = "Chambers St/WTC/Park Place/Cortlandt St;40.714777;-74.0078979;-6238146;4532369;https://www.google.com/maps?q=40.714777,-74.0078979;170";
+  entriesExits[617] = "Chambers St/WTC/Park Place/Cortlandt St;40.7150278;-74.0077012;-6238129;4532397;https://www.google.com/maps?q=40.7150278,-74.0077012;170";
+  entriesExits[618] = "Chambers St/WTC/Park Place/Cortlandt St;40.712274;-74.0103503;-6238352;4532090;https://www.google.com/maps?q=40.712274,-74.0103503;171";
+  entriesExits[619] = "Chambers St/WTC/Park Place/Cortlandt St;40.7116944;-74.01022;-6238341;4532026;https://www.google.com/maps?q=40.7116944,-74.01022;171";
+  entriesExits[620] = "Chambers St/WTC/Park Place/Cortlandt St;40.7118238;-74.0101552;-6238336;4532040;https://www.google.com/maps?q=40.7118238,-74.0101552;171";
+  entriesExits[621] = "Chambers St/WTC/Park Place/Cortlandt St;40.7126643;-74.0099108;-6238315;4532134;https://www.google.com/maps?q=40.7126643,-74.0099108;171";
+  entriesExits[622] = "Chambers St/WTC/Park Place/Cortlandt St;40.7133097;-74.0095541;-6238285;4532206;https://www.google.com/maps?q=40.7133097,-74.0095541;171";
+  entriesExits[623] = "Chambers St/WTC/Park Place/Cortlandt St;40.7134261;-74.0093068;-6238264;4532219;https://www.google.com/maps?q=40.7134261,-74.0093068;171";
+  entriesExits[624] = "Chambers St/WTC/Park Place/Cortlandt St;40.7130591;-74.0090286;-6238241;4532178;https://www.google.com/maps?q=40.7130591,-74.0090286;171";
+  entriesExits[625] = "Chambers St/WTC/Park Place/Cortlandt St;40.7133621;-74.0090139;-6238240;4532211;https://www.google.com/maps?q=40.7133621,-74.0090139;171";
+  entriesExits[626] = "Chambers St/WTC/Park Place/Cortlandt St;40.7130961;-74.0091147;-6238248;4532182;https://www.google.com/maps?q=40.7130961,-74.0091147;171";
+  entriesExits[627] = "Chambers St/WTC/Park Place/Cortlandt St;40.7116329;-74.0106471;-6238377;4532019;https://www.google.com/maps?q=40.7116329,-74.0106471;171";
+  entriesExits[628] = "Chambers St/WTC/Park Place/Cortlandt St;40.7119688;-74.0105123;-6238366;4532056;https://www.google.com/maps?q=40.7119688,-74.0105123;171";
+  entriesExits[629] = "Chambers St/WTC/Park Place/Cortlandt St;40.7127066;-74.0077505;-6238133;4532138;https://www.google.com/maps?q=40.7127066,-74.0077505;331";
+  entriesExits[630] = "Christopher St-Stonewall;40.7335094;-74.0031819;-6237748;4534454;https://www.google.com/maps?q=40.7335094,-74.0031819;323";
+  entriesExits[631] = "Christopher St-Stonewall;40.7336325;-74.0031477;-6237745;4534468;https://www.google.com/maps?q=40.7336325,-74.0031477;323";
+  entriesExits[632] = "Christopher St-Stonewall;40.7334528;-74.0030886;-6237740;4534448;https://www.google.com/maps?q=40.7334528,-74.0030886;323";
+  entriesExits[633] = "Christopher St-Stonewall;40.7336571;-74.0029893;-6237732;4534471;https://www.google.com/maps?q=40.7336571,-74.0029893;323";
+  entriesExits[634] = "Christopher St-Stonewall;40.7334138;-74.0027719;-6237713;4534444;https://www.google.com/maps?q=40.7334138,-74.0027719;323";
+  entriesExits[635] = "City Hall;40.7131236;-74.0070415;-6238073;4532185;https://www.google.com/maps?q=40.7131236,-74.0070415;20";
+  entriesExits[636] = "City Hall;40.7134659;-74.0067485;-6238049;4532223;https://www.google.com/maps?q=40.7134659,-74.0067485;20";
+  entriesExits[637] = "City Hall;40.7135017;-74.0067238;-6238047;4532227;https://www.google.com/maps?q=40.7135017,-74.0067238;20";
+  entriesExits[638] = "Delancey St-Essex St;40.7185586;-73.9876473;-6236439;4532790;https://www.google.com/maps?q=40.7185586,-73.9876473;102";
+  entriesExits[639] = "Delancey St-Essex St;40.7184166;-73.987177;-6236399;4532774;https://www.google.com/maps?q=40.7184166,-73.987177;102";
+  entriesExits[640] = "Delancey St-Essex St;40.7183827;-73.9884421;-6236506;4532770;https://www.google.com/maps?q=40.7183827,-73.9884421;233";
+  entriesExits[641] = "Delancey St-Essex St;40.7181166;-73.9882986;-6236494;4532741;https://www.google.com/maps?q=40.7181166,-73.9882986;233";
+  entriesExits[642] = "Delancey St-Essex St;40.7187876;-73.9882306;-6236488;4532815;https://www.google.com/maps?q=40.7187876,-73.9882306;233";
+  entriesExits[643] = "Delancey St-Essex St;40.7189431;-73.9878719;-6236458;4532833;https://www.google.com/maps?q=40.7189431,-73.9878719;233";
+  entriesExits[644] = "Delancey St-Essex St;40.7181556;-73.9882593;-6236490;4532745;https://www.google.com/maps?q=40.7181556,-73.9882593;233";
+  entriesExits[645] = "Delancey St-Essex St;40.7189985;-73.987826;-6236454;4532839;https://www.google.com/maps?q=40.7189985,-73.987826;233";
+  entriesExits[646] = "Dyckman St;40.865367;-73.9280766;-6231417;4549133;https://www.google.com/maps?q=40.865367,-73.9280766;144";
+  entriesExits[647] = "Dyckman St;40.8652721;-73.9274779;-6231367;4549122;https://www.google.com/maps?q=40.8652721,-73.9274779;144";
+  entriesExits[648] = "Dyckman St;40.8658077;-73.9273508;-6231356;4549182;https://www.google.com/maps?q=40.8658077,-73.9273508;144";
+  entriesExits[649] = "Dyckman St;40.8652071;-73.9272452;-6231347;4549115;https://www.google.com/maps?q=40.8652071,-73.9272452;144";
+  entriesExits[650] = "Dyckman St;40.8657641;-73.9270702;-6231333;4549177;https://www.google.com/maps?q=40.8657641,-73.9270702;144";
+  entriesExits[651] = "Dyckman St;40.8654582;-73.9270362;-6231330;4549143;https://www.google.com/maps?q=40.8654582,-73.9270362;144";
+  entriesExits[652] = "Dyckman St;40.8653515;-73.9269725;-6231324;4549131;https://www.google.com/maps?q=40.8653515,-73.9269725;144";
+  entriesExits[653] = "Dyckman St;40.8611391;-73.9251315;-6231169;4548662;https://www.google.com/maps?q=40.8611391,-73.9251315;299";
+  entriesExits[654] = "East Broadway;40.7142366;-73.9903537;-6236667;4532309;https://www.google.com/maps?q=40.7142366,-73.9903537;234";
+  entriesExits[655] = "East Broadway;40.7127305;-73.9902171;-6236655;4532141;https://www.google.com/maps?q=40.7127305,-73.9902171;234";
+  entriesExits[656] = "East Broadway;40.713885;-73.9900148;-6236638;4532270;https://www.google.com/maps?q=40.713885,-73.9900148;234";
+  entriesExits[657] = "East Broadway;40.7144001;-73.9899;-6236628;4532327;https://www.google.com/maps?q=40.7144001,-73.9899;234";
+  entriesExits[658] = "Franklin St;40.7189487;-74.0071251;-6238080;4532833;https://www.google.com/maps?q=40.7189487,-74.0071251;326";
+  entriesExits[659] = "Franklin St;40.7192851;-74.0070645;-6238075;4532871;https://www.google.com/maps?q=40.7192851,-74.0070645;326";
+  entriesExits[660] = "Franklin St;40.7199854;-74.0069409;-6238065;4532949;https://www.google.com/maps?q=40.7199854,-74.0069409;326";
+  entriesExits[661] = "Franklin St;40.718981;-74.006687;-6238043;4532837;https://www.google.com/maps?q=40.718981,-74.006687;326";
+  entriesExits[662] = "Franklin St;40.7199469;-74.0066245;-6238038;4532944;https://www.google.com/maps?q=40.7199469,-74.0066245;326";
+  entriesExits[663] = "Fulton St;40.7095377;-74.0083397;-6238183;4531786;https://www.google.com/maps?q=40.7095377,-74.0083397;106";
+  entriesExits[664] = "Fulton St;40.709378;-74.0082969;-6238179;4531768;https://www.google.com/maps?q=40.709378,-74.0082969;106";
+  entriesExits[665] = "Fulton St;40.7100924;-74.0079747;-6238152;4531847;https://www.google.com/maps?q=40.7100924,-74.0079747;106";
+  entriesExits[666] = "Fulton St;40.710391;-74.0079182;-6238147;4531881;https://www.google.com/maps?q=40.710391,-74.0079182;106";
+  entriesExits[667] = "Fulton St;40.7100832;-74.0076066;-6238121;4531846;https://www.google.com/maps?q=40.7100832,-74.0076066;106";
+  entriesExits[668] = "Fulton St;40.710219;-74.0075959;-6238120;4531862;https://www.google.com/maps?q=40.710219,-74.0075959;106";
+  entriesExits[669] = "Fulton St;40.7101628;-74.0074258;-6238106;4531855;https://www.google.com/maps?q=40.7101628,-74.0074258;106";
+  entriesExits[670] = "Fulton St;40.7093032;-74.0083124;-6238180;4531760;https://www.google.com/maps?q=40.7093032,-74.0083124;106";
+  entriesExits[671] = "Fulton St;40.7089354;-74.0069749;-6238068;4531719;https://www.google.com/maps?q=40.7089354,-74.0069749;332";
+  entriesExits[672] = "Fulton St;40.7085594;-74.0069342;-6238064;4531677;https://www.google.com/maps?q=40.7085594,-74.0069342;332";
+  entriesExits[673] = "Fulton St;40.7091436;-74.0067881;-6238052;4531742;https://www.google.com/maps?q=40.7091436,-74.0067881;332";
+  entriesExits[674] = "Fulton St;40.7094436;-74.0063618;-6238016;4531775;https://www.google.com/maps?q=40.7094436,-74.0063618;332";
+  entriesExits[675] = "Fulton St;40.7094601;-74.0060568;-6237990;4531777;https://www.google.com/maps?q=40.7094601,-74.0060568;332";
+  entriesExits[676] = "Fulton St;40.7096858;-74.0062209;-6238004;4531802;https://www.google.com/maps?q=40.7096858,-74.0062209;332";
+  entriesExits[677] = "Fulton St;40.7095225;-74.0065758;-6238034;4531784;https://www.google.com/maps?q=40.7095225,-74.0065758;332";
+  entriesExits[678] = "Fulton St;40.7095561;-74.0065915;-6238035;4531788;https://www.google.com/maps?q=40.7095561,-74.0065915;332";
+  entriesExits[679] = "Fulton St;40.7095987;-74.006677;-6238043;4531793;https://www.google.com/maps?q=40.7095987,-74.006677;332";
+  entriesExits[680] = "Fulton St;40.7111328;-74.0094053;-6238273;4531963;https://www.google.com/maps?q=40.7111328,-74.0094053;412";
+  entriesExits[681] = "Fulton St;40.7109577;-74.0093805;-6238271;4531944;https://www.google.com/maps?q=40.7109577,-74.0093805;412";
+  entriesExits[682] = "Fulton St;40.7110324;-74.0091906;-6238255;4531952;https://www.google.com/maps?q=40.7110324,-74.0091906;412";
+  entriesExits[683] = "Fulton St;40.710165;-74.009182;-6238254;4531856;https://www.google.com/maps?q=40.710165,-74.009182;412";
+  entriesExits[684] = "Fulton St;40.7096991;-74.0099921;-6238322;4531804;https://www.google.com/maps?q=40.7096991,-74.0099921;412";
+  entriesExits[685] = "Fulton St;40.7097799;-74.0102942;-6238348;4531813;https://www.google.com/maps?q=40.7097799,-74.0102942;412";
+  entriesExits[686] = "Fulton St;40.7104593;-74.0092735;-6238261;4531888;https://www.google.com/maps?q=40.7104593,-74.0092735;412";
+  entriesExits[687] = "Fulton St;40.7107493;-74.0090283;-6238241;4531921;https://www.google.com/maps?q=40.7107493,-74.0090283;412";
+  entriesExits[688] = "Fulton St;40.7107448;-74.0089504;-6238234;4531920;https://www.google.com/maps?q=40.7107448,-74.0089504;412";
+  entriesExits[689] = "Fulton St;40.71056;-74.0085957;-6238204;4531900;https://www.google.com/maps?q=40.71056,-74.0085957;412";
+  entriesExits[690] = "Fulton St;40.7103857;-74.0096861;-6238296;4531880;https://www.google.com/maps?q=40.7103857,-74.0096861;412";
+  entriesExits[691] = "Grand Central-42 St;40.751653;-73.977753;-6235605;4536474;https://www.google.com/maps?q=40.751653,-73.977753;402";
+  entriesExits[692] = "Grand Central-42 St;40.7517166;-73.9777087;-6235601;4536481;https://www.google.com/maps?q=40.7517166,-73.9777087;402";
+  entriesExits[693] = "Grand Central-42 St;40.7516684;-73.977068;-6235547;4536476;https://www.google.com/maps?q=40.7516684,-73.977068;402";
+  entriesExits[694] = "Grand Central-42 St;40.7512862;-73.9765449;-6235503;4536433;https://www.google.com/maps?q=40.7512862,-73.9765449;402";
+  entriesExits[695] = "Grand Central-42 St;40.7517049;-73.9760214;-6235459;4536480;https://www.google.com/maps?q=40.7517049,-73.9760214;402";
+  entriesExits[696] = "Grand Central-42 St;40.7513391;-73.975424;-6235408;4536439;https://www.google.com/maps?q=40.7513391,-73.975424;402";
+  entriesExits[697] = "Grand Central-42 St;40.7518876;-73.9752306;-6235392;4536500;https://www.google.com/maps?q=40.7518876,-73.9752306;402";
+  entriesExits[698] = "Grand Central-42 St;40.7512898;-73.9759395;-6235452;4536434;https://www.google.com/maps?q=40.7512898,-73.9759395;402";
+  entriesExits[699] = "Grand Central-42 St;40.7512246;-73.9757784;-6235438;4536426;https://www.google.com/maps?q=40.7512246,-73.9757784;402";
+  entriesExits[700] = "Grand Central-42 St;40.7520484;-73.9768899;-6235532;4536518;https://www.google.com/maps?q=40.7520484,-73.9768899;402";
+  entriesExits[701] = "Grand Central-42 St;40.7521266;-73.9771513;-6235554;4536527;https://www.google.com/maps?q=40.7521266,-73.9771513;402";
+  entriesExits[702] = "Grand Central-42 St;40.7521005;-73.976152;-6235470;4536524;https://www.google.com/maps?q=40.7521005,-73.976152;402";
+  entriesExits[703] = "Grand Central-42 St;40.7516405;-73.9772034;-6235558;4536473;https://www.google.com/maps?q=40.7516405,-73.9772034;402";
+  entriesExits[704] = "Grand Central-42 St;40.7508941;-73.9751175;-6235382;4536390;https://www.google.com/maps?q=40.7508941,-73.9751175;465";
+  entriesExits[705] = "Grand Central-42 St;40.752846;-73.979798;-6235777;4536607;https://www.google.com/maps?q=40.752846,-73.979798;469";
+  entriesExits[706] = "Grand Central-42 St;40.7530781;-73.9795699;-6235758;4536633;https://www.google.com/maps?q=40.7530781,-73.9795699;469";
+  entriesExits[707] = "Grand Central-42 St;40.7521574;-73.9781845;-6235641;4536530;https://www.google.com/maps?q=40.7521574,-73.9781845;469";
+  entriesExits[708] = "Grand Central-42 St;40.7522602;-73.9783584;-6235656;4536542;https://www.google.com/maps?q=40.7522602,-73.9783584;469";
+  entriesExits[709] = "Grand Central-42 St;40.7530377;-73.978068;-6235631;4536628;https://www.google.com/maps?q=40.7530377,-73.978068;469";
+  entriesExits[710] = "Grand Central-42 St;40.753162;-73.9782205;-6235644;4536642;https://www.google.com/maps?q=40.753162,-73.9782205;469";
+  entriesExits[711] = "Grand Central-42 St;40.7527444;-73.9786948;-6235684;4536596;https://www.google.com/maps?q=40.7527444,-73.9786948;469";
+  entriesExits[712] = "Grand Central-42 St;40.752514;-73.977977;-6235624;4536570;https://www.google.com/maps?q=40.752514,-73.977977;469";
+  entriesExits[713] = "Grand St;40.7183694;-73.9938821;-6236964;4532769;https://www.google.com/maps?q=40.7183694,-73.9938821;231";
+  entriesExits[714] = "Grand St;40.7181896;-73.9935609;-6236937;4532749;https://www.google.com/maps?q=40.7181896,-73.9935609;231";
+  entriesExits[715] = "Grand St;40.718155;-73.993452;-6236928;4532745;https://www.google.com/maps?q=40.718155,-73.993452;231";
+  entriesExits[716] = "Harlem-148 St;40.8240843;-73.936986;-6232168;4544537;https://www.google.com/maps?q=40.8240843,-73.936986;436";
+  entriesExits[717] = "Houston St;40.7278265;-74.0056485;-6237956;4533822;https://www.google.com/maps?q=40.7278265,-74.0056485;324";
+  entriesExits[718] = "Houston St;40.7279845;-74.0056278;-6237954;4533839;https://www.google.com/maps?q=40.7279845,-74.0056278;324";
+  entriesExits[719] = "Houston St;40.7285506;-74.0055379;-6237947;4533902;https://www.google.com/maps?q=40.7285506,-74.0055379;324";
+  entriesExits[720] = "Houston St;40.7287096;-74.0055131;-6237945;4533920;https://www.google.com/maps?q=40.7287096,-74.0055131;324";
+  entriesExits[721] = "Houston St;40.7277071;-74.0052881;-6237926;4533808;https://www.google.com/maps?q=40.7277071,-74.0052881;324";
+  entriesExits[722] = "Houston St;40.7280475;-74.0052406;-6237922;4533846;https://www.google.com/maps?q=40.7280475,-74.0052406;324";
+  entriesExits[723] = "Houston St;40.7284389;-74.0051786;-6237916;4533890;https://www.google.com/maps?q=40.7284389,-74.0051786;324";
+  entriesExits[724] = "Houston St;40.7286648;-74.0050498;-6237905;4533915;https://www.google.com/maps?q=40.7286648,-74.0050498;324";
+  entriesExits[725] = "Inwood-207 St;40.8678352;-73.9214448;-6230858;4549407;https://www.google.com/maps?q=40.8678352,-73.9214448;143";
+  entriesExits[726] = "Inwood-207 St;40.8675148;-73.9213476;-6230850;4549372;https://www.google.com/maps?q=40.8675148,-73.9213476;143";
+  entriesExits[727] = "Inwood-207 St;40.867892;-73.921234;-6230841;4549414;https://www.google.com/maps?q=40.867892,-73.921234;143";
+  entriesExits[728] = "Inwood-207 St;40.8676606;-73.9209393;-6230816;4549388;https://www.google.com/maps?q=40.8676606,-73.9209393;143";
+  entriesExits[729] = "Inwood-207 St;40.8682937;-73.9196148;-6230704;4549458;https://www.google.com/maps?q=40.8682937,-73.9196148;143";
+  entriesExits[730] = "Inwood-207 St;40.8680441;-73.9192915;-6230677;4549431;https://www.google.com/maps?q=40.8680441,-73.9192915;143";
+  entriesExits[731] = "Lexington Av/51-53 Sts;40.757804;-73.971141;-6235047;4537159;https://www.google.com/maps?q=40.757804,-73.971141;275";
+  entriesExits[732] = "Lexington Av/51-53 Sts;40.757784;-73.971098;-6235044;4537157;https://www.google.com/maps?q=40.757784,-73.971098;275";
+  entriesExits[733] = "Lexington Av/51-53 Sts;40.75812;-73.970958;-6235032;4537194;https://www.google.com/maps?q=40.75812,-73.970958;275";
+  entriesExits[734] = "Lexington Av/51-53 Sts;40.758329;-73.970567;-6234999;4537217;https://www.google.com/maps?q=40.758329,-73.970567;275";
+  entriesExits[735] = "Lexington Av/51-53 Sts;40.7573651;-73.9694266;-6234903;4537110;https://www.google.com/maps?q=40.7573651,-73.9694266;275";
+  entriesExits[736] = "Lexington Av/51-53 Sts;40.7577948;-73.9691049;-6234876;4537158;https://www.google.com/maps?q=40.7577948,-73.9691049;275";
+  entriesExits[737] = "Lexington Av/51-53 Sts;40.7576771;-73.9690632;-6234872;4537145;https://www.google.com/maps?q=40.7576771,-73.9690632;275";
+  entriesExits[738] = "Lexington Av/51-53 Sts;40.7578434;-73.9695265;-6234911;4537163;https://www.google.com/maps?q=40.7578434,-73.9695265;275";
+  entriesExits[739] = "Lexington Av/51-53 Sts;40.7576468;-73.969628;-6234920;4537141;https://www.google.com/maps?q=40.7576468,-73.969628;275";
+  entriesExits[740] = "Lexington Av/51-53 Sts;40.7567229;-73.972565;-6235167;4537038;https://www.google.com/maps?q=40.7567229,-73.972565;401";
+  entriesExits[741] = "Lexington Av/51-53 Sts;40.75719;-73.972241;-6235140;4537090;https://www.google.com/maps?q=40.75719,-73.972241;401";
+  entriesExits[742] = "Lexington Av/51-53 Sts;40.7573205;-73.9721689;-6235134;4537105;https://www.google.com/maps?q=40.7573205,-73.9721689;401";
+  entriesExits[743] = "Lexington Av/51-53 Sts;40.7571466;-73.9721359;-6235131;4537086;https://www.google.com/maps?q=40.7571466,-73.9721359;401";
+  entriesExits[744] = "Lexington Av/51-53 Sts;40.7573075;-73.9719443;-6235115;4537103;https://www.google.com/maps?q=40.7573075,-73.9719443;401";
+  entriesExits[745] = "Lexington Av/51-53 Sts;40.7570081;-73.9718206;-6235105;4537070;https://www.google.com/maps?q=40.7570081,-73.9718206;401";
+  entriesExits[746] = "Lexington Av/51-53 Sts;40.7571387;-73.9717335;-6235097;4537085;https://www.google.com/maps?q=40.7571387,-73.9717335;401";
+  entriesExits[747] = "Lexington Av/51-53 Sts;40.7569558;-73.9716892;-6235094;4537064;https://www.google.com/maps?q=40.7569558,-73.9716892;401";
+  entriesExits[748] = "Lexington Av/51-53 Sts;40.7570533;-73.971523;-6235079;4537075;https://www.google.com/maps?q=40.7570533,-73.971523;401";
+  entriesExits[749] = "Lexington Av/51-53 Sts;40.7568024;-73.9724813;-6235160;4537047;https://www.google.com/maps?q=40.7568024,-73.9724813;401";
+  entriesExits[750] = "Lexington Av/51-53 Sts;40.756711;-73.972445;-6235157;4537037;https://www.google.com/maps?q=40.756711,-73.972445;401";
+  entriesExits[751] = "Lexington Av/59 St;40.7620908;-73.9663577;-6234644;4537636;https://www.google.com/maps?q=40.7620908,-73.9663577;7";
+  entriesExits[752] = "Lexington Av/59 St;40.7623847;-73.9661407;-6234626;4537669;https://www.google.com/maps?q=40.7623847,-73.9661407;7";
+  entriesExits[753] = "Lexington Av/59 St;40.7619934;-73.9661181;-6234624;4537625;https://www.google.com/maps?q=40.7619934,-73.9661181;7";
+  entriesExits[754] = "Lexington Av/59 St;40.762282;-73.9659085;-6234606;4537657;https://www.google.com/maps?q=40.762282,-73.9659085;7";
+  entriesExits[755] = "Lexington Av/59 St;40.7622955;-73.9685447;-6234828;4537659;https://www.google.com/maps?q=40.7622955,-73.9685447;400";
+  entriesExits[756] = "Lexington Av/59 St;40.7624269;-73.9683854;-6234815;4537673;https://www.google.com/maps?q=40.7624269,-73.9683854;400";
+  entriesExits[757] = "Lexington Av/59 St;40.7620725;-73.9680276;-6234785;4537634;https://www.google.com/maps?q=40.7620725,-73.9680276;400";
+  entriesExits[758] = "Lexington Av/59 St;40.7628443;-73.9679602;-6234779;4537720;https://www.google.com/maps?q=40.7628443,-73.9679602;400";
+  entriesExits[759] = "Lexington Av/59 St;40.762986;-73.96785;-6234770;4537736;https://www.google.com/maps?q=40.762986,-73.96785;400";
+  entriesExits[760] = "Lexington Av/59 St;40.7628574;-73.967572;-6234746;4537721;https://www.google.com/maps?q=40.7628574,-73.967572;400";
+  entriesExits[761] = "Lexington Av/59 St;40.7626138;-73.9673808;-6234730;4537694;https://www.google.com/maps?q=40.7626138,-73.9673808;400";
+  entriesExits[762] = "Lexington Av/59 St;40.7626591;-73.9675803;-6234747;4537699;https://www.google.com/maps?q=40.7626591,-73.9675803;400";
+  entriesExits[763] = "Lexington Av/63 St;40.7649678;-73.9666793;-6234671;4537956;https://www.google.com/maps?q=40.7649678,-73.9666793;223";
+  entriesExits[764] = "Lexington Av/63 St;40.7647383;-73.9665531;-6234661;4537931;https://www.google.com/maps?q=40.7647383,-73.9665531;223";
+  entriesExits[765] = "Lexington Av/63 St;40.764896;-73.966426;-6234650;4537948;https://www.google.com/maps?q=40.764896,-73.966426;223";
+  entriesExits[766] = "Lexington Av/63 St;40.7641013;-73.9650414;-6234533;4537860;https://www.google.com/maps?q=40.7641013,-73.9650414;223";
+  entriesExits[767] = "Lexington Av/63 St;40.7642064;-73.9649728;-6234527;4537871;https://www.google.com/maps?q=40.7642064,-73.9649728;223";
+  entriesExits[768] = "Lexington Av/63 St;40.7638652;-73.964516;-6234489;4537833;https://www.google.com/maps?q=40.7638652,-73.964516;223";
+  entriesExits[769] = "Lexington Av/63 St;40.7641673;-73.9645234;-6234489;4537867;https://www.google.com/maps?q=40.7641673,-73.9645234;223";
+  entriesExits[770] = "Marble Hill-225 St;40.8744658;-73.910563;-6229941;4550146;https://www.google.com/maps?q=40.8744658,-73.910563;296";
+  entriesExits[771] = "Marble Hill-225 St;40.8743203;-73.9098032;-6229877;4550129;https://www.google.com/maps?q=40.8743203,-73.9098032;296";
+  entriesExits[772] = "Prince St;40.7242611;-73.9979364;-6237306;4533425;https://www.google.com/maps?q=40.7242611,-73.9979364;17";
+  entriesExits[773] = "Prince St;40.7243543;-73.9978724;-6237300;4533435;https://www.google.com/maps?q=40.7243543,-73.9978724;17";
+  entriesExits[774] = "Prince St;40.724124;-73.997686;-6237285;4533409;https://www.google.com/maps?q=40.724124,-73.997686;17";
+  entriesExits[775] = "Prince St;40.7242283;-73.9976317;-6237280;4533421;https://www.google.com/maps?q=40.7242283,-73.9976317;17";
+  entriesExits[776] = "Rector St;40.7063426;-74.014018;-6238661;4531430;https://www.google.com/maps?q=40.7063426,-74.014018;22";
+  entriesExits[777] = "Rector St;40.7074289;-74.0133042;-6238601;4531551;https://www.google.com/maps?q=40.7074289,-74.0133042;22";
+  entriesExits[778] = "Rector St;40.7075497;-74.01322;-6238594;4531564;https://www.google.com/maps?q=40.7075497,-74.01322;22";
+  entriesExits[779] = "Rector St;40.7076697;-74.0131438;-6238588;4531578;https://www.google.com/maps?q=40.7076697,-74.0131438;22";
+  entriesExits[780] = "Rector St;40.7078965;-74.0129911;-6238575;4531603;https://www.google.com/maps?q=40.7078965,-74.0129911;22";
+  entriesExits[781] = "Rector St;40.707609;-74.0129818;-6238574;4531571;https://www.google.com/maps?q=40.707609,-74.0129818;22";
+  entriesExits[782] = "Rector St;40.7080998;-74.0128571;-6238564;4531626;https://www.google.com/maps?q=40.7080998,-74.0128571;22";
+  entriesExits[783] = "Rector St;40.7078334;-74.0128311;-6238561;4531596;https://www.google.com/maps?q=40.7078334,-74.0128311;22";
+  entriesExits[784] = "Rector St;40.7080408;-74.0126888;-6238549;4531619;https://www.google.com/maps?q=40.7080408,-74.0126888;22";
+  entriesExits[785] = "Rector St;40.706493;-74.014319;-6238687;4531447;https://www.google.com/maps?q=40.706493,-74.014319;329";
+  entriesExits[786] = "Rector St;40.706527;-74.014144;-6238672;4531451;https://www.google.com/maps?q=40.706527,-74.014144;329";
+  entriesExits[787] = "Rector St;40.7066037;-74.0141117;-6238669;4531459;https://www.google.com/maps?q=40.7066037,-74.0141117;329";
+  entriesExits[788] = "Rector St;40.7075992;-74.0138384;-6238646;4531570;https://www.google.com/maps?q=40.7075992,-74.0138384;329";
+  entriesExits[789] = "Rector St;40.708224;-74.0135669;-6238623;4531639;https://www.google.com/maps?q=40.708224,-74.0135669;329";
+  entriesExits[790] = "Rector St;40.7080393;-74.0134876;-6238617;4531619;https://www.google.com/maps?q=40.7080393,-74.0134876;329";
+  entriesExits[791] = "Roosevelt Island;40.7590185;-73.9534576;-6233557;4537294;https://www.google.com/maps?q=40.7590185,-73.9534576;222";
+  entriesExits[792] = "Spring St;40.7256308;-74.0043768;-6237849;4533577;https://www.google.com/maps?q=40.7256308,-74.0043768;168";
+  entriesExits[793] = "Spring St;40.726208;-74.004033;-6237820;4533641;https://www.google.com/maps?q=40.726208,-74.004033;168";
+  entriesExits[794] = "Spring St;40.7255428;-74.0037502;-6237796;4533567;https://www.google.com/maps?q=40.7255428,-74.0037502;168";
+  entriesExits[795] = "Spring St;40.722408;-73.9974768;-6237267;4533218;https://www.google.com/maps?q=40.722408,-73.9974768;409";
+  entriesExits[796] = "Spring St;40.7224774;-73.9974188;-6237262;4533226;https://www.google.com/maps?q=40.7224774,-73.9974188;409";
+  entriesExits[797] = "Spring St;40.7221032;-73.9968123;-6237211;4533185;https://www.google.com/maps?q=40.7221032,-73.9968123;409";
+  entriesExits[798] = "Spring St;40.7222255;-73.9967904;-6237209;4533198;https://www.google.com/maps?q=40.7222255,-73.9967904;409";
+  entriesExits[799] = "Times Sq-42 St;40.755862;-73.9869267;-6236378;4536943;https://www.google.com/maps?q=40.755862,-73.9869267;317";
+  entriesExits[800] = "Times Sq-42 St;40.7557938;-73.9869748;-6236382;4536935;https://www.google.com/maps?q=40.7557938,-73.9869748;317";
+  entriesExits[801] = "Times Sq-42 St/Port Authority Bus Terminal;40.7545181;-73.9871143;-6236394;4536793;https://www.google.com/maps?q=40.7545181,-73.9871143;11";
+  entriesExits[802] = "Times Sq-42 St/Port Authority Bus Terminal;40.7543279;-73.987068;-6236390;4536772;https://www.google.com/maps?q=40.7543279,-73.987068;11";
+  entriesExits[803] = "Times Sq-42 St/Port Authority Bus Terminal;40.7541866;-73.9867191;-6236360;4536756;https://www.google.com/maps?q=40.7541866,-73.9867191;11";
+  entriesExits[804] = "Times Sq-42 St/Port Authority Bus Terminal;40.7543135;-73.9866372;-6236353;4536770;https://www.google.com/maps?q=40.7543135,-73.9866372;11";
+  entriesExits[805] = "Times Sq-42 St/Port Authority Bus Terminal;40.7559971;-73.9910421;-6236725;4536958;https://www.google.com/maps?q=40.7559971,-73.9910421;163";
+  entriesExits[806] = "Times Sq-42 St/Port Authority Bus Terminal;40.7561151;-73.9909193;-6236714;4536971;https://www.google.com/maps?q=40.7561151,-73.9909193;163";
+  entriesExits[807] = "Times Sq-42 St/Port Authority Bus Terminal;40.7558064;-73.9905611;-6236684;4536936;https://www.google.com/maps?q=40.7558064,-73.9905611;163";
+  entriesExits[808] = "Times Sq-42 St/Port Authority Bus Terminal;40.757474;-73.9900143;-6236638;4537122;https://www.google.com/maps?q=40.757474,-73.9900143;163";
+  entriesExits[809] = "Times Sq-42 St/Port Authority Bus Terminal;40.7579453;-73.9895696;-6236601;4537174;https://www.google.com/maps?q=40.7579453,-73.9895696;163";
+  entriesExits[810] = "Times Sq-42 St/Port Authority Bus Terminal;40.7574339;-73.9894533;-6236591;4537118;https://www.google.com/maps?q=40.7574339,-73.9894533;163";
+  entriesExits[811] = "Times Sq-42 St/Port Authority Bus Terminal;40.7585808;-73.9891597;-6236566;4537245;https://www.google.com/maps?q=40.7585808,-73.9891597;163";
+  entriesExits[812] = "Times Sq-42 St/Port Authority Bus Terminal;40.758386;-73.9886758;-6236525;4537224;https://www.google.com/maps?q=40.758386,-73.9886758;163";
+  entriesExits[813] = "Times Sq-42 St/Port Authority Bus Terminal;40.7586951;-73.9890158;-6236554;4537258;https://www.google.com/maps?q=40.7586951,-73.9890158;163";
+  entriesExits[814] = "Times Sq-42 St/Port Authority Bus Terminal;40.7563491;-73.9906315;-6236690;4536997;https://www.google.com/maps?q=40.7563491,-73.9906315;163";
+  entriesExits[815] = "Times Sq-42 St/Port Authority Bus Terminal;40.7569444;-73.9901997;-6236654;4537063;https://www.google.com/maps?q=40.7569444,-73.9901997;163";
+  entriesExits[816] = "Times Sq-42 St/Port Authority Bus Terminal;40.754817;-73.9882354;-6236488;4536826;https://www.google.com/maps?q=40.754817,-73.9882354;317";
+  entriesExits[817] = "Times Sq-42 St/Port Authority Bus Terminal;40.7546185;-73.9878092;-6236452;4536804;https://www.google.com/maps?q=40.7546185,-73.9878092;317";
+  entriesExits[818] = "Times Sq-42 St/Port Authority Bus Terminal;40.7555721;-73.9876725;-6236441;4536910;https://www.google.com/maps?q=40.7555721,-73.9876725;317";
+  entriesExits[819] = "Times Sq-42 St/Port Authority Bus Terminal;40.7561323;-73.9875149;-6236427;4536973;https://www.google.com/maps?q=40.7561323,-73.9875149;317";
+  entriesExits[820] = "Times Sq-42 St/Port Authority Bus Terminal;40.755248;-73.987362;-6236415;4536874;https://www.google.com/maps?q=40.755248,-73.987362;317";
+  entriesExits[821] = "Times Sq-42 St/Port Authority Bus Terminal;40.7563493;-73.9872942;-6236409;4536997;https://www.google.com/maps?q=40.7563493,-73.9872942;317";
+  entriesExits[822] = "Times Sq-42 St/Port Authority Bus Terminal;40.7551794;-73.9871944;-6236400;4536867;https://www.google.com/maps?q=40.7551794,-73.9871944;317";
+  entriesExits[823] = "Times Sq-42 St/Port Authority Bus Terminal;40.7558569;-73.9868078;-6236368;4536942;https://www.google.com/maps?q=40.7558569,-73.9868078;317";
+  entriesExits[824] = "Times Sq-42 St/Port Authority Bus Terminal;40.7555881;-73.9863448;-6236329;4536912;https://www.google.com/maps?q=40.7555881,-73.9863448;317";
+  entriesExits[825] = "Times Sq-42 St/Port Authority Bus Terminal;40.7561767;-73.9863927;-6236333;4536978;https://www.google.com/maps?q=40.7561767,-73.9863927;468";
+  entriesExits[826] = "Times Sq-42 St/Port Authority Bus Terminal;40.7561022;-73.9864587;-6236338;4536969;https://www.google.com/maps?q=40.7561022,-73.9864587;468";
+  entriesExits[827] = "W 4 St-Wash Sq;40.7310974;-74.0015985;-6237615;4534186;https://www.google.com/maps?q=40.7310974,-74.0015985;167";
+  entriesExits[828] = "W 4 St-Wash Sq;40.7311149;-74.0012226;-6237583;4534188;https://www.google.com/maps?q=40.7311149,-74.0012226;167";
+  entriesExits[829] = "W 4 St-Wash Sq;40.7311107;-74.0011646;-6237578;4534187;https://www.google.com/maps?q=40.7311107,-74.0011646;167";
+  entriesExits[830] = "W 4 St-Wash Sq;40.7330975;-74.0002409;-6237500;4534408;https://www.google.com/maps?q=40.7330975,-74.0002409;167";
+  entriesExits[831] = "W 4 St-Wash Sq;40.7330089;-73.9998114;-6237464;4534399;https://www.google.com/maps?q=40.7330089,-73.9998114;167";
+  entriesExits[832] = "W 4 St-Wash Sq;40.7331807;-73.9996918;-6237454;4534418;https://www.google.com/maps?q=40.7331807,-73.9996918;167";
+  entriesExits[833] = "WTC Cortlandt;40.7110837;-74.0124731;-6238531;4531958;https://www.google.com/maps?q=40.7110837,-74.0124731;328";
+  entriesExits[834] = "WTC Cortlandt;40.7108341;-74.0125634;-6238539;4531930;https://www.google.com/maps?q=40.7108341,-74.0125634;328";
+  entriesExits[835] = "WTC Cortlandt;40.7126849;-74.0119518;-6238487;4532136;https://www.google.com/maps?q=40.7126849,-74.0119518;328";
+  entriesExits[836] = "WTC Cortlandt;40.7127566;-74.0119269;-6238485;4532144;https://www.google.com/maps?q=40.7127566,-74.0119269;328";
+  entriesExits[837] = "WTC Cortlandt;40.7125321;-74.0120009;-6238491;4532119;https://www.google.com/maps?q=40.7125321,-74.0120009;328";
+  entriesExits[838] = "WTC Cortlandt;40.7118357;-74.0119771;-6238489;4532042;https://www.google.com/maps?q=40.7118357,-74.0119771;328";
+  entriesExits[839] = "WTC Cortlandt;40.7110514;-74.0121697;-6238506;4531954;https://www.google.com/maps?q=40.7110514,-74.0121697;328";
+  entriesExits[840] = "WTC Cortlandt;40.7116277;-74.012288;-6238516;4532018;https://www.google.com/maps?q=40.7116277,-74.012288;328";
+  entriesExits[841] = "WTC Cortlandt;40.7120642;-74.0120408;-6238495;4532067;https://www.google.com/maps?q=40.7120642,-74.0120408;328";
+  entriesExits[842] = "Wall St;40.7063517;-74.0096437;-6238293;4531431;https://www.google.com/maps?q=40.7063517,-74.0096437;333";
+  entriesExits[843] = "Wall St;40.7065318;-74.0095742;-6238287;4531451;https://www.google.com/maps?q=40.7065318,-74.0095742;333";
+  entriesExits[844] = "Wall St;40.706277;-74.0094924;-6238280;4531423;https://www.google.com/maps?q=40.706277,-74.0094924;333";
+  entriesExits[845] = "Wall St;40.7063799;-74.0093214;-6238266;4531434;https://www.google.com/maps?q=40.7063799,-74.0093214;333";
+  entriesExits[846] = "Wall St;40.7074605;-74.0087297;-6238216;4531555;https://www.google.com/maps?q=40.7074605,-74.0087297;333";
+  entriesExits[847] = "Wall St;40.706645;-74.0086351;-6238208;4531464;https://www.google.com/maps?q=40.706645,-74.0086351;333";
+  entriesExits[848] = "Wall St;40.706586;-74.0087004;-6238213;4531457;https://www.google.com/maps?q=40.706586,-74.0087004;333";
+  entriesExits[849] = "Wall St;40.7080774;-74.0097526;-6238302;4531623;https://www.google.com/maps?q=40.7080774,-74.0097526;333";
+  entriesExits[850] = "Wall St;40.7072875;-74.012239;-6238511;4531535;https://www.google.com/maps?q=40.7072875,-74.012239;413";
+  entriesExits[851] = "Wall St;40.7074302;-74.012129;-6238502;4531551;https://www.google.com/maps?q=40.7074302,-74.012129;413";
+  entriesExits[852] = "Wall St;40.7072321;-74.0120005;-6238491;4531529;https://www.google.com/maps?q=40.7072321,-74.0120005;413";
+  entriesExits[853] = "Wall St;40.7076063;-74.0119486;-6238487;4531571;https://www.google.com/maps?q=40.7076063,-74.0119486;413";
+  entriesExits[854] = "Wall St;40.7076363;-74.0119246;-6238485;4531574;https://www.google.com/maps?q=40.7076363,-74.0119246;413";
+  entriesExits[855] = "Wall St;40.7075058;-74.0117912;-6238474;4531560;https://www.google.com/maps?q=40.7075058,-74.0117912;413";
+  entriesExits[856] = "Wall St;40.7075602;-74.0117429;-6238470;4531566;https://www.google.com/maps?q=40.7075602,-74.0117429;413";
+  entriesExits[857] = "Wall St;40.7084833;-74.0112799;-6238431;4531668;https://www.google.com/maps?q=40.7084833,-74.0112799;413";
+  entriesExits[858] = "Wall St;40.708035;-74.010665;-6238379;4531618;https://www.google.com/maps?q=40.708035,-74.010665;413";
+  entriesExits[859] = "Wall St;40.7080774;-74.0097526;-6238302;4531623;https://www.google.com/maps?q=40.7080774,-74.0097526;413";
+  entriesExits[860] = "Whitehall St-South Ferry;40.7041502;-74.0133314;-6238604;4531186;https://www.google.com/maps?q=40.7041502,-74.0133314;23";
+  entriesExits[861] = "Whitehall St-South Ferry;40.7039956;-74.0133066;-6238601;4531169;https://www.google.com/maps?q=40.7039956,-74.0133066;23";
+  entriesExits[862] = "Whitehall St-South Ferry;40.7041181;-74.0129829;-6238574;4531182;https://www.google.com/maps?q=40.7041181,-74.0129829;23";
+  entriesExits[863] = "Whitehall St-South Ferry;40.7021206;-74.0126457;-6238546;4530960;https://www.google.com/maps?q=40.7021206,-74.0126457;23";
+  entriesExits[864] = "Whitehall St-South Ferry;40.7016764;-74.0129619;-6238572;4530911;https://www.google.com/maps?q=40.7016764,-74.0129619;23";
+  entriesExits[865] = "Whitehall St-South Ferry;40.7019334;-74.0125934;-6238541;4530939;https://www.google.com/maps?q=40.7019334,-74.0125934;23";
+  entriesExits[866] = "Whitehall St-South Ferry;40.701974;-74.0133104;-6238602;4530944;https://www.google.com/maps?q=40.701974,-74.0133104;330";
+  entriesExits[867] = "Whitehall St-South Ferry;40.7018259;-74.0130024;-6238576;4530927;https://www.google.com/maps?q=40.7018259,-74.0130024;330";
+  entriesExits[868] = "Whitehall St-South Ferry;40.7027994;-74.0145006;-6238702;4531036;https://www.google.com/maps?q=40.7027994,-74.0145006;330";
+
+// stationInfo — keyed by station ID (column U from All Stations)
+// each value is the full row from All Stations, semicolon-separated
+var stationInfo = {};
+  stationInfo["7"] = "Lexington Av/59 St;Manhattan;Lexington Av/59 St, Manhattan, NY;40.76266;-73.967258;View Map;N R W;BMT;Astoria;Subway;No;No;No;;Yes;24 Hours;4;Stair;Queens;Downtown;7;613;R11";
+  stationInfo["8"] = "5 Av/59 St;Manhattan;5 Av/59 St, Manhattan, NY;40.764811;-73.973347;View Map;N R W;BMT;Astoria;Subway;No;No;No;;Yes;24 Hours;7;Easement - Street, Stair;Queens;Downtown;8;8;R13";
+  stationInfo["9"] = "57 St-7 Av;Manhattan;57 St-7 Av, Manhattan, NY;40.764664;-73.980658;View Map;N Q R W;BMT;Broadway - Brighton;Subway;Yes;Yes;Yes;;Yes;24 Hours;10;Elevator, Stair;Uptown;Downtown;9;9;R14";
+  stationInfo["10"] = "49 St;Manhattan;49 St, Manhattan, NY;40.759901;-73.984139;View Map;N R W;BMT;Broadway - Brighton;Subway;No;Yes;No;Uptown only;Yes;24 Hours;7;Easement - Street, Stair;Uptown;Downtown;10;10;R15";
+  stationInfo["11"] = "Times Sq-42 St;Manhattan;Times Sq-42 St, Manhattan, NY;40.754672;-73.986754;View Map;N Q R W;BMT;Broadway - Brighton;Subway;Yes;Yes;Yes;;Yes;24 Hours;4;Stair;Uptown;Downtown;11;611;R16";
+  stationInfo["12"] = "34 St-Herald Sq;Manhattan;34 St-Herald Sq, Manhattan, NY;40.749567;-73.98795;View Map;N Q R W;BMT;Broadway - Brighton;Subway;Yes;Yes;Yes;;Yes;24 Hours;9;Stair;Uptown;Downtown;12;607;R17";
+  stationInfo["13"] = "28 St;Manhattan;28 St, Manhattan, NY;40.745494;-73.988691;View Map;R W;BMT;Broadway - Brighton;Subway;No;No;No;;Yes;24 Hours;4;Stair;Uptown;Downtown;13;13;R18";
+  stationInfo["14"] = "23 St;Manhattan;23 St, Manhattan, NY;40.741303;-73.989344;View Map;R W;BMT;Broadway - Brighton;Subway;No;No;No;;Yes;24 Hours;8;Stair;Uptown;Downtown;14;14;R19";
+  stationInfo["15"] = "14 St-Union Sq;Manhattan;14 St-Union Sq, Manhattan, NY;40.735736;-73.990568;View Map;N Q R W;BMT;Broadway - Brighton;Subway;Yes;Yes;Yes;;Yes;24 Hours;0;N/A;Uptown;Downtown;15;602;R20";
+  stationInfo["16"] = "8 St-NYU;Manhattan;8 St-NYU, Manhattan, NY;40.730328;-73.992629;View Map;R W;BMT;Broadway - Brighton;Subway;No;No;No;;Yes;24 Hours;8;Stair;Uptown;Downtown;16;16;R21";
+  stationInfo["17"] = "Prince St;Manhattan;Prince St, Manhattan, NY;40.724329;-73.997702;View Map;R W;BMT;Broadway - Brighton;Subway;No;No;No;;Yes;24 Hours;4;Stair;Uptown;Downtown;17;17;R22";
+  stationInfo["18"] = "Canal St;Manhattan;Canal St, Manhattan, NY;40.719527;-74.001775;View Map;R W;BMT;Broadway;Subway;No;No;No;;Yes;24 Hours;7;Easement - Street, Stair;Uptown;Downtown;18;623;R23";
+  stationInfo["19"] = "Canal St;Manhattan;Canal St, Manhattan, NY;40.718383;-74.00046;View Map;N Q;BMT;Manhattan Bridge;Subway;No;No;No;;Yes;24 Hours;0;N/A;Uptown;Downtown;19;623;Q01";
+  stationInfo["20"] = "City Hall;Manhattan;City Hall, Manhattan, NY;40.713282;-74.006978;View Map;R W;BMT;Broadway;Subway;No;No;No;;Yes;24 Hours;3;Stair;Uptown;Downtown;20;20;R24";
+  stationInfo["21"] = "Cortlandt St;Manhattan;Cortlandt St, Manhattan, NY;40.710668;-74.011029;View Map;R W;BMT;Broadway;Subway;Yes;Yes;Yes;;Yes;24 Hours;14;Easement - Passage, Easement - Street, Stair, Station House;Uptown;Downtown;21;624;R25";
+  stationInfo["22"] = "Rector St;Manhattan;Rector St, Manhattan, NY;40.70722;-74.013342;View Map;R W;BMT;Broadway;Subway;No;No;No;;Yes;24 Hours;9;Stair;Uptown;Downtown;22;22;R26";
+  stationInfo["23"] = "Whitehall St-South Ferry;Manhattan;Whitehall St-South Ferry, Manhattan, NY;40.703087;-74.012994;View Map;R W;BMT;Broadway;Subway;No;No;No;;Yes;24 Hours;6;Stair, Stair/Escalator;Uptown;Downtown;23;635;R27";
+  stationInfo["102"] = "Delancey St-Essex St;Manhattan;Delancey St-Essex St, Manhattan, NY;40.718315;-73.987437;View Map;M J Z;BMT;Jamaica;Subway;No;No;No;;Yes;24 Hours;2;Stair;Brooklyn;Inbound;102;625;M18";
+  stationInfo["103"] = "Bowery;Manhattan;Bowery, Manhattan, NY;40.72028;-73.993915;View Map;J Z;BMT;Jamaica;Subway;No;No;No;;Yes;24 Hours;2;Stair;Brooklyn;Downtown;103;103;M19";
+  stationInfo["104"] = "Canal St;Manhattan;Canal St, Manhattan, NY;40.718092;-73.999892;View Map;J Z;BMT;Jamaica;Subway;No;No;No;;Yes;24 Hours;1;Easement - Street;Brooklyn;Downtown;104;623;M20";
+  stationInfo["105"] = "Chambers St;Manhattan;Chambers St, Manhattan, NY;40.713243;-74.003401;View Map;J Z;BMT;Jamaica;Subway;Yes;Yes;Yes;;Yes;24 Hours;2;Easement - Street, Stair;Brooklyn;Downtown;105;622;M21";
+  stationInfo["106"] = "Fulton St;Manhattan;Fulton St, Manhattan, NY;40.710374;-74.007582;View Map;J Z;BMT;Jamaica;Subway;Yes;Yes;Yes;;Yes;24 Hours;8;Easement - Passage, Easement - Street, Stair;Brooklyn;Downtown;106;628;M22";
+  stationInfo["107"] = "Broad St;Manhattan;Broad St, Manhattan, NY;40.706476;-74.011056;View Map;J Z;BMT;Jamaica;Subway;No;No;No;;Yes;24 Hours;9;Easement - Passage, Easement - Street, Stair;Brooklyn;Last Stop;107;107;M23";
+  stationInfo["115"] = "8 Av;Manhattan;8 Av, Manhattan, NY;40.739777;-74.002578;View Map;L;BMT;Canarsie;Subway;Yes;Yes;Yes;;Yes;24 Hours;2;Stair;Last Stop;Brooklyn;115;618;L01";
+  stationInfo["116"] = "6 Av;Manhattan;6 Av, Manhattan, NY;40.737335;-73.996786;View Map;L;BMT;Canarsie;Subway;Yes;Yes;Yes;;Yes;24 Hours;2;Stair;West Side;Brooklyn;116;601;L02";
+  stationInfo["117"] = "14 St-Union Sq;Manhattan;14 St-Union Sq, Manhattan, NY;40.734789;-73.99073;View Map;L;BMT;Canarsie;Subway;Yes;Yes;Yes;;Yes;24 Hours;2;Stair;West Side;Brooklyn;117;602;L03";
+  stationInfo["118"] = "3 Av;Manhattan;3 Av, Manhattan, NY;40.732849;-73.986122;View Map;L;BMT;Canarsie;Subway;No;No;No;;Yes;24 Hours;4;Stair;West Side;Brooklyn;118;118;L05";
+  stationInfo["119"] = "1 Av;Manhattan;1 Av, Manhattan, NY;40.730953;-73.981628;View Map;L;BMT;Canarsie;Subway;Yes;Yes;Yes;;Yes;24 Hours;10;Elevator, Stair;West Side;Brooklyn;119;119;L06";
+  stationInfo["143"] = "Inwood-207 St;Manhattan;Inwood-207 St, Manhattan, NY;40.868072;-73.919899;View Map;A;IND;8th Av - Fulton St;Subway;Yes;Yes;Yes;;No;24 Hours;6;Elevator, Stair;Last Stop;Downtown;143;143;A02";
+  stationInfo["144"] = "Dyckman St;Manhattan;Dyckman St, Manhattan, NY;40.865491;-73.927271;View Map;A;IND;8th Av - Fulton St;Subway;No;No;No;;No;24 Hours;7;Easement - Street, Stair;Uptown;Downtown;144;144;A03";
+  stationInfo["145"] = "190 St;Manhattan;190 St, Manhattan, NY;40.859022;-73.93418;View Map;A;IND;8th Av - Fulton St;Subway;No;No;No;;No;24 Hours;2;Stair, Station House;Uptown;Downtown;145;145;A05";
+  stationInfo["146"] = "181 St;Manhattan;181 St, Manhattan, NY;40.851695;-73.937969;View Map;A;IND;8th Av - Fulton St;Subway;Yes;Yes;Yes;;No;24 Hours;6;Stair, Station House;Uptown;Downtown;146;146;A06";
+  stationInfo["147"] = "175 St;Manhattan;175 St, Manhattan, NY;40.847391;-73.939704;View Map;A;IND;8th Av - Fulton St;Subway;Yes;Yes;Yes;;No;24 Hours;8;Easement - Passage, Elevator, Stair;Uptown;Downtown;147;147;A07";
+  stationInfo["148"] = "168 St;Manhattan;168 St, Manhattan, NY;40.840719;-73.939561;View Map;A C;IND;8th Av - Fulton St;Subway;Yes;Yes;Yes;;No;24 Hours;5;Elevator, Stair;Uptown;Downtown;148;605;A09";
+  stationInfo["149"] = "163 St-Amsterdam Av;Manhattan;163 St-Amsterdam Av, Manhattan, NY;40.836013;-73.939892;View Map;C;IND;8th Av - Fulton St;Subway;No;No;No;;No;24 Hours;3;Easement - Street, Stair;Uptown;Downtown;149;149;A10";
+  stationInfo["150"] = "155 St;Manhattan;155 St, Manhattan, NY;40.830518;-73.941514;View Map;C;IND;8th Av - Fulton St;Subway;No;No;No;;No;24 Hours;6;Stair;Uptown;Downtown;150;150;A11";
+  stationInfo["151"] = "145 St;Manhattan;145 St, Manhattan, NY;40.824783;-73.944216;View Map;B D;IND;Concourse;Subway;No;No;No;;No;24 Hours;6;Easement - Street, Stair;Uptown;Downtown;151;151;D13";
+  stationInfo["152"] = "135 St;Manhattan;135 St, Manhattan, NY;40.817894;-73.947649;View Map;C B;IND;8th Av - Fulton St;Subway;No;No;No;;No;24 Hours;6;Stair;Uptown;Downtown;152;152;A14";
+  stationInfo["153"] = "125 St;Manhattan;125 St, Manhattan, NY;40.811109;-73.952343;View Map;A C B D;IND;8th Av - Fulton St;Subway;Yes;Yes;Yes;;No;24 Hours;7;Elevator, Stair;Uptown;Downtown;153;153;A15";
+  stationInfo["154"] = "116 St;Manhattan;116 St, Manhattan, NY;40.805085;-73.954882;View Map;C B;IND;8th Av - Fulton St;Subway;No;No;No;;No;24 Hours;4;Stair;Uptown;Downtown;154;154;A16";
+  stationInfo["155"] = "Cathedral Pkwy (110 St);Manhattan;Cathedral Pkwy (110 St), Manhattan, NY;40.800603;-73.958161;View Map;C B;IND;8th Av - Fulton St;Subway;No;No;No;;No;24 Hours;3;Stair;Uptown;Downtown;155;155;A17";
+  stationInfo["156"] = "103 St;Manhattan;103 St, Manhattan, NY;40.796092;-73.961454;View Map;C B;IND;8th Av - Fulton St;Subway;No;No;No;;No;24 Hours;1;Stair;Uptown;Downtown;156;156;A18";
+  stationInfo["157"] = "96 St;Manhattan;96 St, Manhattan, NY;40.791642;-73.964696;View Map;C B;IND;8th Av - Fulton St;Subway;No;No;No;;No;24 Hours;3;Stair;Uptown;Downtown;157;157;A19";
+  stationInfo["158"] = "86 St;Manhattan;86 St, Manhattan, NY;40.785868;-73.968916;View Map;C B;IND;8th Av - Fulton St;Subway;No;No;No;;No;24 Hours;5;Stair;Uptown;Downtown;158;158;A20";
+  stationInfo["159"] = "81 St-Museum of Natural History;Manhattan;81 St-Museum of Natural History, Manhattan, NY;40.781433;-73.972143;View Map;C B;IND;8th Av - Fulton St;Subway;No;No;No;;No;24 Hours;4;Easement - Passage, Stair;Uptown;Downtown;159;159;A21";
+  stationInfo["160"] = "72 St;Manhattan;72 St, Manhattan, NY;40.775594;-73.97641;View Map;C B;IND;8th Av - Fulton St;Subway;No;No;No;;No;24 Hours;3;Stair;Uptown;Downtown;160;160;A22";
+  stationInfo["161"] = "59 St-Columbus Circle;Manhattan;59 St-Columbus Circle, Manhattan, NY;40.768296;-73.981736;View Map;A C B D;IND;8th Av - Fulton St;Subway;Yes;Yes;Yes;;Yes;24 Hours;12;Easement - Street, Elevator, Stair;Uptown;Downtown;161;614;A24";
+  stationInfo["162"] = "50 St;Manhattan;50 St, Manhattan, NY;40.762456;-73.985984;View Map;C E;IND;8th Av - Fulton St;Subway;No;No;Yes;Downtown only;Yes;24 Hours;9;Easement - Street, Stair;Uptown;Downtown;162;162;A25";
+  stationInfo["163"] = "42 St-Port Authority Bus Terminal;Manhattan;42 St-Port Authority Bus Terminal, Manhattan, NY;40.757308;-73.989735;View Map;A C E;IND;8th Av - Fulton St;Subway;Yes;Yes;Yes;;Yes;24 Hours;11;Easement - Passage, Easement - Street, Stair;Uptown;Downtown;163;611;A27";
+  stationInfo["164"] = "34 St-Penn Station;Manhattan;34 St-Penn Station, Manhattan, NY;40.752287;-73.993391;View Map;A C E;IND;8th Av - Fulton St;Subway;Yes;Yes;Yes;;Yes;24 Hours;17;Easement - Passage, Elevator, Stair;Uptown;Downtown;164;164;A28";
+  stationInfo["165"] = "23 St;Manhattan;23 St, Manhattan, NY;40.745906;-73.998041;View Map;C E;IND;8th Av - Fulton St;Subway;No;No;No;;Yes;24 Hours;11;Stair;Uptown;Downtown;165;165;A30";
+  stationInfo["166"] = "14 St;Manhattan;14 St, Manhattan, NY;40.740893;-74.00169;View Map;A C E;IND;8th Av - Fulton St;Subway;Yes;Yes;Yes;;Yes;24 Hours;9;Easement - Passage, Elevator, Stair;Uptown;Downtown;166;618;A31";
+  stationInfo["167"] = "W 4 St-Wash Sq;Manhattan;W 4 St-Wash Sq, Manhattan, NY;40.732338;-74.000495;View Map;B D F M;IND;6th Av - Culver;Subway;Yes;Yes;Yes;;Yes;24 Hours;6;Easement - Street, Elevator, Stair;Uptown;Downtown;167;167;D20";
+  stationInfo["168"] = "Spring St;Manhattan;Spring St, Manhattan, NY;40.726227;-74.003739;View Map;C E;IND;8th Av - Fulton St;Subway;No;No;Yes;Downtown only;Yes;24 Hours;3;Easement - Street, Stair;Uptown;Downtown;168;168;A33";
+  stationInfo["169"] = "Canal St;Manhattan;Canal St, Manhattan, NY;40.720824;-74.005229;View Map;A C E;IND;8th Av - Fulton St;Subway;No;No;No;;Yes;24 Hours;6;Easement - Passage, Stair;Uptown;Downtown;169;169;A34";
+  stationInfo["170"] = "Chambers St;Manhattan;Chambers St, Manhattan, NY;40.714111;-74.008585;View Map;A C;IND;8th Av - Fulton St;Subway;No;No;No;;Yes;24 Hours;9;Stair;Uptown;Brooklyn;170;624;A36";
+  stationInfo["171"] = "World Trade Center;Manhattan;World Trade Center, Manhattan, NY;40.712582;-74.009781;View Map;E;IND;8th Av - Fulton St;Subway;Yes;Yes;Yes;;Yes;24 Hours;11;Easement - Passage, Elevator, Stair;Uptown;Last Stop;171;624;E01";
+  stationInfo["172"] = "Fulton St;Manhattan;Fulton St, Manhattan, NY;40.710197;-74.007691;View Map;A C;IND;8th Av - Fulton St;Subway;Yes;Yes;Yes;;Yes;24 Hours;0;N/A;Uptown;Brooklyn;172;628;A38";
+  stationInfo["220"] = "155 St;Manhattan;155 St, Manhattan, NY;40.830135;-73.938209;View Map;B D;IND;Concourse;Subway;No;No;No;;No;24 Hours;1;Easement - Street;The Bronx;Downtown;220;220;D12";
+  stationInfo["222"] = "Roosevelt Island;Manhattan;Roosevelt Island, Manhattan, NY;40.759145;-73.95326;View Map;M;IND;63rd St;Subway;Yes;Yes;Yes;;No;24 Hours;1;Station House;Queens;Downtown;222;222;B06";
+  stationInfo["223"] = "Lexington Av/63 St;Manhattan;Lexington Av/63 St, Manhattan, NY;40.764629;-73.966113;View Map;M Q;IND;63rd St;Subway;Yes;Yes;Yes;;No;24 Hours;7;Easement - Street, Elevator, Stair;Uptown & Queens;Downtown;223;223;B08";
+  stationInfo["224"] = "57 St;Manhattan;57 St, Manhattan, NY;40.763972;-73.97745;View Map;M;IND;6th Av - Culver;Subway;No;No;No;;Yes;24 Hours;8;Stair;Uptown;Downtown;224;224;B10";
+  stationInfo["225"] = "47-50 Sts-Rockefeller Ctr;Manhattan;47-50 Sts-Rockefeller Ctr, Manhattan, NY;40.758663;-73.981329;View Map;B D F M;IND;6th Av - Culver;Subway;Yes;Yes;Yes;;Yes;24 Hours;23;Easement - Passage, Easement - Street, Elevator, Stair;Uptown;Downtown;225;225;D15";
+  stationInfo["226"] = "42 St-Bryant Pk;Manhattan;42 St-Bryant Pk, Manhattan, NY;40.754222;-73.984569;View Map;B D F M;IND;6th Av - Culver;Subway;No;No;No;;Yes;24 Hours;11;Easement - Street, Elevator, Stair;Uptown;Downtown;226;609;D16";
+  stationInfo["227"] = "34 St-Herald Sq;Manhattan;34 St-Herald Sq, Manhattan, NY;40.749719;-73.987823;View Map;B D F M;IND;6th Av - Culver;Subway;Yes;Yes;Yes;;Yes;24 Hours;11;Easement - Passage, Easement - Street, Elevator, Stair;Uptown;Downtown;227;607;D17";
+  stationInfo["228"] = "23 St;Manhattan;23 St, Manhattan, NY;40.742878;-73.992821;View Map;F M;IND;6th Av - Culver;Subway;No;No;No;;Yes;24 Hours;8;Stair;Uptown;Downtown;228;228;D18";
+  stationInfo["229"] = "14 St;Manhattan;14 St, Manhattan, NY;40.738228;-73.996209;View Map;F M;IND;6th Av - Culver;Subway;Yes;Yes;Yes;;Yes;24 Hours;10;Elevator, Stair;Uptown;Downtown;229;601;D19";
+  stationInfo["230"] = "Broadway-Lafayette St;Manhattan;Broadway-Lafayette St, Manhattan, NY;40.725297;-73.996204;View Map;B D F M;IND;6th Av - Culver;Subway;Yes;Yes;Yes;;Yes;24 Hours;6;Easement - Street, Elevator, Stair;Uptown;Downtown;230;619;D21";
+  stationInfo["231"] = "Grand St;Manhattan;Grand St, Manhattan, NY;40.718267;-73.993753;View Map;B D;IND;6th Av - Culver;Subway;No;No;No;;Yes;24 Hours;3;Stair;Uptown;Brooklyn;231;231;D22";
+  stationInfo["232"] = "2 Av;Manhattan;2 Av, Manhattan, NY;40.723402;-73.989938;View Map;F;IND;6th Av - Culver;Subway;No;No;No;;Yes;24 Hours;4;Stair;Uptown;Downtown;232;232;F14";
+  stationInfo["233"] = "Delancey St-Essex St;Manhattan;Delancey St-Essex St, Manhattan, NY;40.718611;-73.988114;View Map;F;IND;6th Av - Culver;Subway;No;No;No;;Yes;24 Hours;6;Easement - Street, Stair;Uptown;Brooklyn;233;625;F15";
+  stationInfo["234"] = "East Broadway;Manhattan;East Broadway, Manhattan, NY;40.713715;-73.990173;View Map;F;IND;6th Av - Culver;Subway;No;No;No;;Yes;24 Hours;4;Stair;Uptown;Brooklyn;234;234;F16";
+  stationInfo["275"] = "Lexington Av/53 St;Manhattan;Lexington Av/53 St, Manhattan, NY;40.757552;-73.969055;View Map;E F;IND;Queens Blvd;Subway;Yes;Yes;Yes;;Yes;24 Hours;10;Easement - Passage, Easement - Street, Stair;Queens;Downtown;275;612;F11";
+  stationInfo["276"] = "5 Av/53 St;Manhattan;5 Av/53 St, Manhattan, NY;40.760167;-73.975224;View Map;E F;IND;Queens Blvd;Subway;No;No;No;;Yes;24 Hours;5;Easement - Street, Stair;Queens;Downtown;276;276;F12";
+  stationInfo["277"] = "7 Av;Manhattan;7 Av, Manhattan, NY;40.762862;-73.981637;View Map;E B D;IND;Queens Blvd;Subway;No;No;No;;Yes;24 Hours;4;Stair;Outbound;Downtown;277;277;D14";
+  stationInfo["296"] = "Marble Hill-225 St;Manhattan;Marble Hill-225 St, Manhattan, NY;40.874561;-73.909831;View Map;1;IRT;Broadway - 7Av;Elevated;No;No;No;;No;24 Hours;2;Stair;The Bronx;Downtown;296;296;106";
+  stationInfo["297"] = "215 St;Manhattan;215 St, Manhattan, NY;40.869444;-73.915279;View Map;1;IRT;Broadway - 7Av;Elevated;No;No;No;;No;24 Hours;4;Stair;The Bronx;Downtown;297;297;107";
+  stationInfo["298"] = "207 St;Manhattan;207 St, Manhattan, NY;40.864621;-73.918822;View Map;1;IRT;Broadway - 7Av;Elevated;No;No;No;;No;24 Hours;4;Stair;The Bronx;Downtown;298;298;108";
+  stationInfo["299"] = "Dyckman St;Manhattan;Dyckman St, Manhattan, NY;40.860531;-73.925536;View Map;1;IRT;Broadway - 7Av;Elevated;Yes;Yes;Yes;;No;24 Hours;1;Station House;The Bronx;Downtown;299;299;109";
+  stationInfo["300"] = "191 St;Manhattan;191 St, Manhattan, NY;40.855225;-73.929412;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;No;24 Hours;2;Station House;The Bronx;Downtown;300;300;110";
+  stationInfo["301"] = "181 St;Manhattan;181 St, Manhattan, NY;40.849505;-73.933596;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;No;24 Hours;2;Easement - Street, Stair;The Bronx;Downtown;301;301;111";
+  stationInfo["302"] = "168 St-Washington Hts;Manhattan;168 St-Washington Hts, Manhattan, NY;40.840556;-73.940133;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;No;24 Hours;3;Stair;Uptown;Downtown;302;605;112";
+  stationInfo["303"] = "157 St;Manhattan;157 St, Manhattan, NY;40.834041;-73.94489;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;No;24 Hours;4;Stair;Uptown;Downtown;303;303;113";
+  stationInfo["304"] = "145 St;Manhattan;145 St, Manhattan, NY;40.826551;-73.95036;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;No;24 Hours;3;Stair;Uptown;Downtown;304;304;114";
+  stationInfo["305"] = "137 St-City College;Manhattan;137 St-City College, Manhattan, NY;40.822008;-73.953676;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;No;24 Hours;4;Stair;Uptown;Downtown;305;305;115";
+  stationInfo["306"] = "125 St;Manhattan;125 St, Manhattan, NY;40.815581;-73.958372;View Map;1;IRT;Broadway - 7Av;Elevated;No;No;No;;No;24 Hours;4;Escalator, Stair;Uptown;Downtown;306;306;116";
+  stationInfo["307"] = "116 St-Columbia University;Manhattan;116 St-Columbia University, Manhattan, NY;40.807722;-73.96411;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;No;24 Hours;5;Stair;Uptown;Downtown;307;307;117";
+  stationInfo["308"] = "Cathedral Pkwy (110 St);Manhattan;Cathedral Pkwy (110 St), Manhattan, NY;40.803967;-73.966847;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;No;24 Hours;3;Stair;Uptown;Downtown;308;308;118";
+  stationInfo["309"] = "103 St;Manhattan;103 St, Manhattan, NY;40.799446;-73.968379;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;No;24 Hours;5;Stair;Uptown;Downtown;309;309;119";
+  stationInfo["310"] = "96 St;Manhattan;96 St, Manhattan, NY;40.793919;-73.972323;View Map;1 2 3;IRT;Broadway - 7Av;Subway;Yes;Yes;Yes;;No;24 Hours;6;Stair, Station House;Uptown;Downtown;310;310;120";
+  stationInfo["311"] = "86 St;Manhattan;86 St, Manhattan, NY;40.788644;-73.976218;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;No;24 Hours;5;Easement - Street, Stair;Uptown;Downtown;311;311;121";
+  stationInfo["312"] = "79 St;Manhattan;79 St, Manhattan, NY;40.783934;-73.979917;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;No;24 Hours;4;Stair;Uptown;Downtown;312;312;122";
+  stationInfo["313"] = "72 St;Manhattan;72 St, Manhattan, NY;40.778453;-73.98197;View Map;1 2 3;IRT;Broadway - 7Av;Subway;Yes;Yes;Yes;;No;24 Hours;4;Station House;Uptown;Downtown;313;313;123";
+  stationInfo["314"] = "66 St-Lincoln Center;Manhattan;66 St-Lincoln Center, Manhattan, NY;40.77344;-73.982209;View Map;1;IRT;Broadway - 7Av;Subway;Yes;Yes;Yes;;No;24 Hours;8;Easement - Passage, Elevator, Stair;Uptown;Downtown;314;314;124";
+  stationInfo["315"] = "59 St-Columbus Circle;Manhattan;59 St-Columbus Circle, Manhattan, NY;40.768247;-73.981929;View Map;1;IRT;Broadway - 7Av;Subway;Yes;Yes;Yes;;Yes;24 Hours;6;Stair;Uptown;Downtown;315;614;125";
+  stationInfo["316"] = "50 St;Manhattan;50 St, Manhattan, NY;40.761728;-73.983849;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;Yes;24 Hours;6;Easement - Street, Stair;Uptown;Downtown;316;316;126";
+  stationInfo["317"] = "Times Sq-42 St;Manhattan;Times Sq-42 St, Manhattan, NY;40.75529;-73.987495;View Map;1 2 3;IRT;Broadway - 7Av;Subway;Yes;Yes;Yes;;Yes;24 Hours;11;Easement - Street, Stair;Uptown;Downtown;317;611;127";
+  stationInfo["318"] = "34 St-Penn Station;Manhattan;34 St-Penn Station, Manhattan, NY;40.750373;-73.991057;View Map;1 2 3;IRT;Broadway - 7Av;Subway;Yes;Yes;Yes;;Yes;24 Hours;11;Easement - Passage, Easement - Street, Stair;Uptown;Downtown;318;318;128";
+  stationInfo["319"] = "28 St;Manhattan;28 St, Manhattan, NY;40.747215;-73.993365;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;Yes;24 Hours;6;Stair;Uptown;Downtown;319;319;129";
+  stationInfo["320"] = "23 St;Manhattan;23 St, Manhattan, NY;40.744081;-73.995657;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;Yes;24 Hours;4;Stair;Uptown;Downtown;320;320;130";
+  stationInfo["321"] = "18 St;Manhattan;18 St, Manhattan, NY;40.74104;-73.997871;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;Yes;24 Hours;6;Stair;Uptown;Downtown;321;321;131";
+  stationInfo["322"] = "14 St;Manhattan;14 St, Manhattan, NY;40.737826;-74.000201;View Map;1 2 3;IRT;Broadway - 7Av;Subway;Yes;Yes;Yes;;Yes;24 Hours;8;Stair;Uptown;Downtown;322;601;132";
+  stationInfo["323"] = "Christopher St-Stonewall;Manhattan;Christopher St-Stonewall, Manhattan, NY;40.733422;-74.002906;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;Yes;24 Hours;5;Stair;Uptown;Downtown;323;323;133";
+  stationInfo["324"] = "Houston St;Manhattan;Houston St, Manhattan, NY;40.728251;-74.005367;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;Yes;24 Hours;8;Stair;Uptown;Downtown;324;324;134";
+  stationInfo["325"] = "Canal St;Manhattan;Canal St, Manhattan, NY;40.722854;-74.006277;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;Yes;24 Hours;4;Stair;Uptown;Downtown;325;325;135";
+  stationInfo["326"] = "Franklin St;Manhattan;Franklin St, Manhattan, NY;40.719318;-74.006886;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;Yes;24 Hours;5;Stair;Uptown;Downtown;326;326;136";
+  stationInfo["327"] = "Chambers St;Manhattan;Chambers St, Manhattan, NY;40.715478;-74.009266;View Map;1 2 3;IRT;Broadway - 7Av;Subway;Yes;Yes;Yes;;Yes;24 Hours;6;Elevator, Stair;Uptown;Downtown;327;327;137";
+  stationInfo["328"] = "WTC Cortlandt;Manhattan;WTC Cortlandt, Manhattan, NY;40.711835;-74.012188;View Map;1;IRT;Broadway - 7Av;Subway;Yes;Yes;Yes;;Yes;24 Hours;9;Easement - Passage, Elevator, Stair;Uptown;Downtown;328;328;138";
+  stationInfo["329"] = "Rector St;Manhattan;Rector St, Manhattan, NY;40.707513;-74.013783;View Map;1;IRT;Broadway - 7Av;Subway;No;No;No;;Yes;24 Hours;6;Stair;Uptown;Downtown;329;329;139";
+  stationInfo["330"] = "South Ferry;Manhattan;South Ferry, Manhattan, NY;40.702068;-74.013664;View Map;1;IRT;Broadway - 7Av;Subway;Yes;Yes;Yes;;Yes;24 Hours;3;Elevator, Escalator, Stair;Uptown;Last Stop;330;635;142";
+  stationInfo["331"] = "Park Place;Manhattan;Park Place, Manhattan, NY;40.713051;-74.008811;View Map;2 3;IRT;Clark St;Subway;No;No;No;;Yes;24 Hours;1;Stair;Uptown;Brooklyn;331;624;228";
+  stationInfo["332"] = "Fulton St;Manhattan;Fulton St, Manhattan, NY;40.709416;-74.006571;View Map;2 3;IRT;Clark St;Subway;Yes;Yes;Yes;;Yes;24 Hours;9;Easement - Passage, Easement - Street, Stair;Uptown;Brooklyn;332;628;229";
+  stationInfo["333"] = "Wall St;Manhattan;Wall St, Manhattan, NY;40.706821;-74.0091;View Map;2 3;IRT;Clark St;Subway;No;No;No;;Yes;24 Hours;8;Easement - Passage, Easement - Street, Stair;Uptown;Brooklyn;333;333;230";
+  stationInfo["392"] = "125 St;Manhattan;125 St, Manhattan, NY;40.804138;-73.937594;View Map;4 5 6;IRT;Lexington Av;Subway;Yes;Yes;Yes;;No;24 Hours;5;Elevator, Stair;The Bronx;Downtown;392;392;621";
+  stationInfo["393"] = "116 St;Manhattan;116 St, Manhattan, NY;40.798629;-73.941617;View Map;6;IRT;Lexington Av;Subway;No;No;No;;No;24 Hours;4;Stair;The Bronx;Downtown;393;393;622";
+  stationInfo["394"] = "110 St;Manhattan;110 St, Manhattan, NY;40.79502;-73.94425;View Map;6;IRT;Lexington Av;Subway;No;No;No;;No;24 Hours;4;Stair;The Bronx;Downtown;394;394;623";
+  stationInfo["395"] = "103 St;Manhattan;103 St, Manhattan, NY;40.7906;-73.947478;View Map;6;IRT;Lexington Av;Subway;No;No;No;;No;24 Hours;2;Stair;The Bronx;Downtown;395;395;624";
+  stationInfo["396"] = "96 St;Manhattan;96 St, Manhattan, NY;40.785672;-73.95107;View Map;6;IRT;Lexington Av;Subway;No;No;No;;No;24 Hours;4;Stair;The Bronx;Downtown;396;396;625";
+  stationInfo["397"] = "86 St;Manhattan;86 St, Manhattan, NY;40.779492;-73.955589;View Map;4 5 6;IRT;Lexington Av;Subway;No;Yes;No;Uptown local only;No;24 Hours;9;Easement - Street, Elevator, Stair;Uptown;Downtown;397;397;626";
+  stationInfo["398"] = "77 St;Manhattan;77 St, Manhattan, NY;40.77362;-73.959874;View Map;6;IRT;Lexington Av;Subway;No;No;No;;No;24 Hours;8;Stair;Uptown;Downtown;398;398;627";
+  stationInfo["399"] = "68 St-Hunter College;Manhattan;68 St-Hunter College, Manhattan, NY;40.768141;-73.96387;View Map;6;IRT;Lexington Av;Subway;Yes;Yes;Yes;;No;24 Hours;6;Easement - Passage, Easement - Street, Stair;Uptown;Downtown;399;399;628";
+  stationInfo["400"] = "59 St;Manhattan;59 St, Manhattan, NY;40.762526;-73.967967;View Map;4 5 6;IRT;Lexington Av;Subway;No;No;No;;Yes;24 Hours;8;Easement - Passage, Easement - Street, Stair;Uptown;Downtown;400;613;629";
+  stationInfo["401"] = "51 St;Manhattan;51 St, Manhattan, NY;40.757107;-73.97192;View Map;6;IRT;Lexington Av;Subway;Yes;Yes;Yes;;Yes;24 Hours;11;Easement - Passage, Easement - Street, Stair;Uptown;Downtown;401;612;630";
+  stationInfo["402"] = "Grand Central-42 St;Manhattan;Grand Central-42 St, Manhattan, NY;40.751776;-73.976848;View Map;4 5 6;IRT;Lexington Av;Subway;Yes;Yes;Yes;;Yes;24 Hours;13;Easement - Passage, Easement - Street, Stair;Uptown;Downtown;402;610;631";
+  stationInfo["403"] = "33 St;Manhattan;33 St, Manhattan, NY;40.746081;-73.982076;View Map;6;IRT;Lexington Av;Subway;No;No;No;;Yes;24 Hours;9;Stair;Uptown;Downtown;403;403;632";
+  stationInfo["404"] = "28 St;Manhattan;28 St, Manhattan, NY;40.74307;-73.984264;View Map;6;IRT;Lexington Av;Subway;No;No;Yes;Downtown only;Yes;24 Hours;8;Easement - Passage, Easement - Street, Stair;Uptown;Downtown;404;404;633";
+  stationInfo["405"] = "23 St-Baruch College;Manhattan;23 St-Baruch College, Manhattan, NY;40.739864;-73.986599;View Map;6;IRT;Lexington Av;Subway;Yes;Yes;Yes;;Yes;24 Hours;13;Easement - Passage, Easement - Street, Elevator, Stair;Uptown;Downtown;405;405;634";
+  stationInfo["406"] = "14 St-Union Sq;Manhattan;14 St-Union Sq, Manhattan, NY;40.734673;-73.989951;View Map;4 5 6;IRT;Lexington Av;Subway;No;No;No;;Yes;24 Hours;6;Easement - Street, Stair;Uptown;Downtown;406;602;635";
+  stationInfo["407"] = "Astor Pl;Manhattan;Astor Pl, Manhattan, NY;40.730054;-73.99107;View Map;6;IRT;Lexington Av;Subway;No;No;No;;Yes;24 Hours;2;Stair;Uptown;Downtown;407;407;636";
+  stationInfo["408"] = "Bleecker St;Manhattan;Bleecker St, Manhattan, NY;40.725915;-73.994659;View Map;6;IRT;Lexington Av;Subway;Yes;Yes;Yes;;Yes;24 Hours;7;Easement - Street, Stair;Uptown;Downtown;408;619;637";
+  stationInfo["409"] = "Spring St;Manhattan;Spring St, Manhattan, NY;40.722301;-73.997141;View Map;6;IRT;Lexington Av;Subway;No;No;No;;Yes;24 Hours;4;Easement - Street, Stair;Uptown;Downtown;409;409;638";
+  stationInfo["410"] = "Canal St;Manhattan;Canal St, Manhattan, NY;40.718803;-74.000193;View Map;6;IRT;Lexington Av;Subway;Yes;Yes;Yes;;Yes;24 Hours;7;Elevator, Stair;Uptown;Downtown;410;623;639";
+  stationInfo["411"] = "Brooklyn Bridge-City Hall;Manhattan;Brooklyn Bridge-City Hall, Manhattan, NY;40.713065;-74.004131;View Map;4 5 6;IRT;Lexington Av;Subway;Yes;Yes;Yes;;Yes;24 Hours;8;Elevator, Stair;Uptown;Downtown;411;622;640";
+  stationInfo["412"] = "Fulton St;Manhattan;Fulton St, Manhattan, NY;40.710368;-74.009509;View Map;4 5;IRT;Lexington Av;Subway;Yes;Yes;Yes;;Yes;24 Hours;11;Easement - Street, Stair, Station House;Uptown;Downtown;412;628;418";
+  stationInfo["413"] = "Wall St;Manhattan;Wall St, Manhattan, NY;40.707557;-74.011862;View Map;4 5;IRT;Lexington Av;Subway;No;No;No;;Yes;24 Hours;10;Easement - Passage, Easement - Street, Stair;Uptown;Downtown;413;413;419";
+  stationInfo["414"] = "Bowling Green;Manhattan;Bowling Green, Manhattan, NY;40.704817;-74.014065;View Map;4 5;IRT;Lexington Av;Subway;Yes;Yes;Yes;;Yes;24 Hours;6;Elevator, Stair, Stair/Escalator, Station House;Uptown;Downtown;414;414;420";
+  stationInfo["436"] = "Harlem-148 St;Manhattan;Harlem-148 St, Manhattan, NY;40.82388;-73.93647;View Map;3;IRT;Lenox - White Plains Rd;Subway;No;No;No;;No;24 Hours;1;Station House;Last Stop;Downtown;436;436;301";
+  stationInfo["437"] = "145 St;Manhattan;145 St, Manhattan, NY;40.820421;-73.936245;View Map;3;IRT;Lenox - White Plains Rd;Subway;No;No;No;;No;24 Hours;4;Stair;Harlem;Downtown;437;437;302";
+  stationInfo["438"] = "135 St;Manhattan;135 St, Manhattan, NY;40.814229;-73.94077;View Map;2 3;IRT;Lenox - White Plains Rd;Subway;Yes;Yes;Yes;;No;24 Hours;6;Elevator, Stair;Uptown;Downtown;438;438;224";
+  stationInfo["439"] = "125 St;Manhattan;125 St, Manhattan, NY;40.807754;-73.945495;View Map;2 3;IRT;Lenox - White Plains Rd;Subway;No;No;No;;No;24 Hours;4;Stair;Uptown;Downtown;439;439;225";
+  stationInfo["440"] = "116 St;Manhattan;116 St, Manhattan, NY;40.802098;-73.949625;View Map;2 3;IRT;Lenox - White Plains Rd;Subway;No;No;No;;No;24 Hours;4;Stair;Uptown;Downtown;440;440;226";
+  stationInfo["441"] = "110 St-Malcolm X Plaza;Manhattan;110 St-Malcolm X Plaza, Manhattan, NY;40.799075;-73.951822;View Map;2 3;IRT;Lenox - White Plains Rd;Subway;No;No;No;;No;24 Hours;2;Stair;Uptown;Downtown;441;441;227";
+  stationInfo["465"] = "Grand Central-42 St;Manhattan;Grand Central-42 St, Manhattan, NY;40.751431;-73.976041;View Map;7;IRT;Flushing;Subway;Yes;Yes;Yes;;Yes;24 Hours;1;Easement - Street;Queens;Hudson Yards;465;610;723";
+  stationInfo["466"] = "5 Av;Manhattan;5 Av, Manhattan, NY;40.753821;-73.981963;View Map;7;IRT;Flushing;Subway;No;No;No;;Yes;24 Hours;3;Stair;Queens;Hudson Yards;466;609;724";
+  stationInfo["467"] = "Times Sq-42 St;Manhattan;Times Sq-42 St, Manhattan, NY;40.755477;-73.987691;View Map;7;IRT;Flushing;Subway;Yes;Yes;Yes;;Yes;24 Hours;0;N/A;Queens;Hudson Yards;467;611;725";
+  stationInfo["468"] = "Times Sq-42 St;Manhattan;Times Sq-42 St, Manhattan, NY;40.755983;-73.986229;View Map;S;IRT;Lexington - Shuttle;Subway;Yes;Yes;Yes;;Yes;~6:00 AM – 12:00 AM;2;Elevator, Stair;Last Stop;Grand Central;468;611;902";
+  stationInfo["469"] = "Grand Central-42 St;Manhattan;Grand Central-42 St, Manhattan, NY;40.752769;-73.979189;View Map;S;IRT;Lexington - Shuttle;Subway;Yes;Yes;Yes;;Yes;~6:00 AM – 12:00 AM;8;Easement - Passage, Easement - Street, Stair;Times Square;Last Stop;469;610;901";
+  stationInfo["471"] = "34 St-Hudson Yards;Manhattan;34 St-Hudson Yards, Manhattan, NY;40.755882;-74.00191;View Map;7;IRT;Flushing;Subway;Yes;Yes;Yes;;Yes;24 Hours;3;Elevator, Stair/Escalator;Last Stop;Queens;471;471;726";
+  stationInfo["475"] = "96 St;Manhattan;96 St, Manhattan, NY;40.784318;-73.947152;View Map;Q;IND;Second Av;Subway;Yes;Yes;Yes;;No;24 Hours;4;Easement - Street, Elevator, Escalator, Stair/Escalator;Last Stop;Downtown;475;475;Q05";
+  stationInfo["476"] = "86 St;Manhattan;86 St, Manhattan, NY;40.777891;-73.951787;View Map;Q;IND;Second Av;Subway;Yes;Yes;Yes;;No;24 Hours;4;Easement - Street, Elevator, Escalator;Uptown;Downtown;476;476;Q04";
+  stationInfo["477"] = "72 St;Manhattan;72 St, Manhattan, NY;40.768799;-73.958424;View Map;Q;IND;Second Av;Subway;Yes;Yes;Yes;;No;24 Hours;4;Easement - Street, Stair/Escalator;Uptown;Downtown;477;477;Q03";
+
+// getStationInfo: look up station info by station ID
+// Returns the semicolon-separated string, or null if not found
+function getStationInfo(stationId) {
+  return stationInfo[stationId] || null;
+}
+
+// closeBy: find nearby entrances/exits
+// lat, lon: query location
+// maxResults: max number of results to return
+// cutoffMeters: discard entries further than this (use 99999 to keep all)
+// Returns array of { index, name, lat, lon, x, y, mapsLink, stationId, distMeters }
+function closeBy(lat, lon, maxResults, cutoffMeters) {
+  var q = toLocalXY(lat, lon);
+  var cutoffSq = cutoffMeters * cutoffMeters;
+  var results = [];
+
+  for (var i = 1; i < entriesExits.length; i++) {
+    var parts = entriesExits[i].split(";");
+    var ex = parseFloat(parts[3]);
+    var ey = parseFloat(parts[4]);
+    var dx = q.x - ex;
+    var dy = q.y - ey;
+    var distSq = dx * dx + dy * dy;
+
+    if (distSq <= cutoffSq) {
+      results.push({
+        index: i,
+        name: parts[0],
+        lat: parseFloat(parts[1]),
+        lon: parseFloat(parts[2]),
+        x: ex,
+        y: ey,
+        mapsLink: parts[5],
+        stationId: parts[6],
+        distMeters: Math.sqrt(distSq)
+      });
+    }
+  }
+
+  results.sort(function(a, b) { return a.distMeters - b.distMeters; });
+  return results.slice(0, maxResults);
+}
+
+
+  </script>
+  <script>
+    const STATION_INFO_LABELS = [
+      "Stop Name",
+      "Borough",
+      "Display Name",
+      "Latitude",
+      "Longitude",
+      "Map Label",
+      "Routes",
+      "Division",
+      "Line",
+      "Structure",
+      "ADA",
+      "ADA Northbound",
+      "ADA Southbound",
+      "ADA Notes",
+      "Staffed",
+      "Open Time",
+      "Entrance Count",
+      "Entrance Types",
+      "Direction A",
+      "Direction B",
+      "Station ID",
+      "Complex ID",
+      "GTFS Stop ID"
+    ];
+
+    const els = {
+      dataStatus: document.getElementById("data-status"),
+      dataStats: document.getElementById("data-stats"),
+      entriesCountChip: document.getElementById("entries-count-chip"),
+      stationsCountChip: document.getElementById("stations-count-chip"),
+      originLat: document.getElementById("origin-lat"),
+      originLon: document.getElementById("origin-lon"),
+      maxResults: document.getElementById("max-results"),
+      cutoffMeters: document.getElementById("cutoff-meters"),
+      findBtn: document.getElementById("find-btn"),
+      searchStatus: document.getElementById("search-status"),
+      resultsWindow: document.getElementById("results-window"),
+      coordinatesBox: document.getElementById("coordinates-box"),
+      mapBtn: document.getElementById("map-btn"),
+      mapStatus: document.getElementById("map-status")
+    };
+
+    const appState = {
+      api: null,
+      lastResults: [],
+      map: null,
+      mapLayer: null,
+      origin: null
+    };
+
+    function setStatus(el, text, type) {
+      el.textContent = text || "";
+      el.className = "status" + (type ? " " + type : "");
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function toNumber(inputValue) {
+      const n = parseFloat(inputValue);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function validateBundledApi(api) {
+      const missing = [];
+
+      if (!api.closeBy) missing.push("closeBy()");
+      if (!api.getStationInfo) missing.push("getStationInfo()");
+      if (!api.toLocalXY) missing.push("toLocalXY()");
+      if (!api.entriesExits || !Array.isArray(api.entriesExits)) missing.push("entriesExits[]");
+      if (!api.stationInfo || typeof api.stationInfo !== "object") missing.push("stationInfo{}");
+
+      return missing;
+    }
+
+    function createBundledApi() {
+      return {
+        closeBy: typeof closeBy === "function" ? closeBy : null,
+        getStationInfo: typeof getStationInfo === "function" ? getStationInfo : null,
+        toLocalXY: typeof toLocalXY === "function" ? toLocalXY : null,
+        entriesExits: typeof entriesExits !== "undefined" ? entriesExits : null,
+        stationInfo: typeof stationInfo !== "undefined" ? stationInfo : null
+      };
+    }
+
+    function parseStationInfo(infoString) {
+      if (!infoString) return [];
+      const fields = String(infoString).split(";");
+      const pairs = [];
+
+      for (let i = 0; i < fields.length; i += 1) {
+        const label = STATION_INFO_LABELS[i] || ("Field " + (i + 1));
+        const value = fields[i];
+        if (value !== undefined && value !== null && String(value).trim() !== "") {
+          pairs.push({ label: label, value: value });
+        }
+      }
+
+      return pairs;
+    }
+
+    function stationFieldsHtml(infoString) {
+      const pairs = parseStationInfo(infoString);
+      if (!pairs.length) {
+        return "<div class=\"station-grid\"><div class=\"station-field\"><span class=\"station-value\">No station info found.</span></div></div>";
+      }
+
+      return "<div class=\"station-grid\">" + pairs.map(function(pair) {
+        return (
+          "<div class=\"station-field\">" +
+            "<span class=\"station-label\">" + escapeHtml(pair.label) + "</span>" +
+            "<span class=\"station-value\">" + escapeHtml(pair.value) + "</span>" +
+          "</div>"
+        );
+      }).join("") + "</div>";
+    }
+
+    function renderEmptyResults(message) {
+      els.resultsWindow.innerHTML =
+        "<div class=\"empty-state\">" + escapeHtml(message) + "</div>";
+    }
+
+    function renderResults(results) {
+      if (!results.length) {
+        renderEmptyResults("No entrances matched the search within the current cutoff.");
+        return;
+      }
+
+      els.resultsWindow.innerHTML = results.map(function(result, index) {
+        const info = appState.api.getStationInfo(result.stationId);
+        const distance = Math.round(result.distMeters);
+        return (
+          "<article class=\"result-card\">" +
+            "<div class=\"result-head\">" +
+              "<div style=\"display:flex; gap:12px;\">" +
+                "<div class=\"result-rank\">" + (index + 1) + "</div>" +
+                "<div>" +
+                  "<h3 class=\"result-title\">" + escapeHtml(result.name) + "</h3>" +
+                  "<p class=\"result-meta\">" +
+                    distance + " meters away<br>" +
+                    "Station ID: " + escapeHtml(result.stationId) + "<br>" +
+                    "Lat/Lon: " + escapeHtml(result.lat) + ", " + escapeHtml(result.lon) +
+                  "</p>" +
+                "</div>" +
+              "</div>" +
+              "<a class=\"result-link\" href=\"" + escapeHtml(result.mapsLink) + "\" target=\"_blank\" rel=\"noopener noreferrer\">Open Map</a>" +
+            "</div>" +
+            stationFieldsHtml(info) +
+          "</article>"
+        );
+      }).join("");
+    }
+
+    function fillCoordinateBox(results) {
+      els.coordinatesBox.value = results.map(function(result) {
+        return result.lat + ", " + result.lon;
+      }).join("\n");
+    }
+
+    function findMatchingResult(lat, lon) {
+      for (let i = 0; i < appState.lastResults.length; i += 1) {
+        const result = appState.lastResults[i];
+        if (Math.abs(result.lat - lat) < 0.00001 && Math.abs(result.lon - lon) < 0.00001) {
+          return result;
+        }
+      }
+      return null;
+    }
+
+    function popupHtmlForPoint(lat, lon) {
+      const match = findMatchingResult(lat, lon);
+      if (!match) {
+        return (
+          "<div class=\"popup-info\">" +
+            "<strong>Mapped Coordinate</strong>" +
+            escapeHtml(lat + ", " + lon) +
+          "</div>"
+        );
+      }
+
+      const info = appState.api.getStationInfo(match.stationId);
+      const fields = parseStationInfo(info).slice(0, 8);
+      const fieldHtml = fields.map(function(field) {
+        return "<div><strong style=\"display:inline; margin:0; font-size:0.82rem;\">" +
+          escapeHtml(field.label) +
+          ":</strong> " +
+          escapeHtml(field.value) +
+          "</div>";
+      }).join("");
+
+      return (
+        "<div class=\"popup-info\">" +
+          "<strong>" + escapeHtml(match.name) + "</strong>" +
+          "<div>" + Math.round(match.distMeters) + " meters from origin</div>" +
+          "<div>Station ID: " + escapeHtml(match.stationId) + "</div>" +
+          "<div style=\"margin-top:6px;\">" + fieldHtml + "</div>" +
+        "</div>"
+      );
+    }
+
+    function ensureMap() {
+      if (!window.L) {
+        throw new Error("Leaflet did not load.");
+      }
+
+      if (!appState.map) {
+        appState.map = L.map("map", { zoomControl: true });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(appState.map);
+        appState.mapLayer = L.layerGroup().addTo(appState.map);
+        appState.map.setView([40.7484, -73.9857], 13);
+      }
+
+      appState.mapLayer.clearLayers();
+    }
+
+    function parseCoordinateBox(text) {
+      const lines = String(text).split(/\r?\n/);
+      const points = [];
+
+      for (let i = 0; i < lines.length; i += 1) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const parts = line.split(",");
+        if (parts.length < 2) {
+          throw new Error("Invalid coordinate line " + (i + 1) + ": " + line);
+        }
+
+        const lat = toNumber(parts[0].trim());
+        const lon = toNumber(parts[1].trim());
+        if (lat === null || lon === null) {
+          throw new Error("Invalid coordinate line " + (i + 1) + ": " + line);
+        }
+
+        points.push({ lat: lat, lon: lon });
+      }
+
+      return points;
+    }
+
+    function mapPoints() {
+      if (!appState.api) {
+        setStatus(els.mapStatus, "Bundled subway data is unavailable.", "error");
+        return;
+      }
+
+      const originLat = toNumber(els.originLat.value);
+      const originLon = toNumber(els.originLon.value);
+      if (originLat === null || originLon === null) {
+        setStatus(els.mapStatus, "Enter a valid origin latitude and longitude first.", "error");
+        return;
+      }
+
+      let points;
+      try {
+        points = parseCoordinateBox(els.coordinatesBox.value);
+      } catch (error) {
+        setStatus(els.mapStatus, error.message, "error");
+        return;
+      }
+
+      try {
+        ensureMap();
+      } catch (error) {
+        setStatus(els.mapStatus, error.message, "error");
+        return;
+      }
+
+      const bounds = [];
+      const originLatLng = [originLat, originLon];
+
+      L.circleMarker(originLatLng, {
+        radius: 9,
+        color: "#8a1911",
+        fillColor: "#d62828",
+        fillOpacity: 0.9,
+        weight: 2
+      })
+        .bindPopup("<div class=\"popup-info\"><strong>Search Origin</strong>" + escapeHtml(originLat + ", " + originLon) + "</div>")
+        .addTo(appState.mapLayer);
+      bounds.push(originLatLng);
+
+      points.forEach(function(point) {
+        const latLng = [point.lat, point.lon];
+        L.circleMarker(latLng, {
+          radius: 7,
+          color: "#0e5a22",
+          fillColor: "#2ca25f",
+          fillOpacity: 0.82,
+          weight: 2
+        })
+          .bindPopup(popupHtmlForPoint(point.lat, point.lon), { maxWidth: 380 })
+          .addTo(appState.mapLayer);
+        bounds.push(latLng);
+      });
+
+      if (bounds.length === 1) {
+        appState.map.setView(bounds[0], 15);
+      } else {
+        appState.map.fitBounds(bounds, { padding: [28, 28] });
+      }
+
+      setStatus(els.mapStatus, points.length + " coordinate" + (points.length === 1 ? "" : "s") + " mapped.", "success");
+    }
+
+    function runSearch() {
+      if (!appState.api) {
+        setStatus(els.searchStatus, "Bundled subway data is unavailable.", "error");
+        renderEmptyResults("Bundled subway data is unavailable.");
+        return;
+      }
+
+      const lat = toNumber(els.originLat.value);
+      const lon = toNumber(els.originLon.value);
+      const maxResults = parseInt(els.maxResults.value, 10);
+      const cutoffMeters = parseInt(els.cutoffMeters.value, 10);
+
+      if (lat === null || lon === null) {
+        setStatus(els.searchStatus, "Latitude and longitude must be valid numbers.", "error");
+        return;
+      }
+
+      if (!Number.isFinite(maxResults) || maxResults < 1) {
+        setStatus(els.searchStatus, "Max results must be 1 or greater.", "error");
+        return;
+      }
+
+      if (!Number.isFinite(cutoffMeters) || cutoffMeters < 1) {
+        setStatus(els.searchStatus, "Cutoff meters must be 1 or greater.", "error");
+        return;
+      }
+
+      const results = appState.api.closeBy(lat, lon, maxResults, cutoffMeters);
+      appState.origin = { lat: lat, lon: lon };
+      appState.lastResults = results;
+      renderResults(results);
+      fillCoordinateBox(results);
+
+      if (!results.length) {
+        setStatus(els.searchStatus, "Search completed. No results met the cutoff.", "");
+      } else {
+        setStatus(els.searchStatus, "Found " + results.length + " nearby entrance" + (results.length === 1 ? "" : "s") + ".", "success");
+      }
+    }
+
+    els.findBtn.addEventListener("click", runSearch);
+    els.mapBtn.addEventListener("click", mapPoints);
+
+    (function init() {
+      renderEmptyResults("Enter a location, then run a search.");
+      const api = createBundledApi();
+      const missing = validateBundledApi(api);
+
+      if (missing.length) {
+        appState.api = null;
+        els.dataStats.hidden = true;
+        setStatus(els.dataStatus, "Bundled subway data is incomplete: " + missing.join(", "), "error");
+        return;
+      }
+
+      appState.api = api;
+      els.entriesCountChip.textContent = Math.max(0, api.entriesExits.length - 1) + " entrances";
+      els.stationsCountChip.textContent = Object.keys(api.stationInfo).length + " stations";
+      els.dataStats.hidden = false;
+      setStatus(els.dataStatus, "Bundled subway data loaded.", "success");
+    }());
+  </script>
+</body>
+</html>
