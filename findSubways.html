@@ -1718,6 +1718,28 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
       return lat.toFixed(6).replace(/\.?0+$/, "") + ", " + lon.toFixed(6).replace(/\.?0+$/, "");
     }
 
+    function buildDistanceInfo(distanceMeters) {
+      const meters = Math.round(distanceMeters);
+      const feet = Math.round(distanceMeters * 3.28084);
+      const miles = distanceMeters / 1609.344;
+
+      return {
+        meters: meters,
+        feet: feet,
+        miles: miles.toFixed(3)
+      };
+    }
+
+    function formatDistance(distanceMeters, suffix) {
+      const distance = buildDistanceInfo(distanceMeters);
+      return (
+        distance.meters + " meters (" +
+        distance.feet + " feet, " +
+        distance.miles + " miles)" +
+        (suffix || "")
+      );
+    }
+
     function parsePositiveInteger(value) {
       const parsed = parseInt(value, 10);
       return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
@@ -1915,7 +1937,6 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
 
       els.resultsWindow.innerHTML = results.map(function(result, index) {
         const info = appState.api.getStationInfo(result.stationId);
-        const distance = Math.round(result.distMeters);
         return (
           "<article class=\"result-card\">" +
             "<div class=\"result-head\">" +
@@ -1924,7 +1945,7 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
                 "<div>" +
                   "<h3 class=\"result-title\">" + escapeHtml(result.name) + "</h3>" +
                   "<p class=\"result-meta\">" +
-                    distance + " meters away<br>" +
+                    formatDistance(result.distMeters, " away") + "<br>" +
                     "Station ID: " + escapeHtml(result.stationId) + "<br>" +
                     "Lat/Lon: " + escapeHtml(result.lat) + ", " + escapeHtml(result.lon) +
                   "</p>" +
@@ -1981,7 +2002,7 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
       return (
         "<div class=\"popup-info\">" +
           "<strong>" + escapeHtml(match.name) + "</strong>" +
-          "<div>" + Math.round(match.distMeters) + " meters from origin</div>" +
+          "<div>" + formatDistance(match.distMeters, " from origin") + "</div>" +
           "<div>Station ID: " + escapeHtml(match.stationId) + "</div>" +
           "<div style=\"margin-top:6px;\">" + fieldHtml + "</div>" +
         "</div>"
