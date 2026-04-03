@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Weather v4.1 — Daily → Hourly drilldown</title>
+    <title>Weather v4.2 — Daily → Hourly drilldown</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -63,12 +63,12 @@
 
         .hidden-grid { display: none !important; }
         .color-config { display:grid; gap:12px; }
-        .color-scale { background:#0b142c; border:1px solid #23345f; border-radius:12px; padding:10px; }
+        .color-scale { position:relative; background:#0b142c; border:1px solid #23345f; border-radius:12px; padding:10px; }
         .color-scale-head { display:flex; justify-content:space-between; gap:10px; align-items:baseline; margin-bottom:8px; }
         .color-scale-head strong { font-size:14px; }
         .color-scale-head span { color:var(--muted); font-size:12px; }
         .color-scale-bar { position:relative; height:22px; border-radius:999px; overflow:hidden; background:#162241; border:1px solid #2a3a6a; }
-        .color-scale-segment { position:absolute; top:0; bottom:0; min-width:2px; }
+        .color-scale-segment { position:absolute; top:0; bottom:0; min-width:2px; cursor:pointer; }
         .color-scale-divider { position:absolute; top:-4px; bottom:-4px; width:14px; transform:translateX(-50%); cursor:ew-resize; z-index:2; touch-action:none; }
         .color-scale-divider::before { content:""; position:absolute; top:0; bottom:0; left:50%; width:2px; transform:translateX(-50%); background:rgba(255,255,255,0.85); box-shadow:0 0 0 1px rgba(11,20,44,0.85); }
         .color-scale-divider::after { content:""; position:absolute; left:50%; top:50%; width:8px; height:8px; transform:translate(-50%,-50%); border-radius:999px; background:#fff; box-shadow:0 0 0 2px #0b142c; }
@@ -76,6 +76,11 @@
         .color-scale-legend { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
         .color-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 7px; border-radius:999px; background:#111a35; border:1px solid #25345f; color:#d8dde9; font-size:11px; }
         .color-chip-swatch { width:10px; height:10px; border-radius:999px; border:1px solid rgba(255,255,255,0.22); flex:0 0 auto; }
+        .color-palette { position:absolute; right:10px; top:calc(100% + 8px); z-index:8; width:152px; padding:10px; border-radius:12px; background:#0b142c; border:1px solid #2a3a6a; box-shadow:0 10px 24px rgba(0,0,0,.35); }
+        .color-palette-title { margin:0 0 8px; color:var(--muted); font-size:11px; }
+        .color-palette-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
+        .color-palette-swatch { width:100%; aspect-ratio:1 / 1; border:none; border-radius:8px; cursor:pointer; box-shadow:inset 0 0 0 1px rgba(255,255,255,.25); }
+        .color-palette-swatch.active { box-shadow:inset 0 0 0 2px #fff, 0 0 0 1px #0b142c; }
         .hidden-panel { display:none !important; }
     </style>
 </head>
@@ -83,7 +88,7 @@
 <body>
 <div class="wrap">
     <header>
-        <h1>Weather v4.1</h1>
+        <h1>Weather v4.2</h1>
         <p class="sub">Click a day to append an hourly table. Click an hour to open weather.com for that place/hour.</p>
     </header>
 
@@ -294,6 +299,12 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             "color Gust (mph)=0#15.999:lightgreen,16#25.999:yellow,26#200:red",
             "color RH (%)=0#60.999:lightgreen,61#75.999:green,76#100:yellow"
         ];
+        const COLOR_PALETTE = [
+            "blue", "deepskyblue", "slateblue", "plum",
+            "pink", "lightgreen", "green", "forestgreen",
+            "yellow", "khaki", "gold", "goldenrod",
+            "orange", "darkorange", "tomato", "red"
+        ];
         function normalizeColorToken(c){
             if (!c) return c;
             if (c.startsWith("#") || /\b(?:rgb|hsl)a?\s*\(/i.test(c)) return c;
@@ -376,6 +387,12 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             ).join(",");
             return `color ${rule.header}=${specs}`;
         }
+        function specsFromEntries(entries){
+            return entries.map(entry => entry.type === "range"
+                ? `${formatScaleNumber(entry.lo)}#${formatScaleNumber(entry.hi)}:${entry.color}`
+                : `${entry.text}:${entry.color}`
+            ).join(",");
+        }
         function orderedColorDirectiveStrings(colorConfig){
             const lines = [];
             const seen = new Set();
@@ -418,10 +435,19 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             const clamped = Math.max(prevLo, Math.min(nextHi, nextBoundary));
             left.hi = clamped;
             right.lo = clamped;
-            clone.specs = clone.entries.map(entry => entry.type === "range"
-                ? `${formatScaleNumber(entry.lo)}#${formatScaleNumber(entry.hi)}:${entry.color}`
-                : `${entry.text}:${entry.color}`
-            ).join(",");
+            clone.specs = specsFromEntries(clone.entries);
+            return clone;
+        }
+        function updateRuleEntryColor(rule, entryIndex, nextColor){
+            const clone = {
+                header: rule.header,
+                key: rule.key,
+                specs: rule.specs,
+                entries: rule.entries.map(cloneRuleEntry)
+            };
+            if (!clone.entries[entryIndex]) return clone;
+            clone.entries[entryIndex].color = nextColor;
+            clone.specs = specsFromEntries(clone.entries);
             return clone;
         }
         function replaceColorRule(colorConfig, nextRule){
@@ -429,8 +455,9 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             next.set(nextRule.key, nextRule);
             return next;
         }
-        function buildColorScale(rule, colorConfig, onRuleChange, onRuleCommit){
+        function buildColorScale(rule, colorConfig, paletteState, onPaletteOpen, onPaletteClose, onRuleChange, onRuleCommit){
             const numericEntries = rule.entries
+                .map((entry, index) => ({ ...entry, _idx:index }))
                 .filter(entry => entry.type === "range")
                 .slice()
                 .sort((a, b) => (a.lo - b.lo) || (a.hi - b.hi));
@@ -452,11 +479,16 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             for (const entry of numericEntries) {
                 const left = ((entry.lo - min) / span) * 100;
                 const width = Math.max(((entry.hi - entry.lo) / span) * 100, 0.75);
-                bar.append(el("div", {
+                const segment = el("div", {
                     class:"color-scale-segment",
-                    title:`${formatScaleNumber(entry.lo)} to ${formatScaleNumber(entry.hi)}: ${entry.color}`,
+                    title:`${formatScaleNumber(entry.lo)} to ${formatScaleNumber(entry.hi)}: ${entry.color}. Click to change color.`,
                     style:`left:${left}%;width:${width}%;background:${entry.color};`
-                }));
+                });
+                segment.addEventListener("click", (evt) => {
+                    evt.stopPropagation();
+                    onPaletteOpen(rule.key, entry._idx);
+                });
+                bar.append(segment);
             }
             for (let i = 0; i < numericEntries.length - 1; i++) {
                 const dividerValue = numericEntries[i].hi;
@@ -499,6 +531,31 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                 legend.append(chip);
             }
 
+            const isPaletteOpen = paletteState && paletteState.ruleKey === rule.key && paletteState.entryIndex != null;
+            let palette = null;
+            if (isPaletteOpen) {
+                palette = el("div", { class:"color-palette" });
+                palette.append(el("p", { class:"color-palette-title", text:"Choose a band color" }));
+                const grid = el("div", { class:"color-palette-grid" });
+                for (const color of COLOR_PALETTE) {
+                    const swatch = el("button", {
+                        class:`color-palette-swatch${normColorName(rule.entries[paletteState.entryIndex]?.color) === normColorName(color) ? " active" : ""}`,
+                        type:"button",
+                        title: color,
+                        style:`background:${color};`
+                    });
+                    swatch.addEventListener("click", (evt) => {
+                        evt.stopPropagation();
+                        const nextRule = updateRuleEntryColor(rule, paletteState.entryIndex, color);
+                        onRuleChange(replaceColorRule(colorConfig, nextRule));
+                        onPaletteClose();
+                        if (typeof onRuleCommit === "function") onRuleCommit();
+                    });
+                    grid.append(swatch);
+                }
+                palette.append(grid);
+            }
+
             card.append(
                 el("div", { class:"color-scale-head" }, [
                     el("strong", { text: rule.header }),
@@ -509,11 +566,12 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                     el("span", { text: formatScaleNumber(min) }),
                     el("span", { text: formatScaleNumber(max) })
                 ]),
-                legend
+                legend,
+                palette
             );
             return card;
         }
-        function renderColorConfig(colorConfig, target, onRuleChange, onRuleCommit){
+        function renderColorConfig(colorConfig, target, paletteState, onPaletteOpen, onPaletteClose, onRuleChange, onRuleCommit){
             if (!target) return;
             target.innerHTML = "";
             const rendered = new Set();
@@ -522,11 +580,11 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                 const item = colorConfig.get(key);
                 if (!item) continue;
                 rendered.add(key);
-                target.append(buildColorScale(item, colorConfig, onRuleChange, onRuleCommit));
+                target.append(buildColorScale(item, colorConfig, paletteState, onPaletteOpen, onPaletteClose, onRuleChange, onRuleCommit));
             }
             for (const [key, item] of colorConfig.entries()) {
                 if (rendered.has(key) || key === normKey("Conditions")) continue;
-                target.append(buildColorScale(item, colorConfig, onRuleChange, onRuleCommit));
+                target.append(buildColorScale(item, colorConfig, paletteState, onPaletteOpen, onPaletteClose, onRuleChange, onRuleCommit));
             }
         }
         const REDS    = new Set(["red","tomato","salmon","crimson","firebrick","indianred"]);
@@ -992,6 +1050,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         const activePlaceEntries = new Map();
         let activeColorConfig = createDefaultColorConfig();
         let colorsVisible = true;
+        let paletteState = null;
 
         const dz = document.getElementById("drop");
         const fileInput = document.getElementById("file");
@@ -1016,6 +1075,15 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             renderColorConfig(
                 activeColorConfig,
                 colorConfigEl,
+                paletteState,
+                (ruleKey, entryIndex) => {
+                    paletteState = { ruleKey, entryIndex };
+                    refreshColorConfigView();
+                },
+                () => {
+                    paletteState = null;
+                    refreshColorConfigView();
+                },
                 (nextConfig) => {
                     activeColorConfig = nextConfig;
                     refreshColorConfigView();
@@ -1054,7 +1122,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             lines.push(...orderedColorDirectiveStrings(activeColorConfig));
             const blob = new Blob([lines.join("\n") + "\n"], { type:"text/plain;charset=utf-8" });
             const url = URL.createObjectURL(blob);
-            const a = el("a", { href:url, download:"weather-v4.1-config.txt" });
+            const a = el("a", { href:url, download:"weather-v4.2-config.txt" });
             document.body.append(a);
             a.click();
             a.remove();
@@ -1062,6 +1130,12 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         }
         refreshColorConfigView();
         syncColorVisibility();
+        document.addEventListener("click", (evt) => {
+            if (!paletteState) return;
+            if (evt.target instanceof Element && evt.target.closest(".color-palette")) return;
+            paletteState = null;
+            refreshColorConfigView();
+        });
 
         function clearAll(){
             grid.innerHTML = "";
