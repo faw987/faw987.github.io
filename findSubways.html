@@ -243,6 +243,13 @@
     color: var(--success);
   }
 
+  .query-note {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
   .stats {
     display: flex;
     flex-wrap: wrap;
@@ -330,6 +337,13 @@
 
   .result-link:hover {
     text-decoration: underline;
+  }
+
+  .result-links {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
   }
 
   .station-grid {
@@ -496,6 +510,9 @@
         </div>
       </div>
       <div id="search-status" class="status"></div>
+      <p class="query-note">
+        When the page is served through <code>server.js</code>, the same search can be driven by query params such as <code>?location=Times+Square&amp;stations=5&amp;distance=800</code>. Add <code>outputFormat=list</code>, <code>csv</code>, or <code>json</code> for script-friendly responses.
+      </p>
     </section>
 
     <section class="split">
@@ -1701,6 +1718,11 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
       return lat.toFixed(6).replace(/\.?0+$/, "") + ", " + lon.toFixed(6).replace(/\.?0+$/, "");
     }
 
+    function parsePositiveInteger(value) {
+      const parsed = parseInt(value, 10);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
+
     function parseLatLonText(inputValue) {
       const trimmed = String(inputValue || "").trim();
       if (!trimmed) return null;
@@ -1789,6 +1811,30 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
       };
     }
 
+    function applyQueryParams() {
+      const params = new URLSearchParams(window.location.search);
+      const location = params.get("location") || params.get("address");
+      const stations = parsePositiveInteger(params.get("stations") || params.get("maxResults"));
+      const distance = parsePositiveInteger(params.get("distance") || params.get("cutoffMeters"));
+
+      if (location) {
+        els.originQuery.value = location;
+      }
+
+      if (stations !== null) {
+        els.maxResults.value = stations;
+      }
+
+      if (distance !== null) {
+        els.cutoffMeters.value = distance;
+      }
+
+      return {
+        hasSearchParams: Boolean(location || stations !== null || distance !== null),
+        shouldAutoRun: Boolean(location)
+      };
+    }
+
     function validateBundledApi(api) {
       const missing = [];
 
@@ -1848,6 +1894,19 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
         "<div class=\"empty-state\">" + escapeHtml(message) + "</div>";
     }
 
+    function walkingDirectionsLink(origin, result) {
+      if (!origin) return "";
+
+      const params = new URLSearchParams({
+        api: "1",
+        origin: origin.lat + "," + origin.lon,
+        destination: result.lat + "," + result.lon,
+        travelmode: "walking"
+      });
+
+      return "https://www.google.com/maps/dir/?" + params.toString();
+    }
+
     function renderResults(results) {
       if (!results.length) {
         renderEmptyResults("No entrances matched the search within the current cutoff.");
@@ -1871,7 +1930,10 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
                   "</p>" +
                 "</div>" +
               "</div>" +
-              "<a class=\"result-link\" href=\"" + escapeHtml(result.mapsLink) + "\" target=\"_blank\" rel=\"noopener noreferrer\">Open Map</a>" +
+              "<div class=\"result-links\">" +
+                "<a class=\"result-link\" href=\"" + escapeHtml(result.mapsLink) + "\" target=\"_blank\" rel=\"noopener noreferrer\">Open Map</a>" +
+                "<a class=\"result-link\" href=\"" + escapeHtml(walkingDirectionsLink(appState.origin, result)) + "\" target=\"_blank\" rel=\"noopener noreferrer\">Open Walking Directions</a>" +
+              "</div>" +
             "</div>" +
             stationFieldsHtml(info) +
           "</article>"
@@ -2093,6 +2155,7 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
 
     (function init() {
       renderEmptyResults("Enter a location, then run a search.");
+      const queryState = applyQueryParams();
       const api = createBundledApi();
       const missing = validateBundledApi(api);
 
@@ -2108,6 +2171,14 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
       els.stationsCountChip.textContent = Object.keys(api.stationInfo).length + " stations";
       els.dataStats.hidden = false;
       setStatus(els.dataStatus, "Bundled subway data loaded.", "success");
+
+      if (queryState.hasSearchParams) {
+        setStatus(els.searchStatus, "Loaded search fields from the URL.", "");
+      }
+
+      if (queryState.shouldAutoRun) {
+        runSearch();
+      }
     }());
   </script>
 </body>
