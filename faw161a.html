@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Weather v3.2 — Daily → Hourly drilldown</title>
+    <title>Weather v4.1 — Daily → Hourly drilldown</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -62,13 +62,28 @@
         .marker-wrap { display:flex; flex-direction:column; align-items:center; filter: drop-shadow(0 1px 6px rgba(0,0,0,.45)); }
 
         .hidden-grid { display: none !important; }
+        .color-config { display:grid; gap:12px; }
+        .color-scale { background:#0b142c; border:1px solid #23345f; border-radius:12px; padding:10px; }
+        .color-scale-head { display:flex; justify-content:space-between; gap:10px; align-items:baseline; margin-bottom:8px; }
+        .color-scale-head strong { font-size:14px; }
+        .color-scale-head span { color:var(--muted); font-size:12px; }
+        .color-scale-bar { position:relative; height:22px; border-radius:999px; overflow:hidden; background:#162241; border:1px solid #2a3a6a; }
+        .color-scale-segment { position:absolute; top:0; bottom:0; min-width:2px; }
+        .color-scale-divider { position:absolute; top:-4px; bottom:-4px; width:14px; transform:translateX(-50%); cursor:ew-resize; z-index:2; touch-action:none; }
+        .color-scale-divider::before { content:""; position:absolute; top:0; bottom:0; left:50%; width:2px; transform:translateX(-50%); background:rgba(255,255,255,0.85); box-shadow:0 0 0 1px rgba(11,20,44,0.85); }
+        .color-scale-divider::after { content:""; position:absolute; left:50%; top:50%; width:8px; height:8px; transform:translate(-50%,-50%); border-radius:999px; background:#fff; box-shadow:0 0 0 2px #0b142c; }
+        .color-scale-axis { display:flex; justify-content:space-between; gap:8px; margin-top:6px; color:var(--muted); font-size:11px; }
+        .color-scale-legend { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+        .color-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 7px; border-radius:999px; background:#111a35; border:1px solid #25345f; color:#d8dde9; font-size:11px; }
+        .color-chip-swatch { width:10px; height:10px; border-radius:999px; border:1px solid rgba(255,255,255,0.22); flex:0 0 auto; }
+        .hidden-panel { display:none !important; }
     </style>
 </head>
 
 <body>
 <div class="wrap">
     <header>
-        <h1>Weather v3.2</h1>
+        <h1>Weather v4.1</h1>
         <p class="sub">Click a day to append an hourly table. Click an hour to open weather.com for that place/hour.</p>
     </header>
 
@@ -100,33 +115,31 @@
             <label><input id="onlyIcons" type="checkbox" /> Icons only</label>
             <button id="run" class="btn" type="button">Generate</button>
             <button id="clearBtn" class="btn" type="button">Clear</button>
+            <button id="exportBtn" class="btn" type="button">Export</button>
+            <button id="toggleColorsBtn" class="btn" type="button" aria-expanded="true" aria-controls="colorConfigWrap">Hide Color Scales</button>
         </div>
 
         <div id="drop" class="dropzone" tabindex="0" aria-label="Drop or click to load directive files">
             <input id="file" type="file" accept=".txt,.csv,text/plain" multiple style="display:none" />
             <strong>Drop file(s) here or click to browse</strong>
-            <div class="sub">Files may contain <code>place</code>, <code>color</code>, <code>hours</code>, <code>days</code>, <code>add</code> directives. Lines starting with <code>#</code> are comments.</div>
+            <div class="sub">Files may contain <code>place</code>, <code>color</code>, <code>hours</code>, <code>days</code>, <code>state</code>, <code>country</code>, <code>decimals</code>, <code>cityonly</code>, <code>onlyicons</code>, <code>colorscales</code>, and <code>add</code> directives. Lines starting with <code>#</code> are comments.</div>
         </div>
 
         <div class="row">
             <div>
-                <label for="paste">Place directives</label>
+                <label for="paste">Directives</label>
                 <textarea id="paste" placeholder="place Piscataway, NJ
 place 40.728,-73.995,Greenwich Village
 hours 8 17
-days 7"></textarea>
+days 7
+color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             </div>
             <div>
-                <label for="rules">Color rules</label>
-                <textarea id="rules" spellcheck="false">High(F)=-99#50.999:blue,51#65.999:lightgreen,66#85.999:green,85#110:red
-Low(F)=-99#40.999:red,41#65.999:pink,66#85:green
-Temp (°F)=-99#40.999:red,41#65.999:yellow,66#85:green
-Precip (in)=0.00#0.0999:green,0.10#0.1999:yellow,0.20#10.0:red
-UV=0#2.999:lightgreen,3#5.999:green,6#7.999:gold,8#11:red
-Wind (mph)=0#15.999:lightgreen,16#25.999:yellow,26#200:red
-Gust (mph)=0#15.999:lightgreen,16#25.999:yellow,26#200:red
-RH (%)=0#60.999:lightgreen,61#75.999:green,76#100:yellow
-Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pink,Drizzle light:red,Drizzle mod:red,Drizzle heavy:red,Rain light:red,Rain mod:red,Rain heavy:red,Overcast:green,Rain showers:red,Rain shw mod:red</textarea>
+                <label for="colorConfig">Color scales</label>
+                <div class="sub">Built-in color directives are shown here. Add <code>color &lt;tag&gt;=...</code> lines in pasted or dropped config files to override a tag.</div>
+                <div id="colorConfigWrap">
+                    <div id="colorConfig" class="color-config" aria-live="polite"></div>
+                </div>
             </div>
         </div>
     </section>
@@ -179,6 +192,16 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
             }
             for (const c of (Array.isArray(children)?children:[children])) if (c) e.append(c);
             return e;
+        }
+        function makeId(){
+            if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") return globalThis.crypto.randomUUID();
+            return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        }
+        function parseBoolish(value){
+            const s = (value || "").trim().toLowerCase();
+            if (["1","true","yes","on","show","shown"].includes(s)) return true;
+            if (["0","false","no","off","hide","hidden"].includes(s)) return false;
+            return null;
         }
         function parseLocalISODate(iso) { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m-1, d); }
         function ymd(d){ return d.toISOString().slice(0,10); }
@@ -251,41 +274,260 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
         function cityFromLabel(label){ const i = label.indexOf(","); return i >= 0 ? label.slice(0, i) : label; }
 
         // -------- Color rules
+        const COLOR_SCALE_ORDER = [
+            "High (°F)",
+            "Low (°F)",
+            "Temp (°F)",
+            "Precip (in)",
+            "UV",
+            "Wind (mph)",
+            "Gust (mph)",
+            "RH (%)"
+        ];
+        const DEFAULT_COLOR_DIRECTIVES = [
+            "color High (°F)=-99#50.999:blue,51#65.999:lightgreen,66#85.999:green,85#110:red",
+            "color Low (°F)=-99#40.999:red,41#65.999:pink,66#85:green",
+            "color Temp (°F)=-99#40.999:red,41#65.999:yellow,66#85:green",
+            "color Precip (in)=0.00#0.0999:green,0.10#0.1999:yellow,0.20#10.0:red",
+            "color UV=0#2.999:lightgreen,3#5.999:green,6#7.999:gold,8#11:red",
+            "color Wind (mph)=0#15.999:lightgreen,16#25.999:yellow,26#200:red",
+            "color Gust (mph)=0#15.999:lightgreen,16#25.999:yellow,26#200:red",
+            "color RH (%)=0#60.999:lightgreen,61#75.999:green,76#100:yellow"
+        ];
         function normalizeColorToken(c){
             if (!c) return c;
             if (c.startsWith("#") || /\b(?:rgb|hsl)a?\s*\(/i.test(c)) return c;
             return c.replace(/\s+/g, "");
         }
         function normKey(s){ return (s||"").replace(/[^a-z0-9]+/gi, "").toLowerCase(); }
-        function parseRules(text){
-            const rules = new Map();
-            const lines = (text||"").replace(/\r\n?/g, "\n").split("\n");
-            for (const raw of lines) {
-                const line = raw.trim();
-                if (!line || line.startsWith("//") || line.startsWith("#")) continue;
-                const eq = line.indexOf("=");
-                if (eq <= 0) continue;
-                const header = line.slice(0, eq).trim();
-                const specs  = line.slice(eq+1).trim();
-                const key = normKey(header);
-                if (!key || !specs) continue;
-                const entries = [];
-                for (const chunk of specs.split(",")) {
-                    const part = chunk.trim(); if (!part) continue;
-                    const m = part.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*#\s*([+-]?\d+(?:\.\d+)?)\s*:\s*([A-Za-z0-9#(),.\s-]+)\s*$/);
-                    if (m) {
-                        const lo = Number(m[1]), hi = Number(m[2]); let color = normalizeColorToken(m[3].trim());
-                        if (Number.isFinite(lo) && Number.isFinite(hi)) { entries.push({ type:"range", lo, hi, color }); continue; }
-                    }
-                    const m2 = part.match(/^(.*?):\s*([A-Za-z0-9#(),.\s-]+)$/);
-                    if (m2) {
-                        const txt = m2[1].trim().toLowerCase(); let color = normalizeColorToken(m2[2].trim());
-                        if (txt) entries.push({ type:"string", text: txt, color });
-                    }
+        function parseRuleSpecs(specs){
+            const entries = [];
+            for (const chunk of (specs || "").split(",")) {
+                const part = chunk.trim(); if (!part) continue;
+                const m = part.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*#\s*([+-]?\d+(?:\.\d+)?)\s*:\s*([A-Za-z0-9#(),.\s-]+)\s*$/);
+                if (m) {
+                    const lo = Number(m[1]), hi = Number(m[2]); const color = normalizeColorToken(m[3].trim());
+                    if (Number.isFinite(lo) && Number.isFinite(hi)) { entries.push({ type:"range", lo, hi, color }); continue; }
                 }
-                if (entries.length) rules.set(key, entries);
+                const m2 = part.match(/^(.*?):\s*([A-Za-z0-9#(),.\s-]+)$/);
+                if (m2) {
+                    const txt = m2[1].trim().toLowerCase(); const color = normalizeColorToken(m2[2].trim());
+                    if (txt) entries.push({ type:"string", text: txt, color });
+                }
+            }
+            return entries;
+        }
+        function parseColorDirective(raw){
+            const line = (raw || "").trim();
+            if (!line) return null;
+            const eq = line.indexOf("=");
+            if (eq <= 0) return null;
+            const header = line.slice(0, eq).trim();
+            const specs = line.slice(eq + 1).trim();
+            const key = normKey(header);
+            const entries = parseRuleSpecs(specs);
+            if (!key || !entries.length) return null;
+            return { header, key, specs, entries };
+        }
+        function cloneRuleEntry(entry){
+            return entry.type === "range"
+                ? { type:"range", lo: entry.lo, hi: entry.hi, color: entry.color }
+                : { type:"string", text: entry.text, color: entry.color };
+        }
+        function cloneColorConfig(config){
+            const next = new Map();
+            for (const [key, value] of config.entries()) {
+                next.set(key, {
+                    header: value.header,
+                    key: value.key,
+                    specs: value.specs,
+                    entries: value.entries.map(cloneRuleEntry)
+                });
+            }
+            return next;
+        }
+        function createDefaultColorConfig(){
+            const config = new Map();
+            for (const line of DEFAULT_COLOR_DIRECTIVES) {
+                const parsed = parseColorDirective(line.replace(/^\s*color\s+/i, ""));
+                if (parsed) config.set(parsed.key, parsed);
+            }
+            return config;
+        }
+        function applyColorDirectiveOverrides(baseConfig, rawDirectives){
+            const next = cloneColorConfig(baseConfig);
+            for (const raw of rawDirectives || []) {
+                const parsed = parseColorDirective(raw);
+                if (parsed) next.set(parsed.key, parsed);
+            }
+            return next;
+        }
+        function buildRulesFromConfig(colorConfig){
+            const rules = new Map();
+            for (const [key, item] of colorConfig.entries()) {
+                rules.set(key, item.entries.map(cloneRuleEntry));
             }
             return rules;
+        }
+        function colorDirectiveString(rule){
+            const specs = rule.entries.map(entry => entry.type === "range"
+                ? `${formatScaleNumber(entry.lo)}#${formatScaleNumber(entry.hi)}:${entry.color}`
+                : `${entry.text}:${entry.color}`
+            ).join(",");
+            return `color ${rule.header}=${specs}`;
+        }
+        function orderedColorDirectiveStrings(colorConfig){
+            const lines = [];
+            const seen = new Set();
+            for (const header of COLOR_SCALE_ORDER) {
+                const key = normKey(header);
+                const item = colorConfig.get(key);
+                if (!item) continue;
+                seen.add(key);
+                lines.push(colorDirectiveString(item));
+            }
+            for (const [key, item] of colorConfig.entries()) {
+                if (seen.has(key)) continue;
+                lines.push(colorDirectiveString(item));
+            }
+            return lines;
+        }
+        function formatScaleNumber(n){
+            if (!Number.isFinite(n)) return "–";
+            if (Number.isInteger(n)) return String(n);
+            return n.toFixed(Math.abs(n) < 1 ? 3 : 1).replace(/\.?0+$/, "");
+        }
+        function adjustNumericRuleBoundary(rule, boundaryIndex, nextBoundary){
+            const clone = {
+                header: rule.header,
+                key: rule.key,
+                specs: rule.specs,
+                entries: rule.entries.map(cloneRuleEntry)
+            };
+            const numericIndices = [];
+            for (let i = 0; i < clone.entries.length; i++) {
+                if (clone.entries[i].type === "range") numericIndices.push(i);
+            }
+            const leftIdx = numericIndices[boundaryIndex];
+            const rightIdx = numericIndices[boundaryIndex + 1];
+            if (leftIdx == null || rightIdx == null) return clone;
+            const left = clone.entries[leftIdx];
+            const right = clone.entries[rightIdx];
+            const prevLo = left.lo;
+            const nextHi = right.hi;
+            const clamped = Math.max(prevLo, Math.min(nextHi, nextBoundary));
+            left.hi = clamped;
+            right.lo = clamped;
+            clone.specs = clone.entries.map(entry => entry.type === "range"
+                ? `${formatScaleNumber(entry.lo)}#${formatScaleNumber(entry.hi)}:${entry.color}`
+                : `${entry.text}:${entry.color}`
+            ).join(",");
+            return clone;
+        }
+        function replaceColorRule(colorConfig, nextRule){
+            const next = cloneColorConfig(colorConfig);
+            next.set(nextRule.key, nextRule);
+            return next;
+        }
+        function buildColorScale(rule, colorConfig, onRuleChange, onRuleCommit){
+            const numericEntries = rule.entries
+                .filter(entry => entry.type === "range")
+                .slice()
+                .sort((a, b) => (a.lo - b.lo) || (a.hi - b.hi));
+            const card = el("section", { class:"color-scale" });
+            if (!numericEntries.length) {
+                card.append(
+                    el("div", { class:"color-scale-head" }, [
+                        el("strong", { text: rule.header }),
+                        el("span", { text:"No numeric bands" })
+                    ])
+                );
+                return card;
+            }
+
+            const min = Math.min(...numericEntries.map(entry => entry.lo));
+            const max = Math.max(...numericEntries.map(entry => entry.hi));
+            const span = max - min || 1;
+            const bar = el("div", { class:"color-scale-bar" });
+            for (const entry of numericEntries) {
+                const left = ((entry.lo - min) / span) * 100;
+                const width = Math.max(((entry.hi - entry.lo) / span) * 100, 0.75);
+                bar.append(el("div", {
+                    class:"color-scale-segment",
+                    title:`${formatScaleNumber(entry.lo)} to ${formatScaleNumber(entry.hi)}: ${entry.color}`,
+                    style:`left:${left}%;width:${width}%;background:${entry.color};`
+                }));
+            }
+            for (let i = 0; i < numericEntries.length - 1; i++) {
+                const dividerValue = numericEntries[i].hi;
+                const left = ((dividerValue - min) / span) * 100;
+                const divider = el("div", {
+                    class:"color-scale-divider",
+                    title:`Drag to adjust boundary between band ${i + 1} and ${i + 2}`,
+                    style:`left:${left}%;`
+                });
+                divider.addEventListener("pointerdown", (evt) => {
+                    evt.preventDefault();
+                    divider.setPointerCapture?.(evt.pointerId);
+                    const rect = bar.getBoundingClientRect();
+                    const move = (pointerEvt) => {
+                        const ratio = rect.width ? (pointerEvt.clientX - rect.left) / rect.width : 0;
+                        const rawValue = min + Math.max(0, Math.min(1, ratio)) * span;
+                        const nextRule = adjustNumericRuleBoundary(rule, i, Number(rawValue.toFixed(3)));
+                        onRuleChange(replaceColorRule(colorConfig, nextRule));
+                    };
+                    move(evt);
+                    const stop = () => {
+                        window.removeEventListener("pointermove", move);
+                        window.removeEventListener("pointerup", stop);
+                        window.removeEventListener("pointercancel", stop);
+                        if (typeof onRuleCommit === "function") onRuleCommit();
+                    };
+                    window.addEventListener("pointermove", move);
+                    window.addEventListener("pointerup", stop);
+                    window.addEventListener("pointercancel", stop);
+                });
+                bar.append(divider);
+            }
+
+            const legend = el("div", { class:"color-scale-legend" });
+            for (const entry of numericEntries) {
+                const chip = el("span", { class:"color-chip", title:`${formatScaleNumber(entry.lo)} to ${formatScaleNumber(entry.hi)}` }, [
+                    el("span", { class:"color-chip-swatch", style:`background:${entry.color};` }),
+                    el("span", { text:`${formatScaleNumber(entry.lo)}-${formatScaleNumber(entry.hi)}` })
+                ]);
+                legend.append(chip);
+            }
+
+            card.append(
+                el("div", { class:"color-scale-head" }, [
+                    el("strong", { text: rule.header }),
+                    el("span", { text:`${numericEntries.length} bands` })
+                ]),
+                bar,
+                el("div", { class:"color-scale-axis" }, [
+                    el("span", { text: formatScaleNumber(min) }),
+                    el("span", { text: formatScaleNumber(max) })
+                ]),
+                legend
+            );
+            return card;
+        }
+        function renderColorConfig(colorConfig, target, onRuleChange, onRuleCommit){
+            if (!target) return;
+            target.innerHTML = "";
+            const rendered = new Set();
+            for (const header of COLOR_SCALE_ORDER) {
+                const key = normKey(header);
+                const item = colorConfig.get(key);
+                if (!item) continue;
+                rendered.add(key);
+                target.append(buildColorScale(item, colorConfig, onRuleChange, onRuleCommit));
+            }
+            for (const [key, item] of colorConfig.entries()) {
+                if (rendered.has(key) || key === normKey("Conditions")) continue;
+                target.append(buildColorScale(item, colorConfig, onRuleChange, onRuleCommit));
+            }
         }
         const REDS    = new Set(["red","tomato","salmon","crimson","firebrick","indianred"]);
         const ORANGES = new Set(["orange","darkorange","gold","goldenrod"]);
@@ -618,7 +860,7 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
         }
 
         // -------- Card (per place) — now caches hourly; day click builds hourly block
-        async function buildCard(target, coords, rules, showDecimals, startHour, endHour, numDays){
+        async function buildCard(target, coords, rules, showDecimals, startHour, endHour, numDays, placeState){
             const card = el("section", { class:"card", role:"region" });
             const title = el("h3", { text: coords.label });
             const close = el("button", { class:"close-btn", type:"button", text:"Close" });
@@ -626,6 +868,7 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
             close.addEventListener("click", () => { // remove marker & card
                 const idx = markers.findIndex(mm => mm.getLatLng().lat.toFixed(3) == coords.lat.toFixed(3) && mm.getLatLng().lng.toFixed(3) == coords.lon.toFixed(3));
                 if (idx >= 0) { featureGroup.removeLayer(markers[idx]); markers.splice(idx,1); }
+                if (placeState) activePlaceEntries.delete(placeState.id);
                 card.remove();
             });
             card.append(title, close, metaP);
@@ -670,13 +913,23 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
 
         async function parseDirectives(rootText, fileSet){
             const visited = new Set();
-            const acc = { places: [], colors: [], hours: null, days: null };
+            const acc = {
+                places: [],
+                colors: [],
+                hours: null,
+                days: null,
+                state: null,
+                country: null,
+                decimals: null,
+                cityOnly: null,
+                onlyIcons: null,
+                colorScales: null
+            };
             async function parseOne(text){
                 const lines = (text||"").replace(/\r\n?/g,"\n").split("\n");
                 for (let raw of lines){
-                    const noComment = raw.split("#")[0];
-                    const line = noComment.trim();
-                    if (!line) continue;
+                    const line = raw.trim();
+                    if (!line || line.startsWith("#") || line.startsWith("//")) continue;
                     const m = line.match(/^\s*([a-zA-Z]+)\s+(.*)$/);
                     if (!m) continue;
                     const kw = m[1].toLowerCase();
@@ -695,6 +948,22 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
                     } else if (kw === "days") {
                         const n = Number(rest);
                         if (Number.isInteger(n) && n > 0) acc.days = n;
+                    } else if (kw === "state") {
+                        acc.state = rest;
+                    } else if (kw === "country") {
+                        acc.country = rest;
+                    } else if (kw === "decimals") {
+                        const v = parseBoolish(rest);
+                        if (v !== null) acc.decimals = v;
+                    } else if (kw === "cityonly") {
+                        const v = parseBoolish(rest);
+                        if (v !== null) acc.cityOnly = v;
+                    } else if (kw === "onlyicons") {
+                        const v = parseBoolish(rest);
+                        if (v !== null) acc.onlyIcons = v;
+                    } else if (kw === "colorscales") {
+                        const v = parseBoolish(rest);
+                        if (v !== null) acc.colorScales = v;
                     } else if (kw === "add") {
                         const fname = rest.replace(/^['"]|['"]$/g,"");
                         if (!fname) continue;
@@ -720,31 +989,116 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
             markers
         };
 
+        const activePlaceEntries = new Map();
+        let activeColorConfig = createDefaultColorConfig();
+        let colorsVisible = true;
+
         const dz = document.getElementById("drop");
         const fileInput = document.getElementById("file");
         const pasteArea = document.getElementById("paste");
         const runBtn = document.getElementById("run");
+        const exportBtn = document.getElementById("exportBtn");
+        const toggleColorsBtn = document.getElementById("toggleColorsBtn");
         const grid = document.getElementById("grid");
         const stateBox = document.getElementById("prefState");
         const countryBox = document.getElementById("prefCountry");
-        const rulesArea = document.getElementById("rules");
+        const colorConfigEl = document.getElementById("colorConfig");
+        const colorConfigWrap = document.getElementById("colorConfigWrap");
         const decimalsBox = document.getElementById("showDecimals");
         const cityOnlyBox = document.getElementById("cityOnly");
         const onlyIconsBox = document.getElementById("onlyIcons");
         const startHourBox = document.getElementById("startHour");
         const endHourBox = document.getElementById("endHour");
         const numDaysBox = document.getElementById("numDays");
-
         const clearBtn = document.getElementById("clearBtn");
+
+        function refreshColorConfigView(){
+            renderColorConfig(
+                activeColorConfig,
+                colorConfigEl,
+                (nextConfig) => {
+                    activeColorConfig = nextConfig;
+                    refreshColorConfigView();
+                },
+                () => { void rebuildActiveCards(); }
+            );
+        }
+        function syncColorVisibility(){
+            if (colorConfigWrap) colorConfigWrap.classList.toggle("hidden-panel", !colorsVisible);
+            if (toggleColorsBtn) {
+                toggleColorsBtn.textContent = colorsVisible ? "Hide Color Scales" : "Show Color Scales";
+                toggleColorsBtn.setAttribute("aria-expanded", colorsVisible ? "true" : "false");
+            }
+        }
+        function placeDirectiveFromToken(it){
+            if (!it) return null;
+            if (it.type === "coords") return `place ${it.lat},${it.lon}${it.label ? `,${it.label}` : ""}`;
+            return `place ${it.raw || [it.city, it.state, it.country].filter(Boolean).join(", ")}`;
+        }
+        function appendDirectiveLine(line){
+            if (!pasteArea || !line) return;
+            const prev = pasteArea.value.trim();
+            pasteArea.value = prev ? `${prev}\n${line}` : line;
+        }
+        function exportCurrentConfig(){
+            const lines = [];
+            lines.push(`state ${stateBox.value || ""}`);
+            lines.push(`country ${countryBox.value || ""}`);
+            lines.push(`hours ${Math.max(0, Math.min(23, Number(startHourBox.value)||8))} ${Math.max(0, Math.min(23, Number(endHourBox.value)||17))}`);
+            lines.push(`days ${Math.max(1, Math.min(14, Number(numDaysBox.value)||7))}`);
+            lines.push(`decimals ${decimalsBox.checked ? "on" : "off"}`);
+            lines.push(`cityonly ${cityOnlyBox.checked ? "on" : "off"}`);
+            lines.push(`onlyicons ${onlyIconsBox.checked ? "on" : "off"}`);
+            lines.push(`colorscales ${colorsVisible ? "show" : "hide"}`);
+            for (const entry of activePlaceEntries.values()) lines.push(entry.directive);
+            lines.push(...orderedColorDirectiveStrings(activeColorConfig));
+            const blob = new Blob([lines.join("\n") + "\n"], { type:"text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = el("a", { href:url, download:"weather-v4.1-config.txt" });
+            document.body.append(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 0);
+        }
+        refreshColorConfigView();
+        syncColorVisibility();
 
         function clearAll(){
             grid.innerHTML = "";
             featureGroup.clearLayers();
             markers.length = 0;
+            activePlaceEntries.clear();
+        }
+        function clearVisuals(){
+            grid.innerHTML = "";
+            featureGroup.clearLayers();
+            markers.length = 0;
+        }
+        function rebuildIfPlacesExist(){
+            if (activePlaceEntries.size) void rebuildActiveCards();
+        }
+        async function rebuildActiveCards(){
+            const rules = buildRulesFromConfig(activeColorConfig);
+            const showDecimals = !!decimalsBox.checked;
+            const startHour = Math.max(0, Math.min(23, Number(startHourBox.value)||8));
+            const endHour   = Math.max(0, Math.min(23, Number(endHourBox.value)||17));
+            const numDays   = Math.max(1, Math.min(14, Number(numDaysBox.value)||7));
+            const places = Array.from(activePlaceEntries.values());
+            clearVisuals();
+            for (const placeState of places) {
+                await buildCard(grid, placeState.coords, rules, showDecimals, startHour, endHour, numDays, placeState);
+            }
+            if (onlyIconsBox.checked) grid.classList.add("hidden-grid"); else grid.classList.remove("hidden-grid");
         }
 
         async function processDirectives(rootText, fileSet){
             const parsed = await parseDirectives(rootText, fileSet);
+            if (typeof parsed.state === "string") {
+                stateBox.value = parsed.state;
+            }
+            if (typeof parsed.country === "string") {
+                countryBox.value = parsed.country;
+            }
             if (parsed.hours){
                 startHourBox.value = String(parsed.hours.start);
                 endHourBox.value   = String(parsed.hours.end);
@@ -752,14 +1106,26 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
             if (Number.isInteger(parsed.days)) {
                 numDaysBox.value = String(parsed.days);
             }
+            if (typeof parsed.decimals === "boolean") {
+                decimalsBox.checked = parsed.decimals;
+            }
+            if (typeof parsed.cityOnly === "boolean") {
+                cityOnlyBox.checked = parsed.cityOnly;
+            }
+            if (typeof parsed.onlyIcons === "boolean") {
+                onlyIconsBox.checked = parsed.onlyIcons;
+            }
+            if (typeof parsed.colorScales === "boolean") {
+                colorsVisible = parsed.colorScales;
+                syncColorVisibility();
+            }
             if (parsed.colors.length){
-                const current = rulesArea.value.trim();
-                const extra = parsed.colors.join("\n");
-                rulesArea.value = current ? (current + "\n" + extra) : extra;
+                activeColorConfig = applyColorDirectiveOverrides(activeColorConfig, parsed.colors);
+                refreshColorConfigView();
             }
 
             const prefs = { admin1:(stateBox.value||"").trim(), country: (countryBox.value||"").trim() };
-            const rules = parseRules(rulesArea.value || "");
+            const rules = buildRulesFromConfig(activeColorConfig);
             const showDecimals = !!decimalsBox.checked;
             const startHour = Math.max(0, Math.min(23, Number(startHourBox.value)||8));
             const endHour   = Math.max(0, Math.min(23, Number(endHourBox.value)||17));
@@ -767,6 +1133,7 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
 
             for (const it of parsed.places) {
                 let coords;
+                const directive = placeDirectiveFromToken(it);
                 try {
                     if (it.type === "coords") coords = { lat: it.lat, lon: it.lon, label: it.label };
                     else coords = await geocode(it, prefs);
@@ -781,9 +1148,12 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
                     grid.prepend(card);
                     continue;
                 }
-                await buildCard(grid, coords, rules, showDecimals, startHour, endHour, numDays);
+                const placeState = { id: makeId(), directive, coords };
+                activePlaceEntries.set(placeState.id, placeState);
+                await buildCard(grid, coords, rules, showDecimals, startHour, endHour, numDays, placeState);
             }
 
+            document.getElementById("cityOnly").dispatchEvent(new Event("change"));
             if (onlyIconsBox.checked) grid.classList.add("hidden-grid"); else grid.classList.remove("hidden-grid");
         }
 
@@ -831,7 +1201,7 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
         if (runBtn) {
             runBtn.addEventListener("click", async ()=>{
                 const text = (pasteArea && pasteArea.value ? pasteArea.value : "").trim();
-                if(!text){ alert("Enter place directives or drop a file."); return; }
+                if(!text){ alert("Enter directives or drop a file."); return; }
                 await processDirectives(text, new FileSet());
             });
         }
@@ -839,17 +1209,33 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
         if (clearBtn) {
             clearBtn.addEventListener("click", clearAll);
         }
+        if (exportBtn) {
+            exportBtn.addEventListener("click", exportCurrentConfig);
+        }
+        if (toggleColorsBtn) {
+            toggleColorsBtn.addEventListener("click", () => {
+                colorsVisible = !colorsVisible;
+                syncColorVisibility();
+            });
+        }
 
         // Map click → add a new place
         map.on('click', async (e) => {
             const lat = e.latlng.lat, lon = e.latlng.lng;
-            const rules = parseRules(rulesArea.value || "");
+            const rules = buildRulesFromConfig(activeColorConfig);
             const showDecimals = !!decimalsBox.checked;
             const startHour = Math.max(0, Math.min(23, Number(startHourBox.value)||8));
             const endHour   = Math.max(0, Math.min(23, Number(endHourBox.value)||17));
             const numDays   = Math.max(1, Math.min(14, Number(numDaysBox.value)||7));
             const { name }  = await reverseGeocode(lat, lon);
-            await buildCard(grid, { lat, lon, label: name }, rules, showDecimals, startHour, endHour, numDays);
+            const placeState = {
+                id: makeId(),
+                directive: `place ${lat.toFixed(4)},${lon.toFixed(4)},${name}`,
+                coords: { lat, lon, label: name }
+            };
+            activePlaceEntries.set(placeState.id, placeState);
+            appendDirectiveLine(placeState.directive);
+            await buildCard(grid, { lat, lon, label: name }, rules, showDecimals, startHour, endHour, numDays, placeState);
         });
 
         // Label mode
@@ -869,6 +1255,10 @@ Conditions=Clear:green,Mainly clear:light green,Partly cloudy:light green,Fog:pi
             if (document.getElementById("onlyIcons").checked) grid.classList.add("hidden-grid");
             else grid.classList.remove("hidden-grid");
         });
+        decimalsBox.addEventListener("change", rebuildIfPlacesExist);
+        startHourBox.addEventListener("change", rebuildIfPlacesExist);
+        endHourBox.addEventListener("change", rebuildIfPlacesExist);
+        numDaysBox.addEventListener("change", rebuildIfPlacesExist);
     });
 </script>
 </body>
