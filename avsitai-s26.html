@@ -1,138 +1,334 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="robots" content="noindex, nofollow">
-    <title>Introduction to Artificial  (AI) and Robotics - OLLI-RU - Spring 2026</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 40px;
-            line-height: 1.6;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Introduction to Artificial Intelligence (AI) and Robotics — OLLI-RU</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --surface: rgba(255, 255, 255, 0.84);
+      --surface-strong: #ffffff;
+      --text: #122033;
+      --muted: #5e6c80;
+      --accent: #335cff;
+      --accent-soft: rgba(51, 92, 255, 0.12);
+      --border: rgba(18, 32, 51, 0.1);
+      --shadow: 0 18px 50px rgba(25, 42, 70, 0.12);
+      --radius: 22px;
+    }
 
-        h1, h2 {
-            color: #333;
-        }
+    * { box-sizing: border-box; }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 30px;
-        }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(84, 135, 255, 0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(0, 186, 136, 0.12), transparent 24%),
+        linear-gradient(180deg, #eef4ff 0%, #f7faff 34%, #f4f7fb 100%);
+      line-height: 1.55;
+    }
 
-        th, td {
-            border: 1px solid #ccc;
-            padding: 8px;
-            vertical-align: top;
-        }
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
 
-        th {
-            background-color: #f2f2f2;
-            text-align: left;
-        }
+    a:hover {
+      text-decoration: underline;
+    }
 
-        .feedback-button {
-            display: inline-block;
-            padding: 12px 20px;
-            font-size: 16px;
-            background-color: #007acc;
-            color: #fff;
-            text-decoration: none;
-            border-radius: 4px;
-        }
+    .page {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 40px 20px 72px;
+    }
 
-        .feedback-button:hover {
-            background-color: #005fa3;
-        }
-    </style>
+    .hero {
+      background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(244,248,255,0.85));
+      border: 1px solid rgba(255,255,255,0.8);
+      box-shadow: var(--shadow);
+      border-radius: 32px;
+      padding: 34px 30px;
+      backdrop-filter: blur(10px);
+      margin-bottom: 28px;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--accent);
+      background: var(--accent-soft);
+      padding: 8px 12px;
+      border-radius: 999px;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin: 0;
+      font-size: 1.08rem;
+      color: var(--muted);
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-top: 24px;
+    }
+
+    .meta-card,
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .meta-card {
+      padding: 18px 18px 16px;
+    }
+
+    .meta-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .meta-value {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .intro {
+      padding: 26px 26px 24px;
+      margin-bottom: 28px;
+    }
+
+    .intro p {
+      margin: 0;
+      font-size: 1.03rem;
+      color: #243349;
+    }
+
+    .section-title {
+      margin: 0 0 16px;
+      font-size: 1.45rem;
+      letter-spacing: -0.02em;
+    }
+
+    .resources {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+
+    .resource-card {
+      background: var(--surface-strong);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: 0 12px 28px rgba(20, 34, 58, 0.08);
+    }
+
+    .resource-card h3 {
+      margin: 0 0 10px;
+      font-size: 1.02rem;
+    }
+
+    .resource-card ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .resource-card li + li {
+      margin-top: 8px;
+    }
+
+    .leaderboard {
+      padding: 24px;
+      margin-bottom: 28px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      background: rgba(255,255,255,0.65);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    thead th {
+      text-align: left;
+      font-size: 0.9rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #31445c;
+      background: rgba(51, 92, 255, 0.08);
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tbody td {
+      padding: 15px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .rank {
+      width: 90px;
+      font-weight: 700;
+    }
+
+    .placeholder {
+      color: var(--muted);
+    }
+
+    .footer-note {
+      padding: 22px 24px;
+    }
+
+    .footer-note p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    @media (max-width: 640px) {
+      .page { padding: 24px 14px 50px; }
+      .hero, .intro, .leaderboard, .footer-note { padding: 20px; }
+      .resource-card { padding: 16px; }
+      h1 { font-size: 2rem; }
+    }
+  </style>
 </head>
 <body>
+  <main class="page">
+    <section class="hero">
+      <div class="eyebrow">Spring 2026 Course Hub</div>
+      <h1>Introduction to Artificial Intelligence (AI) and Robotics</h1>
+      <p class="subtitle">OLLI-RU · Tuesdays · 10:30 AM – 12:00 PM · March 3, 2026 to May 5, 2026</p>
 
-<h1>Introduction to Artificial Intelligence (AI) and Robotics</h1>
-<h1>OLLI-RU 10:30 AM – 12:00 PM      March 3, 2026 to May 5, 2026</h1>
-<h2>Last updated:  Mar 12, 2026 13:55</h2>
+      <div class="meta-grid">
+        <div class="meta-card">
+          <div class="meta-label">Last Updated</div>
+          <div class="meta-value">March 12, 2026 · 1:55 PM</div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Course Focus</div>
+          <div class="meta-value">AI concepts, robotics, current events, and hands-on prompt work</div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Quick Start</div>
+          <div class="meta-value"><a href="https://faw987.github.io/combo_themes">Open Prompt Helper Demo</a></div>
+        </div>
+      </div>
+    </section>
 
+    <section class="panel intro">
+      <h2 class="section-title">About This Course</h2>
+      <p>
+        Artificial Intelligence (AI) refers to computer systems designed to perform tasks that typically require human intelligence,
+        such as learning, reasoning, problem-solving, and understanding language. This course page brings together the syllabus,
+        weekly slides, labs, news briefs, and prompt sets in one place.
+      </p>
+    </section>
 
-<p>
-    Artificial Intelligence (AI) refers to computer systems designed to perform tasks
-    that typically require human intelligence, such as learning, reasoning, problem-solving,
-    and understanding language.
-</p>
+    <section>
+      <h2 class="section-title">Course Materials</h2>
+      <div class="resources">
+        <article class="resource-card">
+          <h3>Start Here</h3>
+          <ul>
+            <li><a href="https://www.dropbox.com/scl/fi/8vntm0zizuzmxiiqgdaw7/Spring2026_ai_course_syllabus.pdf?dl=0&amp;rlkey=ke2znwwg08l51urw095lbl1pi&amp;st=ie4ex8w7">Course syllabus</a></li>
+            <li><a href="https://docs.google.com/forms/d/e/1FAIpQLSea4aFvZJOPiZPB6Iv9FT7Gg4eoUw_WMM0pDatF-6kLt7ju-A/viewform?usp=publish-editor">Topic survey (&amp; more)</a></li>
+            <li><a href="https://faw987.github.io/combo_themes">Prompt Helper Demo</a></li>
+          </ul>
+        </article>
 
-<br>
+        <article class="resource-card">
+          <h3>Class Sessions</h3>
+          <ul>
+            <li><a href="https://www.dropbox.com/scl/fi/nz61yzekjdzvam5gz278v/Spring26_day1.pdf?dl=0&amp;rlkey=peyafvvf0gha2g4a5fjokwb23&amp;st=7a535w4j">Day 1 slides</a></li>
+            <li><a href="https://www.dropbox.com/scl/fi/worn8huvxfv7q0uh1ir3a/Spring26_day2_final.pdf?dl=0&amp;rlkey=icx9xz95rcr6ycr5ung390ja7&amp;st=6csgmraw">Day 2 slides</a></li>
+            <li><a href="https://www.dropbox.com/scl/fi/ibslgiu7cz06npyo50khn/Spring26_day3.pdf?dl=0&amp;rlkey=9qrbca0cidc8l4jbwkakynqnd&amp;st=q4yqimh0">Day 3 slides</a></li>
+            <li><a href="https://www.dropbox.com/scl/fi/ulmrptasjkckatrzmuaiw/Spring26_day4.pdf?dl=0&amp;rlkey=g3oqzr944jpvtx40b93gm41m5&amp;st=vwkzt13k">Day 4 slides</a></li>
+            <li><a href="https://www.dropbox.com/scl/fi/acmak154qva627e3e833z/Spring26_day5.pdf?dl=0&amp;rlkey=06qbec6ivhzoj6bb2edcd9dyx&amp;st=5w2xylo3">Day 5 slides</a></li>
+          </ul>
+        </article>
 
+        <article class="resource-card">
+          <h3>Labs, Prompts, and News</h3>
+          <ul>
+            <li><a href="https://www.dropbox.com/scl/fi/t6kb1vr3qycyg5jcus2pd/Spring26_day2_lab.txt?dl=0&amp;rlkey=s00kvaonsxabvgkyypp75uadr&amp;st=glt8okx2">Day 2 lab text file</a></li>
+            <li><a href="https://www.dropbox.com/scl/fi/bs7t70onrwa1p0g2zxopv/prompts_set_00_draft.json?dl=0&amp;rlkey=q4pm8o91fnnhlxrtnvf83xk8g&amp;st=r8peyg3l">Day 3 prompt set 00</a></li>
+            <li><a href="https://www.dropbox.com/scl/fi/uk7t5oes2d3hyn0xh1kik/prompts_set_01_draft.json?dl=0&amp;rlkey=hyx3ohc9wvhouw9nwqbr3xtg3&amp;st=fo4d2w89">Day 3 prompt set 01</a></li>
+            <li><a href="https://www.dropbox.com/scl/fi/gxgtb5wpxfyh029ecpoli/AI_Weekly_News_March17_2026_1.pdf?dl=0&amp;rlkey=2npzr31tcaw261p9w14jx3e54&amp;st=rvvgbkqn">Mar 17 news slides (set 1)</a></li>
+            <li><a href="https://www.dropbox.com/scl/fi/y7687rdoad1fngotkbyvg/Week3_News_Brief_Mar17_cowork.pdf?dl=0&amp;rlkey=s8itwqcxi62jt3nyq9a4ltlma&amp;st=oi0e5bnk">Mar 17 news slides (set 2)</a></li>
+            <li><a href="https://www.dropbox.com/scl/fi/64sqz91bafpowocqyfhts/AI_News_Week5_March31.pdf?dl=0&amp;rlkey=7enw1ljcwjw25mj9bbqgc0o6j&amp;st=3fi698lv">Mar 31 news slides (set 1)</a></li>
+            <li><a href="https://www.dropbox.com/scl/fi/dtiv25jod5ws3yl8qi6ve/AI_News_Week5_Mar31_A.pdf?dl=0&amp;rlkey=9a0tiu1ipginj15mfbv8vkwoe&amp;st=0aap96yg">Mar 31 news slides (set 2)</a></li>
+            <li><a href="https://www.dropbox.com/scl/fi/zmyfctlde3z8ovdln2pj9/AI_News_Week5_Mar31_2026_B.pdf?dl=0&amp;rlkey=0tkdemupg2bg4qyqvwj24bx58&amp;st=ihwu0ix6">Mar 31 news slides (set 3)</a></li>
+          </ul>
+        </article>
+      </div>
+    </section>
 
-<a href="https://faw987.github.io/combo_themes"
-   style="display: block;">Prompt Helper Demo</a>
-<br>
+    <section class="panel leaderboard">
+      <h2 class="section-title">Vibe Leaderboard</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="rank">Number</th>
+              <th>Description</th>
+              <th>Link</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="rank">1</td>
+              <td class="placeholder">Add the first vibe coding project description here.</td>
+              <td><a href="#">Add link</a></td>
+            </tr>
+            <tr>
+              <td class="rank">2</td>
+              <td class="placeholder">Reserved for the next vibe coding output.</td>
+              <td><a href="#">Add link</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-<a href="https://www.dropbox.com/scl/fi/8vntm0zizuzmxiiqgdaw7/Spring2026_ai_course_syllabus.pdf?rlkey=ke2znwwg08l51urw095lbl1pi&st=ie4ex8w7&dl=0"
-   style="display: block;">Course syllabus</a>
-<br>
-
-<a href="https://docs.google.com/forms/d/e/1FAIpQLSea4aFvZJOPiZPB6Iv9FT7Gg4eoUw_WMM0pDatF-6kLt7ju-A/viewform?usp=publish-editor"
-   style="display: block;">Topic Survey (&more)</a>
-<br>
-
-<a href="https://www.dropbox.com/scl/fi/nz61yzekjdzvam5gz278v/Spring26_day1.pdf?rlkey=peyafvvf0gha2g4a5fjokwb23&st=7a535w4j&dl=0"
-   style="display: block;">Day 1 slides (rev1)</a>
-
-<br>
-
-<a href="https://www.dropbox.com/scl/fi/worn8huvxfv7q0uh1ir3a/Spring26_day2_final.pdf?rlkey=icx9xz95rcr6ycr5ung390ja7&st=6csgmraw&dl=0"
-   style="display: block;">Day 2 slides</a>
-
-<a href="https://www.dropbox.com/scl/fi/t6kb1vr3qycyg5jcus2pd/Spring26_day2_lab.txt?rlkey=s00kvaonsxabvgkyypp75uadr&st=glt8okx2&dl=0"
-   style="display: block;">Day 2 lab text file</a>
-
-<br>
-
-<a href="https://www.dropbox.com/scl/fi/ibslgiu7cz06npyo50khn/Spring26_day3.pdf?rlkey=9qrbca0cidc8l4jbwkakynqnd&st=q4yqimh0&dl=0"
-   style="display: block;">Day 3 slides</a>
-
-<a href="https://www.dropbox.com/scl/fi/gxgtb5wpxfyh029ecpoli/AI_Weekly_News_March17_2026_1.pdf?rlkey=2npzr31tcaw261p9w14jx3e54&st=rvvgbkqn&dl=0"
-   style="display: block;">Day 3 - Mar 17 news slides (set 1)</a>
-
-<a href="https://www.dropbox.com/scl/fi/y7687rdoad1fngotkbyvg/Week3_News_Brief_Mar17_cowork.pdf?rlkey=s8itwqcxi62jt3nyq9a4ltlma&st=oi0e5bnk&dl=0"
-   style="display: block;">Day 3 - Mar 17 news slides (set 2)</a>
-
-
-<a href="https://www.dropbox.com/scl/fi/bs7t70onrwa1p0g2zxopv/prompts_set_00_draft.json?rlkey=q4pm8o91fnnhlxrtnvf83xk8g&st=r8peyg3l&dl=0"
-   style="display: block;">Day 3 - prompt set 00</a>
-
-<a href="https://www.dropbox.com/scl/fi/uk7t5oes2d3hyn0xh1kik/prompts_set_01_draft.json?rlkey=hyx3ohc9wvhouw9nwqbr3xtg3&st=fo4d2w89&dl=0"
-   style="display: block;">Day 3 - prompt set 01</a>
-
-<br>
-
-<a href="https://www.dropbox.com/scl/fi/ulmrptasjkckatrzmuaiw/Spring26_day4.pdf?rlkey=g3oqzr944jpvtx40b93gm41m5&st=vwkzt13k&dl=0"
-   style="display: block;">Day 4 slides</a>
-<br>
-
-
-<a href="https://www.dropbox.com/scl/fi/acmak154qva627e3e833z/Spring26_day5.pdf?rlkey=06qbec6ivhzoj6bb2edcd9dyx&st=5w2xylo3&dl=0"
-   style="display: block;">Day 5 slides</a>
-<br>
-
-<a href="https://www.dropbox.com/scl/fi/64sqz91bafpowocqyfhts/AI_News_Week5_March31.pdf?rlkey=7enw1ljcwjw25mj9bbqgc0o6j&st=3fi698lv&dl=0"
-   style="display: block;">Day 5 - Mar 31 news slides (set 1)</a>
-
-<a href="https://www.dropbox.com/scl/fi/dtiv25jod5ws3yl8qi6ve/AI_News_Week5_Mar31_A.pdf?rlkey=9a0tiu1ipginj15mfbv8vkwoe&st=0aap96yg&dl=0"
-   style="display: block;">Day 5 - Mar 31 news slides (set 2)</a>
-
-<a href="https://www.dropbox.com/scl/fi/zmyfctlde3z8ovdln2pj9/AI_News_Week5_Mar31_2026_B.pdf?rlkey=0tkdemupg2bg4qyqvwj24bx58&st=ihwu0ix6&dl=0"
-   style="display: block;">Day 5 - Mar 31 news slides (set 3)</a>
-
-<br>
-<br>
-
-<a
-        class="feedback-button"
-        href="mailto:faw9422@gmail.com?subject=Feedback%20and%20Comments"
->
-    Feedback and Comments
-</a>
-
+    <section class="panel footer-note">
+      <p><strong>Feedback and Comments</strong> — this section can be expanded later with notes, class reflections, or student submissions.</p>
+    </section>
+  </main>
 </body>
 </html>
