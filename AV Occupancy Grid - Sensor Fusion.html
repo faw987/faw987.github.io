@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AV Occupancy Grid — Sensor Fusion Visualizer</title>
+  <meta name="description" content="Interactive demonstration of how autonomous vehicles use occupancy grids and sensor fusion to perceive their environment.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300..700&display=swap" rel="stylesheet">
+  <style>
+    /* ─── Design Tokens ─────────────────────────────────────────── */
+    :root {
+      --text-xs:   clamp(0.75rem,  0.7rem  + 0.25vw, 0.875rem);
+      --text-sm:   clamp(0.875rem, 0.8rem  + 0.35vw, 1rem);
+      --text-base: clamp(1rem,     0.95rem + 0.25vw, 1.125rem);
+      --text-lg:   clamp(1.125rem, 1rem    + 0.75vw, 1.5rem);
+      --text-xl:   clamp(1.5rem,   1.2rem  + 1.25vw, 2.25rem);
+
+      --space-1:  0.25rem;
+      --space-2:  0.5rem;
+      --space-3:  0.75rem;
+      --space-4:  1rem;
+      --space-5:  1.25rem;
+      --space-6:  1.5rem;
+      --space-8:  2rem;
+      --space-10: 2.5rem;
+      --space-12: 3rem;
+
+      --radius-sm: 0.375rem;
+      --radius-md: 0.5rem;
+      --radius-lg: 0.75rem;
+      --radius-xl: 1rem;
+      --radius-full: 9999px;
+
+      --transition-interactive: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+      --font-display: 'JetBrains Mono', 'Courier New', monospace;
+      --font-body: 'Inter', 'Helvetica Neue', sans-serif;
+
+      /* Sensor colors */
+      --lidar-color: #00f5ff;
+      --radar-color: #ff6b35;
+      --camera-color: #a8ff78;
+      --audio-color: #ffd700;
+      --occupied-color: rgba(255,100,50,0.85);
+      --free-color: rgba(30,200,120,0.25);
+      --path-color: #00f5ff;
+      --ego-color: #ffffff;
+    }
+
+    /* Dark mode palette (AV dashboard aesthetic) */
+    [data-theme="dark"] {
+      --color-bg:       #080c10;
+      --color-surface:  #0d1117;
+      --color-surface-2:#111823;
+      --color-border:   #1e2a3a;
+      --color-divider:  #162030;
+      --color-text:     #c9d8e8;
+      --color-text-muted:#647a8f;
+      --color-text-faint:#3a4f63;
+      --color-primary:  #00c8d4;
+      --color-accent:   #ff6b35;
+      --color-success:  #28d87a;
+      --color-warning:  #ffd700;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
+      --shadow-lg: 0 12px 40px rgba(0,0,0,0.6);
+    }
+
+    [data-theme="light"] {
+      --color-bg:       #f0f4f8;
+      --color-surface:  #ffffff;
+      --color-surface-2:#f7fafc;
+      --color-border:   #d0dae6;
+      --color-divider:  #e2eaf2;
+      --color-text:     #1a2535;
+      --color-text-muted:#4a6076;
+      --color-text-faint:#8fa5ba;
+      --color-primary:  #007bbd;
+      --color-accent:   #e05a1e;
+      --color-success:  #1c9e58;
+      --color-warning:  #c4920d;
+      --shadow-sm: 0 1px 2px rgba(0,30,60,0.08);
+      --shadow-md: 0 4px 16px rgba(0,30,60,0.12);
+      --shadow-lg: 0 12px 40px rgba(0,30,60,0.18);
+    }
+
+    /* ─── Base Reset ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html {
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      scroll-behavior: smooth;
+    }
+    body {
+      min-height: 100dvh;
+      font-family: var(--font-body);
+      font-size: var(--text-sm);
+      color: var(--color-text);
+      background-color: var(--color-bg);
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+    button { cursor: pointer; background: none; border: none; font: inherit; color: inherit; }
+    svg { display: block; }
+
+    /* ─── Layout ───────────────────────────────────────────────── */
+    .app-layout {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      grid-template-columns: 280px 1fr 300px;
+      height: 100dvh;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-3) var(--space-6);
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      box-shadow: var(--shadow-sm);
+      gap: var(--space-4);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      text-decoration: none;
+      color: inherit;
+    }
+    .logo-mark {
+      width: 36px; height: 36px;
+      flex-shrink: 0;
+    }
+    .logo-text {
+      font-family: var(--font-display);
+      font-size: var(--text-sm);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      line-height: 1.1;
+      color: var(--color-text);
+    }
+    .logo-text span { color: var(--color-primary); }
+    .logo-sub {
+      font-size: var(--text-xs);
+      font-weight: 400;
+      color: var(--color-text-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .header-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-1);
+    }
+    .mode-switcher {
+      display: flex;
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      padding: var(--space-1);
+      gap: var(--space-1);
+    }
+    .mode-btn {
+      padding: var(--space-1) var(--space-4);
+      border-radius: var(--radius-full);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      transition: all var(--transition-interactive);
+    }
+    .mode-btn.active {
+      background: var(--color-primary);
+      color: var(--color-bg);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--color-primary) 40%, transparent);
+    }
+    .mode-label {
+      font-size: var(--text-xs);
+      color: var(--color-text-faint);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+    .header-btn {
+      width: 36px; height: 36px;
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--color-text-muted);
+      border: 1px solid var(--color-border);
+      background: var(--color-surface-2);
+      transition: all var(--transition-interactive);
+    }
+    .header-btn:hover { color: var(--color-text); border-color: var(--color-primary); }
+
+    /* Sidebar panels */
+    .panel-left, .panel-right {
+      background: var(--color-surface);
+      border-color: var(--color-border);
+      overflow-y: auto;
+      padding: var(--space-5);
+      padding-bottom: var(--space-10);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-5);
+    }
+    .panel-left { border-right: 1px solid var(--color-border); }
+    .panel-right { border-left: 1px solid var(--color-border); }
+
+    .panel-section-title {
+      font-family: var(--font-display);
+      font-size: var(--text-xs);
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      padding-bottom: var(--space-2);
+      border-bottom: 1px solid var(--color-divider);
+      margin-bottom: var(--space-3);
+    }
+
+    /* Sensor Toggles */
+    .sensor-group { display: flex; flex-direction: column; gap: var(--space-2); }
+    .sensor-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-3);
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: all var(--transition-interactive);
+      user-select: none;
+    }
+    .sensor-toggle:hover { border-color: var(--color-primary); }
+    .sensor-toggle.active { border-color: var(--sensor-color, var(--color-primary)); box-shadow: 0 0 0 1px var(--sensor-color, var(--color-primary)) inset, 0 0 12px color-mix(in srgb, var(--sensor-color, var(--color-primary)) 20%, transparent); }
+    .sensor-toggle-left {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+    .sensor-dot {
+      width: 10px; height: 10px;
+      border-radius: var(--radius-full);
+      background: var(--sensor-color, var(--color-primary));
+      flex-shrink: 0;
+      box-shadow: 0 0 6px var(--sensor-color, var(--color-primary));
+    }
+    .sensor-name {
+      font-family: var(--font-display);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    .sensor-count {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+    }
+    .sensor-toggle .toggle-switch {
+      width: 36px; height: 20px;
+      border-radius: var(--radius-full);
+      background: var(--color-border);
+      position: relative;
+      transition: background var(--transition-interactive);
+      flex-shrink: 0;
+    }
+    .sensor-toggle.active .toggle-switch {
+      background: var(--sensor-color, var(--color-primary));
+    }
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 14px; height: 14px;
+      border-radius: var(--radius-full);
+      background: #fff;
+      transition: transform var(--transition-interactive);
+    }
+    .sensor-toggle.active .toggle-switch::after {
+      transform: translateX(16px);
+    }
+
+    /* Sensor detail info */
+    .sensor-detail {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      line-height: 1.6;
+      padding: var(--space-2) var(--space-3);
+      background: var(--color-surface-2);
+      border-radius: var(--radius-sm);
+      border-left: 2px solid var(--sensor-color, var(--color-primary));
+    }
+
+    /* Preset buttons */
+    .preset-group { display: flex; flex-direction: column; gap: var(--space-2); }
+    .preset-btn {
+      padding: var(--space-2) var(--space-3);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      text-align: left;
+      transition: all var(--transition-interactive);
+      background: var(--color-surface-2);
+    }
+    .preset-btn:hover { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface-2)); }
+    .preset-btn.active { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface-2)); }
+    .preset-btn-name {
+      font-family: var(--font-display);
+      font-size: var(--text-xs);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--color-text);
+      margin-bottom: var(--space-1);
+    }
+    .preset-btn-desc {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      line-height: 1.4;
+    }
+    .preset-btn-sensors {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-1);
+      margin-top: var(--space-2);
+    }
+    .sensor-chip {
+      padding: 1px var(--space-2);
+      border-radius: var(--radius-full);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--color-bg);
+    }
+
+    /* ─── Canvas area ──────────────────────────────────────────── */
+    .canvas-area {
+      position: relative;
+      background: #04080f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      cursor: crosshair;
+    }
+    .canvas-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .speed-badge {
+      position: absolute;
+      bottom: var(--space-5);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      padding: var(--space-2) var(--space-5);
+      font-family: var(--font-display);
+      font-size: var(--text-xs);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      box-shadow: var(--shadow-md);
+    }
+    .speed-val { color: var(--color-primary); font-size: var(--text-base); }
+    .speed-unit { color: var(--color-text-muted); }
+    .confidence-val { color: var(--color-success); }
+
+    .sim-controls {
+      position: absolute;
+      bottom: var(--space-5);
+      right: var(--space-5);
+      display: flex;
+      gap: var(--space-2);
+    }
+    .sim-btn {
+      padding: var(--space-2) var(--space-4);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-surface);
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: var(--color-text);
+      letter-spacing: 0.04em;
+      transition: all var(--transition-interactive);
+      box-shadow: var(--shadow-sm);
+    }
+    .sim-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+    .sim-btn.active { background: var(--color-primary); color: var(--color-bg); border-color: var(--color-primary); }
+
+    .alert-banner {
+      position: absolute;
+      top: var(--space-4);
+      left: 50%;
+      transform: translateX(-50%);
+      background: color-mix(in srgb, var(--color-accent) 20%, var(--color-surface));
+      border: 1px solid var(--color-accent);
+      border-radius: var(--radius-md);
+      padding: var(--space-2) var(--space-5);
+      font-family: var(--font-display);
+      font-size: var(--text-xs);
+      font-weight: 700;
+      color: var(--color-accent);
+      display: none;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      box-shadow: 0 0 20px color-mix(in srgb, var(--color-accent) 30%, transparent);
+      animation: pulse-border 1.2s ease-in-out infinite;
+    }
+    .alert-banner.visible { display: block; }
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 30%, transparent); }
+      50% { box-shadow: 0 0 24px color-mix(in srgb, var(--color-accent) 60%, transparent); }
+    }
+
+    /* ─── Right panel: stats ───────────────────────────────────── */
+    .stat-card {
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--space-3);
+    }
+    .stat-label {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      font-family: var(--font-display);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: var(--space-1);
+    }
+    .stat-value {
+      font-family: var(--font-display);
+      font-size: var(--text-lg);
+      font-weight: 700;
+      color: var(--color-text);
+      line-height: 1;
+    }
+    .stat-sub {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      margin-top: var(--space-1);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-2);
+    }
+
+    /* Confidence bar */
+    .conf-bar-wrap {
+      background: var(--color-border);
+      border-radius: var(--radius-full);
+      height: 6px;
+      overflow: hidden;
+      margin-top: var(--space-2);
+    }
+    .conf-bar {
+      height: 100%;
+      border-radius: var(--radius-full);
+      transition: width 0.4s ease, background 0.4s ease;
+    }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+    }
+    .legend-swatch {
+      width: 24px; height: 12px;
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+
+    /* Object list */
+    .object-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .object-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-2) var(--space-3);
+      background: var(--color-surface-2);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-divider);
+      font-size: var(--text-xs);
+    }
+    .object-item-name {
+      font-family: var(--font-display);
+      color: var(--color-text);
+    }
+    .object-item-badge {
+      padding: 1px var(--space-2);
+      border-radius: var(--radius-full);
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: var(--radius-full); }
+
+    /* Responsive fallback */
+    @media (max-width: 1024px) {
+      .app-layout {
+        grid-template-columns: 240px 1fr 260px;
+      }
+    }
+    @media (max-width: 768px) {
+      .app-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto auto;
+        height: auto;
+      }
+      header { position: sticky; top: 0; z-index: 10; }
+      .panel-left, .panel-right {
+        border: none;
+        border-top: 1px solid var(--color-border);
+      }
+      .canvas-area { height: 60vw; min-height: 320px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ═══ HEADER ═══════════════════════════════════════════════ -->
+  <header>
+    <!-- Logo -->
+    <a class="logo" href="#">
+      <svg class="logo-mark" viewBox="0 0 36 36" fill="none" aria-label="OccuGrid logo">
+        <rect width="36" height="36" rx="7" fill="#0d1117"/>
+        <!-- Grid pattern -->
+        <line x1="6" y1="6" x2="6" y2="30" stroke="#1e2a3a" stroke-width="1"/>
+        <line x1="12" y1="6" x2="12" y2="30" stroke="#1e2a3a" stroke-width="1"/>
+        <line x1="18" y1="6" x2="18" y2="30" stroke="#1e2a3a" stroke-width="1"/>
+        <line x1="24" y1="6" x2="24" y2="30" stroke="#1e2a3a" stroke-width="1"/>
+        <line x1="30" y1="6" x2="30" y2="30" stroke="#1e2a3a" stroke-width="1"/>
+        <line x1="6" y1="6" x2="30" y2="6" stroke="#1e2a3a" stroke-width="1"/>
+        <line x1="6" y1="12" x2="30" y2="12" stroke="#1e2a3a" stroke-width="1"/>
+        <line x1="6" y1="18" x2="30" y2="18" stroke="#1e2a3a" stroke-width="1"/>
+        <line x1="6" y1="24" x2="30" y2="24" stroke="#1e2a3a" stroke-width="1"/>
+        <line x1="6" y1="30" x2="30" y2="30" stroke="#1e2a3a" stroke-width="1"/>
+        <!-- Car icon in center -->
+        <rect x="14" y="14" width="8" height="8" rx="1.5" fill="#00c8d4" opacity="0.9"/>
+        <!-- Scan ring -->
+        <circle cx="18" cy="18" r="12" stroke="#00c8d4" stroke-width="1" stroke-dasharray="3 2" opacity="0.5"/>
+      </svg>
+      <div>
+        <div class="logo-text">OCCU<span>GRID</span></div>
+        <div class="logo-sub">Sensor Fusion Visualizer</div>
+      </div>
+    </a>
+
+    <!-- Mode switcher -->
+    <div class="header-center">
+      <div class="mode-label">Vehicle Profile</div>
+      <div class="mode-switcher">
+        <button class="mode-btn active" id="mode-waymo" onclick="setPreset('waymo')">Waymo 6th Gen</button>
+        <button class="mode-btn" id="mode-hybrid" onclick="setPreset('hybrid')">Hybrid</button>
+        <button class="mode-btn" id="mode-tesla" onclick="setPreset('tesla')">Tesla FSD</button>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="header-actions">
+      <button class="header-btn" data-theme-toggle aria-label="Toggle light/dark mode">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══ LEFT PANEL ════════════════════════════════════════════ -->
+  <div class="panel-left">
+
+    <!-- Sensor Toggles -->
+    <div>
+      <div class="panel-section-title">Sensor Modalities</div>
+      <div class="sensor-group">
+
+        <div class="sensor-toggle active" id="toggle-lidar" style="--sensor-color:#00f5ff" onclick="toggleSensor('lidar')" title="LIDAR — Light Detection and Ranging">
+          <div class="sensor-toggle-left">
+            <div class="sensor-dot"></div>
+            <div>
+              <div class="sensor-name">LIDAR</div>
+              <div class="sensor-count" id="lidar-count">4 units · 360°</div>
+            </div>
+          </div>
+          <div class="toggle-switch"></div>
+        </div>
+        <div class="sensor-detail" style="--sensor-color:#00f5ff">
+          Laser point clouds. Centimetre accuracy to 500 m. Works in darkness. Performance degrades in heavy rain.
+        </div>
+
+        <div class="sensor-toggle active" id="toggle-radar" style="--sensor-color:#ff6b35" onclick="toggleSensor('radar')" title="Radar — Radio Detection and Ranging">
+          <div class="sensor-toggle-left">
+            <div class="sensor-dot"></div>
+            <div>
+              <div class="sensor-name">RADAR</div>
+              <div class="sensor-count" id="radar-count">6 units · all-weather</div>
+            </div>
+          </div>
+          <div class="toggle-switch"></div>
+        </div>
+        <div class="sensor-detail" style="--sensor-color:#ff6b35">
+          Radio waves measure velocity and distance. Penetrates fog, rain, snow. Lower spatial resolution than LIDAR.
+        </div>
+
+        <div class="sensor-toggle active" id="toggle-camera" style="--sensor-color:#a8ff78" onclick="toggleSensor('camera')" title="Cameras">
+          <div class="sensor-toggle-left">
+            <div class="sensor-dot"></div>
+            <div>
+              <div class="sensor-name">CAMERAS</div>
+              <div class="sensor-count" id="camera-count">13 cams · 17 MP</div>
+            </div>
+          </div>
+          <div class="toggle-switch"></div>
+        </div>
+        <div class="sensor-detail" style="--sensor-color:#a8ff78">
+          Rich semantic data — signs, traffic lights, lane markings. Depth inferred via neural networks. Degrades in glare and low light.
+        </div>
+
+        <div class="sensor-toggle active" id="toggle-audio" style="--sensor-color:#ffd700" onclick="toggleSensor('audio')" title="External Audio Receivers">
+          <div class="sensor-toggle-left">
+            <div class="sensor-dot"></div>
+            <div>
+              <div class="sensor-name">EAR (AUDIO)</div>
+              <div class="sensor-count" id="audio-count">Multi-mic array</div>
+            </div>
+          </div>
+          <div class="toggle-switch"></div>
+        </div>
+        <div class="sensor-detail" style="--sensor-color:#ffd700">
+          External Audio Receivers. Detect sirens, train crossings, horns before they enter visual range. Waymo exclusive.
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Presets -->
+    <div>
+      <div class="panel-section-title">Vehicle Presets</div>
+      <div class="preset-group">
+        <button class="preset-btn active" id="preset-waymo" onclick="setPreset('waymo')">
+          <div class="preset-btn-name">Waymo Driver 6th Gen</div>
+          <div class="preset-btn-desc">Full sensor suite — the gold standard of AV perception</div>
+          <div class="preset-btn-sensors">
+            <span class="sensor-chip" style="background:#00f5ff;color:#000">LIDAR</span>
+            <span class="sensor-chip" style="background:#ff6b35">RADAR</span>
+            <span class="sensor-chip" style="background:#a8ff78;color:#000">CAMERA</span>
+            <span class="sensor-chip" style="background:#ffd700;color:#000">EAR</span>
+          </div>
+        </button>
+        <button class="preset-btn" id="preset-hybrid" onclick="setPreset('hybrid')">
+          <div class="preset-btn-name">Hybrid (Camera + Radar)</div>
+          <div class="preset-btn-desc">Mid-tier configuration. Removes LIDAR to reduce cost.</div>
+          <div class="preset-btn-sensors">
+            <span class="sensor-chip" style="background:#ff6b35">RADAR</span>
+            <span class="sensor-chip" style="background:#a8ff78;color:#000">CAMERA</span>
+          </div>
+        </button>
+        <button class="preset-btn" id="preset-tesla" onclick="setPreset('tesla')">
+          <div class="preset-btn-name">Tesla FSD (Vision Only)</div>
+          <div class="preset-btn-desc">8-camera vision-only system. Depth inferred by neural networks.</div>
+          <div class="preset-btn-sensors">
+            <span class="sensor-chip" style="background:#a8ff78;color:#000">CAMERA</span>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Scenario control -->
+    <div>
+      <div class="panel-section-title">Traffic Scenario</div>
+      <div class="preset-group">
+        <button class="preset-btn active" id="scene-urban" onclick="setScene('urban')">
+          <div class="preset-btn-name">Urban Intersection</div>
+          <div class="preset-btn-desc">Dense traffic, pedestrians, cyclists, complex lane changes</div>
+        </button>
+        <button class="preset-btn" id="scene-highway" onclick="setScene('highway')">
+          <div class="preset-btn-name">Highway Merging</div>
+          <div class="preset-btn-desc">High-speed vehicles, sparse pedestrians, lane merging</div>
+        </button>
+        <button class="preset-btn" id="scene-fog" onclick="setScene('fog')">
+          <div class="preset-btn-name">Adverse Weather (Fog)</div>
+          <div class="preset-btn-desc">Reduced visibility — demonstrates sensor redundancy value</div>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══ CANVAS ════════════════════════════════════════════════ -->
+  <div class="canvas-area" id="canvas-area">
+    <canvas id="grid-canvas"></canvas>
+    <div class="canvas-overlay">
+      <div class="alert-banner" id="alert-banner">⚠ REDUCED PERCEPTION — BLIND ZONES ACTIVE</div>
+      <div class="speed-badge">
+        <span class="speed-val" id="speed-val">24</span><span class="speed-unit">mph</span>
+        &nbsp;·&nbsp;
+        <span class="speed-unit">Perception</span>
+        <span class="confidence-val" id="confidence-display">98%</span>
+      </div>
+      <div class="sim-controls">
+        <button class="sim-btn active" id="play-btn" onclick="toggleSim()">⏸ Pause</button>
+        <button class="sim-btn" onclick="randomizeTraffic()">↺ Randomize</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ RIGHT PANEL ═══════════════════════════════════════════ -->
+  <div class="panel-right">
+
+    <!-- System confidence -->
+    <div>
+      <div class="panel-section-title">Perception Quality</div>
+      <div class="stat-card">
+        <div class="stat-label">Overall Confidence</div>
+        <div class="stat-value" id="confidence-val" style="color:var(--color-success)">98%</div>
+        <div class="stat-sub" id="confidence-sub">All sensors active</div>
+        <div class="conf-bar-wrap">
+          <div class="conf-bar" id="conf-bar" style="width:98%;background:var(--color-success)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats grid -->
+    <div>
+      <div class="panel-section-title">Sensor Stats</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Detection Range</div>
+          <div class="stat-value" id="stat-range">500m</div>
+          <div class="stat-sub">max effective</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Objects Tracked</div>
+          <div class="stat-value" id="stat-objects">12</div>
+          <div class="stat-sub">in sensor envelope</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Blind Coverage</div>
+          <div class="stat-value" id="stat-blind" style="color:var(--color-success)">0%</div>
+          <div class="stat-sub">of surroundings</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Update Rate</div>
+          <div class="stat-value" id="stat-hz">20 Hz</div>
+          <div class="stat-sub">grid refresh</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detected objects list -->
+    <div>
+      <div class="panel-section-title">Detected Objects</div>
+      <div class="object-list" id="object-list"></div>
+    </div>
+
+    <!-- Legend -->
+    <div>
+      <div class="panel-section-title">Grid Legend</div>
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:rgba(255,100,50,0.85)"></div>
+          <span>Occupied cell — obstacle present</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:rgba(30,200,120,0.2)"></div>
+          <span>Free cell — driveable space</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:rgba(100,130,160,0.3)"></div>
+          <span>Unknown / occluded</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:rgba(0,245,255,0.7)"></div>
+          <span>LIDAR point cloud overlay</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:rgba(255,107,53,0.5)"></div>
+          <span>RADAR detection ring</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:rgba(168,255,120,0.6)"></div>
+          <span>Camera field of view</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:rgba(0,245,255,0.9);border-radius:999px"></div>
+          <span>Planned path (spline)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:#fff"></div>
+          <span>Ego vehicle (our car)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- How it works -->
+    <div>
+      <div class="panel-section-title">How Occupancy Grids Work</div>
+      <p style="font-size:var(--text-xs);color:var(--color-text-muted);line-height:1.7;">
+        The environment is divided into a 2D matrix of cells. Each cell stores a <strong style="color:var(--color-text)">probability of occupancy</strong> (0 = free, 1 = occupied). Sensor readings from LIDAR, radar, and cameras are fused via <strong style="color:var(--color-text)">Bayesian updating</strong> — each measurement either reinforces or weakens the probability of a cell being occupied. The combined map drives the path planner, which finds a collision-free trajectory through free cells.
+      </p>
+      <br>
+      <p style="font-size:var(--text-xs);color:var(--color-text-muted);line-height:1.7;">
+        Disable sensors using the toggles to see how degraded perception creates <strong style="color:var(--color-accent)">blind zones</strong>, reduces confidence, and forces the vehicle to drive more conservatively.
+      </p>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// SENSOR STATE
+// ═══════════════════════════════════════════════════════════════════
+
+const sensors = {
+  lidar:  { on: true, color: '#00f5ff', range: 500, reliability: 0.38 },
+  radar:  { on: true, color: '#ff6b35', range: 200, reliability: 0.28 },
+  camera: { on: true, color: '#a8ff78', range: 250, reliability: 0.27 },
+  audio:  { on: true, color: '#ffd700', range: 150, reliability: 0.07 },
+};
+
+const PRESETS = {
+  waymo:  { lidar: true,  radar: true,  camera: true,  audio: true  },
+  hybrid: { lidar: false, radar: true,  camera: true,  audio: false },
+  tesla:  { lidar: false, radar: false, camera: true,  audio: false },
+};
+
+const SCENES = {
+  urban:   { objects: 14, speed: 24, fog: 0.0 },
+  highway: { objects: 8,  speed: 68, fog: 0.0 },
+  fog:     { objects: 10, speed: 18, fog: 0.6 },
+};
+
+let currentPreset = 'waymo';
+let currentScene  = 'urban';
+let simRunning    = true;
+let animFrameId   = null;
+let tick          = 0;
+
+// ═══════════════════════════════════════════════════════════════════
+// CANVAS SETUP
+// ═══════════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('grid-canvas');
+const ctx = canvas.getContext('2d');
+const area = document.getElementById('canvas-area');
+
+function resizeCanvas() {
+  canvas.width  = area.clientWidth;
+  canvas.height = area.clientHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', () => { resizeCanvas(); });
+
+// ═══════════════════════════════════════════════════════════════════
+// TRAFFIC OBJECTS
+// ═══════════════════════════════════════════════════════════════════
+
+const OBJECT_TYPES = [
+  { type: 'car',        color: '#e8e8e8', w: 28, h: 16, label: 'Vehicle'     },
+  { type: 'truck',      color: '#c5a060', w: 44, h: 18, label: 'Truck'       },
+  { type: 'pedestrian', color: '#ff9ccc', w: 8,  h: 8,  label: 'Pedestrian'  },
+  { type: 'cyclist',    color: '#80d8ff', w: 10, h: 16, label: 'Cyclist'     },
+  { type: 'bus',        color: '#ffcc80', w: 60, h: 20, label: 'Bus'         },
+  { type: 'motorcycle', color: '#b39ddb', w: 14, h: 8,  label: 'Motorcycle'  },
+];
+
+let trafficObjects = [];
+
+function makeObject(cx, cy) {
+  const t = OBJECT_TYPES[Math.floor(Math.random() * OBJECT_TYPES.length)];
+  const angle = Math.random() * Math.PI * 2;
+  const speed = (t.type === 'pedestrian') ? 0.3 : (t.type === 'cyclist') ? 0.7 : 1.2;
+  return {
+    ...t,
+    x: cx ?? (Math.random() * canvas.width),
+    y: cy ?? (Math.random() * canvas.height),
+    vx: Math.cos(angle) * speed * (Math.random() * 0.5 + 0.5),
+    vy: Math.sin(angle) * speed * (Math.random() * 0.5 + 0.5),
+    id: Math.random().toString(36).slice(2, 6).toUpperCase(),
+    detectedBy: [],
+  };
+}
+
+function randomizeTraffic() {
+  const n = SCENES[currentScene].objects;
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  trafficObjects = Array.from({ length: n }, (_, i) => {
+    // Spawn a mix: 60% within sensor range (near), 40% farther out
+    const nearFar = i < Math.ceil(n * 0.6);
+    const ring = nearFar
+      ? (60 + Math.random() * 160)   // 60-220px from center
+      : (220 + Math.random() * 180);  // 220-400px from center
+    const angle = (i / n) * Math.PI * 2 + Math.random() * 0.8;
+    return makeObject(
+      cx + Math.cos(angle) * ring,
+      cy + Math.sin(angle) * ring
+    );
+  });
+}
+
+randomizeTraffic();
+
+// ═══════════════════════════════════════════════════════════════════
+// EGO VEHICLE (our car — center)
+// ═══════════════════════════════════════════════════════════════════
+
+function egoPos() {
+  return { x: canvas.width / 2, y: canvas.height / 2 };
+}
+const EGO_W = 34, EGO_H = 18;
+
+// ═══════════════════════════════════════════════════════════════════
+// OCCUPANCY GRID
+// ═══════════════════════════════════════════════════════════════════
+
+const CELL = 14; // pixels per cell
+
+function drawGrid() {
+  const W = canvas.width, H = canvas.height;
+  const cols = Math.ceil(W / CELL), rows = Math.ceil(H / CELL);
+  const ego = egoPos();
+  const fog = SCENES[currentScene].fog;
+
+  // Build occupancy probabilities
+  const grid = new Float32Array(cols * rows).fill(0.04); // prior: mostly free
+
+  // Mark occupied near each traffic object
+  for (const obj of trafficObjects) {
+    const hw = (obj.w / 2 + 4), hh = (obj.h / 2 + 4);
+    const c0 = Math.max(0, Math.floor((obj.x - hw) / CELL));
+    const c1 = Math.min(cols - 1, Math.ceil((obj.x + hw) / CELL));
+    const r0 = Math.max(0, Math.floor((obj.y - hh) / CELL));
+    const r1 = Math.min(rows - 1, Math.ceil((obj.y + hh) / CELL));
+    for (let r = r0; r <= r1; r++) {
+      for (let c = c0; c <= c1; c++) {
+        const dist = Math.hypot(obj.x - ego.x, obj.y - ego.y);
+        // Lower confidence if sensor can't detect it
+        let occupancyConf = computeDetectionConf(obj, dist, fog);
+        grid[r * cols + c] = Math.min(0.98, grid[r * cols + c] + occupancyConf * 0.9);
+      }
+    }
+  }
+
+  // ── Draw grid cells ──────────────────────────────────────────────
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const p = grid[r * cols + c];
+      const cx = c * CELL, cy = r * CELL;
+
+      // Unknown zone (beyond effective range of active sensors) — show as dim gray
+      const distFromEgo = Math.hypot(cx + CELL/2 - ego.x, cy + CELL/2 - ego.y);
+      const maxRange = getEffectiveRange();
+      if (distFromEgo > maxRange * 1.1) {
+        ctx.fillStyle = 'rgba(100,130,160,0.12)';
+        ctx.fillRect(cx, cy, CELL, CELL);
+        continue;
+      }
+
+      if (p > 0.5) {
+        const alpha = Math.min(0.9, 0.3 + p * 0.6);
+        ctx.fillStyle = `rgba(255,100,50,${alpha})`;
+      } else if (p < 0.15) {
+        const alpha = Math.min(0.3, p * 2 + 0.05);
+        ctx.fillStyle = `rgba(30,200,120,${alpha})`;
+      } else {
+        ctx.fillStyle = `rgba(80,110,140,0.1)`;
+      }
+      ctx.fillRect(cx, cy, CELL, CELL);
+    }
+  }
+
+  // ── Grid lines (subtle) ──────────────────────────────────────────
+  ctx.strokeStyle = 'rgba(30,60,90,0.25)';
+  ctx.lineWidth = 0.5;
+  for (let c = 0; c <= cols; c++) { ctx.beginPath(); ctx.moveTo(c * CELL, 0); ctx.lineTo(c * CELL, H); ctx.stroke(); }
+  for (let r = 0; r <= rows; r++) { ctx.beginPath(); ctx.moveTo(0, r * CELL); ctx.lineTo(W, r * CELL); ctx.stroke(); }
+}
+
+function getEffectiveRange() {
+  let r = 0;
+  if (sensors.lidar.on)  r = Math.max(r, sensors.lidar.range * 0.35);
+  if (sensors.radar.on)  r = Math.max(r, sensors.radar.range * 0.35);
+  if (sensors.camera.on) r = Math.max(r, sensors.camera.range * 0.35);
+  if (r === 0) r = 40; // nothing on — tiny bubble
+  return r;
+}
+
+function computeDetectionConf(obj, dist, fog) {
+  let conf = 0;
+  const scale = 0.35; // px per meter scale
+  if (sensors.lidar.on) {
+    const lidarRange = sensors.lidar.range * scale;
+    if (dist < lidarRange) conf += (1 - dist / lidarRange) * (1 - fog * 0.3);
+  }
+  if (sensors.radar.on) {
+    const radarRange = sensors.radar.range * scale;
+    if (dist < radarRange) conf += (1 - dist / radarRange) * (1 - fog * 0.05); // radar barely affected by fog
+  }
+  if (sensors.camera.on) {
+    const camRange = sensors.camera.range * scale;
+    if (dist < camRange) conf += (1 - dist / camRange) * (1 - fog * 0.7); // camera badly affected by fog
+  }
+  return Math.min(1, conf);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SENSOR OVERLAYS
+// ═══════════════════════════════════════════════════════════════════
+
+function drawSensorRings() {
+  const ego = egoPos();
+  const scale = 0.35;
+  const fog = SCENES[currentScene].fog;
+
+  // LIDAR — soft radial glow
+  if (sensors.lidar.on) {
+    const r = sensors.lidar.range * scale;
+    const grad = ctx.createRadialGradient(ego.x, ego.y, 0, ego.x, ego.y, r);
+    grad.addColorStop(0, 'rgba(0,245,255,0.04)');
+    grad.addColorStop(0.7, 'rgba(0,245,255,0.02)');
+    grad.addColorStop(1, 'rgba(0,245,255,0.0)');
+    ctx.beginPath();
+    ctx.arc(ego.x, ego.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Range ring
+    ctx.beginPath();
+    ctx.arc(ego.x, ego.y, r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(0,245,255,${0.25 - fog * 0.15})`;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // RADAR — animated scan arcs
+  if (sensors.radar.on) {
+    const r = sensors.radar.range * scale;
+    const sweepAngle = ((tick * 0.018) % (Math.PI * 2));
+    const sweepWidth = Math.PI * 0.35;
+    const sweepGrad = ctx.createConicalGradient ? null : null; // fallback
+    ctx.save();
+    ctx.translate(ego.x, ego.y);
+    for (let i = 0; i < 3; i++) {
+      const a = sweepAngle + i * (Math.PI * 2 / 3);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, r, a, a + sweepWidth);
+      ctx.closePath();
+      ctx.fillStyle = `rgba(255,107,53,0.07)`;
+      ctx.fill();
+    }
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.arc(ego.x, ego.y, r * 0.5, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,107,53,0.15)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 8]);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(ego.x, ego.y, r, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,107,53,0.2)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // CAMERA — FOV cones (forward + side)
+  if (sensors.camera.on) {
+    const r = sensors.camera.range * scale;
+    const fovHalf = Math.PI / 3; // 60° half-angle per camera
+    const directions = [
+      -Math.PI/2,       // forward (canvas y-up convention)
+      Math.PI/2,        // rear
+      0,                // right
+      Math.PI,          // left
+      -Math.PI/2 + 0.5, // front-right
+      -Math.PI/2 - 0.5, // front-left
+    ];
+    ctx.save();
+    ctx.translate(ego.x, ego.y);
+    for (const dir of directions) {
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, r * 0.7, dir - fovHalf * 0.55, dir + fovHalf * 0.55);
+      ctx.closePath();
+      ctx.fillStyle = `rgba(168,255,120,${0.05 * (1 - fog * 0.8)})`;
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // AUDIO — circular pulse
+  if (sensors.audio.on) {
+    const r = sensors.audio.range * scale;
+    const pulse = Math.sin(tick * 0.04) * 0.5 + 0.5;
+    ctx.beginPath();
+    ctx.arc(ego.x, ego.y, r * (0.85 + pulse * 0.15), 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,215,0,${0.15 + pulse * 0.1})`;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 10]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LIDAR POINT CLOUD OVERLAY
+// ═══════════════════════════════════════════════════════════════════
+
+function drawLidarPoints() {
+  if (!sensors.lidar.on) return;
+  const ego = egoPos();
+  const fog = SCENES[currentScene].fog;
+  const scale = 0.35;
+
+  for (const obj of trafficObjects) {
+    const dist = Math.hypot(obj.x - ego.x, obj.y - ego.y);
+    if (dist > sensors.lidar.range * scale) continue;
+    if (Math.random() < fog * 0.5) continue; // fog drops some points
+
+    // Scatter points around object perimeter
+    const numPts = obj.type === 'pedestrian' ? 4 : (obj.type === 'truck' ? 14 : 8);
+    for (let i = 0; i < numPts; i++) {
+      const angle = (i / numPts) * Math.PI * 2 + tick * 0.01;
+      const px = obj.x + Math.cos(angle) * (obj.w / 2 + Math.random() * 2);
+      const py = obj.y + Math.sin(angle) * (obj.h / 2 + Math.random() * 2);
+      const alpha = 0.6 + Math.random() * 0.3;
+      ctx.beginPath();
+      ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0,245,255,${alpha})`;
+      ctx.fill();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TRAFFIC OBJECTS DRAW
+// ═══════════════════════════════════════════════════════════════════
+
+function drawObjects() {
+  const ego = egoPos();
+  const fog = SCENES[currentScene].fog;
+  const scale = 0.35;
+
+  const detectedList = [];
+
+  for (const obj of trafficObjects) {
+    const dist = Math.hypot(obj.x - ego.x, obj.y - ego.y);
+    const detConf = computeDetectionConf(obj, dist, fog);
+    obj.detectedBy = [];
+    if (sensors.lidar.on  && dist < sensors.lidar.range  * scale) obj.detectedBy.push('L');
+    if (sensors.radar.on  && dist < sensors.radar.range  * scale) obj.detectedBy.push('R');
+    if (sensors.camera.on && dist < sensors.camera.range * scale) obj.detectedBy.push('C');
+
+    const detected = detConf > 0.15;
+    const alpha = detected ? Math.min(1, 0.5 + detConf * 0.5) : 0.08;
+
+    // Bounding box (detected) or ghost (low confidence)
+    if (detected) {
+      ctx.strokeStyle = detected ? obj.color : 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(obj.x - obj.w / 2, obj.y - obj.h / 2, obj.w, obj.h);
+
+      // Fill
+      ctx.fillStyle = obj.color + Math.round(alpha * 255).toString(16).padStart(2, '0');
+      ctx.fillRect(obj.x - obj.w / 2, obj.y - obj.h / 2, obj.w, obj.h);
+
+      // Label
+      ctx.fillStyle = `rgba(200,220,240,${Math.min(1, detConf + 0.2)})`;
+      ctx.font = `500 9px 'JetBrains Mono', monospace`;
+      ctx.fillText(`${obj.label} [${obj.id}]`, obj.x - obj.w / 2, obj.y - obj.h / 2 - 4);
+
+      // Velocity vector
+      if (obj.type !== 'pedestrian') {
+        ctx.beginPath();
+        ctx.moveTo(obj.x, obj.y);
+        ctx.lineTo(obj.x + obj.vx * 10, obj.y + obj.vy * 10);
+        ctx.strokeStyle = 'rgba(255,220,100,0.7)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      detectedList.push({ ...obj, conf: Math.round(detConf * 100) });
+    } else {
+      // Ghost / undetected
+      ctx.fillStyle = 'rgba(255,80,50,0.12)';
+      ctx.fillRect(obj.x - obj.w / 2, obj.y - obj.h / 2, obj.w, obj.h);
+      // "blind zone" hatching
+      ctx.strokeStyle = 'rgba(255,60,60,0.15)';
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([2, 4]);
+      ctx.strokeRect(obj.x - obj.w / 2, obj.y - obj.h / 2, obj.w, obj.h);
+      ctx.setLineDash([]);
+    }
+  }
+
+  return detectedList;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PATH PLANNING SPLINE
+// ═══════════════════════════════════════════════════════════════════
+
+function drawPath() {
+  const ego = egoPos();
+  const conf = computeConfidence();
+
+  // Generate a smooth ahead-path that avoids detected objects
+  const pathPoints = [];
+  const steps = 10;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    // Slight S-curve to simulate dynamic replanning
+    const sway = Math.sin(tick * 0.015 + t * Math.PI) * 18 * (1 - conf / 100);
+    const laneY = currentScene === 'highway' ? canvas.height * 0.15 : canvas.height * 0.25;
+    pathPoints.push({
+      x: ego.x + sway,
+      y: ego.y - laneY * t,
+    });
+  }
+
+  // Draw the spline
+  ctx.beginPath();
+  ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
+  for (let i = 1; i < pathPoints.length - 1; i++) {
+    const mx = (pathPoints[i].x + pathPoints[i + 1].x) / 2;
+    const my = (pathPoints[i].y + pathPoints[i + 1].y) / 2;
+    ctx.quadraticCurveTo(pathPoints[i].x, pathPoints[i].y, mx, my);
+  }
+  ctx.strokeStyle = `rgba(0,245,255,${0.5 + Math.sin(tick * 0.05) * 0.15})`;
+  ctx.lineWidth = 2.5;
+  ctx.setLineDash([6, 5]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Path uncertainty envelope (widens with lower confidence)
+  const uncertainty = (100 - conf) * 0.25;
+  if (uncertainty > 2) {
+    ctx.beginPath();
+    ctx.moveTo(pathPoints[0].x - uncertainty, pathPoints[0].y);
+    for (const p of pathPoints) ctx.lineTo(p.x - uncertainty, p.y);
+    for (let i = pathPoints.length - 1; i >= 0; i--) ctx.lineTo(pathPoints[i].x + uncertainty, pathPoints[i].y);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(0,245,255,0.04)`;
+    ctx.fill();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EGO VEHICLE
+// ═══════════════════════════════════════════════════════════════════
+
+function drawEgo() {
+  const ego = egoPos();
+  const w = EGO_W, h = EGO_H;
+
+  ctx.save();
+  ctx.translate(ego.x, ego.y);
+
+  // Glow
+  const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 30);
+  glow.addColorStop(0, 'rgba(255,255,255,0.1)');
+  glow.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.beginPath();
+  ctx.arc(0, 0, 30, 0, Math.PI * 2);
+  ctx.fillStyle = glow;
+  ctx.fill();
+
+  // Body
+  ctx.beginPath();
+  ctx.roundRect(-w/2, -h/2, w, h, 4);
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.fill();
+
+  // Windshield
+  ctx.fillStyle = 'rgba(0,200,255,0.5)';
+  ctx.fillRect(-w/2 + 4, -h/2 + 2, 10, h - 4);
+
+  // Center cross
+  ctx.strokeStyle = 'rgba(0,245,255,0.6)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-4, 0); ctx.lineTo(4, 0);
+  ctx.moveTo(0, -4); ctx.lineTo(0, 4);
+  ctx.stroke();
+
+  ctx.restore();
+
+  // EGO label
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.font = `700 8px 'JetBrains Mono', monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillText('EGO', ego.x, ego.y + h / 2 + 10);
+  ctx.textAlign = 'left';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FOG OVERLAY
+// ═══════════════════════════════════════════════════════════════════
+
+function drawFog() {
+  const fog = SCENES[currentScene].fog;
+  if (fog <= 0) return;
+  ctx.fillStyle = `rgba(180,200,220,${fog * 0.45})`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Vignette effect
+  const grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0, canvas.width/2, canvas.height/2, canvas.width * 0.55);
+  grad.addColorStop(0, `rgba(180,200,220,0)`);
+  grad.addColorStop(1, `rgba(180,200,220,${fog * 0.5})`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONFIDENCE COMPUTATION
+// ═══════════════════════════════════════════════════════════════════
+
+function computeConfidence() {
+  let score = 0;
+  if (sensors.lidar.on)  score += sensors.lidar.reliability;
+  if (sensors.radar.on)  score += sensors.radar.reliability;
+  if (sensors.camera.on) score += sensors.camera.reliability;
+  if (sensors.audio.on)  score += sensors.audio.reliability;
+  const fog = SCENES[currentScene].fog;
+  score *= (1 - fog * 0.35);
+  return Math.round(Math.min(100, score * 100));
+}
+
+function getBlindCoverage() {
+  if (sensors.lidar.on && sensors.radar.on && sensors.camera.on) return 0;
+  if (!sensors.lidar.on && !sensors.radar.on && !sensors.camera.on) return 95;
+  if (!sensors.lidar.on && !sensors.radar.on) return 40;
+  if (!sensors.lidar.on) return 15;
+  if (!sensors.radar.on) return 8;
+  return 5;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// UPDATE UI PANELS
+// ═══════════════════════════════════════════════════════════════════
+
+function updateStats(detectedList) {
+  const conf = computeConfidence();
+  const blind = getBlindCoverage();
+
+  // Confidence bar
+  document.getElementById('confidence-val').textContent = conf + '%';
+  document.getElementById('confidence-display').textContent = conf + '%';
+  document.getElementById('confidence-sub').textContent =
+    conf >= 90 ? 'All sensors active — high confidence' :
+    conf >= 70 ? 'Partial sensor coverage — moderate confidence' :
+    conf >= 50 ? 'Degraded sensing — caution advised' :
+                 'Critical sensor loss — minimal perception';
+
+  const bar = document.getElementById('conf-bar');
+  bar.style.width = conf + '%';
+  bar.style.background = conf >= 80 ? 'var(--color-success)' : conf >= 60 ? 'var(--color-warning)' : 'var(--color-accent)';
+  document.getElementById('confidence-val').style.color =
+    conf >= 80 ? 'var(--color-success)' : conf >= 60 ? 'var(--color-warning)' : 'var(--color-accent)';
+
+  // Stat cards
+  let maxRange = 0;
+  if (sensors.lidar.on)  maxRange = Math.max(maxRange, sensors.lidar.range);
+  if (sensors.radar.on)  maxRange = Math.max(maxRange, sensors.radar.range);
+  if (sensors.camera.on) maxRange = Math.max(maxRange, sensors.camera.range);
+  document.getElementById('stat-range').textContent = maxRange > 0 ? maxRange + 'm' : '—';
+  document.getElementById('stat-objects').textContent = detectedList.length;
+  document.getElementById('stat-blind').textContent = blind + '%';
+  document.getElementById('stat-blind').style.color = blind === 0 ? 'var(--color-success)' : blind < 20 ? 'var(--color-warning)' : 'var(--color-accent)';
+
+  const hz = sensors.lidar.on ? '20 Hz' : sensors.camera.on ? '15 Hz' : '10 Hz';
+  document.getElementById('stat-hz').textContent = hz;
+
+  // Speed (simulate conservative driving when blind)
+  const baseSpeed = SCENES[currentScene].speed;
+  const effectiveSpeed = Math.round(baseSpeed * (0.4 + conf / 165));
+  document.getElementById('speed-val').textContent = effectiveSpeed;
+
+  // Alert
+  const alertBanner = document.getElementById('alert-banner');
+  if (blind > 15 || conf < 60) alertBanner.classList.add('visible');
+  else alertBanner.classList.remove('visible');
+
+  // Object list
+  const list = document.getElementById('object-list');
+  list.innerHTML = detectedList.slice(0, 8).map(obj => {
+    const confColor = obj.conf >= 70 ? '#28d87a' : obj.conf >= 40 ? '#ffd700' : '#ff6b35';
+    const sensors_str = obj.detectedBy.join('+') || '—';
+    return `<div class="object-item">
+      <span class="object-item-name">${obj.label} ${obj.id}</span>
+      <span class="object-item-badge" style="background:${confColor}22;color:${confColor}">${obj.conf}%</span>
+    </div>`;
+  }).join('');
+  if (detectedList.length > 8) {
+    list.innerHTML += `<div style="font-size:var(--text-xs);color:var(--color-text-faint);padding:var(--space-1) var(--space-2)">+${detectedList.length - 8} more…</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ANIMATION LOOP
+// ═══════════════════════════════════════════════════════════════════
+
+function updatePhysics() {
+  for (const obj of trafficObjects) {
+    obj.x += obj.vx;
+    obj.y += obj.vy;
+    if (obj.x < -60) obj.x = canvas.width + 60;
+    if (obj.x > canvas.width + 60) obj.x = -60;
+    if (obj.y < -60) obj.y = canvas.height + 60;
+    if (obj.y > canvas.height + 60) obj.y = -60;
+  }
+}
+
+function frame() {
+  if (!simRunning) { animFrameId = requestAnimationFrame(frame); return; }
+  tick++;
+
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = '#04080f';
+  ctx.fillRect(0, 0, W, H);
+
+  drawGrid();
+  drawSensorRings();
+  drawPath();
+  drawLidarPoints();
+  const detectedList = drawObjects();
+  drawEgo();
+  drawFog();
+  updateStats(detectedList);
+  updatePhysics();
+
+  animFrameId = requestAnimationFrame(frame);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONTROLS
+// ═══════════════════════════════════════════════════════════════════
+
+function toggleSensor(name) {
+  sensors[name].on = !sensors[name].on;
+  const el = document.getElementById(`toggle-${name}`);
+  if (sensors[name].on) el.classList.add('active');
+  else el.classList.remove('active');
+  // Update sensor count labels
+  updateSensorLabels();
+  updatePresetHighlight();
+}
+
+function updateSensorLabels() {
+  document.getElementById('lidar-count').textContent  = sensors.lidar.on  ? '4 units · 360°'       : 'DISABLED';
+  document.getElementById('radar-count').textContent  = sensors.radar.on  ? '6 units · all-weather' : 'DISABLED';
+  document.getElementById('camera-count').textContent = sensors.camera.on ? '13 cams · 17 MP'       : 'DISABLED';
+  document.getElementById('audio-count').textContent  = sensors.audio.on  ? 'Multi-mic array'       : 'DISABLED';
+  ['lidar','radar','camera','audio'].forEach(s => {
+    document.getElementById(`toggle-${s}`).querySelector('.sensor-count').style.color =
+      sensors[s].on ? 'var(--color-text-muted)' : 'var(--color-accent)';
+  });
+}
+
+function setPreset(name) {
+  currentPreset = name;
+  const p = PRESETS[name];
+  for (const [key, val] of Object.entries(p)) {
+    sensors[key].on = val;
+    const el = document.getElementById(`toggle-${key}`);
+    if (val) el.classList.add('active');
+    else el.classList.remove('active');
+  }
+  updateSensorLabels();
+  updatePresetHighlight();
+  updateModeButtons(name);
+}
+
+function updatePresetHighlight() {
+  ['waymo','hybrid','tesla'].forEach(p => {
+    document.getElementById(`preset-${p}`).classList.remove('active');
+  });
+  // Check if matches any preset
+  for (const [name, p] of Object.entries(PRESETS)) {
+    const matches = Object.entries(p).every(([k, v]) => sensors[k].on === v);
+    if (matches) {
+      document.getElementById(`preset-${name}`)?.classList.add('active');
+      updateModeButtons(name);
+      return;
+    }
+  }
+}
+
+function updateModeButtons(name) {
+  ['waymo','hybrid','tesla'].forEach(b => {
+    document.getElementById(`mode-${b}`)?.classList.remove('active');
+  });
+  document.getElementById(`mode-${name}`)?.classList.add('active');
+}
+
+function setScene(name) {
+  currentScene = name;
+  ['urban','highway','fog'].forEach(s => {
+    document.getElementById(`scene-${s}`).classList.remove('active');
+  });
+  document.getElementById(`scene-${name}`).classList.add('active');
+  randomizeTraffic();
+}
+
+function toggleSim() {
+  simRunning = !simRunning;
+  const btn = document.getElementById('play-btn');
+  btn.textContent = simRunning ? '⏸ Pause' : '▶ Play';
+  btn.classList.toggle('active', simRunning);
+}
+
+// Dark mode toggle
+(function() {
+  const t = document.querySelector('[data-theme-toggle]');
+  const r = document.documentElement;
+  t && t.addEventListener('click', () => {
+    const d = r.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    r.setAttribute('data-theme', d);
+    t.innerHTML = d === 'dark'
+      ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+      : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+  });
+})();
+
+// CanvasRenderingContext2D.prototype.roundRect polyfill
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    this.beginPath();
+    this.moveTo(x + r, y);
+    this.arcTo(x + w, y,     x + w, y + h, r);
+    this.arcTo(x + w, y + h, x,     y + h, r);
+    this.arcTo(x,     y + h, x,     y,     r);
+    this.arcTo(x,     y,     x + w, y,     r);
+    this.closePath();
+  };
+}
+
+// Start
+frame();
+</script>
+<script data-pplx-inline-edit>
+(function(){
+  if(window===window.top)return;
+  function inlineAll(orig,clone){
+    if(orig.nodeType!==1)return;
+    try{
+      var cs=getComputedStyle(orig);
+      var t='';
+      for(var i=0;i<cs.length;i++){t+=cs[i]+':'+cs.getPropertyValue(cs[i])+';';}
+      clone.style.cssText=t;
+    }catch(e){}
+    var oc=orig.children,cc=clone.children;
+    for(var j=0;j<oc.length&&j<cc.length;j++){inlineAll(oc[j],cc[j]);}
+  }
+  function stripExternal(clone){
+    var imgs=clone.querySelectorAll('img');
+    for(var i=0;i<imgs.length;i++){
+      var s=imgs[i].getAttribute('src');
+      if(s&&!s.startsWith('data:'))imgs[i].removeAttribute('src');
+    }
+    var all=clone.querySelectorAll('*');
+    for(var i=0;i<all.length;i++){
+      var st=all[i].style.cssText;
+      if(st&&st.indexOf('url(')>=0){
+        all[i].style.cssText=st.replace(/url\(["']?(?!data:)[^)"']*["']?\)/gi,'none');
+      }
+    }
+  }
+  window.addEventListener('message',function(e){
+    if(!e.data||e.data.type!=='INLINE_EDIT_CAPTURE_REQUEST')return;
+    var scrollX=window.scrollX||window.pageXOffset||0;
+    var scrollY=window.scrollY||window.pageYOffset||0;
+    var w=window.innerWidth,h=window.innerHeight;
+    try{
+      var clone=document.documentElement.cloneNode(true);
+      var rm=clone.querySelectorAll('script,link[rel="stylesheet"],style');
+      for(var i=0;i<rm.length;i++){rm[i].remove();}
+      inlineAll(document.documentElement,clone);
+      stripExternal(clone);
+      var html=new XMLSerializer().serializeToString(clone);
+      var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'">'
+        +'<foreignObject width="100%" height="100%">'
+        +'<div xmlns="http://www.w3.org/1999/xhtml" style="width:'+w+'px;height:'+h+'px;overflow:hidden">'
+        +'<div style="transform:translate(-'+scrollX+'px,-'+scrollY+'px);transform-origin:top left">'
+        +html+'</div></div></foreignObject></svg>';
+      var svgUrl='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+      var img=new Image();
+      img.onload=function(){
+        var c=document.createElement('canvas');c.width=w;c.height=h;
+        c.getContext('2d').drawImage(img,0,0);
+        window.parent.postMessage({type:'INLINE_EDIT_SCREENSHOT_RESULT',dataUrl:c.toDataURL('image/png'),scrollX:scrollX,scrollY:scrollY},'*');
+      };
+      img.onerror=function(){
+        window.parent.postMessage({type:'INLINE_EDIT_SCREENSHOT_RESULT',dataUrl:null,scrollX:scrollX,scrollY:scrollY},'*');
+      };
+      img.src=svgUrl;
+    }catch(err){
+      window.parent.postMessage({type:'INLINE_EDIT_SCREENSHOT_RESULT',dataUrl:null,scrollX:scrollX,scrollY:scrollY},'*');
+    }
+  });
+})();
+</script></body>
+</html>

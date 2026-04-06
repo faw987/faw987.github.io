@@ -463,16 +463,244 @@
       height: 420px;
     }
   }
+
+  /* Hamburger menu */
+  .hamburger-btn {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    z-index: 10;
+    background: none;
+    border: none;
+    padding: 6px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+  }
+
+  .hamburger-btn:hover {
+    background: rgba(15, 124, 103, 0.08);
+    transform: none;
+  }
+
+  .hamburger-btn span {
+    display: block;
+    width: 26px;
+    height: 3px;
+    background: var(--ink);
+    border-radius: 2px;
+    transition: background 0.15s ease;
+  }
+
+  .hamburger-menu {
+    display: none;
+    position: absolute;
+    top: 60px;
+    right: 24px;
+    z-index: 20;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    min-width: 220px;
+    padding: 8px 0;
+  }
+
+  .hamburger-menu.open {
+    display: block;
+  }
+
+  .hamburger-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 12px 18px;
+    font-size: 0.95rem;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+
+  .hamburger-menu button:hover {
+    background: rgba(15, 124, 103, 0.08);
+    transform: none;
+  }
+
+  /* PDF upload modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(31, 47, 43, 0.45);
+    backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.open {
+    display: flex;
+  }
+
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    box-shadow: var(--shadow);
+    width: min(640px, calc(100vw - 40px));
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
+    padding: 28px;
+    position: relative;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    line-height: 1;
+  }
+
+  .modal-close:hover {
+    background: rgba(192, 57, 43, 0.1);
+    color: var(--danger);
+    transform: none;
+  }
+
+  .modal h2 {
+    margin: 0 0 8px;
+    font-size: 1.3rem;
+  }
+
+  .modal p {
+    margin: 0 0 16px;
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  .drop-zone {
+    border: 2px dashed rgba(15, 124, 103, 0.35);
+    border-radius: 16px;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .drop-zone:hover,
+  .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(15, 124, 103, 0.04);
+  }
+
+  .drop-zone .drop-icon {
+    font-size: 2.2rem;
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  .file-list {
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.9rem;
+  }
+
+  .file-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    margin-bottom: 6px;
+    background: rgba(255, 255, 255, 0.6);
+  }
+
+  .file-list li .remove-file {
+    background: none;
+    border: none;
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+
+  .file-list li .remove-file:hover {
+    background: rgba(192, 57, 43, 0.1);
+    transform: none;
+  }
+
+  .pdf-progress {
+    margin: 16px 0 0;
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .pdf-progress.error {
+    color: var(--danger);
+  }
+
+  .pdf-progress.success {
+    color: var(--success);
+  }
 </style>
 </head>
 <body>
   <div class="page">
     <section class="hero">
-      <h1>Find Nearby Subway Entrances</h1>
+      <h1>Find Nearby Subway Entrances v0.2</h1>
       <p class="subtitle">
         Search NYC subway entrances by latitude/longitude or place name, inspect station details from the generated subway API, edit the returned coordinates, and plot them on a map with the search origin.
       </p>
+      <button class="hamburger-btn" id="hamburger-btn" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="hamburger-menu" id="hamburger-menu">
+        <button id="menu-import-pdf">Import Zillow PDF Emails</button>
+      </div>
     </section>
+
+    <div class="modal-overlay" id="pdf-modal">
+      <div class="modal">
+        <button class="modal-close" id="pdf-modal-close">&times;</button>
+        <h2>Import Zillow PDF Emails</h2>
+        <p>
+          Drag and drop one or more PDF files containing Zillow rental email alerts, or click below to select files.
+          Listings will be extracted with nearest subway station distances and exported as an Excel file.
+        </p>
+        <div class="drop-zone" id="pdf-drop-zone">
+          <span class="drop-icon">&#128196;</span>
+          Drop PDF files here<br>or click to select
+        </div>
+        <input type="file" id="pdf-file-input" accept=".pdf" multiple hidden>
+        <ul class="file-list" id="pdf-file-list"></ul>
+        <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
+          <button class="warm-btn" id="pdf-process-btn" disabled>Process PDFs</button>
+          <button class="secondary-btn" id="pdf-clear-btn">Clear Files</button>
+        </div>
+        <div class="pdf-progress" id="pdf-progress"></div>
+      </div>
+    </div>
 
     <section class="panel">
       <h2 class="section-title">Subway Data API</h2>
@@ -2201,6 +2429,476 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
         runSearch();
       }
     }());
+  </script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script>
+  (function() {
+    "use strict";
+
+    // ── PDF.js worker setup ──
+    if (typeof pdfjsLib !== "undefined") {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    }
+
+    // ── DOM refs ──
+    var hamburgerBtn = document.getElementById("hamburger-btn");
+    var hamburgerMenu = document.getElementById("hamburger-menu");
+    var menuImportPdf = document.getElementById("menu-import-pdf");
+    var pdfModal = document.getElementById("pdf-modal");
+    var pdfModalClose = document.getElementById("pdf-modal-close");
+    var pdfDropZone = document.getElementById("pdf-drop-zone");
+    var pdfFileInput = document.getElementById("pdf-file-input");
+    var pdfFileList = document.getElementById("pdf-file-list");
+    var pdfProcessBtn = document.getElementById("pdf-process-btn");
+    var pdfClearBtn = document.getElementById("pdf-clear-btn");
+    var pdfProgress = document.getElementById("pdf-progress");
+
+    var pendingFiles = [];
+
+    // ── Hamburger menu ──
+    hamburgerBtn.addEventListener("click", function(e) {
+      e.stopPropagation();
+      hamburgerMenu.classList.toggle("open");
+    });
+
+    document.addEventListener("click", function() {
+      hamburgerMenu.classList.remove("open");
+    });
+
+    hamburgerMenu.addEventListener("click", function(e) {
+      e.stopPropagation();
+    });
+
+    menuImportPdf.addEventListener("click", function() {
+      hamburgerMenu.classList.remove("open");
+      pdfModal.classList.add("open");
+    });
+
+    pdfModalClose.addEventListener("click", function() {
+      pdfModal.classList.remove("open");
+    });
+
+    pdfModal.addEventListener("click", function(e) {
+      if (e.target === pdfModal) pdfModal.classList.remove("open");
+    });
+
+    // ── File handling ──
+    pdfDropZone.addEventListener("click", function() {
+      pdfFileInput.click();
+    });
+
+    pdfDropZone.addEventListener("dragover", function(e) {
+      e.preventDefault();
+      pdfDropZone.classList.add("drag-over");
+    });
+
+    pdfDropZone.addEventListener("dragleave", function() {
+      pdfDropZone.classList.remove("drag-over");
+    });
+
+    pdfDropZone.addEventListener("drop", function(e) {
+      e.preventDefault();
+      pdfDropZone.classList.remove("drag-over");
+      addFiles(e.dataTransfer.files);
+    });
+
+    pdfFileInput.addEventListener("change", function() {
+      addFiles(pdfFileInput.files);
+      pdfFileInput.value = "";
+    });
+
+    function addFiles(fileListObj) {
+      for (var i = 0; i < fileListObj.length; i++) {
+        var file = fileListObj[i];
+        if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+          var isDuplicate = false;
+          for (var j = 0; j < pendingFiles.length; j++) {
+            if (pendingFiles[j].name === file.name && pendingFiles[j].size === file.size) {
+              isDuplicate = true;
+              break;
+            }
+          }
+          if (!isDuplicate) {
+            pendingFiles.push(file);
+          }
+        }
+      }
+      renderFileList();
+    }
+
+    function renderFileList() {
+      pdfFileList.innerHTML = "";
+      for (var i = 0; i < pendingFiles.length; i++) {
+        var li = document.createElement("li");
+        var nameSpan = document.createElement("span");
+        nameSpan.textContent = pendingFiles[i].name + " (" + (pendingFiles[i].size / 1024).toFixed(1) + " KB)";
+        li.appendChild(nameSpan);
+
+        var removeBtn = document.createElement("button");
+        removeBtn.className = "remove-file";
+        removeBtn.textContent = "Remove";
+        removeBtn.dataset.index = i;
+        removeBtn.addEventListener("click", function() {
+          pendingFiles.splice(parseInt(this.dataset.index, 10), 1);
+          renderFileList();
+        });
+        li.appendChild(removeBtn);
+        pdfFileList.appendChild(li);
+      }
+      pdfProcessBtn.disabled = pendingFiles.length === 0;
+    }
+
+    pdfClearBtn.addEventListener("click", function() {
+      pendingFiles = [];
+      renderFileList();
+      pdfProgress.textContent = "";
+      pdfProgress.className = "pdf-progress";
+    });
+
+    // ── PDF text extraction ──
+    async function extractTextFromPdf(file) {
+      var arrayBuffer = await file.arrayBuffer();
+      var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      var allText = "";
+
+      for (var p = 1; p <= pdf.numPages; p++) {
+        var page = await pdf.getPage(p);
+        var content = await page.getTextContent();
+        var pageText = content.items.map(function(item) { return item.str; }).join(" ");
+        allText += pageText + "\n";
+      }
+
+      return allText;
+    }
+
+    // ── Listing parser ──
+    function parseZillowListings(fullText) {
+      var listings = [];
+
+      // Split on email date headers — the "Subject:" line pattern
+      // Each email starts with a date/time header followed by Subject line
+      // Pattern: "Day, Month DD, YYYY at H:MM:SS AM/PM ... Subject: ..."
+      var emailBlocks = fullText.split(/(?=(?:Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday),\s+\w+\s+\d{1,2},\s+\d{4}\s+at\s+\d{1,2}:\d{2}:\d{2}\s+[AP]M)/i);
+
+      for (var i = 0; i < emailBlocks.length; i++) {
+        var block = emailBlocks[i].trim();
+        if (!block) continue;
+
+        // Extract the email send date (the second date, after "Date:")
+        var emailDate = "";
+        var dateMatch = block.match(/Date:\s*(?:(\w+day,\s+\w+\s+\d{1,2},\s+\d{4}\s+at\s+\d{1,2}:\d{2}:\d{2}\s+[AP]M\s+\w+(?:\s+\w+)?\s+Time))/i);
+        if (dateMatch) {
+          emailDate = dateMatch[1].trim();
+        } else {
+          // Try to get the first date in the block as fallback
+          var fallbackDate = block.match(/(\w+day,\s+\w+\s+\d{1,2},\s+\d{4}\s+at\s+\d{1,2}:\d{2}:\d{2}\s+[AP]M\s+\w+(?:\s+\w+)?\s+Time)/i);
+          if (fallbackDate) {
+            emailDate = fallbackDate[1].trim();
+          }
+        }
+
+        // Find rental listings in this block
+        // Pattern: $amount/mo followed by beds | baths | sqft (optional pets)
+        // then address
+        var rentalPattern = /\$([0-9,]+)\/mo\s+([\s\S]*?)(?=\$[0-9,]+\/mo|See all results|Zillow,\s*Inc\.|$)/gi;
+        var rentalMatch;
+
+        while ((rentalMatch = rentalPattern.exec(block)) !== null) {
+          var rent = rentalMatch[1].replace(/,/g, "");
+          var details = rentalMatch[2];
+
+          // Parse beds, baths, sqft
+          var bbrMatch = details.match(/(\d+)\s*bd\s*\|\s*(\d+)\s*ba\s*\|\s*([\d,]+|--)\s*sqft/i);
+          var bedrooms = bbrMatch ? parseInt(bbrMatch[1], 10) : null;
+          var baths = bbrMatch ? parseInt(bbrMatch[2], 10) : null;
+          var sqft = (bbrMatch && bbrMatch[3] !== "--") ? bbrMatch[3].replace(/,/g, "") : "";
+
+          // Check for pets
+          var petsAllowed = /\|\s*Pets/i.test(details);
+
+          // Extract address — it follows the sqft/pets line
+          // Address pattern: street address, City, State (optionally ZIP)
+          var addressMatch = details.match(/(?:sqft(?:\s*\|\s*Pets)?)\s+([\d]+[^$]*?(?:,\s*(?:New York|NY|Brooklyn|Queens|Bronx|Staten Island)[^$]*?))\s*(?:Open|Listing by|See all|$)/i);
+          var address = "";
+          if (addressMatch) {
+            address = addressMatch[1].trim()
+              .replace(/\s+/g, " ")
+              .replace(/\s*Listing by.*$/i, "")
+              .replace(/\s*Open:.*$/i, "")
+              .replace(/\s*See all.*$/i, "")
+              .trim();
+          }
+
+          // Open house dates
+          var openHouse = "";
+          var openMatch = details.match(/Open:\s*([\s\S]*?)(?:Listing by|See all|$)/i);
+          if (openMatch) {
+            openHouse = openMatch[1].trim()
+              .replace(/\s+/g, " ")
+              .replace(/\s*Listing by.*$/i, "")
+              .trim();
+          }
+
+          // Listing agent
+          var agentMatch = details.match(/Listing by:\s*([^\n$]+)/i);
+          var listingBy = agentMatch ? agentMatch[1].trim() : "";
+
+          if (address || rent) {
+            listings.push({
+              emailDate: emailDate,
+              rent: parseInt(rent, 10),
+              bedrooms: bedrooms,
+              baths: baths,
+              sqft: sqft,
+              petsAllowed: petsAllowed,
+              address: address,
+              openHouse: openHouse,
+              listingBy: listingBy,
+              nearestStation: "",
+              stationDistance: "",
+              stationRoutes: "",
+              notes: ""
+            });
+          }
+        }
+      }
+
+      return listings;
+    }
+
+    // ── Geocode + subway lookup ──
+    function stripApartment(address) {
+      var pattern = /,?\s*(?:(?:apartment|apt|suite|ste|floor|fl|room|rm|unit)\.?\s*#?\s*\S+|#\s*\S+)\s*(?=,|\s|$)/i;
+      var stripped = address.replace(pattern, " ").replace(/\s{2,}/g, " ").trim();
+      return stripped !== address.trim() ? stripped : null;
+    }
+
+    async function geocodeAddress(address) {
+      var params = new URLSearchParams({
+        format: "jsonv2",
+        limit: "1",
+        q: address
+      });
+
+      var response = await fetch("https://nominatim.openstreetmap.org/search?" + params.toString(), {
+        headers: { "Accept": "application/json" }
+      });
+
+      if (!response.ok) return null;
+
+      var results = await response.json();
+      if (!Array.isArray(results) || !results.length) return null;
+
+      var lat = parseFloat(results[0].lat);
+      var lon = parseFloat(results[0].lon);
+
+      if (!isFinite(lat) || !isFinite(lon)) return null;
+      return { lat: lat, lon: lon };
+    }
+
+    async function findNearestSubway(address) {
+      if (!address) return null;
+
+      var coords = await geocodeAddress(address);
+      var geocodedWithoutApt = false;
+
+      if (!coords) {
+        var stripped = stripApartment(address);
+        if (stripped) {
+          // Rate-limit: wait before retry since Nominatim asks for 1 req/sec
+          await new Promise(function(resolve) { setTimeout(resolve, 1100); });
+          coords = await geocodeAddress(stripped);
+          if (coords) geocodedWithoutApt = true;
+        }
+      }
+
+      if (!coords) return null;
+
+      if (typeof closeBy !== "function") return null;
+
+      var results = closeBy(coords.lat, coords.lon, 1, 3000);
+      if (!results || !results.length) return null;
+
+      var nearest = results[0];
+      var distMeters = Math.round(nearest.distMeters);
+      var distFeet = Math.round(nearest.distMeters * 3.28084);
+      var distMiles = (nearest.distMeters / 1609.344).toFixed(3);
+
+      var routes = "";
+      if (typeof getStationInfo === "function") {
+        var infoStr = getStationInfo(nearest.stationId);
+        if (infoStr) {
+          var fields = String(infoStr).split(";");
+          routes = fields[6] || "";
+        }
+      }
+
+      return {
+        name: nearest.name,
+        distMeters: distMeters,
+        distFeet: distFeet,
+        distMiles: distMiles,
+        routes: routes,
+        stationId: nearest.stationId,
+        geocodedWithoutApt: geocodedWithoutApt,
+        lat: coords.lat,
+        lon: coords.lon
+      };
+    }
+
+    // ── Process and export ──
+    pdfProcessBtn.addEventListener("click", async function() {
+      if (!pendingFiles.length) return;
+
+      if (typeof pdfjsLib === "undefined") {
+        pdfProgress.textContent = "PDF.js library failed to load. Check your internet connection.";
+        pdfProgress.className = "pdf-progress error";
+        return;
+      }
+
+      if (typeof XLSX === "undefined") {
+        pdfProgress.textContent = "SheetJS library failed to load. Check your internet connection.";
+        pdfProgress.className = "pdf-progress error";
+        return;
+      }
+
+      pdfProcessBtn.disabled = true;
+      pdfProgress.className = "pdf-progress";
+      pdfProgress.textContent = "Extracting text from PDFs...";
+
+      try {
+        var allListings = [];
+
+        for (var f = 0; f < pendingFiles.length; f++) {
+          pdfProgress.textContent = "Reading PDF " + (f + 1) + " of " + pendingFiles.length + ": " + pendingFiles[f].name + "...";
+          var text = await extractTextFromPdf(pendingFiles[f]);
+          var listings = parseZillowListings(text);
+          for (var k = 0; k < listings.length; k++) {
+            listings[k].sourceFile = pendingFiles[f].name;
+          }
+          allListings = allListings.concat(listings);
+        }
+
+        if (!allListings.length) {
+          pdfProgress.textContent = "No rental listings found in the uploaded PDFs.";
+          pdfProgress.className = "pdf-progress error";
+          pdfProcessBtn.disabled = false;
+          return;
+        }
+
+        pdfProgress.textContent = "Found " + allListings.length + " listing(s). Looking up nearest subway stations...";
+
+        for (var s = 0; s < allListings.length; s++) {
+          var listing = allListings[s];
+          pdfProgress.textContent = "Geocoding listing " + (s + 1) + " of " + allListings.length + ": " + (listing.address || "(no address)") + "...";
+
+          if (listing.address) {
+            try {
+              var subway = await findNearestSubway(listing.address);
+              if (subway) {
+                listing.nearestStation = subway.name;
+                listing.stationDistance = subway.distFeet + " ft (" + subway.distMiles + " mi)";
+                listing.stationRoutes = subway.routes;
+                listing.geocodedLatLon = subway.lat.toFixed(6) + ", " + subway.lon.toFixed(6);
+                if (subway.geocodedWithoutApt) {
+                  listing.notes = "Geocoded without apt";
+                }
+              } else {
+                listing.nearestStation = "(not found)";
+              }
+            } catch (err) {
+              listing.nearestStation = "(error)";
+            }
+
+            // Rate-limit geocoding: nominatim asks for 1 req/sec
+            if (s < allListings.length - 1) {
+              await new Promise(function(resolve) { setTimeout(resolve, 1100); });
+            }
+          }
+        }
+
+        // Build spreadsheet
+        pdfProgress.textContent = "Generating spreadsheet...";
+
+        var wsData = [
+          [
+            "Email Date",
+            "Rent ($/mo)",
+            "Bedrooms",
+            "Baths",
+            "Sq Ft",
+            "Pets Allowed",
+            "Address",
+            "Geocoded Lat, Lon",
+            "Open House",
+            "Listing By",
+            "Nearest Subway Station",
+            "Station Distance",
+            "Station Routes",
+            "Source File",
+            "Notes"
+          ]
+        ];
+
+        for (var r = 0; r < allListings.length; r++) {
+          var row = allListings[r];
+          wsData.push([
+            row.emailDate,
+            row.rent || "",
+            row.bedrooms !== null ? row.bedrooms : "",
+            row.baths !== null ? row.baths : "",
+            row.sqft || "",
+            row.petsAllowed ? "Yes" : "No",
+            row.address,
+            row.geocodedLatLon || "",
+            row.openHouse,
+            row.listingBy,
+            row.nearestStation,
+            row.stationDistance,
+            row.stationRoutes,
+            row.sourceFile || "",
+            row.notes || ""
+          ]);
+        }
+
+        var wb = XLSX.utils.book_new();
+        var ws = XLSX.utils.aoa_to_sheet(wsData);
+
+        // Set column widths
+        ws["!cols"] = [
+          { wch: 42 }, // Email Date
+          { wch: 12 }, // Rent
+          { wch: 10 }, // Bedrooms
+          { wch: 8 },  // Baths
+          { wch: 8 },  // Sq Ft
+          { wch: 12 }, // Pets
+          { wch: 40 }, // Address
+          { wch: 24 }, // Geocoded Lat, Lon
+          { wch: 30 }, // Open House
+          { wch: 30 }, // Listing By
+          { wch: 24 }, // Nearest Station
+          { wch: 22 }, // Station Distance
+          { wch: 16 }, // Routes
+          { wch: 24 }, // Source File
+          { wch: 24 }  // Notes
+        ];
+
+        XLSX.utils.book_append_sheet(wb, ws, "Zillow Listings");
+        XLSX.writeFile(wb, "zillow_listings.xlsx");
+
+        pdfProgress.textContent = "Done! Exported " + allListings.length + " listing(s) to zillow_listings.xlsx";
+        pdfProgress.className = "pdf-progress success";
+      } catch (err) {
+        pdfProgress.textContent = "Error: " + err.message;
+        pdfProgress.className = "pdf-progress error";
+      }
+
+      pdfProcessBtn.disabled = pendingFiles.length === 0;
+    });
+  }());
   </script>
 </body>
 </html>

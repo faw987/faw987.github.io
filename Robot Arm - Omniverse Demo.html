@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Robot Arm Digital Twin — Omniverse Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --font-display: 'JetBrains Mono', monospace;
+      --font-body: 'Inter', sans-serif;
+      --color-bg:             #080c10;
+      --color-surface:        rgba(12, 18, 26, 0.92);
+      --color-surface-2:      rgba(18, 26, 38, 0.85);
+      --color-border:         rgba(0, 200, 255, 0.18);
+      --color-border-bright:  rgba(0, 200, 255, 0.45);
+      --color-text:           #d0e8f8;
+      --color-text-muted:     #6a8ba0;
+      --color-text-faint:     #3a5570;
+      --color-primary:        #00c8ff;
+      --color-primary-dim:    rgba(0, 200, 255, 0.12);
+      --color-accent:         #76ee59;
+      --color-accent-dim:     rgba(118, 238, 89, 0.12);
+      --color-ik:             #ff9f1c;
+      --color-ik-dim:         rgba(255, 159, 28, 0.12);
+      --color-rec:            #ff3a5c;
+      --color-rec-dim:        rgba(255, 58, 92, 0.14);
+      --color-warning:        #ffb347;
+      --color-error:          #ff4466;
+      --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem;
+      --space-4: 1rem; --space-6: 1.5rem;
+      --text-xs: 11px; --text-sm: 13px; --text-base: 15px;
+      --panel-blur: 16px; --radius-sm: 4px; --radius-md: 6px;
+      --transition: 160ms cubic-bezier(0.16,1,0.3,1);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width:100%; height:100%; overflow:hidden; background:var(--color-bg); font-family:var(--font-body); color:var(--color-text); -webkit-font-smoothing:antialiased; }
+    #canvas-container { position:fixed; inset:0; }
+    canvas { display:block; }
+
+    /* ── HEADER ──────────────────────────────────────────────── */
+    #header {
+      position:fixed; top:0; left:0; right:0; z-index:100; height:48px;
+      background:linear-gradient(180deg,rgba(4,10,18,0.98) 0%,rgba(4,10,18,0.0) 100%);
+      border-bottom:1px solid var(--color-border);
+      display:flex; align-items:center; gap:var(--space-4);
+      padding:0 var(--space-6); backdrop-filter:blur(8px);
+    }
+    #header .logo { display:flex; align-items:center; gap:var(--space-3); font-family:var(--font-display); font-size:var(--text-sm); font-weight:700; letter-spacing:0.04em; color:var(--color-primary); text-transform:uppercase; }
+    #header .breadcrumb { font-family:var(--font-display); font-size:var(--text-xs); color:var(--color-text-muted); letter-spacing:0.03em; }
+    #header .breadcrumb span { color:var(--color-primary); }
+    #header .status-bar { margin-left:auto; display:flex; align-items:center; gap:var(--space-6); }
+    .status-pill { display:flex; align-items:center; gap:6px; font-family:var(--font-display); font-size:var(--text-xs); color:var(--color-text-muted); }
+    .status-pill .dot { width:7px; height:7px; border-radius:50%; background:var(--color-accent); box-shadow:0 0 6px var(--color-accent); animation:pulse-dot 2s ease-in-out infinite; }
+    .status-pill .dot.warn { background:var(--color-warning); box-shadow:0 0 6px var(--color-warning); }
+    .status-pill .dot.rec  { background:var(--color-rec); box-shadow:0 0 8px var(--color-rec); animation:pulse-dot 0.7s ease-in-out infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.45} }
+
+    /* ── PANELS ──────────────────────────────────────────────── */
+    .panel { background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-md); backdrop-filter:blur(var(--panel-blur)); }
+    .panel-header { display:flex; align-items:center; gap:var(--space-2); padding:10px var(--space-4); border-bottom:1px solid var(--color-border); font-family:var(--font-display); font-size:var(--text-xs); font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:var(--color-primary); }
+    .panel-header svg { opacity:0.7; }
+    .panel-header.ik-header  { color:var(--color-ik); }
+    .panel-header.rec-header { color:var(--color-rec); }
+    .panel-body { padding:var(--space-4); }
+
+    /* ── LEFT — JOINT CONTROL ──────────────────────────────── */
+    #panel-joints { position:fixed; top:64px; left:16px; z-index:50; width:260px; }
+    .joint-row { display:flex; flex-direction:column; gap:4px; margin-bottom:12px; }
+    .joint-row:last-child { margin-bottom:0; }
+    .joint-label { display:flex; justify-content:space-between; align-items:center; }
+    .joint-label .name { font-family:var(--font-display); font-size:var(--text-xs); font-weight:600; letter-spacing:0.04em; color:var(--color-text-muted); text-transform:uppercase; }
+    .joint-label .value { font-family:var(--font-display); font-size:var(--text-xs); font-weight:700; color:var(--color-primary); min-width:48px; text-align:right; background:var(--color-primary-dim); border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:2px 6px; }
+    .joint-row.ik-driven .joint-label .name { color:var(--color-ik); }
+    .joint-row.ik-driven .joint-label .value { color:var(--color-ik); background:var(--color-ik-dim); }
+    input[type="range"] { -webkit-appearance:none; appearance:none; width:100%; height:4px; background:linear-gradient(to right, var(--color-primary) var(--pct,50%), rgba(0,200,255,0.12) var(--pct,50%)); border-radius:2px; outline:none; cursor:pointer; }
+    input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:14px; height:14px; border-radius:50%; background:var(--color-primary); box-shadow:0 0 8px var(--color-primary); cursor:pointer; transition:transform var(--transition),box-shadow var(--transition); }
+    input[type="range"]:hover::-webkit-slider-thumb { transform:scale(1.25); box-shadow:0 0 14px var(--color-primary); }
+    .joint-row.ik-driven input[type="range"] { background:linear-gradient(to right, var(--color-ik) var(--pct,50%), rgba(255,159,28,0.12) var(--pct,50%)); }
+    .joint-row.ik-driven input[type="range"]::-webkit-slider-thumb { background:var(--color-ik); box-shadow:0 0 8px var(--color-ik); }
+
+    /* Mode toggle strip inside joint panel */
+    #mode-strip { display:flex; gap:6px; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--color-border); }
+    .mode-btn { flex:1; padding:5px 0; border-radius:var(--radius-sm); font-family:var(--font-display); font-size:10px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; cursor:pointer; border:1px solid var(--color-border); background:transparent; color:var(--color-text-muted); transition:background var(--transition),color var(--transition),border-color var(--transition); }
+    .mode-btn.active-manual { background:var(--color-primary-dim); border-color:var(--color-border-bright); color:var(--color-primary); }
+    .mode-btn.active-ik     { background:var(--color-ik-dim); border-color:rgba(255,159,28,0.45); color:var(--color-ik); }
+
+    /* ── RIGHT — TELEMETRY ─────────────────────────────────── */
+    #panel-telemetry { position:fixed; top:64px; right:16px; z-index:50; width:240px; }
+    .telem-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid rgba(0,200,255,0.07); font-size:var(--text-xs); }
+    .telem-row:last-child { border-bottom:none; }
+    .telem-row .label { color:var(--color-text-muted); font-family:var(--font-display); letter-spacing:0.03em; }
+    .telem-row .val   { color:var(--color-text); font-family:var(--font-display); font-weight:600; }
+    .telem-row .val.green  { color:var(--color-accent); }
+    .telem-row .val.yellow { color:var(--color-warning); }
+    .telem-row .val.cyan   { color:var(--color-primary); }
+    .telem-row .val.orange { color:var(--color-ik); }
+    .telem-row .val.red    { color:var(--color-rec); }
+
+    /* ── IK TARGET PANEL (below telemetry) ─────────────────── */
+    #panel-ik { position:fixed; top:auto; right:16px; z-index:50; width:240px; display:none; }
+    #panel-ik.visible { display:block; }
+    .ik-coord-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+    .ik-coord-row:last-child { margin-bottom:0; }
+    .ik-coord-row label { font-family:var(--font-display); font-size:10px; color:var(--color-ik); width:14px; }
+    .ik-coord-row input[type="range"] { flex:1; background:linear-gradient(to right, var(--color-ik) var(--pct,50%), rgba(255,159,28,0.12) var(--pct,50%)); }
+    .ik-coord-row input[type="range"]::-webkit-slider-thumb { background:var(--color-ik); box-shadow:0 0 8px var(--color-ik); }
+    .ik-coord-row .ik-val { font-family:var(--font-display); font-size:10px; font-weight:700; color:var(--color-ik); min-width:40px; text-align:right; }
+    .ik-hint { font-family:var(--font-display); font-size:10px; color:var(--color-text-faint); text-align:center; padding:6px 0 2px; letter-spacing:0.03em; }
+
+    /* ── POSE RECORDER PANEL ─────────────────────────────────── */
+    #panel-recorder { position:fixed; bottom:100px; right:16px; z-index:50; width:260px; }
+    #pose-list { max-height:200px; overflow-y:auto; }
+    #pose-list::-webkit-scrollbar { width:3px; }
+    #pose-list::-webkit-scrollbar-track { background:transparent; }
+    #pose-list::-webkit-scrollbar-thumb { background:rgba(0,200,255,0.25); border-radius:2px; }
+    .pose-item { display:flex; align-items:center; gap:6px; padding:6px 0; border-bottom:1px solid rgba(0,200,255,0.07); }
+    .pose-item:last-child { border-bottom:none; }
+    .pose-num  { font-family:var(--font-display); font-size:10px; color:var(--color-text-faint); min-width:22px; }
+    .pose-name { font-family:var(--font-display); font-size:var(--text-xs); color:var(--color-text); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pose-time { font-family:var(--font-display); font-size:10px; color:var(--color-text-muted); }
+    .pose-actions { display:flex; gap:4px; }
+    .pose-btn { padding:3px 7px; border-radius:3px; font-family:var(--font-display); font-size:9px; font-weight:700; letter-spacing:0.04em; cursor:pointer; border:1px solid var(--color-border); background:transparent; color:var(--color-text-muted); transition:all var(--transition); }
+    .pose-btn:hover { background:var(--color-primary-dim); color:var(--color-primary); border-color:var(--color-border-bright); }
+    .pose-btn.del:hover { background:rgba(255,58,92,0.12); color:var(--color-rec); border-color:rgba(255,58,92,0.35); }
+    .pose-btn.play-pose { color:var(--color-accent); border-color:rgba(118,238,89,0.3); }
+    .pose-btn.play-pose:hover { background:var(--color-accent-dim); }
+    .pose-item.playing { background:rgba(118,238,89,0.06); border-radius:4px; }
+
+    /* Recording controls inside recorder panel */
+    #rec-controls { display:flex; gap:6px; padding-top:10px; border-top:1px solid var(--color-border); margin-top:8px; flex-wrap:wrap; }
+    #rec-controls-2 { display:flex; gap:6px; padding-top:6px; margin-top:2px; }
+    .rec-btn.export { background:var(--color-primary-dim); border-color:rgba(0,200,255,0.35); color:var(--color-primary); }
+    .rec-btn.export:hover:not(:disabled) { background:rgba(0,200,255,0.22); box-shadow:0 0 10px rgba(0,200,255,0.2); }
+    .rec-btn.import { background:var(--color-ik-dim); border-color:rgba(255,159,28,0.35); color:var(--color-ik); }
+    .rec-btn.import:hover:not(:disabled) { background:rgba(255,159,28,0.22); box-shadow:0 0 10px rgba(255,159,28,0.2); }
+    .rec-btn { flex:1; padding:6px 0; border-radius:var(--radius-sm); font-family:var(--font-display); font-size:10px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; cursor:pointer; border:1px solid var(--color-border); background:transparent; color:var(--color-text-muted); transition:all var(--transition); display:flex; align-items:center; justify-content:center; gap:5px; }
+    .rec-btn.rec-active { background:var(--color-rec-dim); border-color:rgba(255,58,92,0.45); color:var(--color-rec); }
+    .rec-btn.seq-play   { background:var(--color-accent-dim); border-color:rgba(118,238,89,0.3); color:var(--color-accent); }
+    .rec-btn.seq-play.playing { border-color:rgba(118,238,89,0.6); box-shadow:0 0 10px rgba(118,238,89,0.2); }
+    .rec-btn:hover:not(:disabled) { filter:brightness(1.15); }
+    .rec-btn:disabled { opacity:0.35; cursor:not-allowed; }
+    #rec-status { font-family:var(--font-display); font-size:10px; color:var(--color-text-faint); text-align:center; padding:6px 0 2px; letter-spacing:0.03em; }
+
+    /* Playback progress bar */
+    #playback-bar { height:2px; background:rgba(118,238,89,0.1); border-radius:1px; overflow:hidden; margin-top:6px; }
+    #playback-fill { height:100%; width:0%; background:var(--color-accent); box-shadow:0 0 6px var(--color-accent); transition:width 0.1s linear; }
+
+    /* ── BOTTOM SIM CONTROLS ─────────────────────────────────── */
+    #panel-sim { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); z-index:50; display:flex; align-items:center; gap:var(--space-2); padding:8px 16px; }
+    .sim-btn { display:flex; align-items:center; gap:6px; padding:7px 14px; border-radius:var(--radius-md); font-family:var(--font-display); font-size:var(--text-xs); font-weight:600; letter-spacing:0.04em; text-transform:uppercase; cursor:pointer; border:1px solid var(--color-border); background:var(--color-surface-2); color:var(--color-text-muted); transition:background var(--transition),box-shadow var(--transition),color var(--transition); }
+    .sim-btn:hover { background:var(--color-primary-dim); border-color:var(--color-border-bright); color:var(--color-primary); box-shadow:0 0 16px rgba(0,200,255,0.15); }
+    .sim-btn.active { background:var(--color-primary-dim); border-color:var(--color-border-bright); color:var(--color-primary); box-shadow:0 0 12px rgba(0,200,255,0.2); }
+    .sim-btn.accent { background:var(--color-accent-dim); border-color:rgba(118,238,89,0.3); color:var(--color-accent); }
+    .sim-btn.accent:hover { box-shadow:0 0 16px rgba(118,238,89,0.2); }
+    .sep { width:1px; height:20px; background:var(--color-border); margin:0 4px; }
+
+    /* ── EE COORDS ───────────────────────────────────────────── */
+    #panel-ee { position:fixed; bottom:72px; left:50%; transform:translateX(-50%); z-index:50; padding:8px 20px; font-family:var(--font-display); font-size:var(--text-xs); letter-spacing:0.04em; display:flex; gap:var(--space-6); align-items:center; }
+    #panel-ee .coord { display:flex; gap:4px; align-items:center; }
+    #panel-ee .coord .axis { color:var(--color-text-faint); font-size:10px; }
+    #panel-ee .coord .num { color:var(--color-accent); font-weight:600; }
+
+    /* ── VIEWPORT LABEL ──────────────────────────────────────── */
+    #viewport-label { position:fixed; top:56px; left:50%; transform:translateX(-50%); z-index:40; font-family:var(--font-display); font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-text-faint); pointer-events:none; transition:opacity 0.3s; }
+
+    /* ── LOADING ─────────────────────────────────────────────── */
+    #loading { position:fixed; inset:0; z-index:999; background:var(--color-bg); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px; }
+    #loading h1 { font-family:var(--font-display); font-size:13px; letter-spacing:0.12em; text-transform:uppercase; color:var(--color-primary); }
+    #loading .progress-bar { width:280px; height:2px; background:rgba(0,200,255,0.12); border-radius:1px; overflow:hidden; }
+    #loading .progress-fill { height:100%; width:0%; background:var(--color-primary); box-shadow:0 0 12px var(--color-primary); transition:width 0.3s ease; }
+    #loading p { font-family:var(--font-display); font-size:10px; letter-spacing:0.06em; color:var(--color-text-muted); }
+
+    /* ── AXIS LEGEND + DEBUG ─────────────────────────────────── */
+    #axis-legend { position:fixed; bottom:16px; left:16px; z-index:50; display:flex; flex-direction:column; gap:4px; font-family:var(--font-display); font-size:10px; letter-spacing:0.04em; }
+    .axis-item { display:flex; align-items:center; gap:6px; }
+    .axis-swatch { width:20px; height:2px; border-radius:1px; }
+    #debug { position:fixed; bottom:16px; right:16px; z-index:50; font-family:var(--font-display); font-size:10px; color:var(--color-text-faint); line-height:1.8; text-align:right; pointer-events:none; }
+
+    /* ── IK MODE VISUAL HINT ─────────────────────────────────── */
+    #ik-mode-banner {
+      position:fixed; top:56px; left:50%; transform:translateX(-50%);
+      z-index:60; padding:4px 18px;
+      background:rgba(255,159,28,0.1); border:1px solid rgba(255,159,28,0.35);
+      border-radius:20px;
+      font-family:var(--font-display); font-size:10px; font-weight:700;
+      letter-spacing:0.06em; text-transform:uppercase; color:var(--color-ik);
+      display:none; pointer-events:none;
+    }
+    #ik-mode-banner.visible { display:block; }
+  </style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+    <rect x="4" y="4" width="40" height="40" rx="4" stroke="#00c8ff" stroke-width="1.5" stroke-dasharray="4 2"/>
+    <circle cx="24" cy="24" r="6" stroke="#00c8ff" stroke-width="2"/>
+    <circle cx="24" cy="24" r="3" fill="#00c8ff"/>
+    <line x1="24" y1="4" x2="24" y2="14" stroke="#00c8ff" stroke-width="1.5"/>
+    <line x1="24" y1="34" x2="24" y2="44" stroke="#00c8ff" stroke-width="1.5"/>
+    <line x1="4"  y1="24" x2="14" y2="24" stroke="#00c8ff" stroke-width="1.5"/>
+    <line x1="34" y1="24" x2="44" y2="24" stroke="#00c8ff" stroke-width="1.5"/>
+  </svg>
+  <h1>OMNIVERSE DIGITAL TWIN</h1>
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+  <p id="loading-msg">INITIALIZING PHYSICS ENGINE...</p>
+</div>
+
+<div id="canvas-container"><canvas id="c"></canvas></div>
+
+<!-- HEADER -->
+<header id="header">
+  <div class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="1" y="1" width="20" height="20" rx="3" stroke="#00c8ff" stroke-width="1.5"/>
+      <path d="M5 11h12M11 5v12" stroke="#00c8ff" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="11" cy="11" r="2.5" fill="#00c8ff"/>
+    </svg>
+    NVIDIA OMNIVERSE
+  </div>
+  <div class="breadcrumb">DIGITAL TWIN / <span>6-DOF ROBOT ARM</span> / SIMULATION</div>
+  <div class="status-bar">
+    <div class="status-pill"><div class="dot" id="sim-dot"></div><span id="sim-status-label">SIMULATION LIVE</span></div>
+    <div class="status-pill"><div class="dot warn"></div>PHYSICS: <span style="color:var(--color-warning);margin-left:4px;font-family:var(--font-display);font-size:11px;">60 Hz</span></div>
+    <div class="status-pill" id="rec-pill" style="display:none;"><div class="dot rec"></div>RECORDING</div>
+    <div class="status-pill" style="color:var(--color-text-muted);">RAPIER v0.11</div>
+  </div>
+</header>
+
+<div id="viewport-label">PERSPECTIVE · DRAG TO ORBIT · SCROLL TO ZOOM · IK: DRAG ORANGE SPHERE</div>
+<div id="ik-mode-banner">▸ IK MODE — DRAG ORANGE TARGET</div>
+
+<!-- LEFT PANEL — JOINT CONTROL -->
+<div id="panel-joints" class="panel">
+  <div class="panel-header">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.5"/><circle cx="6" cy="6" r="1.5" fill="currentColor"/></svg>
+    JOINT CONTROL
+  </div>
+  <div class="panel-body">
+    <div id="mode-strip">
+      <button class="mode-btn active-manual" id="btn-mode-manual">MANUAL</button>
+      <button class="mode-btn" id="btn-mode-ik">IK TARGET</button>
+    </div>
+    <div id="joint-sliders"></div>
+  </div>
+</div>
+
+<!-- RIGHT PANEL — TELEMETRY -->
+<div id="panel-telemetry" class="panel">
+  <div class="panel-header">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polyline points="1,9 4,4 7,7 11,2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    TELEMETRY
+  </div>
+  <div class="panel-body"><div id="telem-rows"></div></div>
+</div>
+
+<!-- IK TARGET PANEL (below telemetry) -->
+<div id="panel-ik" class="panel">
+  <div class="panel-header ik-header">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 1.5"/><circle cx="6" cy="6" r="1.5" fill="currentColor"/></svg>
+    IK TARGET
+  </div>
+  <div class="panel-body">
+    <div class="ik-coord-row">
+      <label>X</label>
+      <input type="range" id="ik-x" min="-3" max="3" step="0.01" value="1.5" />
+      <span class="ik-val" id="ik-x-val">1.50</span>
+    </div>
+    <div class="ik-coord-row">
+      <label>Y</label>
+      <input type="range" id="ik-y" min="0.1" max="4" step="0.01" value="2.5" />
+      <span class="ik-val" id="ik-y-val">2.50</span>
+    </div>
+    <div class="ik-coord-row">
+      <label>Z</label>
+      <input type="range" id="ik-z" min="-3" max="3" step="0.01" value="0.5" />
+      <span class="ik-val" id="ik-z-val">0.50</span>
+    </div>
+    <div class="ik-hint">DRAG ORANGE SPHERE IN VIEWPORT<br>OR USE SLIDERS ABOVE</div>
+  </div>
+</div>
+
+<!-- POSE RECORDER PANEL -->
+<div id="panel-recorder" class="panel">
+  <div class="panel-header rec-header">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4" fill="currentColor" opacity="0.8"/></svg>
+    POSE RECORDER
+  </div>
+  <div class="panel-body">
+    <div id="pose-list-wrap">
+      <div id="pose-list"></div>
+      <div id="pose-empty" style="font-family:var(--font-display);font-size:10px;color:var(--color-text-faint);text-align:center;padding:12px 0;">NO POSES RECORDED</div>
+    </div>
+    <div id="playback-bar"><div id="playback-fill"></div></div>
+    <div id="rec-status">READY</div>
+    <div id="rec-controls">
+      <button class="rec-btn" id="btn-capture">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="4"/></svg>
+        CAPTURE
+      </button>
+      <button class="rec-btn seq-play" id="btn-seq-play" disabled>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><polygon points="1,1 9,5 1,9"/></svg>
+        PLAY SEQ
+      </button>
+      <button class="rec-btn" id="btn-clear-poses" disabled>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2l6 6M8 2L2 8"/></svg>
+        CLEAR
+      </button>
+    </div>
+    <div id="rec-controls-2">
+      <button class="rec-btn export" id="btn-export-poses" disabled>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 1v6M2 5l3 3 3-3M1 9h8"/></svg>
+        EXPORT
+      </button>
+      <button class="rec-btn import" id="btn-import-poses">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 9V3M2 5l3-3 3 3M1 9h8"/></svg>
+        IMPORT
+      </button>
+    </div>
+    <input type="file" id="import-file-input" accept=".json" style="display:none;">
+  </div>
+</div>
+
+<!-- EE COORDS -->
+<div id="panel-ee" class="panel">
+  <div class="coord"><span class="axis">X</span><span class="num" id="ee-x">0.000</span><span class="axis">m</span></div>
+  <div class="coord"><span class="axis">Y</span><span class="num" id="ee-y">0.000</span><span class="axis">m</span></div>
+  <div class="coord"><span class="axis">Z</span><span class="num" id="ee-z">0.000</span><span class="axis">m</span></div>
+  <div class="coord" style="border-left:1px solid var(--color-border);padding-left:var(--space-6);">
+    <span class="axis" style="color:var(--color-text-muted)">EE POSITION</span>
+  </div>
+</div>
+
+<!-- BOTTOM SIM CONTROLS -->
+<div id="panel-sim" class="panel">
+  <button class="sim-btn active" id="btn-play">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 11,6 2,11"/></svg> PLAY
+  </button>
+  <button class="sim-btn" id="btn-pause">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="1" width="3" height="10"/><rect x="7" y="1" width="3" height="10"/></svg> PAUSE
+  </button>
+  <div class="sep"></div>
+  <button class="sim-btn" id="btn-reset">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 6a4 4 0 0 1 4-4 4 4 0 0 1 2.83 1.17L11 5"/><path d="M11 1v4H7"/></svg> RESET
+  </button>
+  <div class="sep"></div>
+  <button class="sim-btn" id="btn-demo">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 1v10M1 6h10"/></svg> AUTO DEMO
+  </button>
+  <button class="sim-btn accent" id="btn-drop">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 1v8M3 6l3 4 3-4" stroke-linecap="round" stroke-linejoin="round"/></svg> DROP CUBE
+  </button>
+</div>
+
+<!-- AXIS LEGEND -->
+<div id="axis-legend">
+  <div class="axis-item"><div class="axis-swatch" style="background:#ff4040"></div><span style="color:#ff4040">X AXIS</span></div>
+  <div class="axis-item"><div class="axis-swatch" style="background:#40ff80"></div><span style="color:#40ff80">Y AXIS</span></div>
+  <div class="axis-item"><div class="axis-swatch" style="background:#4080ff"></div><span style="color:#4080ff">Z AXIS</span></div>
+</div>
+
+<div id="debug">
+  <div id="dbg-fps">FPS: --</div>
+  <div id="dbg-tri">TRI: --</div>
+  <div id="dbg-dc">DC: --</div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://esm.sh/three@0.160.0';
+import { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+import { EffectComposer } from 'https://esm.sh/three@0.160.0/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'https://esm.sh/three@0.160.0/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'https://esm.sh/three@0.160.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'https://esm.sh/three@0.160.0/examples/jsm/postprocessing/OutputPass.js';
+
+// ── LOADING ───────────────────────────────────────────────────
+const progressFill = document.getElementById('progress-fill');
+const loadingMsg   = document.getElementById('loading-msg');
+function setProgress(pct, msg) {
+  progressFill.style.width = pct + '%';
+  if (msg) loadingMsg.textContent = msg;
+}
+setProgress(10, 'INITIALIZING RENDERER...');
+
+// ── RENDERER ─────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// ── SCENE ────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x080c10);
+scene.fog = new THREE.FogExp2(0x080c10, 0.035);
+
+// ── CAMERA ───────────────────────────────────────────────────
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.05, 300);
+camera.position.set(5.5, 4.5, 6.5);
+camera.lookAt(0, 2.5, 0);
+
+// ── ORBIT CONTROLS ───────────────────────────────────────────
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 2.0, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2;
+controls.maxDistance = 40;
+controls.maxPolarAngle = Math.PI * 0.88;
+controls.update();
+
+// ── POST-PROCESSING ──────────────────────────────────────────
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.55, 0.4, 0.75);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+setProgress(25, 'BUILDING SCENE GEOMETRY...');
+
+// ── LIGHTING ─────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0x102030, 3.5));
+const keyLight = new THREE.DirectionalLight(0xaaddff, 3.2);
+keyLight.position.set(8, 12, 6);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.near = 0.5; keyLight.shadow.camera.far = 60;
+keyLight.shadow.camera.left = -15; keyLight.shadow.camera.right = 15;
+keyLight.shadow.camera.top  =  15; keyLight.shadow.camera.bottom = -5;
+keyLight.shadow.bias = -0.001;
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x00c8ff, 1.4);
+fillLight.position.set(-6, 4, -4); scene.add(fillLight);
+const rimLight = new THREE.DirectionalLight(0x76ee59, 0.9);
+rimLight.position.set(0, 2, -8); scene.add(rimLight);
+const bounceLight = new THREE.PointLight(0x0066aa, 5, 15);
+bounceLight.position.set(0, -0.2, 0); scene.add(bounceLight);
+const armSpot = new THREE.SpotLight(0x004488, 4.0, 20, Math.PI/4, 0.5);
+armSpot.position.set(3, 8, 5); scene.add(armSpot);
+
+// ── FLOOR ────────────────────────────────────────────────────
+const gridHelper = new THREE.GridHelper(30, 30, 0x00c8ff, 0x0a1a2a);
+gridHelper.material.opacity = 0.35; gridHelper.material.transparent = true;
+scene.add(gridHelper);
+const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(30,30), new THREE.ShadowMaterial({opacity:0.35}));
+floorMesh.rotation.x = -Math.PI/2; floorMesh.receiveShadow = true;
+scene.add(floorMesh);
+const ringMesh = new THREE.Mesh(
+  new THREE.RingGeometry(0.85,0.92,64),
+  new THREE.MeshBasicMaterial({color:0x00c8ff, side:THREE.DoubleSide, transparent:true, opacity:0.55})
+);
+ringMesh.rotation.x = -Math.PI/2; ringMesh.position.y = 0.003;
+scene.add(ringMesh);
+scene.add(new THREE.AxesHelper(1.2));
+
+setProgress(40, 'ASSEMBLING ROBOT KINEMATICS...');
+
+// ── MATERIALS ────────────────────────────────────────────────
+const matBody  = new THREE.MeshStandardMaterial({color:0x1e3a56, roughness:0.3, metalness:0.9, emissive:0x002233, emissiveIntensity:0.5});
+const matJoint = new THREE.MeshStandardMaterial({color:0x004a6e, roughness:0.15, metalness:0.95, emissive:0x00c8ff, emissiveIntensity:0.45});
+const matEE    = new THREE.MeshStandardMaterial({color:0x0d3a0d, roughness:0.2, metalness:0.8, emissive:0x76ee59, emissiveIntensity:0.65});
+const matPhysBox = new THREE.MeshStandardMaterial({color:0x3a2200, roughness:0.45, metalness:0.55, emissive:0xffb347, emissiveIntensity:0.55});
+
+function mkCyl(rT,rB,h,segs,mat){ const m=new THREE.Mesh(new THREE.CylinderGeometry(rT,rB,h,segs),mat); m.castShadow=true; m.receiveShadow=true; return m; }
+function mkSph(r,mat){ const m=new THREE.Mesh(new THREE.SphereGeometry(r,20,20),mat); m.castShadow=true; return m; }
+
+// ── ROBOT ARM HIERARCHY ──────────────────────────────────────
+const basePlatform = mkCyl(0.8,1.0,0.22,32,matBody); basePlatform.position.y=0.11; scene.add(basePlatform);
+const baseRingMesh = mkCyl(0.81,0.81,0.23,32,new THREE.MeshStandardMaterial({color:0x00c8ff,emissive:0x00c8ff,emissiveIntensity:0.6,transparent:true,opacity:0.18}));
+baseRingMesh.position.y=0.11; scene.add(baseRingMesh);
+
+const j0 = new THREE.Object3D(); j0.position.y=0.22; scene.add(j0);
+const baseCollar = mkCyl(0.38,0.48,0.32,24,matBody); baseCollar.position.y=0.16; j0.add(baseCollar);
+const j0Sph = mkSph(0.28,matJoint); j0Sph.position.y=0.32; j0.add(j0Sph);
+
+const j1 = new THREE.Object3D(); j1.position.y=0.32; j0.add(j1);
+const upperArm = mkCyl(0.14,0.18,1.4,16,matBody); upperArm.position.y=0.7; j1.add(upperArm);
+const shoulderRing = mkCyl(0.20,0.20,0.08,24,new THREE.MeshStandardMaterial({color:0x00c8ff,emissive:0x00c8ff,emissiveIntensity:0.5,transparent:true,opacity:0.35}));
+shoulderRing.position.y=0.04; j1.add(shoulderRing);
+
+const j2 = new THREE.Object3D(); j2.position.y=1.4; j1.add(j2);
+const elbowSph = mkSph(0.20,matJoint); j2.add(elbowSph);
+const forearm = mkCyl(0.11,0.14,1.0,16,matBody); forearm.position.y=0.5; j2.add(forearm);
+const elbowRing = mkCyl(0.155,0.155,0.07,24,new THREE.MeshStandardMaterial({color:0x00c8ff,emissive:0x00c8ff,emissiveIntensity:0.5,transparent:true,opacity:0.32}));
+elbowRing.position.y=0.035; j2.add(elbowRing);
+
+const j3 = new THREE.Object3D(); j3.position.y=1.0; j2.add(j3);
+const wrist1Sph = mkSph(0.155,matJoint); j3.add(wrist1Sph);
+const wrist1Link = mkCyl(0.085,0.11,0.5,14,matBody); wrist1Link.position.y=0.25; j3.add(wrist1Link);
+
+const j4 = new THREE.Object3D(); j4.position.y=0.5; j3.add(j4);
+const wrist2Sph = mkSph(0.13,matJoint); j4.add(wrist2Sph);
+const wrist2Link = mkCyl(0.07,0.085,0.38,12,matBody); wrist2Link.position.y=0.19; j4.add(wrist2Link);
+
+const j5 = new THREE.Object3D(); j5.position.y=0.38; j4.add(j5);
+const wrist3Sph = mkSph(0.11,matJoint); j5.add(wrist3Sph);
+
+const eeGroup = new THREE.Object3D(); eeGroup.position.y=0.12; j5.add(eeGroup);
+const eePalm = mkCyl(0.09,0.09,0.14,12,matEE); eePalm.position.y=0.07; eeGroup.add(eePalm);
+const fingerGeo = new THREE.BoxGeometry(0.04,0.18,0.04);
+const fingerL = new THREE.Mesh(fingerGeo,matEE); const fingerR = fingerL.clone();
+fingerL.position.set(-0.065,0.23,0); fingerR.position.set(0.065,0.23,0);
+fingerL.castShadow=true; fingerR.castShadow=true;
+eeGroup.add(fingerL,fingerR);
+const eeTip = new THREE.PointLight(0x76ee59,1.5,1.5); eeTip.position.y=0.28; eeGroup.add(eeTip);
+const eeDot = mkSph(0.03,new THREE.MeshBasicMaterial({color:0x76ee59})); eeDot.position.y=0.32; eeGroup.add(eeDot);
+
+// ── ARM LENGTHS for IK (distances between joint origins) ─────
+//  Base→J1: 0.32+0.32 = 0.54 (world y offset from scene root)
+//  J1→J2:   1.4  (upper arm)
+//  J2→J3:   1.0  (forearm)
+//  J3→J4:   0.5  (wrist1)
+//  J4→J5:   0.38 (wrist2)
+//  J5→EE:   0.12+0.32 = 0.44
+const L1 = 1.4;  // upper arm
+const L2 = 1.0;  // forearm
+const L3 = 0.5;  // wrist1
+const ARM_BASE_Y = 0.54; // height of j1 pivot in world
+
+// ── JOINT PIVOT MAP ──────────────────────────────────────────
+const joints = [
+  { pivot:j0, axis:'y', min:-Math.PI,  max:Math.PI,  label:'J0 BASE',     dflt:0.35  },
+  { pivot:j1, axis:'z', min:-0.2,      max:2.3,      label:'J1 SHOULDER', dflt:1.1   },
+  { pivot:j2, axis:'z', min:-2.5,      max:0.1,      label:'J2 ELBOW',    dflt:-1.8  },
+  { pivot:j3, axis:'z', min:-Math.PI,  max:Math.PI,  label:'J3 WRIST-1',  dflt:0.5   },
+  { pivot:j4, axis:'y', min:-Math.PI,  max:Math.PI,  label:'J4 WRIST-2',  dflt:0.3   },
+  { pivot:j5, axis:'z', min:-Math.PI,  max:Math.PI,  label:'J5 WRIST-3',  dflt:0.2   },
+];
+joints.forEach(j => { j.pivot.rotation[j.axis] = j.dflt; });
+
+setProgress(60, 'BUILDING CONTROL PANELS...');
+
+// ── JOINT SLIDERS UI ─────────────────────────────────────────
+const sliderContainer = document.getElementById('joint-sliders');
+const sliderEls = [], valueEls = [], rowEls = [];
+
+joints.forEach((j,i) => {
+  const row = document.createElement('div'); row.className='joint-row'; row.id=`jr-${i}`;
+  const labelRow = document.createElement('div'); labelRow.className='joint-label';
+  const name = document.createElement('span'); name.className='name'; name.textContent=j.label;
+  const val  = document.createElement('span'); val.className='value'; val.id=`jv-${i}`;
+  labelRow.appendChild(name); labelRow.appendChild(val);
+  const slider = document.createElement('input');
+  slider.type='range'; slider.min=j.min; slider.max=j.max; slider.step=0.001; slider.value=j.dflt; slider.id=`js-${i}`;
+  const syncBg = () => { const p=((parseFloat(slider.value)-j.min)/(j.max-j.min))*100; slider.style.setProperty('--pct',p+'%'); };
+  slider.addEventListener('input', () => {
+    j.pivot.rotation[j.axis]=parseFloat(slider.value);
+    syncBg();
+    if(autoDemo) stopAutoDemo();
+    if(ikMode) setIkMode(false);
+  });
+  syncBg();
+  row.appendChild(labelRow); row.appendChild(slider);
+  sliderContainer.appendChild(row);
+  sliderEls.push(slider); valueEls.push(val); rowEls.push(row);
+});
+
+// ── TELEMETRY UI ─────────────────────────────────────────────
+const telemDefs = [
+  {id:'fps',       label:'RENDER FPS',   val:'—',       cls:'green'},
+  {id:'sim-time',  label:'SIM TIME',     val:'0.00 s',  cls:'cyan'},
+  {id:'dof',       label:'DOF',          val:'6',       cls:''},
+  {id:'ik-err',    label:'IK ERROR',     val:'—',       cls:'orange'},
+  {id:'ik-iters',  label:'IK ITERS',     val:'—',       cls:''},
+  {id:'reach',     label:'REACH',        val:'—',       cls:'cyan'},
+  {id:'cubes',     label:'PHYSICS OBJS', val:'0',       cls:''},
+  {id:'poses',     label:'POSES SAVED',  val:'0',       cls:''},
+  {id:'mode',      label:'MODE',         val:'MANUAL',  cls:''},
+];
+const telemContainer = document.getElementById('telem-rows');
+telemDefs.forEach(td => {
+  const row = document.createElement('div'); row.className='telem-row';
+  row.innerHTML=`<span class="label">${td.label}</span><span class="val ${td.cls}" id="telem-${td.id}">${td.val}</span>`;
+  telemContainer.appendChild(row);
+});
+function setTelem(id,val,cls) {
+  const el=document.getElementById('telem-'+id); if(!el) return;
+  el.textContent=val;
+  if(cls!==undefined) el.className='val '+(cls||'');
+}
+
+// ── POSITION IK PANEL DYNAMICALLY ────────────────────────────
+function positionIkPanel() {
+  const telBox = document.getElementById('panel-telemetry').getBoundingClientRect();
+  const ikPanel = document.getElementById('panel-ik');
+  ikPanel.style.top = (telBox.bottom + 8) + 'px';
+}
+
+setProgress(75, 'LOADING PHYSICS SIMULATION...');
+
+// ── RAPIER PHYSICS ───────────────────────────────────────────
+import RAPIER from 'https://esm.sh/@dimforge/rapier3d-compat@0.11.2';
+await RAPIER.init();
+const physWorld = new RAPIER.World({x:0,y:-9.81,z:0});
+const groundBody = physWorld.createRigidBody(RAPIER.RigidBodyDesc.fixed());
+physWorld.createCollider(RAPIER.ColliderDesc.cuboid(15,0.05,15).setTranslation(0,-0.05,0), groundBody);
+const physObjects = [];
+
+function spawnPhysBox() {
+  const eePos = getEEWorldPos();
+  const rb = physWorld.createRigidBody(
+    RAPIER.RigidBodyDesc.dynamic().setTranslation(eePos.x+(Math.random()-0.5)*0.3, eePos.y+0.1, eePos.z+(Math.random()-0.5)*0.3)
+      .setAngvel({x:(Math.random()-0.5)*2,y:(Math.random()-0.5)*2,z:(Math.random()-0.5)*2})
+  );
+  const hs=0.12;
+  physWorld.createCollider(RAPIER.ColliderDesc.cuboid(hs,hs,hs).setRestitution(0.35).setFriction(0.6), rb);
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(hs*2,hs*2,hs*2), matPhysBox.clone());
+  mesh.castShadow=true; mesh.receiveShadow=true; scene.add(mesh);
+  physObjects.push({rb,mesh});
+  setTelem('cubes', physObjects.length);
+}
+
+function stepPhysics() {
+  physWorld.step();
+  physObjects.forEach(({rb,mesh}) => {
+    const t=rb.translation(), r=rb.rotation();
+    mesh.position.set(t.x,t.y,t.z);
+    mesh.quaternion.set(r.x,r.y,r.z,r.w);
+  });
+}
+
+// ── EE WORLD POSITION ────────────────────────────────────────
+const _eeVec = new THREE.Vector3();
+function getEEWorldPos() { eeDot.getWorldPosition(_eeVec); return _eeVec.clone(); }
+
+setProgress(85, 'BUILDING IK SOLVER...');
+
+// ═══════════════════════════════════════════════════════════════
+// ── INVERSE KINEMATICS (FABRIK-style, analytical 2-link core) ──
+// ═══════════════════════════════════════════════════════════════
+//
+//  Strategy:
+//   J0 (base yaw) = atan2(target.z, target.x)          [azimuth in XZ plane]
+//   Then project target into the J0 rotated plane:
+//     r = horizontal reach = sqrt(x²+z²)
+//     h = target.y - ARM_BASE_Y
+//   Solve 2-link planar IK (J1+J2) for (r, h) with L1, L2
+//   J3 wrist pitch = keeps EE roughly horizontal (sum of J1+J2 inverted)
+//   J4, J5 = follow through from prior state (smooth wrist roll)
+//
+function solveIK(target) {
+  const tx = target.x, ty = target.y, tz = target.z;
+
+  // J0: base yaw — point toward target in XZ plane
+  const j0Angle = Math.atan2(tz, tx) - Math.PI/2;
+
+  // Horizontal reach from base pivot in J0 frame
+  const r = Math.sqrt(tx*tx + tz*tz);
+  const h = ty - ARM_BASE_Y;
+
+  // Distance from J1 to target
+  const D = Math.sqrt(r*r + h*h);
+  const Dclamp = Math.min(D, L1+L2-0.01); // clamp to reachable
+
+  // 2-link cosine rule
+  const cosAlpha = (L1*L1 + Dclamp*Dclamp - L2*L2) / (2*L1*Dclamp);
+  const cosBeta  = (L1*L1 + L2*L2 - Dclamp*Dclamp) / (2*L1*L2);
+  const alpha = Math.acos(Math.max(-1, Math.min(1, cosAlpha)));
+  const beta  = Math.acos(Math.max(-1, Math.min(1, cosBeta)));
+
+  // Angle from horizontal to D vector
+  const gamma = Math.atan2(h, r);
+
+  // J1 shoulder: lift + bend toward target
+  const j1Angle = Math.PI/2 - (gamma + alpha);
+
+  // J2 elbow: -(PI - beta) to fold the arm
+  const j2Angle = -(Math.PI - beta);
+
+  // J3 wrist: compensate to keep EE roughly level
+  const j3Angle = -(j1Angle + j2Angle) * 0.85;
+
+  // Clamp to joint limits
+  function clamp(v,mn,mx){ return Math.max(mn,Math.min(mx,v)); }
+
+  return {
+    j0: clamp(j0Angle, joints[0].min, joints[0].max),
+    j1: clamp(j1Angle, joints[1].min, joints[1].max),
+    j2: clamp(j2Angle, joints[2].min, joints[2].max),
+    j3: clamp(j3Angle, joints[3].min, joints[3].max),
+    j4: joints[4].pivot.rotation[joints[4].axis], // keep
+    j5: joints[5].pivot.rotation[joints[5].axis], // keep
+    reachable: D <= L1+L2,
+    error: Math.abs(D - Dclamp),
+  };
+}
+
+// Apply IK solution smoothly with lerp
+let ikSolution = null;
+const IK_LERP = 0.12; // smoothing speed
+
+function applyIKSolution(sol, alpha=1) {
+  const angles = [sol.j0, sol.j1, sol.j2, sol.j3, sol.j4, sol.j5];
+  joints.forEach((j,i) => {
+    j.pivot.rotation[j.axis] = THREE.MathUtils.lerp(
+      j.pivot.rotation[j.axis], angles[i], alpha
+    );
+    // sync slider
+    sliderEls[i].value = j.pivot.rotation[j.axis];
+    const pct = ((j.pivot.rotation[j.axis]-j.min)/(j.max-j.min))*100;
+    sliderEls[i].style.setProperty('--pct', pct+'%');
+  });
+}
+
+// ── IK TARGET SPHERE (draggable) ─────────────────────────────
+const ikTargetMat = new THREE.MeshStandardMaterial({
+  color:0xff9f1c, emissive:0xff9f1c, emissiveIntensity:0.7,
+  roughness:0.2, metalness:0.5, transparent:true, opacity:0.9
+});
+const ikTargetMesh = new THREE.Mesh(new THREE.SphereGeometry(0.14,24,24), ikTargetMat);
+ikTargetMesh.position.set(1.5, 2.5, 0.5);
+ikTargetMesh.visible = false;
+scene.add(ikTargetMesh);
+
+// IK target glow ring
+const ikRingMat = new THREE.MeshBasicMaterial({color:0xff9f1c,transparent:true,opacity:0.3,side:THREE.DoubleSide});
+const ikRingMesh = new THREE.Mesh(new THREE.RingGeometry(0.18,0.22,32), ikRingMat);
+ikTargetMesh.add(ikRingMesh);
+
+// IK target point light
+const ikTargetLight = new THREE.PointLight(0xff9f1c, 2.0, 2.5);
+ikTargetMesh.add(ikTargetLight);
+
+// ── IK TARGET SLIDERS (panel) ─────────────────────────────────
+let ikTarget = new THREE.Vector3(1.5, 2.5, 0.5);
+const ikXSlider = document.getElementById('ik-x');
+const ikYSlider = document.getElementById('ik-y');
+const ikZSlider = document.getElementById('ik-z');
+
+function syncIkSlidersToTarget() {
+  ikXSlider.value = ikTarget.x;
+  ikYSlider.value = ikTarget.y;
+  ikZSlider.value = ikTarget.z;
+  const px = ((ikTarget.x - parseFloat(ikXSlider.min))/(parseFloat(ikXSlider.max)-parseFloat(ikXSlider.min)))*100;
+  const py = ((ikTarget.y - parseFloat(ikYSlider.min))/(parseFloat(ikYSlider.max)-parseFloat(ikYSlider.min)))*100;
+  const pz = ((ikTarget.z - parseFloat(ikZSlider.min))/(parseFloat(ikZSlider.max)-parseFloat(ikZSlider.min)))*100;
+  ikXSlider.style.setProperty('--pct', px+'%');
+  ikYSlider.style.setProperty('--pct', py+'%');
+  ikZSlider.style.setProperty('--pct', pz+'%');
+  document.getElementById('ik-x-val').textContent = ikTarget.x.toFixed(2);
+  document.getElementById('ik-y-val').textContent = ikTarget.y.toFixed(2);
+  document.getElementById('ik-z-val').textContent = ikTarget.z.toFixed(2);
+}
+
+[ikXSlider,ikYSlider,ikZSlider].forEach(sl => {
+  sl.addEventListener('input', () => {
+    ikTarget.set(parseFloat(ikXSlider.value), parseFloat(ikYSlider.value), parseFloat(ikZSlider.value));
+    ikTargetMesh.position.copy(ikTarget);
+    const px = ((ikTarget.x - parseFloat(ikXSlider.min))/(parseFloat(ikXSlider.max)-parseFloat(ikXSlider.min)))*100;
+    const py = ((ikTarget.y - parseFloat(ikYSlider.min))/(parseFloat(ikYSlider.max)-parseFloat(ikYSlider.min)))*100;
+    const pz = ((ikTarget.z - parseFloat(ikZSlider.min))/(parseFloat(ikZSlider.max)-parseFloat(ikZSlider.min)))*100;
+    ikXSlider.style.setProperty('--pct', px+'%');
+    ikYSlider.style.setProperty('--pct', py+'%');
+    ikZSlider.style.setProperty('--pct', pz+'%');
+    document.getElementById('ik-x-val').textContent = ikTarget.x.toFixed(2);
+    document.getElementById('ik-y-val').textContent = ikTarget.y.toFixed(2);
+    document.getElementById('ik-z-val').textContent = ikTarget.z.toFixed(2);
+  });
+});
+syncIkSlidersToTarget();
+
+// ── IK TARGET DRAG (3D raycaster drag) ───────────────────────
+const raycaster = new THREE.Raycaster();
+const mouse     = new THREE.Vector2();
+const dragPlane = new THREE.Plane();
+const dragOffset= new THREE.Vector3();
+let   draggingIK = false;
+const _intersect  = new THREE.Vector3();
+const _camDir     = new THREE.Vector3();
+
+renderer.domElement.addEventListener('mousedown', (e) => {
+  if (!ikMode) return;
+  mouse.set((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObject(ikTargetMesh);
+  if (hits.length > 0) {
+    draggingIK = true;
+    controls.enabled = false;
+    // Drag plane faces camera through the hit point
+    camera.getWorldDirection(_camDir);
+    dragPlane.setFromNormalAndCoplanarPoint(_camDir, hits[0].point);
+    dragOffset.subVectors(ikTargetMesh.position, hits[0].point);
+    e.preventDefault();
+  }
+});
+
+renderer.domElement.addEventListener('mousemove', (e) => {
+  if (!draggingIK) return;
+  mouse.set((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
+  raycaster.setFromCamera(mouse, camera);
+  if (raycaster.ray.intersectPlane(dragPlane, _intersect)) {
+    const newPos = _intersect.clone().add(dragOffset);
+    newPos.y = Math.max(0.15, newPos.y); // don't go below floor
+    ikTarget.copy(newPos);
+    ikTargetMesh.position.copy(newPos);
+    syncIkSlidersToTarget();
+  }
+});
+
+renderer.domElement.addEventListener('mouseup', () => {
+  if (draggingIK) { draggingIK = false; controls.enabled = true; }
+});
+
+// Cursor feedback
+renderer.domElement.addEventListener('mousemove', (e) => {
+  if (!ikMode) { renderer.domElement.style.cursor=''; return; }
+  mouse.set((e.clientX/window.innerWidth)*2-1, -(e.clientY/window.innerHeight)*2+1);
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObject(ikTargetMesh);
+  renderer.domElement.style.cursor = hits.length>0 ? 'grab' : '';
+}, {passive:true});
+
+// ── IK MODE TOGGLE ───────────────────────────────────────────
+let ikMode = false;
+function setIkMode(on) {
+  ikMode = on;
+  document.getElementById('btn-mode-manual').className = 'mode-btn' + (on ? '' : ' active-manual');
+  document.getElementById('btn-mode-ik').className     = 'mode-btn' + (on ? ' active-ik' : '');
+  ikTargetMesh.visible = on;
+  const ikPanel = document.getElementById('panel-ik');
+  ikPanel.classList.toggle('visible', on);
+  document.getElementById('ik-mode-banner').classList.toggle('visible', on);
+  document.getElementById('viewport-label').style.opacity = on ? '0' : '1';
+  rowEls.forEach((r,i) => { r.classList.toggle('ik-driven', on && i < 4); });
+  if (on) {
+    setTelem('mode','IK TARGET','orange');
+    // Seed IK target at current EE position
+    const ee = getEEWorldPos();
+    ikTarget.copy(ee);
+    ikTargetMesh.position.copy(ee);
+    syncIkSlidersToTarget();
+    if(autoDemo) stopAutoDemo();
+    positionIkPanel();
+  } else {
+    setTelem('mode','MANUAL','');
+    setTelem('ik-err','—','orange');
+    setTelem('ik-iters','—','');
+  }
+}
+
+document.getElementById('btn-mode-manual').addEventListener('click', () => setIkMode(false));
+document.getElementById('btn-mode-ik').addEventListener('click', () => setIkMode(true));
+
+// ── AUTO DEMO ────────────────────────────────────────────────
+let autoDemo = false, demoTime = 0, simRunning = true, elapsedSim = 0;
+const demoKeyframes = [
+  {t:0,  angles:[0.35,1.1,-1.8,0.5,0.3,0.2]},
+  {t:3,  angles:[0.8, 1.5,-2.1,1.0,0.8,0.8]},
+  {t:6,  angles:[-0.9,0.9,-1.6,0.8,-0.6,-0.8]},
+  {t:9,  angles:[1.6, 1.3,-1.9,1.8,1.2,0.3]},
+  {t:12, angles:[-1.3,1.0,-1.5,0.5,-1.0,1.5]},
+  {t:15, angles:[0.35,1.1,-1.8,0.5,0.3,0.2]},
+];
+const DEMO_DUR = 15;
+
+function lerpAngles(t) {
+  t = ((t%DEMO_DUR)+DEMO_DUR)%DEMO_DUR;
+  let a=demoKeyframes[demoKeyframes.length-1], b=demoKeyframes[0];
+  for(let i=0;i<demoKeyframes.length-1;i++){
+    if(t>=demoKeyframes[i].t && t<demoKeyframes[i+1].t){a=demoKeyframes[i];b=demoKeyframes[i+1];break;}
+  }
+  const span=b.t-a.t, frac=span<0.001?0:(t-a.t)/span;
+  const ease=frac<0.5?2*frac*frac:1-Math.pow(-2*frac+2,2)/2;
+  return joints.map((_,i)=>a.angles[i]+(b.angles[i]-a.angles[i])*ease);
+}
+
+function stopAutoDemo() {
+  autoDemo=false;
+  document.getElementById('btn-demo').classList.remove('active');
+  if(!ikMode) setTelem('mode','MANUAL','');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ── POSE RECORDER ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+const poses = [];         // [{name, angles[], time}]
+let poseCounter = 0;
+let seqPlaying  = false;
+let seqIndex    = 0;
+let seqT        = 0;
+const SEQ_POSE_DUR = 2.2; // seconds to transition between poses
+const SEQ_HOLD_DUR = 0.6; // seconds to hold each pose
+
+function captureCurrentPose() {
+  const angles = joints.map(j => j.pivot.rotation[j.axis]);
+  poseCounter++;
+  const name = `POSE-${String(poseCounter).padStart(2,'0')}`;
+  const entry = { name, angles, time: elapsedSim };
+  poses.push(entry);
+  renderPoseList();
+  setTelem('poses', poses.length);
+  // Flash status
+  document.getElementById('rec-status').textContent = `CAPTURED: ${name}`;
+  setTimeout(() => { document.getElementById('rec-status').textContent = `${poses.length} POSE${poses.length!==1?'S':''} IN SEQUENCE`; }, 1200);
+  document.getElementById('btn-seq-play').disabled = poses.length < 1;
+  document.getElementById('btn-clear-poses').disabled = poses.length < 1;
+  document.getElementById('btn-export-poses').disabled = poses.length < 1;
+}
+
+function renderPoseList() {
+  const list = document.getElementById('pose-list');
+  const empty = document.getElementById('pose-empty');
+  if (poses.length === 0) { list.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  list.innerHTML = '';
+  poses.forEach((p,i) => {
+    const item = document.createElement('div');
+    item.className = 'pose-item'; item.id = `pi-${i}`;
+    item.innerHTML = `
+      <span class="pose-num">${String(i+1).padStart(2,'0')}</span>
+      <span class="pose-name">${p.name}</span>
+      <span class="pose-time">${p.time.toFixed(1)}s</span>
+      <div class="pose-actions">
+        <button class="pose-btn play-pose" data-i="${i}" title="Go to pose">▶</button>
+        <button class="pose-btn del"       data-i="${i}" title="Delete">✕</button>
+      </div>`;
+    list.appendChild(item);
+  });
+  // Bind buttons
+  list.querySelectorAll('.play-pose').forEach(btn => {
+    btn.addEventListener('click', () => gotoPose(parseInt(btn.dataset.i)));
+  });
+  list.querySelectorAll('.del').forEach(btn => {
+    btn.addEventListener('click', () => deletePose(parseInt(btn.dataset.i)));
+  });
+}
+
+function gotoPose(i, immediate=false) {
+  if(i<0||i>=poses.length) return;
+  const p = poses[i];
+  if(immediate) {
+    joints.forEach((j,k) => {
+      j.pivot.rotation[j.axis] = p.angles[k];
+      sliderEls[k].value = p.angles[k];
+      const pct=((p.angles[k]-j.min)/(j.max-j.min))*100;
+      sliderEls[k].style.setProperty('--pct',pct+'%');
+    });
+  } else {
+    // Use the smooth lerp approach — store target
+    _poseTargetAngles = p.angles.slice();
+    _poseTargetActive = true;
+    _poseLerpT = 0;
+  }
+  if(autoDemo) stopAutoDemo();
+  if(ikMode) setIkMode(false);
+  setTelem('mode', `POSE: ${p.name}`, 'green');
+  // Highlight active
+  document.querySelectorAll('.pose-item').forEach(el=>el.classList.remove('playing'));
+  const el=document.getElementById(`pi-${i}`); if(el) el.classList.add('playing');
+}
+
+let _poseTargetAngles = null;
+let _poseTargetActive = false;
+let _poseLerpT = 0;
+const POSE_LERP_SPEED = 1.5; // radians/sec movement budget — we'll use time-based
+
+function deletePose(i) {
+  poses.splice(i,1);
+  renderPoseList();
+  setTelem('poses', poses.length);
+  if(poses.length===0){ document.getElementById('btn-seq-play').disabled=true; document.getElementById('btn-clear-poses').disabled=true; }
+}
+
+// Sequence playback
+function startSequence() {
+  if(poses.length===0) return;
+  seqPlaying=true; seqIndex=0; seqT=0;
+  _poseTargetActive=false;
+  gotoPose(0, false);
+  document.getElementById('btn-seq-play').classList.add('playing');
+  document.getElementById('btn-seq-play').querySelector('svg').innerHTML='<rect x="1" y="1" width="3.5" height="8" fill="currentColor"/><rect x="5.5" y="1" width="3.5" height="8" fill="currentColor"/>';
+  setTelem('mode','SEQUENCE PLAY','green');
+}
+
+function stopSequence() {
+  seqPlaying=false;
+  document.getElementById('btn-seq-play').classList.remove('playing');
+  document.getElementById('btn-seq-play').querySelector('svg').innerHTML='<polygon points="1,1 9,5 1,9" fill="currentColor"/>';
+  document.getElementById('playback-fill').style.width='0%';
+  if(!ikMode) setTelem('mode','MANUAL','');
+}
+
+document.getElementById('btn-capture').addEventListener('click', captureCurrentPose);
+
+document.getElementById('btn-seq-play').addEventListener('click', () => {
+  if(seqPlaying) stopSequence();
+  else startSequence();
+});
+
+document.getElementById('btn-clear-poses').addEventListener('click', () => {
+  poses.length=0; poseCounter=0; renderPoseList();
+  setTelem('poses',0);
+  document.getElementById('btn-seq-play').disabled=true;
+  document.getElementById('btn-clear-poses').disabled=true;
+  document.getElementById('btn-export-poses').disabled=true;
+  document.getElementById('rec-status').textContent='READY';
+  stopSequence();
+  document.getElementById('playback-fill').style.width='0%';
+});
+
+// ── EXPORT / IMPORT ──────────────────────────────────────────
+function exportPoses() {
+  if(poses.length === 0) return;
+  const payload = {
+    version: '1.0',
+    exported: new Date().toISOString(),
+    robot: '6DOF-arm-omniverse-twin',
+    joints: ['J0 BASE','J1 SHOULDER','J2 ELBOW','J3 WRIST-1','J4 WRIST-2','J5 WRIST-3'],
+    poses: poses.map(p => ({ name: p.name, angles: p.angles.map(a => +a.toFixed(5)), time: +p.time.toFixed(3) }))
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'robot-arm-poses-' + new Date().toISOString().slice(0,19).replace(/[T:]/g,'-') + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  document.getElementById('rec-status').textContent = 'EXPORTED ' + poses.length + ' POSES';
+  setTimeout(() => { document.getElementById('rec-status').textContent = 'READY'; }, 2500);
+}
+
+function importPoses(file) {
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      // Basic validation
+      if(!data.poses || !Array.isArray(data.poses) || data.poses.length === 0) {
+        document.getElementById('rec-status').textContent = 'INVALID FILE';
+        setTimeout(() => { document.getElementById('rec-status').textContent = 'READY'; }, 2500);
+        return;
+      }
+      // Stop any running sequence first
+      stopSequence();
+      // Clear current poses and restore from file
+      poses.length = 0;
+      poseCounter = 0;
+      data.poses.forEach(p => {
+        if(Array.isArray(p.angles) && p.angles.length === 6) {
+          poseCounter++;
+          poses.push({
+            name: p.name || ('POSE-' + String(poseCounter).padStart(2,'0')),
+            angles: p.angles.slice(0,6).map(Number),
+            time: typeof p.time === 'number' ? p.time : 0
+          });
+        }
+      });
+      renderPoseList();
+      setTelem('poses', poses.length);
+      const hasP = poses.length > 0;
+      document.getElementById('btn-seq-play').disabled = !hasP;
+      document.getElementById('btn-clear-poses').disabled = !hasP;
+      document.getElementById('btn-export-poses').disabled = !hasP;
+      document.getElementById('playback-fill').style.width = '0%';
+      document.getElementById('rec-status').textContent = 'IMPORTED ' + poses.length + ' POSES';
+      setTimeout(() => { document.getElementById('rec-status').textContent = 'READY'; }, 2500);
+    } catch(err) {
+      document.getElementById('rec-status').textContent = 'PARSE ERROR';
+      setTimeout(() => { document.getElementById('rec-status').textContent = 'READY'; }, 2500);
+    }
+  };
+  reader.readAsText(file);
+}
+
+document.getElementById('btn-export-poses').addEventListener('click', exportPoses);
+document.getElementById('btn-import-poses').addEventListener('click', () => {
+  document.getElementById('import-file-input').value = '';
+  document.getElementById('import-file-input').click();
+});
+document.getElementById('import-file-input').addEventListener('change', (e) => {
+  importPoses(e.target.files[0]);
+});
+
+// ── MAIN SIM BUTTONS ─────────────────────────────────────────
+document.getElementById('btn-play').addEventListener('click', () => {
+  simRunning=true;
+  document.getElementById('btn-play').classList.add('active');
+  document.getElementById('btn-pause').classList.remove('active');
+});
+document.getElementById('btn-pause').addEventListener('click', () => {
+  simRunning=false;
+  document.getElementById('btn-pause').classList.add('active');
+  document.getElementById('btn-play').classList.remove('active');
+});
+document.getElementById('btn-reset').addEventListener('click', () => {
+  joints.forEach((j,i)=>{
+    j.pivot.rotation[j.axis]=j.dflt; sliderEls[i].value=j.dflt;
+    const pct=((j.dflt-j.min)/(j.max-j.min))*100; sliderEls[i].style.setProperty('--pct',pct+'%');
+  });
+  stopAutoDemo(); setIkMode(false); stopSequence();
+  _poseTargetActive=false;
+  demoTime=0; elapsedSim=0;
+  physObjects.forEach(({rb,mesh})=>{ physWorld.removeRigidBody(rb); scene.remove(mesh); mesh.geometry.dispose(); });
+  physObjects.length=0; setTelem('cubes',0);
+});
+document.getElementById('btn-demo').addEventListener('click', () => {
+  autoDemo=!autoDemo;
+  document.getElementById('btn-demo').classList.toggle('active',autoDemo);
+  if(autoDemo){ if(ikMode) setIkMode(false); stopSequence(); setTelem('mode','AUTO DEMO','green'); }
+  else setTelem('mode','MANUAL','');
+});
+document.getElementById('btn-drop').addEventListener('click', spawnPhysBox);
+
+// ── RESIZE ───────────────────────────────────────────────────
+window.addEventListener('resize', ()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  composer.setSize(window.innerWidth,window.innerHeight);
+  bloom.setSize(window.innerWidth,window.innerHeight);
+  positionIkPanel();
+});
+
+// ── FPS ──────────────────────────────────────────────────────
+let fpsFrames=0, fpsLast=performance.now(), fps=0;
+
+setProgress(100,'READY');
+await new Promise(r=>setTimeout(r,300));
+document.getElementById('loading').style.display='none';
+positionIkPanel();
+
+// ── RENDER LOOP ───────────────────────────────────────────────
+const clock = new THREE.Clock();
+const PHYS_STEP = 1/60;
+let physAccum = 0;
+let ikIter = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = Math.min(clock.getDelta(), 0.05);
+
+  if (simRunning) {
+    elapsedSim += delta;
+
+    // ── AUTO DEMO ──────────────────────────────────────────
+    if (autoDemo) {
+      demoTime += delta;
+      const angles = lerpAngles(demoTime);
+      joints.forEach((j,i)=>{
+        j.pivot.rotation[j.axis]=angles[i];
+        sliderEls[i].value=angles[i];
+        const pct=((angles[i]-j.min)/(j.max-j.min))*100;
+        sliderEls[i].style.setProperty('--pct',pct+'%');
+      });
+    }
+
+    // ── IK SOLVE ───────────────────────────────────────────
+    if (ikMode && !autoDemo) {
+      ikIter++;
+      const sol = solveIK(ikTarget);
+      applyIKSolution(sol, IK_LERP);
+      ikTargetMesh.position.copy(ikTarget); // keep sphere at target
+      const eePos = getEEWorldPos();
+      const err = eePos.distanceTo(ikTarget);
+      setTelem('ik-err', err.toFixed(3)+' m', err<0.1?'green':err<0.3?'orange':'red');
+      setTelem('ik-iters', ikIter % 9999);
+      // IK target ring pulse
+      ikRingMat.opacity = 0.2 + 0.15*Math.sin(elapsedSim*6);
+      ikTargetMat.emissiveIntensity = 0.5 + 0.3*Math.sin(elapsedSim*4);
+    }
+
+    // ── SMOOTH POSE GOTO ───────────────────────────────────
+    if (_poseTargetActive && _poseTargetAngles) {
+      _poseLerpT = Math.min(1, _poseLerpT + delta * 1.5);
+      const ease = _poseLerpT<0.5?2*_poseLerpT*_poseLerpT:1-Math.pow(-2*_poseLerpT+2,2)/2;
+      joints.forEach((j,i)=>{
+        j.pivot.rotation[j.axis]=THREE.MathUtils.lerp(j.pivot.rotation[j.axis],_poseTargetAngles[i],ease*0.15);
+        sliderEls[i].value=j.pivot.rotation[j.axis];
+        const pct=((j.pivot.rotation[j.axis]-j.min)/(j.max-j.min))*100;
+        sliderEls[i].style.setProperty('--pct',pct+'%');
+      });
+      if(_poseLerpT>=1){ _poseTargetActive=false; }
+    }
+
+    // ── SEQUENCE PLAYBACK ──────────────────────────────────
+    if (seqPlaying && poses.length > 0) {
+      seqT += delta;
+      const CYCLE = SEQ_POSE_DUR + SEQ_HOLD_DUR;
+      // Total cycle per pose
+      if (seqT >= CYCLE) {
+        seqT -= CYCLE;
+        seqIndex = (seqIndex + 1) % poses.length;
+        gotoPose(seqIndex, false);
+        if (seqIndex === 0 && poses.length > 1) {
+          // wrapped around
+        }
+      }
+      // Progress bar: overall through all poses
+      const totalDur = poses.length * CYCLE;
+      const elapsed  = seqIndex * CYCLE + seqT;
+      document.getElementById('playback-fill').style.width = (elapsed/totalDur*100)+'%';
+      document.getElementById('rec-status').textContent =
+        `PLAYING ${seqIndex+1}/${poses.length} — ${poses[seqIndex].name}`;
+    }
+
+    // ── PHYSICS ────────────────────────────────────────────
+    physAccum += delta;
+    while(physAccum>=PHYS_STEP){ stepPhysics(); physAccum-=PHYS_STEP; }
+
+    // ── GLOW PULSES ────────────────────────────────────────
+    const pulse = 0.2+0.1*Math.sin(elapsedSim*4);
+    eeTip.intensity = 1.2+0.8*Math.sin(elapsedSim*5.5);
+    matEE.emissiveIntensity = 0.25+pulse;
+    matJoint.emissiveIntensity = 0.08+0.06*Math.sin(elapsedSim*2);
+    baseRingMesh.material.opacity = 0.12+0.08*Math.sin(elapsedSim*1.5);
+  }
+
+  // ── UI UPDATES ─────────────────────────────────────────────
+  joints.forEach((j,i)=>{
+    valueEls[i].textContent=(j.pivot.rotation[j.axis]*180/Math.PI).toFixed(1)+'°';
+  });
+
+  const eePos = getEEWorldPos();
+  document.getElementById('ee-x').textContent = eePos.x.toFixed(3);
+  document.getElementById('ee-y').textContent = eePos.y.toFixed(3);
+  document.getElementById('ee-z').textContent = eePos.z.toFixed(3);
+  setTelem('reach', Math.sqrt(eePos.x*eePos.x+eePos.z*eePos.z).toFixed(2)+' m','cyan');
+
+  // FPS
+  fpsFrames++;
+  const now=performance.now();
+  if(now-fpsLast>=800){
+    fps=Math.round(fpsFrames*1000/(now-fpsLast)); fpsFrames=0; fpsLast=now;
+    setTelem('fps',fps,fps>=55?'green':fps>=30?'yellow':'');
+  }
+
+  document.getElementById('dbg-fps').textContent=`FPS: ${fps}`;
+  document.getElementById('dbg-tri').textContent=`TRI: ${renderer.info.render.triangles.toLocaleString()}`;
+  document.getElementById('dbg-dc').textContent =`DC: ${renderer.info.render.calls}`;
+
+  controls.update();
+  composer.render();
+}
+
+animate();
+</script>
+<script data-pplx-inline-edit>
+(function(){
+  if(window===window.top)return;
+  function inlineAll(orig,clone){
+    if(orig.nodeType!==1)return;
+    try{
+      var cs=getComputedStyle(orig);
+      var t='';
+      for(var i=0;i<cs.length;i++){t+=cs[i]+':'+cs.getPropertyValue(cs[i])+';';}
+      clone.style.cssText=t;
+    }catch(e){}
+    var oc=orig.children,cc=clone.children;
+    for(var j=0;j<oc.length&&j<cc.length;j++){inlineAll(oc[j],cc[j]);}
+  }
+  function stripExternal(clone){
+    var imgs=clone.querySelectorAll('img');
+    for(var i=0;i<imgs.length;i++){
+      var s=imgs[i].getAttribute('src');
+      if(s&&!s.startsWith('data:'))imgs[i].removeAttribute('src');
+    }
+    var all=clone.querySelectorAll('*');
+    for(var i=0;i<all.length;i++){
+      var st=all[i].style.cssText;
+      if(st&&st.indexOf('url(')>=0){
+        all[i].style.cssText=st.replace(/url\(["']?(?!data:)[^)"']*["']?\)/gi,'none');
+      }
+    }
+  }
+  window.addEventListener('message',function(e){
+    if(!e.data||e.data.type!=='INLINE_EDIT_CAPTURE_REQUEST')return;
+    var scrollX=window.scrollX||window.pageXOffset||0;
+    var scrollY=window.scrollY||window.pageYOffset||0;
+    var w=window.innerWidth,h=window.innerHeight;
+    try{
+      var clone=document.documentElement.cloneNode(true);
+      var rm=clone.querySelectorAll('script,link[rel="stylesheet"],style');
+      for(var i=0;i<rm.length;i++){rm[i].remove();}
+      inlineAll(document.documentElement,clone);
+      stripExternal(clone);
+      var html=new XMLSerializer().serializeToString(clone);
+      var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'">'
+        +'<foreignObject width="100%" height="100%">'
+        +'<div xmlns="http://www.w3.org/1999/xhtml" style="width:'+w+'px;height:'+h+'px;overflow:hidden">'
+        +'<div style="transform:translate(-'+scrollX+'px,-'+scrollY+'px);transform-origin:top left">'
+        +html+'</div></div></foreignObject></svg>';
+      var svgUrl='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+      var img=new Image();
+      img.onload=function(){
+        var c=document.createElement('canvas');c.width=w;c.height=h;
+        c.getContext('2d').drawImage(img,0,0);
+        window.parent.postMessage({type:'INLINE_EDIT_SCREENSHOT_RESULT',dataUrl:c.toDataURL('image/png'),scrollX:scrollX,scrollY:scrollY},'*');
+      };
+      img.onerror=function(){
+        window.parent.postMessage({type:'INLINE_EDIT_SCREENSHOT_RESULT',dataUrl:null,scrollX:scrollX,scrollY:scrollY},'*');
+      };
+      img.src=svgUrl;
+    }catch(err){
+      window.parent.postMessage({type:'INLINE_EDIT_SCREENSHOT_RESULT',dataUrl:null,scrollX:scrollX,scrollY:scrollY},'*');
+    }
+  });
+})();
+</script></body>
+</html>
