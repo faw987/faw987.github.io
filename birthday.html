@@ -15,7 +15,9 @@
   #ui label { display:block; font-size:11px; margin:6px 0 2px; opacity:0.85; }
   #ui input[type=range] { width:100%; }
   #status { font-size:12px; margin-top:8px; opacity:0.9; }
-  #hint { font-size:10px; opacity:0.6; margin-top:8px; line-height:1.5; }
+  #hint { font-size:30px; opacity:0.6; margin-top:8px; line-height:1.5; }
+  .adv { display:none; }
+  #ui.show-adv .adv { display:block; }
   #win {
     position:absolute; inset:0; display:none;
     align-items:center; justify-content:center;
@@ -28,12 +30,15 @@
 <div id="win"></div>
 <div id="ui">
   <h3 id="title">🎂 Happy Birthday, Mitch!</h3>
-  <label>Pitch <span id="pitchV">0°</span></label>
-  <input type="range" id="pitch" min="-180" max="180" value="0">
-  <label>Yaw <span id="yawV">0°</span></label>
-  <input type="range" id="yaw" min="-180" max="180" value="0">
-  <label>Roll <span id="rollV">0°</span></label>
-  <input type="range" id="roll" min="-180" max="180" value="0">
+  <label><input type="checkbox" id="advToggle"> Show advanced controls</label>
+  <div class="adv">
+    <label>Pitch <span id="pitchV">0°</span></label>
+    <input type="range" id="pitch" min="-180" max="180" value="0">
+    <label>Yaw <span id="yawV">0°</span></label>
+    <input type="range" id="yaw" min="-180" max="180" value="0">
+    <label>Roll <span id="rollV">0°</span></label>
+    <input type="range" id="roll" min="-180" max="180" value="0">
+  </div>
   <label>Jet diameter <span id="jetV">0.56</span></label>
   <input type="range" id="jet" min="0.10" max="1.20" step="0.01" value="0.56">
   <label><input type="checkbox" id="spin"> Auto-spin</label>
@@ -57,15 +62,60 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// =================== Parameters (will be parameterized later) ===================
+// =================== Parameters (URL-overridable) ===================
+// Supported query string params:
+//   ?name=Alice                — recipient (default "Mitch")
+//   ?candles=12                — integer 1..100 (default 3)
+//   ?cake=mycake.png           — top-of-cake image (default cake1.png)
+//   ?tune=mysong.mp3           — background music (default happy.mp3)
+//   ?tada=fanfare.mp3          — sound played at win (default: synthesized fanfare)
+//   ?tadamsg=And+many+more!    — end-screen message (default "TA-DA!")
+const _qs = new URLSearchParams(location.search);
+function _qsStr(key, def) {
+  const v = _qs.get(key);
+  return (v === null || v === '') ? def : v;
+}
+function _qsInt(key, def, lo, hi) {
+  const v = parseInt(_qs.get(key), 10);
+  if (!Number.isFinite(v)) return def;
+  return Math.max(lo, Math.min(hi, v));
+}
 const PARAMS = {
-  recipientName: 'Mitch',
-  numCandles: 3,
-  endPhrase: 'TA-DA!',
-  cakeImage: 'cake1.png'
+  recipientName: _qsStr('name', 'Mitch'),
+  numCandles:    _qsInt('candles', 3, 1, 100),
+  endPhrase:     _qsStr('tadamsg', 'TA-DA!'),
+  cakeImage:     _qsStr('cake', 'cake1.png'),
+  tuneUrl:       _qsStr('tune', 'happy.mp3'),
+  tadaUrl:       _qsStr('tada', '')   // empty → use synthesized fanfare
 };
 document.getElementById('title').textContent = `🎂 Happy Birthday, ${PARAMS.recipientName}!`;
 document.getElementById('win').textContent   = `🎉 ${PARAMS.endPhrase} 🎉`;
+
+// =================== Background music ===================
+// Browsers block autoplay with sound until the user interacts with the page,
+// so we attempt to play immediately and, if blocked, retry on the first
+// click/keypress/touch.
+const bgMusic = new Audio(PARAMS.tuneUrl);
+bgMusic.loop = true;
+bgMusic.volume = 0.18;        // "fairly low volume"
+bgMusic.preload = 'auto';
+function _tryPlayBg() {
+  const p = bgMusic.play();
+  if (p && typeof p.catch === 'function') {
+    p.catch(() => {
+      const resume = () => {
+        bgMusic.play().catch(()=>{});
+        removeEventListener('pointerdown', resume);
+        removeEventListener('keydown', resume);
+        removeEventListener('touchstart', resume);
+      };
+      addEventListener('pointerdown', resume, { once:false });
+      addEventListener('keydown',     resume, { once:false });
+      addEventListener('touchstart',  resume, { once:false });
+    });
+  }
+}
+_tryPlayBg();
 
 // =================== Scene / Camera / Renderer ===================
 const scene = new THREE.Scene();
@@ -438,6 +488,14 @@ let _tadaPlayed = false;
 function playTada() {
   if (_tadaPlayed) return;          // only fire once per win
   _tadaPlayed = true;
+  // Stop the background music so the fanfare has the stage to itself.
+  try { bgMusic.pause(); bgMusic.currentTime = 0; } catch(_) {}
+  if (PARAMS.tadaUrl) {
+    const a = new Audio(PARAMS.tadaUrl);
+    a.volume = 0.9;
+    a.play().catch(() => {/* ignore — autoplay may be blocked */});
+    return;
+  }
   const ctx = getAudio();
   if (!ctx) return;
   const t0 = ctx.currentTime + 0.02;
@@ -484,6 +542,13 @@ function applyJet() {
 }
 jetEl.addEventListener('input', applyJet);
 applyJet();
+
+// Advanced-controls visibility (pitch / yaw / roll). Off by default.
+const uiEl = document.getElementById('ui');
+const advToggle = document.getElementById('advToggle');
+advToggle.addEventListener('change', () => {
+  uiEl.classList.toggle('show-adv', advToggle.checked);
+});
 
 // =================== Animation ===================
 const clock = new THREE.Clock();
