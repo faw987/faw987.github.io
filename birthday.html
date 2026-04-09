@@ -38,10 +38,12 @@
     <input type="range" id="yaw" min="-180" max="180" value="0">
     <label>Roll <span id="rollV">0°</span></label>
     <input type="range" id="roll" min="-180" max="180" value="0">
+    <label><input type="checkbox" id="spin"> Auto-spin (easier for some)</label>
   </div>
   <label>Jet diameter <span id="jetV">0.56</span></label>
   <input type="range" id="jet" min="0.10" max="1.20" step="0.01" value="0.56">
-  <label><input type="checkbox" id="spin"> Auto-spin</label>
+  <label>Jet angle <span id="angleV">20°</span></label>
+  <input type="range" id="angle" min="0" max="80" step="1" value="20">
   <div id="status">Candles lit: <span id="litCount">0</span></div>
   <div id="hint">
     <b>↑/↓</b> pitch &nbsp; <b>←/→</b> roll &nbsp; <b>Q/E</b> yaw<br>
@@ -332,15 +334,32 @@ document.getElementById('litCount').textContent = flames.length;
 
 // =================== Squirter ===================
 // Stationary water gun fixed in world space, pointing toward the cake.
+// The stream is ballistic: drops leave the nozzle with a fixed speed at the
+// user-chosen elevation angle, then fall under gravity so they arc onto the
+// cake. The horizontal aim direction is fixed; only the elevation changes.
 const squirter = new THREE.Group();
 const SQUIRT_ORIGIN = new THREE.Vector3(-5.8, 2.6, 2.0);
-const SQUIRT_DIR = new THREE.Vector3(1, -0.10, -0.32).normalize();
-const SQUIRT_LENGTH = 9.0;
-let SQUIRT_RADIUS = 0.28;     // hit cylinder radius around the stream axis (controlled by jet slider)
+const SQUIRT_HORIZ  = new THREE.Vector3(1, 0, -0.32).normalize(); // unit horizontal aim
+const SQUIRT_SPEED  = 8.0;    // initial speed of water drops (m/s-ish, world-units)
+const GRAVITY       = 9.8;    // downward accel applied to every drop
+const DROP_LIFETIME = 2.0;    // seconds before a drop respawns at the nozzle
+let SQUIRT_ANGLE_DEG = 20;    // elevation angle, driven by slider
+let SQUIRT_RADIUS    = 0.28;  // drop-vs-flame hit radius (driven by jet slider)
 squirter.position.copy(SQUIRT_ORIGIN);
-// orient +Y of the gun mesh along SQUIRT_DIR
-squirter.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), SQUIRT_DIR);
 scene.add(squirter);
+
+// Current aim direction as a unit vector (horizontal rotated up by angle).
+const _aim = new THREE.Vector3();
+function currentAimDir(out = _aim) {
+  const r = SQUIRT_ANGLE_DEG * Math.PI / 180;
+  const c = Math.cos(r), s = Math.sin(r);
+  return out.set(SQUIRT_HORIZ.x * c, s, SQUIRT_HORIZ.z * c);
+}
+function updateSquirterAim() {
+  const dir = currentAimDir();
+  squirter.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+}
+updateSquirterAim();
 
 // Body
 const gunBody = new THREE.Mesh(
@@ -365,7 +384,9 @@ handle.position.set(0, -0.35, -0.05);
 handle.rotation.x = -0.4;
 squirter.add(handle);
 
-// Water particle stream
+// Water particle stream — ballistic: each drop carries a lifetime `t` in
+// seconds since it left the nozzle. Position is tip + v0*t + 0.5*g*t^2,
+// so the whole stream arcs naturally and responds to the jet-angle slider.
 const NUM_DROPS = 90;
 const dropGeo = new THREE.SphereGeometry(0.045, 8, 6);
 const dropMat = new THREE.MeshStandardMaterial({
@@ -374,45 +395,55 @@ const dropMat = new THREE.MeshStandardMaterial({
 const drops = [];
 for (let i = 0; i < NUM_DROPS; i++) {
   const m = new THREE.Mesh(dropGeo, dropMat);
-  // Distribute progress along the stream so it looks continuous from the start
-  const progress = (i / NUM_DROPS) * SQUIRT_LENGTH;
-  m.userData.progress = progress;
+  // Stagger lifetimes so the stream looks continuous from frame 1
+  m.userData.t = (i / NUM_DROPS) * DROP_LIFETIME;
   scene.add(m);
   drops.push(m);
 }
-const SQUIRT_SPEED = 5.0;
+
+const _tipPos = new THREE.Vector3();
+const _v0     = new THREE.Vector3();
+function getNozzleTip(out = _tipPos) {
+  const dir = currentAimDir();
+  return out.copy(SQUIRT_ORIGIN).addScaledVector(dir, 0.55);
+}
+function getInitialVelocity(out = _v0) {
+  const dir = currentAimDir();
+  return out.copy(dir).multiplyScalar(SQUIRT_SPEED);
+}
 
 function updateSquirter(dt) {
-  const tip = SQUIRT_ORIGIN.clone().add(SQUIRT_DIR.clone().multiplyScalar(0.55));
+  const tip = getNozzleTip();
+  const v0  = getInitialVelocity();
   for (const d of drops) {
-    d.userData.progress += SQUIRT_SPEED * dt;
-    if (d.userData.progress > SQUIRT_LENGTH) d.userData.progress -= SQUIRT_LENGTH;
-    const p = d.userData.progress;
-    const pos = tip.clone().add(SQUIRT_DIR.clone().multiplyScalar(p));
-    // small jitter
-    pos.x += (Math.random() - 0.5) * 0.02;
-    pos.y += (Math.random() - 0.5) * 0.02 - 0.04 * p * 0.05;
-    pos.z += (Math.random() - 0.5) * 0.02;
-    d.position.copy(pos);
-    const fade = 1 - p / SQUIRT_LENGTH;
+    d.userData.t += dt;
+    if (d.userData.t > DROP_LIFETIME) d.userData.t -= DROP_LIFETIME;
+    const t = d.userData.t;
+    // ballistic: p = tip + v0*t + 0.5*g*t^2   (g points -y)
+    const x = tip.x + v0.x * t + (Math.random() - 0.5) * 0.02;
+    const y = tip.y + v0.y * t - 0.5 * GRAVITY * t * t + (Math.random() - 0.5) * 0.02;
+    const z = tip.z + v0.z * t + (Math.random() - 0.5) * 0.02;
+    d.position.set(x, y, z);
+    const fade = 1 - t / DROP_LIFETIME;
     const sizeScale = d.userData.sizeScale || 1;
     d.scale.setScalar((0.6 + fade * 0.6) * sizeScale);
   }
 }
 
-// Hit test: is a flame's world position inside the stream cylinder?
+// Hit test: for each lit flame, see if any drop is within SQUIRT_RADIUS of it.
+// Simple O(drops * flames) — fine for the scale we're at.
 const _flamePos = new THREE.Vector3();
-const _toFlame = new THREE.Vector3();
 function checkSquirtHits() {
-  const tip = SQUIRT_ORIGIN.clone().add(SQUIRT_DIR.clone().multiplyScalar(0.55));
+  const r2 = SQUIRT_RADIUS * SQUIRT_RADIUS + 0.01; // small fudge for flame size
   for (const f of flames) {
     if (!f.lit) continue;
     f.flame.getWorldPosition(_flamePos);
-    _toFlame.subVectors(_flamePos, tip);
-    const along = _toFlame.dot(SQUIRT_DIR);
-    if (along < 0 || along > SQUIRT_LENGTH) continue;
-    const perp = Math.sqrt(Math.max(0, _toFlame.lengthSq() - along * along));
-    if (perp < SQUIRT_RADIUS) extinguish(f);
+    for (const d of drops) {
+      if (d.position.distanceToSquared(_flamePos) < r2) {
+        extinguish(f);
+        break;
+      }
+    }
   }
 }
 
@@ -525,6 +556,8 @@ const pitchEl = document.getElementById('pitch');
 const yawEl   = document.getElementById('yaw');
 const rollEl  = document.getElementById('roll');
 const jetEl   = document.getElementById('jet');
+const angleEl = document.getElementById('angle');
+const angleV  = document.getElementById('angleV');
 const spinEl  = document.getElementById('spin');
 const pitchV  = document.getElementById('pitchV');
 const yawV    = document.getElementById('yawV');
@@ -542,6 +575,15 @@ function applyJet() {
 }
 jetEl.addEventListener('input', applyJet);
 applyJet();
+
+// Jet angle: elevation of the stream in degrees (0° = flat, 80° = near-vertical).
+function applyAngle() {
+  SQUIRT_ANGLE_DEG = +angleEl.value;
+  angleV.textContent = SQUIRT_ANGLE_DEG + '°';
+  updateSquirterAim();
+}
+angleEl.addEventListener('input', applyAngle);
+applyAngle();
 
 // Advanced-controls visibility (pitch / yaw / roll). Off by default.
 const uiEl = document.getElementById('ui');
