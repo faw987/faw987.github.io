@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Happy Birthday!</title>
+<style>
+  body { margin:0; overflow:hidden; font-family: -apple-system, sans-serif; background:#0a0e1a; color:#fff; }
+  canvas { display:block; }
+  #ui {
+    position:absolute; top:12px; left:12px;
+    background:rgba(0,0,0,0.55); padding:12px 14px; border-radius:10px;
+    backdrop-filter: blur(6px); min-width: 220px;
+  }
+  #ui h3 { margin:0 0 8px 0; font-size:14px; letter-spacing:0.5px; }
+  #ui label { display:block; font-size:11px; margin:6px 0 2px; opacity:0.85; }
+  #ui input[type=range] { width:100%; }
+  #status { font-size:12px; margin-top:8px; opacity:0.9; }
+  #hint { font-size:10px; opacity:0.6; margin-top:8px; line-height:1.5; }
+  #win {
+    position:absolute; inset:0; display:none;
+    align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.55); font-size:48px; font-weight:700;
+    text-shadow: 0 4px 24px rgba(255,200,80,0.6); pointer-events:none;
+  }
+</style>
+</head>
+<body>
+<div id="win"></div>
+<div id="ui">
+  <h3 id="title">🎂 Happy Birthday, Mitch!</h3>
+  <label>Pitch <span id="pitchV">0°</span></label>
+  <input type="range" id="pitch" min="-180" max="180" value="0">
+  <label>Yaw <span id="yawV">0°</span></label>
+  <input type="range" id="yaw" min="-180" max="180" value="0">
+  <label>Roll <span id="rollV">0°</span></label>
+  <input type="range" id="roll" min="-180" max="180" value="0">
+  <label>Jet diameter <span id="jetV">0.56</span></label>
+  <input type="range" id="jet" min="0.10" max="1.20" step="0.01" value="0.56">
+  <label><input type="checkbox" id="spin"> Auto-spin</label>
+  <div id="status">Candles lit: <span id="litCount">0</span></div>
+  <div id="hint">
+    <b>↑/↓</b> pitch &nbsp; <b>←/→</b> roll &nbsp; <b>Q/E</b> yaw<br>
+    Drag empty space to orbit camera • scroll to zoom<br>
+    Steer the cake so the squirter douses every flame!
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// =================== Parameters (will be parameterized later) ===================
+const PARAMS = {
+  recipientName: 'Mitch',
+  numCandles: 3,
+  endPhrase: 'TA-DA!',
+  cakeImage: 'cake1.png'
+};
+document.getElementById('title').textContent = `🎂 Happy Birthday, ${PARAMS.recipientName}!`;
+document.getElementById('win').textContent   = `🎉 ${PARAMS.endPhrase} 🎉`;
+
+// =================== Scene / Camera / Renderer ===================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0e1a);
+scene.fog = new THREE.Fog(0x0a0e1a, 10, 30);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0, 4.8, 10);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 1.0, 0);
+
+// =================== Lights ===================
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 0.9);
+key.position.set(4, 6, 5);
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x88aaff, 0.4);
+rim.position.set(-4, 2, -3);
+scene.add(rim);
+
+// =================== Cake Group ===================
+const cakeGroup = new THREE.Group();
+scene.add(cakeGroup);
+
+// =================== 3D Cake (taller cylinder) ===================
+// Top face uses the cake PNG; sides show a "Happy Birthday <name>" banner
+// that repeats around the circumference; sits on a dark plate.
+const CAKE_RADIUS_TOP    = 3.0;
+const CAKE_RADIUS_BOTTOM = 3.15;
+const CAKE_HEIGHT        = 1.15;
+const CAKE_TOP_Y         = CAKE_HEIGHT;          // top face world-y (cake bottom at y=0)
+const SIDE_BANNER_REPEATS = 4;                   // how many times the text wraps around
+
+const loader = new THREE.TextureLoader();
+const cakeTopTex = loader.load(
+  PARAMS.cakeImage,
+  (t) => {
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8;
+    // Center & gently zoom so the cake fills the cap and the photo's
+    // background border is hidden behind the rim.
+    t.center.set(0.5, 0.5);
+    t.repeat.set(0.78, 0.78);
+  },
+  undefined,
+  () => { console.warn(`Could not load ${PARAMS.cakeImage}. Serve via local HTTP (e.g. "python3 -m http.server").`); }
+);
+
+// Build a chocolate-colored canvas with one instance of the banner text,
+// then tile it horizontally around the cylinder side.
+function makeSideBannerTexture(name) {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 256;
+  const g = c.getContext('2d');
+
+  // chocolate background
+  g.fillStyle = '#3a1d10';
+  g.fillRect(0, 0, c.width, c.height);
+
+  // a subtle inner frosting frame
+  g.strokeStyle = '#5a2a14';
+  g.lineWidth = 12;
+  g.strokeRect(18, 18, c.width - 36, c.height - 36);
+
+  // dotted top/bottom piping
+  g.fillStyle = '#7a3a1c';
+  for (let x = 30; x < c.width - 30; x += 28) {
+    g.beginPath(); g.arc(x, 40, 6, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(x, c.height - 40, 6, 0, Math.PI * 2); g.fill();
+  }
+
+  // the banner text — trailing dots give breathing room between repeats
+  const text = `HAPPY BIRTHDAY ${name.toUpperCase()} . . .`;
+  g.fillStyle = '#fff5d6';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  // Auto-fit: pick the largest font size whose rendered width still leaves
+  // a safe margin inside the canvas, so nothing gets clipped at the seams.
+  const fontFamily = '"Marker Felt", "Comic Sans MS", "Trebuchet MS", cursive';
+  const maxTextWidth = c.width - 80;
+  let fontSize = 110;
+  do {
+    g.font = `bold ${fontSize}px ${fontFamily}`;
+    if (g.measureText(text).width <= maxTextWidth) break;
+    fontSize -= 2;
+  } while (fontSize > 24);
+  g.shadowColor = 'rgba(0,0,0,0.55)';
+  g.shadowBlur = 10;
+  g.shadowOffsetX = 2;
+  g.shadowOffsetY = 4;
+  g.fillText(text, c.width / 2, c.height / 2 + 6);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.repeat.set(SIDE_BANNER_REPEATS, 1);
+  tex.anisotropy = 8;
+  return tex;
+}
+const sideBannerTex = makeSideBannerTexture(PARAMS.recipientName);
+
+const sideMat = new THREE.MeshStandardMaterial({
+  map: sideBannerTex, roughness: 0.85, metalness: 0.0
+});
+const topMat = new THREE.MeshStandardMaterial({
+  map: cakeTopTex, roughness: 0.65, metalness: 0.0
+});
+const bottomMat = new THREE.MeshStandardMaterial({
+  color: 0x2a140a, roughness: 0.9
+});
+
+// CylinderGeometry material slots: [side, top, bottom]
+const cakeGeo = new THREE.CylinderGeometry(
+  CAKE_RADIUS_TOP, CAKE_RADIUS_BOTTOM, CAKE_HEIGHT, 64, 1, false
+);
+const cakeMesh = new THREE.Mesh(cakeGeo, [sideMat, topMat, bottomMat]);
+cakeMesh.position.y = CAKE_HEIGHT / 2;
+cakeGroup.add(cakeMesh);
+
+// Frosting drip ring just under the top edge — a slightly larger, very thin
+// torus-like band gives a hint of piped frosting.
+const dripGeo = new THREE.TorusGeometry(CAKE_RADIUS_TOP * 1.005, 0.045, 12, 64);
+const dripMat = new THREE.MeshStandardMaterial({ color: 0x5a2a14, roughness: 0.6 });
+const drip = new THREE.Mesh(dripGeo, dripMat);
+drip.rotation.x = Math.PI / 2;
+drip.position.y = CAKE_HEIGHT - 0.02;
+cakeGroup.add(drip);
+
+// Serving plate
+const plateGeo = new THREE.CylinderGeometry(CAKE_RADIUS_BOTTOM * 1.18, CAKE_RADIUS_BOTTOM * 1.18, 0.07, 64);
+const plateMat = new THREE.MeshStandardMaterial({ color: 0x1a1a22, roughness: 0.4, metalness: 0.3 });
+const plate = new THREE.Mesh(plateGeo, plateMat);
+plate.position.y = -0.035;
+cakeGroup.add(plate);
+
+// =================== Candles ===================
+const flames = [];
+
+function buildCandles(n) {
+  const candleH = 0.55;
+  const candleR = 0.075;
+  const yTop = CAKE_TOP_Y;     // sit on the cake's top face
+  const ringR = n === 1 ? 0 : CAKE_RADIUS_TOP * 0.55;
+  const waxColors = [0xffffff, 0xffd1dc, 0xb0e0e6, 0xfff1a8, 0xc6f0c2, 0xffc89e];
+
+  for (let i = 0; i < n; i++) {
+    let x = 0, z = 0;
+    if (n > 1) {
+      const a = (i / n) * Math.PI * 2;
+      x = Math.cos(a) * ringR;
+      z = Math.sin(a) * ringR;
+    }
+    const g = new THREE.Group();
+    g.position.set(x, yTop, z);
+
+    // wax body
+    const wax = new THREE.Mesh(
+      new THREE.CylinderGeometry(candleR, candleR, candleH, 20),
+      new THREE.MeshStandardMaterial({ color: waxColors[i % waxColors.length], roughness: 0.4 })
+    );
+    wax.position.y = candleH/2;
+    g.add(wax);
+
+    // little stripes (decorative ring)
+    const ring = new THREE.Mesh(
+      new THREE.CylinderGeometry(candleR*1.02, candleR*1.02, 0.04, 20),
+      new THREE.MeshStandardMaterial({ color: 0xff3366 })
+    );
+    ring.position.y = candleH * 0.55;
+    g.add(ring);
+
+    // wick
+    const wick = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.012, 0.012, 0.09, 6),
+      new THREE.MeshStandardMaterial({ color: 0x1a1a1a })
+    );
+    wick.position.y = candleH + 0.045;
+    g.add(wick);
+
+    // inner flame
+    const flameMat = new THREE.MeshBasicMaterial({ color: 0xffcc33, transparent: true, opacity: 0.95 });
+    const flame = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 16), flameMat);
+    flame.scale.set(1, 1.9, 1);
+    flame.position.y = candleH + 0.15;
+    g.add(flame);
+
+    // outer glow
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xffaa33, transparent: true, opacity: 0.35 });
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), glowMat);
+    glow.scale.set(1, 1.7, 1);
+    glow.position.y = candleH + 0.15;
+    g.add(glow);
+
+    // point light
+    const light = new THREE.PointLight(0xffaa44, 0.7, 3.5, 2);
+    light.position.y = candleH + 0.18;
+    g.add(light);
+
+    cakeGroup.add(g);
+    flames.push({ flame, glow, light, lit: true });
+  }
+}
+buildCandles(PARAMS.numCandles);
+document.getElementById('litCount').textContent = flames.length;
+
+// =================== Squirter ===================
+// Stationary water gun fixed in world space, pointing toward the cake.
+const squirter = new THREE.Group();
+const SQUIRT_ORIGIN = new THREE.Vector3(-5.8, 2.6, 2.0);
+const SQUIRT_DIR = new THREE.Vector3(1, -0.10, -0.32).normalize();
+const SQUIRT_LENGTH = 9.0;
+let SQUIRT_RADIUS = 0.28;     // hit cylinder radius around the stream axis (controlled by jet slider)
+squirter.position.copy(SQUIRT_ORIGIN);
+// orient +Y of the gun mesh along SQUIRT_DIR
+squirter.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), SQUIRT_DIR);
+scene.add(squirter);
+
+// Body
+const gunBody = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.18, 0.22, 0.55, 18),
+  new THREE.MeshStandardMaterial({ color: 0x2a6cf0, roughness: 0.4, metalness: 0.2 })
+);
+gunBody.position.y = -0.05;
+squirter.add(gunBody);
+// Nozzle
+const nozzle = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.08, 0.12, 0.35, 16),
+  new THREE.MeshStandardMaterial({ color: 0x9fd0ff, roughness: 0.3, metalness: 0.4 })
+);
+nozzle.position.y = 0.35;
+squirter.add(nozzle);
+// Handle
+const handle = new THREE.Mesh(
+  new THREE.BoxGeometry(0.18, 0.35, 0.12),
+  new THREE.MeshStandardMaterial({ color: 0x1a3a8a, roughness: 0.6 })
+);
+handle.position.set(0, -0.35, -0.05);
+handle.rotation.x = -0.4;
+squirter.add(handle);
+
+// Water particle stream
+const NUM_DROPS = 90;
+const dropGeo = new THREE.SphereGeometry(0.045, 8, 6);
+const dropMat = new THREE.MeshStandardMaterial({
+  color: 0x66c8ff, emissive: 0x224477, transparent: true, opacity: 0.85, roughness: 0.2
+});
+const drops = [];
+for (let i = 0; i < NUM_DROPS; i++) {
+  const m = new THREE.Mesh(dropGeo, dropMat);
+  // Distribute progress along the stream so it looks continuous from the start
+  const progress = (i / NUM_DROPS) * SQUIRT_LENGTH;
+  m.userData.progress = progress;
+  scene.add(m);
+  drops.push(m);
+}
+const SQUIRT_SPEED = 5.0;
+
+function updateSquirter(dt) {
+  const tip = SQUIRT_ORIGIN.clone().add(SQUIRT_DIR.clone().multiplyScalar(0.55));
+  for (const d of drops) {
+    d.userData.progress += SQUIRT_SPEED * dt;
+    if (d.userData.progress > SQUIRT_LENGTH) d.userData.progress -= SQUIRT_LENGTH;
+    const p = d.userData.progress;
+    const pos = tip.clone().add(SQUIRT_DIR.clone().multiplyScalar(p));
+    // small jitter
+    pos.x += (Math.random() - 0.5) * 0.02;
+    pos.y += (Math.random() - 0.5) * 0.02 - 0.04 * p * 0.05;
+    pos.z += (Math.random() - 0.5) * 0.02;
+    d.position.copy(pos);
+    const fade = 1 - p / SQUIRT_LENGTH;
+    const sizeScale = d.userData.sizeScale || 1;
+    d.scale.setScalar((0.6 + fade * 0.6) * sizeScale);
+  }
+}
+
+// Hit test: is a flame's world position inside the stream cylinder?
+const _flamePos = new THREE.Vector3();
+const _toFlame = new THREE.Vector3();
+function checkSquirtHits() {
+  const tip = SQUIRT_ORIGIN.clone().add(SQUIRT_DIR.clone().multiplyScalar(0.55));
+  for (const f of flames) {
+    if (!f.lit) continue;
+    f.flame.getWorldPosition(_flamePos);
+    _toFlame.subVectors(_flamePos, tip);
+    const along = _toFlame.dot(SQUIRT_DIR);
+    if (along < 0 || along > SQUIRT_LENGTH) continue;
+    const perp = Math.sqrt(Math.max(0, _toFlame.lengthSq() - along * along));
+    if (perp < SQUIRT_RADIUS) extinguish(f);
+  }
+}
+
+const litCountEl = document.getElementById('litCount');
+const winEl = document.getElementById('win');
+function extinguish(f) {
+  f.lit = false;
+  f.flame.visible = false;
+  f.glow.visible = false;
+  f.light.intensity = 0;
+  const remaining = flames.filter(x => x.lit).length;
+  litCountEl.textContent = remaining;
+  if (remaining === 0) {
+    winEl.style.display = 'flex';
+    playTada();
+  }
+}
+
+// =================== Ta-da fanfare (Web Audio, no assets) ===================
+// Two ascending notes: a short "ta" and a held "daaa", a perfect fourth apart.
+// Each note is two slightly-detuned triangle oscillators through a lowpass
+// for a soft horn flavor.
+let _audioCtx = null;
+function getAudio() {
+  if (!_audioCtx) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    _audioCtx = new Ctx();
+  }
+  if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  return _audioCtx;
+}
+function playNote(ctx, freq, startAt, duration, peakGain) {
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0.0001, startAt);
+  master.gain.exponentialRampToValueAtTime(peakGain, startAt + 0.02);
+  master.gain.setValueAtTime(peakGain, startAt + duration * 0.6);
+  master.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+
+  const lp = ctx.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 2400;
+  lp.Q.value = 0.7;
+
+  const o1 = ctx.createOscillator();
+  o1.type = 'triangle';
+  o1.frequency.value = freq;
+  o1.detune.value = -6;
+
+  const o2 = ctx.createOscillator();
+  o2.type = 'triangle';
+  o2.frequency.value = freq;
+  o2.detune.value = +6;
+
+  // A faint square overtone for a brassy edge
+  const o3 = ctx.createOscillator();
+  o3.type = 'square';
+  o3.frequency.value = freq * 2;
+  const o3g = ctx.createGain();
+  o3g.gain.value = 0.06;
+
+  o1.connect(lp);
+  o2.connect(lp);
+  o3.connect(o3g).connect(lp);
+  lp.connect(master).connect(ctx.destination);
+
+  o1.start(startAt); o2.start(startAt); o3.start(startAt);
+  o1.stop(startAt + duration + 0.05);
+  o2.stop(startAt + duration + 0.05);
+  o3.stop(startAt + duration + 0.05);
+}
+let _tadaPlayed = false;
+function playTada() {
+  if (_tadaPlayed) return;          // only fire once per win
+  _tadaPlayed = true;
+  const ctx = getAudio();
+  if (!ctx) return;
+  const t0 = ctx.currentTime + 0.02;
+  // "ta"  — G4, short
+  playNote(ctx, 392.00, t0,        0.18, 0.22);
+  // "daaa" — C5, held, a perfect fourth above
+  playNote(ctx, 523.25, t0 + 0.20, 0.95, 0.28);
+}
+
+// =================== Keyboard ===================
+const keys = Object.create(null);
+addEventListener('keydown', e => {
+  // prevent page scroll on arrow keys
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+  keys[e.code] = true;
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+
+function clampAngle(v) {
+  // wrap into [-180, 180]
+  v = ((v + 180) % 360 + 360) % 360 - 180;
+  return v;
+}
+
+// =================== UI bindings ===================
+const pitchEl = document.getElementById('pitch');
+const yawEl   = document.getElementById('yaw');
+const rollEl  = document.getElementById('roll');
+const jetEl   = document.getElementById('jet');
+const spinEl  = document.getElementById('spin');
+const pitchV  = document.getElementById('pitchV');
+const yawV    = document.getElementById('yawV');
+const rollV   = document.getElementById('rollV');
+const jetV    = document.getElementById('jetV');
+
+// Jet slider drives the visual drop size and the hit-test radius.
+function applyJet() {
+  const diameter = +jetEl.value;
+  SQUIRT_RADIUS = diameter / 2;
+  jetV.textContent = diameter.toFixed(2);
+  // scale the visible droplets so the stream looks as fat as the hit cylinder
+  const s = diameter / 0.56;
+  for (const d of drops) d.userData.sizeScale = s;
+}
+jetEl.addEventListener('input', applyJet);
+applyJet();
+
+// =================== Animation ===================
+const clock = new THREE.Clock();
+let elapsed = 0;
+const KEY_RATE = 75; // degrees per second
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  elapsed += dt;
+  const t = elapsed;
+
+  // Keyboard rotation: standard flight assignment
+  //   ↑/↓  = pitch (nose down/up)
+  //   ←/→  = roll  (bank left/right)
+  //   Q/E  = yaw   (rudder left/right)
+  let pitch = +pitchEl.value;
+  let yaw   = +yawEl.value;
+  let roll  = +rollEl.value;
+  if (keys['ArrowUp'])    pitch -= KEY_RATE * dt;
+  if (keys['ArrowDown'])  pitch += KEY_RATE * dt;
+  if (keys['ArrowLeft'])  roll  -= KEY_RATE * dt;
+  if (keys['ArrowRight']) roll  += KEY_RATE * dt;
+  if (keys['KeyQ'])       yaw   -= KEY_RATE * dt;
+  if (keys['KeyE'])       yaw   += KEY_RATE * dt;
+  pitchEl.value = clampAngle(pitch);
+  yawEl.value   = clampAngle(yaw);
+  rollEl.value  = clampAngle(roll);
+
+  const toRad = d => d * Math.PI / 180;
+  const autoYaw = spinEl.checked ? t * 0.5 : 0;
+
+  cakeGroup.rotation.order = 'YXZ';
+  cakeGroup.rotation.x = toRad(+pitchEl.value);
+  cakeGroup.rotation.y = toRad(+yawEl.value) + autoYaw;
+  cakeGroup.rotation.z = toRad(+rollEl.value);
+
+  pitchV.textContent = pitchEl.value + '°';
+  yawV.textContent   = yawEl.value + '°';
+  rollV.textContent  = rollEl.value + '°';
+
+  // Flicker
+  for (const f of flames) {
+    if (!f.lit) continue;
+    const noise = 0.85 + Math.random() * 0.25;
+    const sway  = 1 + Math.sin(t * 9 + f.light.position.y) * 0.05;
+    f.flame.scale.set(noise * sway, noise * 1.9, noise * sway);
+    f.glow.scale.set(noise * 1.15, noise * 1.7, noise * 1.15);
+    f.light.intensity = 0.5 + Math.random() * 0.45;
+    f.flame.material.color.setHSL(0.08 + Math.random() * 0.04, 1, 0.55);
+  }
+
+  updateSquirter(dt);
+  checkSquirtHits();
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// Expose for next iteration (squirt-gun game, end billboard, etc.)
+window.BIRTHDAY = { PARAMS, flames, cakeGroup, scene };
+</script>
+</body>
+</html>
