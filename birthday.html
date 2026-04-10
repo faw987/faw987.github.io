@@ -18,18 +18,103 @@
   #hint { font-size:30px; opacity:0.6; margin-top:8px; line-height:1.5; }
   .adv { display:none; }
   #ui.show-adv .adv { display:block; }
+  #ui.tetris-mode #squirter-controls { display:none; }
+  .style-group { margin-top:10px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.15); }
+  .style-group label { display:block; font-size:12px; margin:4px 0; opacity:1; }
+  .style-group > label:first-child { font-size:11px; opacity:0.85; margin-bottom:4px; }
   #win {
     position:absolute; inset:0; display:none;
     align-items:center; justify-content:center;
     background:rgba(0,0,0,0.55); font-size:48px; font-weight:700;
     text-shadow: 0 4px 24px rgba(255,200,80,0.6); pointer-events:none;
   }
+  #menu-btn {
+    position:absolute; top:12px; right:12px;
+    width:40px; height:40px; border-radius:10px;
+    background:rgba(0,0,0,0.55); color:#fff;
+    border:none; cursor:pointer; font-size:20px;
+    backdrop-filter: blur(6px);
+    display:flex; align-items:center; justify-content:center;
+  }
+  #menu-btn:hover { background:rgba(0,0,0,0.75); }
+  #menu-dropdown {
+    position:absolute; top:60px; right:12px;
+    background:rgba(0,0,0,0.75); border-radius:10px;
+    backdrop-filter: blur(6px); padding:6px;
+    display:none; min-width:140px;
+  }
+  #menu-dropdown.open { display:block; }
+  #menu-dropdown button {
+    display:block; width:100%; text-align:left;
+    background:transparent; border:none; color:#fff;
+    padding:8px 12px; font-size:14px; cursor:pointer;
+    border-radius:6px;
+  }
+  #menu-dropdown button:hover { background:rgba(255,255,255,0.12); }
+  #help-modal {
+    position:absolute; inset:0; display:none;
+    align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.75); z-index:10;
+  }
+  #help-modal.open { display:flex; }
+  #help-panel {
+    background:#141824; color:#e8ecf5;
+    max-width:720px; width:calc(100% - 40px);
+    max-height:calc(100% - 60px); overflow-y:auto;
+    border-radius:14px; padding:28px 36px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    font-size:14px; line-height:1.55;
+    position:relative;
+  }
+  #help-close {
+    position:absolute; top:10px; right:14px;
+    background:transparent; border:none; color:#e8ecf5;
+    font-size:26px; cursor:pointer; line-height:1;
+  }
+  #help-close:hover { color:#fff; }
+  #help-panel h1 { font-size:22px; margin:0 0 12px; }
+  #help-panel h2 { font-size:17px; margin:20px 0 8px; color:#ffd98a; }
+  #help-panel h3 { font-size:15px; margin:16px 0 6px; }
+  #help-panel p  { margin:8px 0; }
+  #help-panel ul, #help-panel ol { margin:8px 0; padding-left:22px; }
+  #help-panel li { margin:4px 0; }
+  #help-panel code {
+    background:rgba(255,255,255,0.09); padding:1px 6px;
+    border-radius:4px; font-size:12.5px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  #help-panel pre {
+    background:rgba(0,0,0,0.45); padding:12px 14px;
+    border-radius:8px; overflow-x:auto; font-size:12.5px;
+  }
+  #help-panel pre code { background:transparent; padding:0; }
+  #help-panel table {
+    border-collapse:collapse; margin:10px 0; width:100%;
+    font-size:13px;
+  }
+  #help-panel th, #help-panel td {
+    border:1px solid rgba(255,255,255,0.15);
+    padding:6px 10px; text-align:left;
+  }
+  #help-panel th { background:rgba(255,255,255,0.06); }
+  #help-panel a { color:#8cc8ff; }
 </style>
 </head>
 <body>
 <div id="win"></div>
+<button id="menu-btn" aria-label="Menu" title="Menu">☰</button>
+<div id="menu-dropdown">
+  <button id="menu-help">Help</button>
+</div>
+<div id="help-modal">
+  <div id="help-panel">
+    <button id="help-close" aria-label="Close">×</button>
+    <div id="help-content">Loading…</div>
+  </div>
+</div>
 <div id="ui">
   <h3 id="title">🎂 Happy Birthday, Mitch!</h3>
+  <label><input type="checkbox" id="soundToggle" checked> Play sound</label>
   <label><input type="checkbox" id="advToggle"> Show advanced controls</label>
   <div class="adv">
     <label>Pitch <span id="pitchV">0°</span></label>
@@ -39,11 +124,18 @@
     <label>Roll <span id="rollV">0°</span></label>
     <input type="range" id="roll" min="-180" max="180" value="0">
     <label><input type="checkbox" id="spin"> Auto-spin (easier for some)</label>
+    <div class="style-group">
+      <label>Style</label>
+      <label><input type="radio" name="style" value="squirter" checked> Squirter</label>
+      <label><input type="radio" name="style" value="tetris"> Tetris (drop cones on candles)</label>
+    </div>
   </div>
-  <label>Jet diameter <span id="jetV">0.56</span></label>
-  <input type="range" id="jet" min="0.10" max="1.20" step="0.01" value="0.56">
-  <label>Jet angle <span id="angleV">20°</span></label>
-  <input type="range" id="angle" min="0" max="80" step="1" value="20">
+  <div id="squirter-controls">
+    <label>Jet diameter <span id="jetV">0.56</span></label>
+    <input type="range" id="jet" min="0.10" max="1.20" step="0.01" value="0.56">
+    <label>Jet angle <span id="angleV">20°</span></label>
+    <input type="range" id="angle" min="0" max="80" step="1" value="20">
+  </div>
   <div id="status">Candles lit: <span id="litCount">0</span></div>
   <div id="hint">
     <b>↑/↓</b> pitch &nbsp; <b>←/→</b> roll &nbsp; <b>Q/E</b> yaw<br>
@@ -72,6 +164,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 //   ?tune=mysong.mp3           — background music (default happy.mp3)
 //   ?tada=fanfare.mp3          — sound played at win (default: synthesized fanfare)
 //   ?tadamsg=And+many+more!    — end-screen message (default "TA-DA!")
+//   ?style=tetris              — play style: "squirter" (default) or "tetris"
 const _qs = new URLSearchParams(location.search);
 function _qsStr(key, def) {
   const v = _qs.get(key);
@@ -88,7 +181,8 @@ const PARAMS = {
   endPhrase:     _qsStr('tadamsg', 'TA-DA!'),
   cakeImage:     _qsStr('cake', 'cake1.png'),
   tuneUrl:       _qsStr('tune', 'happy.mp3'),
-  tadaUrl:       _qsStr('tada', '')   // empty → use synthesized fanfare
+  tadaUrl:       _qsStr('tada', ''),  // empty → use synthesized fanfare
+  style:         (_qsStr('style', 'squirter') === 'tetris') ? 'tetris' : 'squirter'
 };
 document.getElementById('title').textContent = `🎂 Happy Birthday, ${PARAMS.recipientName}!`;
 document.getElementById('win').textContent   = `🎉 ${PARAMS.endPhrase} 🎉`;
@@ -462,6 +556,85 @@ function extinguish(f) {
   }
 }
 
+// =================== Tetris-style falling cone ===================
+// Alternative play style: a cone descends from above the cake. The user
+// steers its X/Z with the arrow keys; if its tip touches a lit flame the
+// candle is extinguished and the cone respawns up top. The squirter is
+// hidden in this mode.
+const CONE_HEIGHT     = 0.75;
+const CONE_RADIUS     = 0.25;
+const CONE_START_Y    = 6.0;
+const CONE_FALL_SPEED = 2.2;     // world units / second
+const CONE_MOVE_SPEED = 3.8;     // horizontal steer speed
+const CONE_HIT_RADIUS = 0.45;    // generous so play feels fair
+
+const tetrisGroup = new THREE.Group();
+const coneMesh = new THREE.Mesh(
+  new THREE.ConeGeometry(CONE_RADIUS, CONE_HEIGHT, 24),
+  new THREE.MeshStandardMaterial({
+    color: 0x66c8ff, emissive: 0x224477,
+    roughness: 0.25, metalness: 0.1,
+    transparent: true, opacity: 0.92
+  })
+);
+// Default ConeGeometry has its tip at +Y, which is exactly what we want here:
+// the cone is a candle-snuffer, point-up with the open mouth facing down so
+// it can drop over the flame and smother it.
+tetrisGroup.add(coneMesh);
+tetrisGroup.visible = false;
+scene.add(tetrisGroup);
+
+function resetCone() {
+  tetrisGroup.position.set(0, CONE_START_Y, 0);
+}
+resetCone();
+
+// World-y of the snuffer's open mouth (the bottom rim). The geometry is
+// centered on the group origin, so the rim sits CONE_HEIGHT/2 below it.
+function snufferMouthY() { return tetrisGroup.position.y - CONE_HEIGHT / 2; }
+
+const _coneFlamePos = new THREE.Vector3();
+function checkConeHits() {
+  const cx = tetrisGroup.position.x;
+  const cz = tetrisGroup.position.z;
+  const tipY = snufferMouthY();
+  for (const f of flames) {
+    if (!f.lit) continue;
+    f.flame.getWorldPosition(_coneFlamePos);
+    const dx = cx - _coneFlamePos.x;
+    const dz = cz - _coneFlamePos.z;
+    if ((dx*dx + dz*dz) < CONE_HIT_RADIUS * CONE_HIT_RADIUS &&
+        tipY <= _coneFlamePos.y + 0.15) {
+      extinguish(f);
+      resetCone();
+      return;
+    }
+  }
+}
+
+// =================== Style switcher ===================
+let STYLE = 'squirter';
+const hintEl = document.getElementById('hint');
+const HINT_SQUIRTER =
+  '<b>↑/↓</b> pitch &nbsp; <b>←/→</b> roll &nbsp; <b>Q/E</b> yaw<br>' +
+  'Drag empty space to orbit camera • scroll to zoom<br>' +
+  'Steer the cake so the squirter douses every flame!';
+const HINT_TETRIS =
+  '<b>←/→</b> move X &nbsp; <b>↑/↓</b> move Z<br>' +
+  'Drag empty space to orbit camera • scroll to zoom<br>' +
+  'Drop the cone right onto a candle to put it out!';
+
+function setStyle(s) {
+  STYLE = s;
+  const isSquirter = (s === 'squirter');
+  squirter.visible = isSquirter;
+  for (const d of drops) d.visible = isSquirter;
+  tetrisGroup.visible = !isSquirter;
+  uiEl.classList.toggle('tetris-mode', !isSquirter);
+  hintEl.innerHTML = isSquirter ? HINT_SQUIRTER : HINT_TETRIS;
+  if (!isSquirter) resetCone();
+}
+
 // =================== Ta-da fanfare (Web Audio, no assets) ===================
 // Two ascending notes: a short "ta" and a held "daaa", a perfect fourth apart.
 // Each note is two slightly-detuned triangle oscillators through a lowpass
@@ -592,6 +765,23 @@ advToggle.addEventListener('change', () => {
   uiEl.classList.toggle('show-adv', advToggle.checked);
 });
 
+// Style radios — squirter (default) vs tetris falling cone.
+for (const r of document.querySelectorAll('input[name="style"]')) {
+  r.addEventListener('change', () => { if (r.checked) setStyle(r.value); });
+  if (r.value === PARAMS.style) r.checked = true;
+}
+setStyle(PARAMS.style);
+
+// Play-sound checkbox: lets the user mute the looping birthday tune.
+const soundEl = document.getElementById('soundToggle');
+soundEl.addEventListener('change', () => {
+  if (soundEl.checked) {
+    bgMusic.play().catch(()=>{});
+  } else {
+    try { bgMusic.pause(); } catch(_) {}
+  }
+});
+
 // =================== Animation ===================
 const clock = new THREE.Clock();
 let elapsed = 0;
@@ -606,13 +796,17 @@ function animate() {
   //   ↑/↓  = pitch (nose down/up)
   //   ←/→  = roll  (bank left/right)
   //   Q/E  = yaw   (rudder left/right)
+  // In tetris style the arrow keys are repurposed to steer the falling cone,
+  // so they no longer drive cake rotation.
   let pitch = +pitchEl.value;
   let yaw   = +yawEl.value;
   let roll  = +rollEl.value;
-  if (keys['ArrowUp'])    pitch -= KEY_RATE * dt;
-  if (keys['ArrowDown'])  pitch += KEY_RATE * dt;
-  if (keys['ArrowLeft'])  roll  -= KEY_RATE * dt;
-  if (keys['ArrowRight']) roll  += KEY_RATE * dt;
+  if (STYLE === 'squirter') {
+    if (keys['ArrowUp'])    pitch -= KEY_RATE * dt;
+    if (keys['ArrowDown'])  pitch += KEY_RATE * dt;
+    if (keys['ArrowLeft'])  roll  -= KEY_RATE * dt;
+    if (keys['ArrowRight']) roll  += KEY_RATE * dt;
+  }
   if (keys['KeyQ'])       yaw   -= KEY_RATE * dt;
   if (keys['KeyE'])       yaw   += KEY_RATE * dt;
   pitchEl.value = clampAngle(pitch);
@@ -642,8 +836,23 @@ function animate() {
     f.flame.material.color.setHSL(0.08 + Math.random() * 0.04, 1, 0.55);
   }
 
-  updateSquirter(dt);
-  checkSquirtHits();
+  if (STYLE === 'squirter') {
+    updateSquirter(dt);
+    checkSquirtHits();
+  } else {
+    // Tetris-style: drive the cone, gravity-fall, hit-test, respawn.
+    if (keys['ArrowLeft'])  tetrisGroup.position.x -= CONE_MOVE_SPEED * dt;
+    if (keys['ArrowRight']) tetrisGroup.position.x += CONE_MOVE_SPEED * dt;
+    if (keys['ArrowUp'])    tetrisGroup.position.z -= CONE_MOVE_SPEED * dt;
+    if (keys['ArrowDown'])  tetrisGroup.position.z += CONE_MOVE_SPEED * dt;
+    tetrisGroup.position.y -= CONE_FALL_SPEED * dt;
+    const maxR = CAKE_RADIUS_TOP + 0.6;
+    tetrisGroup.position.x = Math.max(-maxR, Math.min(maxR, tetrisGroup.position.x));
+    tetrisGroup.position.z = Math.max(-maxR, Math.min(maxR, tetrisGroup.position.z));
+    checkConeHits();
+    // Cone fell past the cake without hitting anything → respawn up top.
+    if (snufferMouthY() < CAKE_TOP_Y - 0.1) resetCone();
+  }
 
   controls.update();
   renderer.render(scene, camera);
@@ -658,6 +867,136 @@ addEventListener('resize', () => {
 
 // Expose for next iteration (squirt-gun game, end billboard, etc.)
 window.BIRTHDAY = { PARAMS, flames, cakeGroup, scene };
+
+// =================== Hamburger menu + Help modal ===================
+// Tiny markdown renderer — handles the subset used in USER_GUIDE.md:
+// headings, paragraphs, bullet lists, GFM tables, fenced code blocks,
+// inline code, bold, and links.
+function renderMarkdown(md) {
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const inline = s => esc(s)
+    .replace(/`([^`]+)`/g, (_,c) => `<code>${c}</code>`)
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+  const lines = md.replace(/\r\n/g, '\n').split('\n');
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // fenced code block
+    if (/^```/.test(line)) {
+      i++;
+      const buf = [];
+      while (i < lines.length && !/^```/.test(lines[i])) { buf.push(lines[i]); i++; }
+      i++; // skip closing fence
+      out.push(`<pre><code>${esc(buf.join('\n'))}</code></pre>`);
+      continue;
+    }
+
+    // heading
+    const h = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (h) {
+      const n = h[1].length;
+      out.push(`<h${n}>${inline(h[2])}</h${n}>`);
+      i++;
+      continue;
+    }
+
+    // table: header row then ---|--- separator
+    if (/\|/.test(line) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i+1])) {
+      const splitRow = r => r.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim());
+      const headers = splitRow(line);
+      i += 2; // skip header + separator
+      const rows = [];
+      while (i < lines.length && /\|/.test(lines[i]) && lines[i].trim() !== '') {
+        rows.push(splitRow(lines[i]));
+        i++;
+      }
+      let t = '<table><thead><tr>' + headers.map(h => `<th>${inline(h)}</th>`).join('') + '</tr></thead><tbody>';
+      for (const r of rows) t += '<tr>' + r.map(c => `<td>${inline(c)}</td>`).join('') + '</tr>';
+      t += '</tbody></table>';
+      out.push(t);
+      continue;
+    }
+
+    // bullet list
+    if (/^\s*[-*]\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+        // collect continuation lines (indented, non-empty)
+        let item = lines[i].replace(/^\s*[-*]\s+/, '');
+        i++;
+        while (i < lines.length && /^\s{2,}\S/.test(lines[i])) {
+          item += ' ' + lines[i].trim();
+          i++;
+        }
+        items.push(item);
+      }
+      out.push('<ul>' + items.map(t => `<li>${inline(t)}</li>`).join('') + '</ul>');
+      continue;
+    }
+
+    // blank line
+    if (line.trim() === '') { i++; continue; }
+
+    // paragraph: gather until blank line or block start
+    const buf = [line];
+    i++;
+    while (i < lines.length && lines[i].trim() !== ''
+           && !/^#{1,6}\s/.test(lines[i])
+           && !/^```/.test(lines[i])
+           && !/^\s*[-*]\s+/.test(lines[i])
+           && !(/\|/.test(lines[i]) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i+1]))) {
+      buf.push(lines[i]);
+      i++;
+    }
+    out.push(`<p>${inline(buf.join(' '))}</p>`);
+  }
+  return out.join('\n');
+}
+
+const menuBtn      = document.getElementById('menu-btn');
+const menuDropdown = document.getElementById('menu-dropdown');
+const menuHelp     = document.getElementById('menu-help');
+const helpModal    = document.getElementById('help-modal');
+const helpClose    = document.getElementById('help-close');
+const helpContent  = document.getElementById('help-content');
+
+let _helpLoaded = false;
+function openMenu()  { menuDropdown.classList.add('open'); }
+function closeMenu() { menuDropdown.classList.remove('open'); }
+function toggleMenu(){ menuDropdown.classList.toggle('open'); }
+
+menuBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleMenu(); });
+document.addEventListener('click', (e) => {
+  if (!menuDropdown.contains(e.target) && e.target !== menuBtn) closeMenu();
+});
+
+async function openHelp() {
+  closeMenu();
+  helpModal.classList.add('open');
+  if (_helpLoaded) return;
+  try {
+    const res = await fetch('USER_GUIDE.md');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const md = await res.text();
+    helpContent.innerHTML = renderMarkdown(md);
+    _helpLoaded = true;
+  } catch (err) {
+    helpContent.innerHTML = `<p>Couldn't load the user guide: ${err.message}.</p>
+      <p>Make sure the page is being served over HTTP (e.g. <code>python3 -m http.server</code>) with <code>USER_GUIDE.md</code> alongside it.</p>`;
+  }
+}
+function closeHelp() { helpModal.classList.remove('open'); }
+
+menuHelp.addEventListener('click', openHelp);
+helpClose.addEventListener('click', closeHelp);
+helpModal.addEventListener('click', (e) => { if (e.target === helpModal) closeHelp(); });
+addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { closeHelp(); closeMenu(); }
+});
 </script>
 </body>
 </html>
