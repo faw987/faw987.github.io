@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JusticeMap-style Census Explorer</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <style>
+    :root {
+      --panel-bg: rgba(255,255,255,0.96);
+      --border: #d8d8d8;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #2563eb;
+    }
+    html, body, #map { height: 100%; margin: 0; }
+    body { font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); }
+    #map { background: #f3f4f6; }
+    .panel {
+      position: absolute;
+      z-index: 1000;
+      top: 12px;
+      left: 12px;
+      width: min(420px, calc(100vw - 24px));
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      padding: 14px;
+      backdrop-filter: blur(6px);
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { color: var(--muted); margin-bottom: 10px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    input, select, button {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 9px 10px;
+      font: inherit;
+      background: white;
+    }
+    button {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.secondary {
+      background: white;
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+    .status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      min-height: 16px;
+    }
+    .legend {
+      position: absolute;
+      z-index: 1000;
+      right: 12px;
+      bottom: 24px;
+      background: rgba(255,255,255,0.96);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.10);
+      padding: 10px 12px;
+      min-width: 190px;
+    }
+    .legend-title { font-weight: 700; margin-bottom: 8px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; margin: 5px 0; font-size: 12px; }
+    .swatch { width: 16px; height: 16px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.12); }
+    .small { font-size: 12px; color: var(--muted); }
+    .footer-note {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .leaflet-popup-content { margin: 10px 12px; }
+    .leaflet-container a { color: var(--accent); }
+    @media (max-width: 700px) {
+      .row, .row3, .actions { grid-template-columns: 1fr; }
+      .legend { right: 12px; left: 12px; bottom: 12px; min-width: auto; }
+    }
+
+    /* Panel size variants. Default (no class) matches the original "Large"
+       layout so existing CSS selectors are unaffected. */
+    .panel.size-medium {
+      width: min(340px, calc(100vw - 24px));
+      padding: 10px;
+      font-size: 13px;
+    }
+    .panel.size-medium .title { font-size: 15px; }
+    .panel.size-medium label { font-size: 11px; }
+    .panel.size-medium input,
+    .panel.size-medium select,
+    .panel.size-medium button { padding: 7px 8px; border-radius: 8px; }
+    .panel.size-medium .row,
+    .panel.size-medium .row3,
+    .panel.size-medium .actions { gap: 6px; margin-bottom: 6px; }
+
+    .panel.size-small {
+      width: min(260px, calc(100vw - 24px));
+      padding: 8px;
+      font-size: 12px;
+    }
+    .panel.size-small .title { font-size: 13px; margin-bottom: 2px; }
+    .panel.size-small .subtitle { margin-bottom: 6px; }
+    .panel.size-small label { font-size: 10px; margin-bottom: 2px; }
+    .panel.size-small input,
+    .panel.size-small select,
+    .panel.size-small button { padding: 5px 6px; border-radius: 7px; font-size: 11px; }
+    .panel.size-small .row,
+    .panel.size-small .row3,
+    .panel.size-small .actions { gap: 5px; margin-bottom: 5px; }
+    .panel.size-small .footer-note { display: none; }
+
+    /* Hamburger menu */
+    .hamburger {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 1001;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.96);
+      cursor: pointer;
+      font-size: 22px;
+      line-height: 1;
+      padding: 0;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+      color: var(--text);
+    }
+    .hamburger:hover { background: white; }
+    .menu {
+      position: absolute;
+      top: 60px;
+      right: 12px;
+      z-index: 1001;
+      min-width: 200px;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+      padding: 8px;
+    }
+    .menu[hidden] { display: none; }
+    .menu-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: white;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 500;
+    }
+    .menu-item:hover { background: #f9fafb; }
+    .menu-section { margin-top: 10px; }
+    .menu-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 6px;
+      padding: 0 2px;
+    }
+    .menu-seg {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+    }
+    .menu-seg button {
+      background: white;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 0;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 500;
+    }
+    .menu-seg button:hover { background: #f9fafb; }
+    .menu-seg button.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    /* Modal */
+    .modal { position: absolute; inset: 0; z-index: 2000; }
+    .modal[hidden] { display: none; }
+    .modal-backdrop {
+      position: absolute; inset: 0;
+      background: rgba(17,24,39,0.45);
+    }
+    .modal-card {
+      position: absolute;
+      top: 5vh;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(720px, calc(100vw - 32px));
+      max-height: 90vh;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text);
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+    }
+    .modal-content {
+      overflow-y: auto;
+      padding: 28px 32px 24px;
+    }
+    .modal-content h1 { font-size: 22px; margin: 0 0 10px; }
+    .modal-content h2 { font-size: 16px; margin: 20px 0 8px; }
+    .modal-content h3 { font-size: 14px; margin: 14px 0 6px; }
+    .modal-content p, .modal-content li { font-size: 13px; line-height: 1.55; }
+    .modal-content code { background: #f3f4f6; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+    .modal-content ul, .modal-content ol { padding-left: 22px; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <button id="hamburgerBtn" class="hamburger" aria-label="Open menu" aria-expanded="false" aria-controls="menu">&#9776;</button>
+
+  <div id="menu" class="menu" role="menu" hidden>
+    <button id="menuGuideBtn" class="menu-item" role="menuitem">User Guide</button>
+    <div class="menu-section">
+      <div class="menu-label">Panel size</div>
+      <div class="menu-seg" id="panelSizeSeg">
+        <button type="button" data-size="small">S</button>
+        <button type="button" data-size="medium">M</button>
+        <button type="button" data-size="large">L</button>
+      </div>
+    </div>
+  </div>
+
+  <!--
+    Inline copy of USER_GUIDE.md, rendered as HTML so the modal works from
+    a file:// origin (fetch of sibling files is blocked by Chrome).
+    USER_GUIDE.md remains the canonical source; when you edit one, edit both.
+  -->
+  <div id="guideModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="guideTitle" hidden>
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-card">
+      <button id="guideCloseBtn" class="modal-close" aria-label="Close">&times;</button>
+      <div class="modal-content">
+        <h1 id="guideTitle">User Guide &mdash; JusticeMap-style Census Explorer</h1>
+
+        <h2>What this is</h2>
+        <p>A small web page that draws a US county on a map and colors each census tract by a demographic or economic indicator you choose. It runs entirely from a single local HTML file and talks directly to the US Census Bureau.</p>
+
+        <h2>Getting started</h2>
+        <ol>
+          <li>Double-click <code>justice_style_map_local.html</code>. It opens in your default browser.</li>
+          <li>You'll see a control panel in the upper left and a map of Manhattan, NY as the default view.</li>
+          <li>Click <strong>Load map</strong> to fetch and draw data.</li>
+        </ol>
+        <p>No installation, no accounts, no API keys needed for occasional use.</p>
+
+        <h2>The controls</h2>
+        <h3>State FIPS (2 digits)</h3>
+        <p>The Census Bureau's numeric code for a state. Examples: <code>06</code> California, <code>36</code> New York, <code>48</code> Texas, <code>17</code> Illinois.</p>
+
+        <h3>County FIPS (3 digits)</h3>
+        <p>The numeric code for a county within the chosen state. Always 3 digits &mdash; pad with leading zeros. In New York state: <code>061</code> Manhattan, <code>047</code> Brooklyn, <code>081</code> Queens.</p>
+
+        <h3>ACS year</h3>
+        <p>The vintage of the American Community Survey 5-year estimates used for income and poverty. This selector has no effect on race/ethnicity metrics, which come from the 2020 decennial census.</p>
+
+        <h3>Metric</h3>
+        <ul>
+          <li><strong>Median household income</strong> &mdash; dollar amount per tract (ACS table B19013).</li>
+          <li><strong>Poverty rate</strong> &mdash; share of people with incomes below the poverty line (ACS table B17001).</li>
+          <li><strong>Percent Black alone</strong> &mdash; share identifying as Black or African American alone (2020 PL, table P1).</li>
+          <li><strong>Percent Hispanic/Latino</strong> &mdash; share of any race identifying as Hispanic or Latino (2020 PL, table P2).</li>
+          <li><strong>Percent nonwhite</strong> &mdash; 100% minus the share identifying as non-Hispanic white alone. Hispanic residents of any race are counted as nonwhite.</li>
+        </ul>
+
+        <h3>Basemap</h3>
+        <p>Background reference tiles. OpenStreetMap is denser; Carto Light is quieter and often reads better under a choropleth.</p>
+
+        <h2>Reading the map</h2>
+        <ul>
+          <li>Each colored polygon is a <strong>census tract</strong>, roughly 1,200 to 8,000 residents.</li>
+          <li>Darker shades indicate higher values of the chosen metric. The legend in the lower right spells out the exact range for each color.</li>
+          <li>Gray tracts have missing or suppressed data.</li>
+          <li><strong>Hover</strong> a tract to highlight its edge. <strong>Click</strong> a tract to see its name, the place/county/state hierarchy, the current metric value, and its GEOID.</li>
+        </ul>
+
+        <h2>Click anywhere to jump to that county</h2>
+        <p>You don't need to look up FIPS codes. Click any point on the basemap (outside the currently loaded tracts) and the app will ask the Census which county contains that point, fill in the FIPS boxes for you, and reload the map. Clicks inside a tract still open that tract's popup.</p>
+
+        <h2>The hamburger menu</h2>
+        <ul>
+          <li><strong>User Guide</strong> &mdash; opens this document.</li>
+          <li><strong>Panel size</strong> &mdash; switch the control panel between Small, Medium, and Large to reclaim screen space. Your choice is remembered between visits.</li>
+        </ul>
+
+        <h2>Sharing a view</h2>
+        <ol>
+          <li>Pan and zoom until the map shows what you want.</li>
+          <li>Click <strong>Copy shareable URL</strong>.</li>
+          <li>Paste the link anywhere. Whoever opens it will see the same location, zoom, metric, and vintage.</li>
+        </ol>
+
+        <h2>Understanding the GEOID</h2>
+        <p>A census tract GEOID is 11 digits: 2 for state, 3 for county, 6 for the tract itself (a 4-digit tract number plus a 2-digit suffix read as a decimal). So <code>36061010100</code> means New York state, New York County, tract 101.00. Left-to-right nesting, all FIPS codes.</p>
+
+        <h2>If something goes wrong</h2>
+        <ul>
+          <li><strong>"Please use a 2-digit state FIPS and 3-digit county FIPS."</strong> Check the format: California is <code>06</code>, not <code>6</code>.</li>
+          <li><strong>"Load failed."</strong> Usually a typo in FIPS codes or a transient network problem.</li>
+          <li><strong>Empty map with a legend.</strong> The county loaded but all tracts came back as missing data. Try a different metric or vintage.</li>
+        </ul>
+
+        <h2>Caveats</h2>
+        <ul>
+          <li><strong>"Nonwhite" is a blunt instrument</strong> even with the non-Hispanic-white correction. It collapses very different communities into one residual category.</li>
+          <li><strong>Tract boundaries change over time.</strong> Results for the same address in different years may not be directly comparable.</li>
+          <li><strong>Small-area estimates have margins of error</strong> that are not shown here. Treat any single tract value as suggestive, not definitive.</li>
+        </ul>
+
+        <h2>Attribution</h2>
+        <p>Data: US Census Bureau, American Community Survey 5-year estimates and 2020 Decennial Census (PL 94-171). Geometry: Census TIGERweb. Tiles: OpenStreetMap contributors and CARTO. Mapping: Leaflet 1.9.4.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="title">JusticeMap-style Census Explorer</div>
+    <div class="subtitle">Single-file local HTML. Open on your Mac and run.</div>
+
+    <div class="row3">
+      <div>
+        <label for="state">State FIPS</label>
+        <input id="state" value="36" />
+      </div>
+      <div>
+        <label for="county">County FIPS</label>
+        <input id="county" value="061" />
+      </div>
+      <div>
+        <label for="year">ACS year</label>
+        <select id="year">
+          <option value="2024" selected>2024</option>
+          <option value="2023">2023</option>
+          <option value="2022">2022</option>
+          <option value="2021">2021</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="metric">Metric</label>
+        <select id="metric">
+          <option value="income" selected>Median household income</option>
+          <option value="poverty">Poverty rate</option>
+          <option value="black">Percent Black alone</option>
+          <option value="hispanic">Percent Hispanic/Latino</option>
+          <option value="nonwhite">Percent nonwhite</option>
+        </select>
+      </div>
+      <div>
+        <label for="basemap">Basemap</label>
+        <select id="basemap">
+          <option value="osm" selected>OpenStreetMap</option>
+          <option value="carto">Carto Light</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="loadBtn">Load map</button>
+      <button id="shareBtn" class="secondary">Copy shareable URL</button>
+    </div>
+
+    <div class="status" id="status">Ready. Defaults are Manhattan, NY.</div>
+    <div class="footer-note">
+      Tip: State and county values are FIPS codes. This file talks directly to Census and TIGERweb APIs, so it works without build tools.
+    </div>
+  </div>
+
+  <div class="legend" id="legend" style="display:none"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const DEFAULT_VIEW = [40.7831, -73.9712];
+    const COLORS = ["#eff3ff", "#bdd7e7", "#6baed6", "#3182bd", "#08519c"];
+    const FRIENDLY = {
+      income: "Median household income",
+      poverty: "Poverty rate",
+      black: "Percent Black alone",
+      hispanic: "Percent Hispanic/Latino",
+      nonwhite: "Percent nonwhite"
+    };
+
+    const STATE_NAMES = {
+      "01":"Alabama","02":"Alaska","04":"Arizona","05":"Arkansas","06":"California",
+      "08":"Colorado","09":"Connecticut","10":"Delaware","11":"District of Columbia",
+      "12":"Florida","13":"Georgia","15":"Hawaii","16":"Idaho","17":"Illinois",
+      "18":"Indiana","19":"Iowa","20":"Kansas","21":"Kentucky","22":"Louisiana",
+      "23":"Maine","24":"Maryland","25":"Massachusetts","26":"Michigan","27":"Minnesota",
+      "28":"Mississippi","29":"Missouri","30":"Montana","31":"Nebraska","32":"Nevada",
+      "33":"New Hampshire","34":"New Jersey","35":"New Mexico","36":"New York",
+      "37":"North Carolina","38":"North Dakota","39":"Ohio","40":"Oklahoma","41":"Oregon",
+      "42":"Pennsylvania","44":"Rhode Island","45":"South Carolina","46":"South Dakota",
+      "47":"Tennessee","48":"Texas","49":"Utah","50":"Vermont","51":"Virginia",
+      "53":"Washington","54":"West Virginia","55":"Wisconsin","56":"Wyoming",
+      "60":"American Samoa","66":"Guam","69":"Northern Mariana Islands",
+      "72":"Puerto Rico","78":"U.S. Virgin Islands"
+    };
+
+    let map = L.map("map").setView(DEFAULT_VIEW, 11);
+    let currentGeoLayer = null;
+    let currentBaseLayer = null;
+    let currentCountyName = null;
+    let currentStateName = null;
+    const placeCache = new Map();
+
+    const baseLayers = {
+      osm: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      }),
+      carto: L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        maxZoom: 20,
+        subdomains: "abcd",
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+      })
+    };
+
+    function setBase(name) {
+      if (currentBaseLayer) map.removeLayer(currentBaseLayer);
+      currentBaseLayer = baseLayers[name] || baseLayers.osm;
+      currentBaseLayer.addTo(map);
+    }
+    setBase("osm");
+
+    function qs(id) { return document.getElementById(id); }
+    function setStatus(msg) { qs("status").textContent = msg; }
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+    }
+
+    function paramsToUI() {
+      const p = new URLSearchParams(location.search);
+      if (p.get("state")) qs("state").value = p.get("state");
+      if (p.get("county")) qs("county").value = p.get("county");
+      if (p.get("year")) qs("year").value = p.get("year");
+      if (p.get("metric")) qs("metric").value = p.get("metric");
+      if (p.get("basemap")) qs("basemap").value = p.get("basemap");
+      const lat = parseFloat(p.get("lat"));
+      const lon = parseFloat(p.get("lon"));
+      const zoom = parseInt(p.get("zoom"), 10);
+      if (Number.isFinite(lat) && Number.isFinite(lon) && Number.isFinite(zoom)) {
+        map.setView([lat, lon], zoom);
+      }
+    }
+
+    function updateURL() {
+      const p = new URLSearchParams();
+      p.set("state", qs("state").value.trim());
+      p.set("county", qs("county").value.trim());
+      p.set("year", qs("year").value.trim());
+      p.set("metric", qs("metric").value.trim());
+      p.set("basemap", qs("basemap").value.trim());
+      const c = map.getCenter();
+      p.set("lat", c.lat.toFixed(5));
+      p.set("lon", c.lng.toFixed(5));
+      p.set("zoom", String(map.getZoom()));
+      history.replaceState(null, "", location.pathname + "?" + p.toString());
+    }
+
+    function copyShareableURL() {
+      updateURL();
+      navigator.clipboard.writeText(location.href)
+        .then(() => setStatus("Shareable URL copied to clipboard."))
+        .catch(() => setStatus("Could not copy automatically, but the URL bar has been updated."));
+    }
+
+    function quantile(sortedVals, p) {
+      if (!sortedVals.length) return null;
+      const idx = Math.floor((sortedVals.length - 1) * p);
+      return sortedVals[idx];
+    }
+
+    function classify(values) {
+      const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+      return [quantile(sorted, 0.2), quantile(sorted, 0.4), quantile(sorted, 0.6), quantile(sorted, 0.8)];
+    }
+
+    function colorFor(v, cuts) {
+      if (!Number.isFinite(v)) return "#d1d5db";
+      if (v > cuts[3]) return COLORS[4];
+      if (v > cuts[2]) return COLORS[3];
+      if (v > cuts[1]) return COLORS[2];
+      if (v > cuts[0]) return COLORS[1];
+      return COLORS[0];
+    }
+
+    function formatValue(metric, v) {
+      if (!Number.isFinite(v)) return "n/a";
+      if (metric === "income") return "$" + Math.round(v).toLocaleString();
+      return v.toFixed(1) + "%";
+    }
+
+    function updateLegend(metric, cuts) {
+      const labels = [
+        `≤ ${formatValue(metric, cuts[0])}`,
+        `${formatValue(metric, cuts[0])} to ${formatValue(metric, cuts[1])}`,
+        `${formatValue(metric, cuts[1])} to ${formatValue(metric, cuts[2])}`,
+        `${formatValue(metric, cuts[2])} to ${formatValue(metric, cuts[3])}`,
+        `> ${formatValue(metric, cuts[3])}`
+      ];
+      const legend = qs("legend");
+      legend.style.display = "block";
+      legend.innerHTML =
+        `<div class="legend-title">${FRIENDLY[metric]}</div>` +
+        labels.map((label, i) => `<div class="legend-item"><span class="swatch" style="background:${COLORS[i]}"></span>${label}</div>`).join("") +
+        `<div class="small" style="margin-top:8px">Gray = missing data</div>`;
+    }
+
+    async function fetchJSON(url) {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+      return r.json();
+    }
+
+    function acsUrl(year, state, county, metric) {
+      const vars = {
+        income: "NAME,B19013_001E",
+        poverty: "NAME,B17001_002E,B17001_001E"
+      };
+      return `https://api.census.gov/data/${year}/acs/acs5?get=${vars[metric]}&for=tract:*&in=state:${state}+county:${county}`;
+    }
+
+    function tigerUrl(state, county) {
+      return `https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/8/query?where=STATE='${state}'+AND+COUNTY='${county}'&outFields=GEOID,NAME&returnGeometry=true&outSR=4326&f=geojson`;
+    }
+
+    async function fetchCountyName(state, county) {
+      const url = `https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/82/query`
+        + `?where=STATE%3D%27${state}%27+AND+COUNTY%3D%27${county}%27`
+        + `&outFields=NAME&returnGeometry=false&f=json`;
+      const data = await fetchJSON(url);
+      const f = data && data.features && data.features[0];
+      return (f && f.attributes && f.attributes.NAME) || null;
+    }
+
+    // Lowest labeled named place at (lat, lon): try Incorporated Places first,
+    // fall back to Census Designated Places, then County Subdivisions. Cached
+    // by rounded coordinates so reopening a popup doesn't re-query.
+    async function lookupPlace(lat, lon) {
+      const key = `${lat.toFixed(5)},${lon.toFixed(5)}`;
+      if (placeCache.has(key)) return placeCache.get(key);
+      const mkUrl = (layerId) =>
+        `https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/${layerId}/query`
+        + `?geometry=${lon},${lat}`
+        + `&geometryType=esriGeometryPoint&inSR=4326`
+        + `&spatialRel=esriSpatialRelIntersects`
+        + `&outFields=NAME,BASENAME`
+        + `&returnGeometry=false&f=json`;
+      const [incorporated, cdp, subdivision] = await Promise.all([
+        fetchJSON(mkUrl(28)).catch(() => null),
+        fetchJSON(mkUrl(30)).catch(() => null),
+        fetchJSON(mkUrl(22)).catch(() => null),
+      ]);
+      const pick = (data) => {
+        const f = data && data.features && data.features[0];
+        if (!f || !f.attributes) return null;
+        return f.attributes.NAME || f.attributes.BASENAME || null;
+      };
+      const place = pick(incorporated) || pick(cdp) || pick(subdivision) || null;
+      placeCache.set(key, place);
+      return place;
+    }
+
+    // Reverse-geocode a lat/lon to a US county via TIGERweb's Counties layer
+    // (point-in-polygon query). We use this host instead of the Census
+    // Geocoder because geocoding.geo.census.gov does not send CORS headers,
+    // which blocks requests from file:// origins; tigerweb.geo.census.gov
+    // does, and is already in use for tract geometry.
+    async function reverseGeocodeCounty(lat, lon) {
+      const url = `https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/82/query`
+        + `?geometry=${lon},${lat}`
+        + `&geometryType=esriGeometryPoint&inSR=4326`
+        + `&spatialRel=esriSpatialRelIntersects`
+        + `&outFields=STATE,COUNTY,BASENAME,NAME`
+        + `&returnGeometry=false&f=json`;
+      const data = await fetchJSON(url);
+      const features = data && data.features;
+      if (!features || !features.length) return null;
+      const a = features[0].attributes || {};
+      if (!a.STATE || !a.COUNTY) return null;
+      return {
+        state: a.STATE,
+        county: a.COUNTY,
+        name: a.NAME || a.BASENAME || `${a.STATE}${a.COUNTY}`
+      };
+    }
+
+    // Look up column positions from the header row so adding/reordering
+    // variables in the `get=` list cannot silently break the join.
+    function rowsToRecords(rows) {
+      const header = rows[0];
+      return rows.slice(1).map(r => {
+        const rec = {};
+        for (let i = 0; i < header.length; i++) rec[header[i]] = r[i];
+        return rec;
+      });
+    }
+
+    function geoidFromRecord(rec) {
+      return `${rec.state}${rec.county}${rec.tract}`;
+    }
+
+    function buildACSMetricMap(metric, acsRows) {
+      const records = rowsToRecords(acsRows);
+      if (metric === "income") {
+        return Object.fromEntries(records.map(rec => [geoidFromRecord(rec), +rec.B19013_001E]));
+      }
+      if (metric === "poverty") {
+        return Object.fromEntries(records.map(rec => {
+          const denom = +rec.B17001_001E;
+          const num = +rec.B17001_002E;
+          return [geoidFromRecord(rec), denom ? (100 * num / denom) : NaN];
+        }));
+      }
+      return {};
+    }
+
+    function plUrl(state, county) {
+      // P1_001N = total population
+      // P1_004N = Black or African American alone
+      // P2_002N = Hispanic or Latino (any race)
+      // P2_005N = Not Hispanic or Latino, White alone
+      return `https://api.census.gov/data/2020/dec/pl?get=NAME,P1_001N,P1_004N,P2_002N,P2_005N&for=tract:*&in=state:${state}+county:${county}`;
+    }
+
+    function buildPLMetricMap(metric, plRows) {
+      const records = rowsToRecords(plRows);
+      return Object.fromEntries(records.map(rec => {
+        const geoid = geoidFromRecord(rec);
+        const total = +rec.P1_001N;
+        if (!total) return [geoid, NaN];
+        if (metric === "black") return [geoid, 100 * (+rec.P1_004N) / total];
+        if (metric === "hispanic") return [geoid, 100 * (+rec.P2_002N) / total];
+        // "Nonwhite" here means "not non-Hispanic white", so Hispanic white
+        // residents are counted as nonwhite. This matches how justice-oriented
+        // maps conventionally frame the measure.
+        if (metric === "nonwhite") return [geoid, 100 * (total - (+rec.P2_005N)) / total];
+        return [geoid, NaN];
+      }));
+    }
+
+    async function loadMap() {
+      const state = qs("state").value.trim();
+      const county = qs("county").value.trim();
+      const year = qs("year").value.trim();
+      const metric = qs("metric").value.trim();
+      const basemap = qs("basemap").value.trim();
+
+      if (!/^\d{2}$/.test(state) || !/^\d{3}$/.test(county)) {
+        setStatus("Please use a 2-digit state FIPS and 3-digit county FIPS.");
+        return;
+      }
+
+      setBase(basemap);
+      updateURL();
+      setStatus("Loading data from Census and TIGERweb…");
+
+      currentStateName = STATE_NAMES[state] || null;
+      currentCountyName = null;
+      fetchCountyName(state, county)
+        .then(name => { currentCountyName = name; })
+        .catch(() => { /* non-fatal; popup hierarchy line will just omit the county */ });
+
+      try {
+        const geoPromise = fetchJSON(tigerUrl(state, county));
+        let metricMap;
+
+        if (metric === "income" || metric === "poverty") {
+          const [acsRows, geojson] = await Promise.all([fetchJSON(acsUrl(year, state, county, metric)), geoPromise]);
+          metricMap = buildACSMetricMap(metric, acsRows);
+          drawLayer(metric, geojson, metricMap);
+        } else {
+          const [plRows, geojson] = await Promise.all([fetchJSON(plUrl(state, county)), geoPromise]);
+          metricMap = buildPLMetricMap(metric, plRows);
+          drawLayer(metric, geojson, metricMap);
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus("Load failed. Check the FIPS codes, internet connection, or try again in a moment.");
+      }
+    }
+
+    function drawLayer(metric, geojson, metricMap) {
+      if (currentGeoLayer) map.removeLayer(currentGeoLayer);
+
+      const vals = Object.values(metricMap);
+      const cuts = classify(vals);
+
+      currentGeoLayer = L.geoJSON(geojson, {
+        style: f => ({
+          weight: 0.7,
+          color: "#ffffff",
+          fillOpacity: 0.8,
+          fillColor: colorFor(metricMap[f.properties.GEOID], cuts)
+        }),
+        onEachFeature: (feature, layer) => {
+          const geoid = feature.properties.GEOID;
+          const value = metricMap[geoid];
+          const tractLabel = escapeHtml(feature.properties.NAME || "Tract");
+
+          const renderPopup = (hierarchyHtml) =>
+            `<div><strong>${tractLabel}</strong></div>` +
+            `<div>${FRIENDLY[metric]}: ${formatValue(metric, value)}</div>` +
+            `<div class="small">${hierarchyHtml}</div>` +
+            `<div class="small">GEOID: ${geoid}</div>`;
+
+          layer.bindPopup(renderPopup("Locating…"));
+
+          layer.on("popupopen", async (e) => {
+            if (layer._hierarchyResolved) return;
+            const ll = e.popup.getLatLng();
+            try {
+              const place = await lookupPlace(ll.lat, ll.lng);
+              const parts = [];
+              if (place) parts.push(escapeHtml(place));
+              if (currentCountyName) parts.push(escapeHtml(currentCountyName));
+              if (currentStateName) parts.push(escapeHtml(currentStateName));
+              const hierarchyHtml = parts.length ? parts.join(" &middot; ") : "Location unavailable";
+              layer._hierarchyResolved = true;
+              layer.setPopupContent(renderPopup(hierarchyHtml));
+            } catch (err) {
+              console.error(err);
+              layer.setPopupContent(renderPopup("Location lookup failed"));
+            }
+          });
+
+          layer.on({
+            mouseover: e => e.target.setStyle({ weight: 1.5, fillOpacity: 0.95 }),
+            mouseout: e => currentGeoLayer.resetStyle(e.target)
+          });
+        }
+      }).addTo(map);
+
+      const bounds = currentGeoLayer.getBounds();
+      if (bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20] });
+      updateLegend(metric, cuts);
+      updateURL();
+      setStatus(`Loaded ${FRIENDLY[metric]} for state ${qs("state").value}, county ${qs("county").value}.`);
+    }
+
+    qs("loadBtn").addEventListener("click", loadMap);
+    qs("shareBtn").addEventListener("click", copyShareableURL);
+    qs("basemap").addEventListener("change", () => { setBase(qs("basemap").value); updateURL(); });
+    map.on("moveend zoomend", updateURL);
+
+    // --- Hamburger menu, panel sizing, and user-guide modal ---
+    const PANEL_SIZE_KEY = "jm.panelSize";
+    const VALID_SIZES = ["small", "medium", "large"];
+
+    function applyPanelSize(size) {
+      if (!VALID_SIZES.includes(size)) size = "large";
+      const panel = document.querySelector(".panel");
+      panel.classList.remove("size-small", "size-medium", "size-large");
+      panel.classList.add(`size-${size}`);
+      document.querySelectorAll("#panelSizeSeg button").forEach(b => {
+        b.classList.toggle("active", b.dataset.size === size);
+      });
+      try { localStorage.setItem(PANEL_SIZE_KEY, size); } catch (e) { /* ignore */ }
+    }
+
+    function openMenu() {
+      qs("menu").hidden = false;
+      qs("hamburgerBtn").setAttribute("aria-expanded", "true");
+    }
+    function closeMenu() {
+      qs("menu").hidden = true;
+      qs("hamburgerBtn").setAttribute("aria-expanded", "false");
+    }
+    function toggleMenu() {
+      if (qs("menu").hidden) openMenu(); else closeMenu();
+    }
+
+    function openGuide() {
+      qs("guideModal").hidden = false;
+      closeMenu();
+    }
+    function closeGuide() { qs("guideModal").hidden = true; }
+
+    qs("hamburgerBtn").addEventListener("click", (e) => { e.stopPropagation(); toggleMenu(); });
+    qs("menu").addEventListener("click", (e) => e.stopPropagation());
+    qs("menuGuideBtn").addEventListener("click", openGuide);
+    qs("panelSizeSeg").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-size]");
+      if (btn) applyPanelSize(btn.dataset.size);
+    });
+    qs("guideCloseBtn").addEventListener("click", closeGuide);
+    qs("guideModal").addEventListener("click", (e) => {
+      if (e.target && e.target.dataset && e.target.dataset.close) closeGuide();
+    });
+    document.addEventListener("click", () => { if (!qs("menu").hidden) closeMenu(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { closeMenu(); closeGuide(); }
+    });
+
+    let initialSize = "large";
+    try { initialSize = localStorage.getItem(PANEL_SIZE_KEY) || "large"; } catch (e) { /* ignore */ }
+    applyPanelSize(initialSize);
+
+    map.on("click", async (e) => {
+      // Clicks on rendered tract polygons are SVG <path> elements — let those
+      // fall through to the feature's own popup handler.
+      const tag = e.originalEvent && e.originalEvent.target && e.originalEvent.target.tagName;
+      if (tag === "path") return;
+      setStatus("Finding county at clicked location…");
+      try {
+        const hit = await reverseGeocodeCounty(e.latlng.lat, e.latlng.lng);
+        if (!hit) {
+          setStatus("No US county found at that location. Try clicking on land inside the US.");
+          return;
+        }
+        qs("state").value = hit.state;
+        qs("county").value = hit.county;
+        setStatus(`Loading ${hit.name}…`);
+        loadMap();
+      } catch (err) {
+        console.error(err);
+        setStatus("Reverse geocode failed. Check your connection and try again.");
+      }
+    });
+
+    paramsToUI();
+    setBase(qs("basemap").value);
+    loadMap();
+  </script>
+</body>
+</html>
