@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple G-code Demo</title>
+  <style>
+    :root {
+      --bg: #f4efe7;
+      --panel: #fffaf2;
+      --ink: #1d2a33;
+      --muted: #68707a;
+      --line: #d8c9b0;
+      --accent: #b44f2d;
+      --accent-strong: #89381d;
+      --canvas: #f8f3ec;
+      --rapid: #9aa5b1;
+      --cut: #0f766e;
+      --tool: #c81e1e;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(180, 79, 45, 0.16), transparent 34%),
+        radial-gradient(circle at bottom right, rgba(15, 118, 110, 0.12), transparent 28%),
+        var(--bg);
+    }
+
+    .app {
+      width: min(1200px, calc(100vw - 32px));
+      margin: 24px auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .hero,
+    .panel {
+      background: color-mix(in srgb, var(--panel) 94%, white 6%);
+      border: 1px solid rgba(29, 42, 51, 0.1);
+      border-radius: 20px;
+      box-shadow: 0 16px 40px rgba(29, 42, 51, 0.08);
+    }
+
+    .hero {
+      padding: 20px 24px;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-family: "Avenir Next Condensed", "Arial Narrow", sans-serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      line-height: 0.95;
+      letter-spacing: 0.02em;
+    }
+
+    .hero p {
+      margin: 0;
+      max-width: 70ch;
+      color: var(--muted);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 420px) minmax(320px, 1fr);
+      gap: 16px;
+    }
+
+    .bottom-panel {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.4fr) auto;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .panel {
+      padding: 16px;
+    }
+
+    .panel h2 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font: inherit;
+      font-weight: 600;
+      background: #eadcc7;
+      color: var(--ink);
+      cursor: pointer;
+      transition: transform 120ms ease, background 120ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      background: #e3d0b3;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    button.primary:hover {
+      background: var(--accent-strong);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 360px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      background: #fffdf8;
+      color: var(--ink);
+      font: 14px/1.45 "IBM Plex Mono", "SFMono-Regular", monospace;
+    }
+
+    .notes {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(216, 201, 176, 0.22);
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .notes strong {
+      color: var(--ink);
+    }
+
+    .canvas-wrap {
+      display: grid;
+      gap: 12px;
+    }
+
+    .status {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .status strong {
+      color: var(--ink);
+    }
+
+    canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: var(--canvas);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend i {
+      width: 18px;
+      height: 3px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .rapid { background: var(--rapid); }
+    .cut { background: var(--cut); }
+    .tool { background: var(--tool); }
+
+    .message {
+      min-height: 1.5em;
+      color: var(--accent-strong);
+      font-weight: 600;
+    }
+
+    .readout {
+      min-height: 118px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: #fffdf8;
+      font: 14px/1.45 "IBM Plex Mono", "SFMono-Regular", monospace;
+      white-space: pre-wrap;
+    }
+
+    .readout.description {
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      color: var(--ink);
+    }
+
+    .side-actions {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+      min-width: 124px;
+    }
+
+    @media (max-width: 860px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .bottom-panel {
+        grid-template-columns: 1fr;
+      }
+
+      textarea {
+        min-height: 280px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="hero">
+      <h1>Simple G-code Interpreter</h1>
+      <p>
+        This demo supports a small, readable subset of CNC-style G-code and animates the resulting
+        toolpath on a 2D canvas.
+      </p>
+    </section>
+
+    <section class="layout">
+      <section class="panel">
+        <h2>Program</h2>
+        <div class="toolbar">
+          <button class="primary" id="startBtn">Start</button>
+          <button id="stopBtn">Stop</button>
+          <button id="resetBtn">Reset</button>
+          <button id="sample1Btn">Load Sample 1</button>
+          <button id="sample2Btn">Load Sample 2</button>
+          <button id="sample3Btn">Load Sample 3</button>
+        </div>
+        <textarea id="gcodeInput" spellcheck="false"></textarea>
+        <div class="notes">
+          <strong>Supported subset:</strong> <code>G0</code>/<code>G00</code> rapid move,
+          <code>G1</code>/<code>G01</code> linear cut move, <code>G90</code> absolute mode,
+          <code>G91</code> relative mode, <code>F</code> feed rate metadata, and
+          <code>M2</code>/<code>M30</code> end program. Coordinates use <code>X</code> and
+          <code>Y</code>. Semicolon comments are allowed.
+        </div>
+      </section>
+
+      <section class="panel canvas-wrap">
+        <h2>Graphics</h2>
+        <div class="status">
+          <span><strong>Mode:</strong> <span id="modeLabel">Absolute (G90)</span></span>
+          <span><strong>Feed:</strong> <span id="feedLabel">100</span></span>
+          <span><strong>Step:</strong> <span id="stepLabel">0 / 0</span></span>
+          <span><strong>Position:</strong> <span id="positionLabel">(0.00, 0.00)</span></span>
+        </div>
+        <canvas id="preview" width="760" height="560"></canvas>
+        <div class="legend">
+          <span><i class="rapid"></i> Rapid move</span>
+          <span><i class="cut"></i> Cut move</span>
+          <span><i class="tool"></i> Current tool position</span>
+        </div>
+        <div class="message" id="message"></div>
+      </section>
+    </section>
+
+    <section class="panel bottom-panel">
+      <div>
+        <h2>Current Instruction</h2>
+        <div class="readout" id="instructionReadout">Ready to run.</div>
+      </div>
+      <div>
+        <h2>Interpreter Notes</h2>
+        <div class="readout description" id="descriptionReadout">
+          Load a sample or edit the program, then press Start.
+        </div>
+      </div>
+      <div class="side-actions">
+        <h2>Playback</h2>
+        <button id="pauseResumeBtn">Pause</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const samplePrograms = {
+      sample1: `; Sample 1: square with diagonals
+G90
+G0 X10 Y10
+G1 X110 Y10 F150
+G1 X110 Y110
+G1 X10 Y110
+G1 X10 Y10
+G0 X10 Y10
+G1 X110 Y110
+G0 X110 Y10
+G1 X10 Y110
+M30`,
+      sample2: `; Sample 2: relative zig-zag
+G90
+G0 X20 Y20
+G91
+G1 X40 Y0 F120
+G1 X20 Y25
+G1 X20 Y-25
+G1 X20 Y25
+G1 X20 Y-25
+G1 X20 Y25
+G90
+G0 X20 Y20
+M2`,
+      sample3: `; Sample 3: circular artifact approximated with line segments
+G90
+G0 X90 Y50
+G1 X110 Y56 F140
+G1 X124 Y70
+G1 X130 Y90
+G1 X124 Y110
+G1 X110 Y124
+G1 X90 Y130
+G1 X70 Y124
+G1 X56 Y110
+G1 X50 Y90
+G1 X56 Y70
+G1 X70 Y56
+G1 X90 Y50
+M30`
+    };
+
+    const textarea = document.getElementById("gcodeInput");
+    const canvas = document.getElementById("preview");
+    const ctx = canvas.getContext("2d");
+    const messageEl = document.getElementById("message");
+    const modeLabel = document.getElementById("modeLabel");
+    const feedLabel = document.getElementById("feedLabel");
+    const stepLabel = document.getElementById("stepLabel");
+    const positionLabel = document.getElementById("positionLabel");
+    const instructionReadout = document.getElementById("instructionReadout");
+    const descriptionReadout = document.getElementById("descriptionReadout");
+    const pauseResumeBtn = document.getElementById("pauseResumeBtn");
+
+    const state = {
+      timer: null,
+      program: null,
+      instructionIndex: 0,
+      currentPosition: { x: 0, y: 0 },
+      currentModeAbsolute: true,
+      currentFeedRate: 100,
+      executedMoves: [],
+      paused: false,
+      lastInstruction: null
+    };
+
+    textarea.value = samplePrograms.sample1;
+
+    document.getElementById("startBtn").addEventListener("click", startProgram);
+    document.getElementById("stopBtn").addEventListener("click", stopProgram);
+    document.getElementById("resetBtn").addEventListener("click", resetProgram);
+    document.getElementById("sample1Btn").addEventListener("click", () => loadSample("sample1"));
+    document.getElementById("sample2Btn").addEventListener("click", () => loadSample("sample2"));
+    document.getElementById("sample3Btn").addEventListener("click", () => loadSample("sample3"));
+    pauseResumeBtn.addEventListener("click", togglePauseResume);
+
+    function loadSample(name) {
+      stopProgram();
+      textarea.value = samplePrograms[name];
+      clearRuntimeState();
+      state.program = null;
+      const label = name === "sample1" ? "Sample 1" : name === "sample2" ? "Sample 2" : "Sample 3";
+      setMessage(`${label} loaded.`);
+      drawScene();
+      updateStatus();
+      updateInstructionPanel();
+    }
+
+    function startProgram() {
+      if (state.timer) {
+        return;
+      }
+
+      if (!state.program) {
+        try {
+          state.program = compileProgram(textarea.value);
+          clearRuntimeState();
+        } catch (error) {
+          setMessage(error.message);
+          return;
+        }
+      }
+
+      if (!state.program.instructions.length) {
+        setMessage("No executable instructions found in the current program.");
+        drawScene();
+        updateStatus();
+        updateInstructionPanel();
+        return;
+      }
+
+      if (state.instructionIndex >= state.program.instructions.length) {
+        clearRuntimeState();
+      }
+
+      state.paused = false;
+      updatePauseButton();
+      setMessage("Running...");
+      drawScene();
+      updateStatus();
+      updateInstructionPanel();
+
+      state.timer = window.setInterval(() => {
+        if (state.paused) {
+          return;
+        }
+
+        if (state.instructionIndex >= state.program.instructions.length) {
+          stopProgram();
+          setMessage("Program complete.");
+          return;
+        }
+
+        executeInstruction(state.program.instructions[state.instructionIndex]);
+        state.instructionIndex += 1;
+        drawScene();
+        updateStatus();
+        updateInstructionPanel();
+
+        if (state.instructionIndex >= state.program.instructions.length) {
+          stopProgram();
+          setMessage("Program complete.");
+        }
+      }, 450);
+
+      updatePauseButton();
+    }
+
+    function stopProgram() {
+      if (state.timer) {
+        window.clearInterval(state.timer);
+        state.timer = null;
+      }
+      state.paused = false;
+      updatePauseButton();
+    }
+
+    function resetProgram() {
+      stopProgram();
+
+      try {
+        state.program = compileProgram(textarea.value);
+        setMessage("Reset to the beginning.");
+      } catch (error) {
+        state.program = null;
+        setMessage(error.message);
+      }
+
+      clearRuntimeState();
+      drawScene();
+      updateStatus();
+      updateInstructionPanel();
+    }
+
+    function togglePauseResume() {
+      if (!state.program || !state.timer) {
+        return;
+      }
+
+      state.paused = !state.paused;
+      setMessage(state.paused ? "Paused." : "Running...");
+      updatePauseButton();
+    }
+
+    function clearRuntimeState() {
+      state.instructionIndex = 0;
+      state.currentPosition = { x: 0, y: 0 };
+      state.currentModeAbsolute = true;
+      state.currentFeedRate = 100;
+      state.executedMoves = [];
+      state.paused = false;
+      state.lastInstruction = null;
+      updatePauseButton();
+    }
+
+    function compileProgram(source) {
+      const lines = source.split(/\r?\n/);
+      const instructions = [];
+      const previewMoves = [];
+      let position = { x: 0, y: 0 };
+      let absoluteMode = true;
+      let feedRate = 100;
+
+      for (let i = 0; i < lines.length; i += 1) {
+        const rawLine = lines[i];
+        const line = rawLine.split(";")[0].trim().toUpperCase();
+
+        if (!line) {
+          continue;
+        }
+
+        const tokens = line.match(/[A-Z][-+]?[\d.]+/g) || [];
+        if (!tokens.length) {
+          throw new Error(`Line ${i + 1}: could not parse "${rawLine.trim()}"`);
+        }
+
+        let motion = null;
+        let xValue = null;
+        let yValue = null;
+        let ended = false;
+        let modeChanged = false;
+
+        for (const token of tokens) {
+          const code = token[0];
+          const value = Number(token.slice(1));
+
+          if (Number.isNaN(value)) {
+            throw new Error(`Line ${i + 1}: invalid token "${token}"`);
+          }
+
+          if (code === "G") {
+            if (value === 0) motion = "rapid";
+            else if (value === 1) motion = "cut";
+            else if (value === 90) {
+              absoluteMode = true;
+              modeChanged = true;
+            } else if (value === 91) {
+              absoluteMode = false;
+              modeChanged = true;
+            }
+            else throw new Error(`Line ${i + 1}: unsupported G-code G${value}`);
+          } else if (code === "M") {
+            if (value === 2 || value === 30) {
+              ended = true;
+            } else {
+              throw new Error(`Line ${i + 1}: unsupported M-code M${value}`);
+            }
+          } else if (code === "X") {
+            xValue = value;
+          } else if (code === "Y") {
+            yValue = value;
+          } else if (code === "F") {
+            feedRate = value;
+          } else {
+            throw new Error(`Line ${i + 1}: unsupported token "${token}"`);
+          }
+        }
+
+        const parts = [];
+        if (modeChanged) {
+          parts.push(absoluteMode ? "set absolute positioning mode" : "set relative positioning mode");
+        }
+
+        if (motion) {
+          const next = {
+            x: xValue === null ? position.x : absoluteMode ? xValue : position.x + xValue,
+            y: yValue === null ? position.y : absoluteMode ? yValue : position.y + yValue
+          };
+
+          const coordinateWords = [];
+          if (xValue !== null) coordinateWords.push(`X${next.x.toFixed(2)}`);
+          if (yValue !== null) coordinateWords.push(`Y${next.y.toFixed(2)}`);
+
+          parts.push(
+            `${motion === "rapid" ? "rapid traverse" : "linear cut"} to ${coordinateWords.join(" ") || "the current position"}`
+          );
+
+          previewMoves.push({
+            type: motion,
+            from: { x: position.x, y: position.y },
+            to: next
+          });
+
+          position = next;
+        }
+
+        if (tokens.some((token) => token[0] === "F")) {
+          parts.push(`set feed rate to ${feedRate}`);
+        }
+
+        if (ended) {
+          parts.push("end the program");
+        }
+
+        instructions.push({
+          raw: rawLine.trim() || line,
+          lineNumber: i + 1,
+          description: capitalize(parts.join(", ")),
+          motion: motion ? {
+            type: motion,
+            from: previewMoves[previewMoves.length - 1].from,
+            to: previewMoves[previewMoves.length - 1].to
+          } : null,
+          absoluteMode,
+          feedRate,
+          ended
+        });
+
+        if (ended) {
+          break;
+        }
+      }
+
+      return {
+        instructions,
+        previewMoves,
+        finalMode: absoluteMode,
+        finalFeedRate: feedRate
+      };
+    }
+
+    function executeInstruction(instruction) {
+      state.lastInstruction = instruction;
+      state.currentModeAbsolute = instruction.absoluteMode;
+      state.currentFeedRate = instruction.feedRate;
+
+      if (instruction.motion) {
+        state.currentPosition = { x: instruction.motion.to.x, y: instruction.motion.to.y };
+        state.executedMoves.push(instruction.motion);
+      }
+    }
+
+    function updateStatus() {
+      const totalSteps = state.program ? state.program.instructions.length : 0;
+      modeLabel.textContent = state.currentModeAbsolute ? "Absolute (G90)" : "Relative (G91)";
+      feedLabel.textContent = String(state.currentFeedRate);
+      stepLabel.textContent = `${state.instructionIndex} / ${totalSteps}`;
+
+      positionLabel.textContent = `(${state.currentPosition.x.toFixed(2)}, ${state.currentPosition.y.toFixed(2)})`;
+    }
+
+    function updateInstructionPanel() {
+      if (state.lastInstruction) {
+        instructionReadout.textContent = `Line ${state.lastInstruction.lineNumber}: ${state.lastInstruction.raw}`;
+        descriptionReadout.textContent = state.lastInstruction.description;
+        return;
+      }
+
+      if (state.program && state.program.instructions.length) {
+        const nextInstruction = state.program.instructions[state.instructionIndex] || state.program.instructions[0];
+        instructionReadout.textContent = `Next: Line ${nextInstruction.lineNumber}: ${nextInstruction.raw}`;
+        descriptionReadout.textContent = nextInstruction.description;
+        return;
+      }
+
+      instructionReadout.textContent = "Ready to run.";
+      descriptionReadout.textContent = "Load a sample or edit the program, then press Start.";
+    }
+
+    function updatePauseButton() {
+      pauseResumeBtn.textContent = state.paused ? "Resume" : "Pause";
+      pauseResumeBtn.disabled = !state.timer && !state.paused;
+    }
+
+    function drawScene() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGrid();
+
+      const program = state.program;
+      const executedMoves = state.executedMoves;
+      const allMoves = program ? program.previewMoves : [];
+      const view = buildViewBox(allMoves);
+
+      if (allMoves.length) {
+        drawBounds(view);
+      }
+
+      for (const move of executedMoves) {
+        drawMove(move, view, 1);
+      }
+
+      const upcoming = getUpcomingMove();
+      if (upcoming) {
+        drawMove(upcoming, view, 0.2);
+      }
+
+      drawTool(view);
+    }
+
+    function getUpcomingMove() {
+      if (!state.program) {
+        return null;
+      }
+
+      for (let i = state.instructionIndex; i < state.program.instructions.length; i += 1) {
+        const instruction = state.program.instructions[i];
+        if (instruction.motion) {
+          return instruction.motion;
+        }
+      }
+
+      return null;
+    }
+
+    function drawGrid() {
+      ctx.save();
+      ctx.strokeStyle = "rgba(104, 112, 122, 0.12)";
+      ctx.lineWidth = 1;
+      for (let x = 40; x < canvas.width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 40; y < canvas.height; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function buildViewBox(moves) {
+      if (!moves.length) {
+        return { minX: 0, minY: 0, maxX: 120, maxY: 120 };
+      }
+
+      const points = moves.flatMap((move) => [move.from, move.to]);
+      let minX = Math.min(...points.map((point) => point.x));
+      let maxX = Math.max(...points.map((point) => point.x));
+      let minY = Math.min(...points.map((point) => point.y));
+      let maxY = Math.max(...points.map((point) => point.y));
+
+      if (minX === maxX) {
+        minX -= 10;
+        maxX += 10;
+      }
+
+      if (minY === maxY) {
+        minY -= 10;
+        maxY += 10;
+      }
+
+      const padX = Math.max((maxX - minX) * 0.15, 12);
+      const padY = Math.max((maxY - minY) * 0.15, 12);
+
+      minX -= padX;
+      minY -= padY;
+      maxX += padX;
+      maxY += padY;
+
+      const drawableWidth = canvas.width - 40;
+      const drawableHeight = canvas.height - 40;
+      const targetAspect = drawableWidth / drawableHeight;
+      const width = maxX - minX;
+      const height = maxY - minY;
+      const currentAspect = width / height;
+
+      if (currentAspect > targetAspect) {
+        const expandedHeight = width / targetAspect;
+        const centerY = (minY + maxY) / 2;
+        minY = centerY - expandedHeight / 2;
+        maxY = centerY + expandedHeight / 2;
+      } else {
+        const expandedWidth = height * targetAspect;
+        const centerX = (minX + maxX) / 2;
+        minX = centerX - expandedWidth / 2;
+        maxX = centerX + expandedWidth / 2;
+      }
+
+      return { minX, minY, maxX, maxY };
+    }
+
+    function toCanvas(point, view) {
+      const width = view.maxX - view.minX;
+      const height = view.maxY - view.minY;
+      const x = ((point.x - view.minX) / width) * (canvas.width - 40) + 20;
+      const y = canvas.height - (((point.y - view.minY) / height) * (canvas.height - 40) + 20);
+      return { x, y };
+    }
+
+    function drawBounds(view) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(29, 42, 51, 0.18)";
+      ctx.setLineDash([6, 6]);
+      ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+      ctx.restore();
+
+      ctx.save();
+      ctx.fillStyle = "rgba(29, 42, 51, 0.65)";
+      ctx.font = '12px "IBM Plex Mono", monospace';
+      ctx.fillText(`X: ${view.minX.toFixed(1)} to ${view.maxX.toFixed(1)}`, 28, 38);
+      ctx.fillText(`Y: ${view.minY.toFixed(1)} to ${view.maxY.toFixed(1)}`, 28, 56);
+      ctx.restore();
+    }
+
+    function drawMove(move, view, alpha) {
+      const from = toCanvas(move.from, view);
+      const to = toCanvas(move.to, view);
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = move.type === "rapid" ? 2 : 3.5;
+      ctx.strokeStyle = move.type === "rapid"
+        ? getComputedStyle(document.documentElement).getPropertyValue("--rapid").trim()
+        : getComputedStyle(document.documentElement).getPropertyValue("--cut").trim();
+      ctx.setLineDash(move.type === "rapid" ? [10, 8] : []);
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawTool(view) {
+      const point = toCanvas(state.currentPosition, view);
+
+      ctx.save();
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--tool").trim();
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function setMessage(text) {
+      messageEl.textContent = text;
+    }
+
+    function capitalize(text) {
+      return text ? text[0].toUpperCase() + text.slice(1) + "." : "Execute the instruction.";
+    }
+
+    resetProgram();
+  </script>
+</body>
+</html>
