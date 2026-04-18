@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Weather v4.2 — Daily → Hourly drilldown</title>
+    <title>Weather v4.3 — Daily → Hourly drilldown</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -82,17 +82,74 @@
         .color-palette-swatch { width:100%; aspect-ratio:1 / 1; border:none; border-radius:8px; cursor:pointer; box-shadow:inset 0 0 0 1px rgba(255,255,255,.25); }
         .color-palette-swatch.active { box-shadow:inset 0 0 0 2px #fff, 0 0 0 1px #0b142c; }
         .hidden-panel { display:none !important; }
+
+        /* Hamburger menu */
+        .hamburger-btn { background:none; border:1px solid #2a3a6a; color:var(--text); font-size:22px; line-height:1;
+            padding:4px 10px; border-radius:10px; cursor:pointer; }
+        .hamburger-btn:hover { background:#12214a; border-color:#3b57a3; }
+        .header-row { display:flex; align-items:center; gap:12px; }
+        .hamburger-wrap { position:relative; }
+        .hamburger-menu { display:none; position:absolute; top:100%; left:0; margin-top:6px; z-index:20;
+            background:#11172b; border:1px solid #2a3a6a; border-radius:12px; box-shadow:var(--shadow);
+            min-width:180px; padding:6px 0; }
+        .hamburger-menu.open { display:block; }
+        .hamburger-item { display:block; width:100%; text-align:left; background:none; border:none; color:var(--text);
+            padding:10px 16px; cursor:pointer; font-size:14px; font-weight:600; font-family:inherit; }
+        .hamburger-item:hover { background:rgba(64,105,215,0.12); }
+
+        /* Modeless config panel */
+        .config-panel { display:none; position:fixed; top:60px; right:24px; z-index:50;
+            width:420px; max-width:calc(100vw - 48px); max-height:calc(100vh - 80px);
+            background:#11172b; border:1px solid #2a3a6a; border-radius:16px; box-shadow:0 12px 40px rgba(0,0,0,.55);
+            overflow-y:auto; }
+        .config-panel.open { display:block; }
+        .config-panel-header { display:flex; align-items:center; justify-content:space-between;
+            padding:14px 16px 10px; border-bottom:1px solid #1c2a4d; position:sticky; top:0; background:#11172b;
+            border-radius:16px 16px 0 0; z-index:1; }
+        .config-panel-header h2 { margin:0; font-size:16px; }
+        .config-panel-close { background:#0b142c; border:1px solid #2a3a6a; color:#e8ecf3;
+            border-radius:10px; padding:4px 10px; cursor:pointer; font-size:14px; }
+        .config-panel-close:hover { background:#12214a; border-color:#3b57a3; }
+        .config-panel-body { padding:14px 16px 18px; display:grid; gap:14px; }
+        .config-panel-body .row4 { display:grid; gap:10px; grid-template-columns:1fr 1fr; }
+        .config-panel-body .row2 { display:grid; gap:10px; grid-template-columns:1fr 1fr 1fr; }
+        .config-panel-section { font-weight:700; font-size:13px; color:var(--accent); text-transform:uppercase;
+            letter-spacing:.5px; margin-top:4px; }
+        /* Gear shortcut button */
+        .gear-btn { background:none; border:1px solid #2a3a6a; color:var(--muted); font-size:18px; line-height:1;
+            padding:4px 8px; border-radius:10px; cursor:pointer; margin-left:auto; }
+        .gear-btn:hover { background:#12214a; border-color:#3b57a3; color:var(--text); }
+        /* Calendar indicator in hourly table */
+        .cal-indicator { display:inline-block; margin-left:6px; cursor:default; position:relative; font-size:13px; vertical-align:middle; }
+        .cal-tooltip { display:none; position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%);
+            z-index:30; min-width:200px; max-width:300px; padding:10px 12px; border-radius:10px;
+            background:#1a2548; border:1px solid #3b57a3; box-shadow:0 6px 20px rgba(0,0,0,.45);
+            color:var(--text); font-size:12px; line-height:1.5; white-space:normal; pointer-events:none; }
+        .cal-tooltip::after { content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%);
+            border:6px solid transparent; border-top-color:#3b57a3; }
+        .cal-indicator:hover .cal-tooltip { display:block; }
+        .cal-event-line { margin-bottom:4px; }
+        .cal-event-line:last-child { margin-bottom:0; }
+        .cal-event-title { font-weight:700; color:var(--accent); }
+        .cal-event-time { color:var(--muted); font-size:11px; }
+        .cal-status { font-size:12px; color:var(--muted); margin-top:4px; }
+        .cal-status.ok { color:lightgreen; }
+        .cal-status.err { color:var(--err); }
+        /* Make config panel draggable */
+        .config-panel-header { cursor:move; }
     </style>
 </head>
 
 <body>
-<div class="wrap">
-    <header>
-        <h1>Weather v4.2</h1>
-        <p class="sub">Click a day to append an hourly table. Click an hour to open weather.com for that place/hour.</p>
-    </header>
 
-    <section class="panel controls">
+<!-- Modeless configuration panel (top-level, outside .wrap) -->
+<div id="configPanel" class="config-panel">
+    <div class="config-panel-header" id="configPanelHeader">
+        <h2>Configuration</h2>
+        <button id="configPanelClose" class="config-panel-close" type="button">Close</button>
+    </div>
+    <div class="config-panel-body">
+        <div class="config-panel-section">Location defaults</div>
         <div class="row4">
             <div>
                 <label for="prefState">State/Province</label>
@@ -102,6 +159,9 @@
                 <label for="prefCountry">Country</label>
                 <input id="prefCountry" type="text" value="United States" />
             </div>
+        </div>
+        <div class="config-panel-section">Time window</div>
+        <div class="row2">
             <div>
                 <label for="startHour">Start hour</label>
                 <input id="startHour" type="number" min="0" max="23" step="1" value="8" />
@@ -110,42 +170,70 @@
                 <label for="endHour">End hour</label>
                 <input id="endHour" type="number" min="0" max="23" step="1" value="17" />
             </div>
+            <div>
+                <label for="numDays"># Days</label>
+                <input id="numDays" type="number" min="1" max="14" step="1" value="7" />
+            </div>
+        </div>
+        <div class="config-panel-section">Calendar integration</div>
+        <div class="sub">Paste an Apple Calendar (iCal) subscription URL to show events alongside hourly weather. You can also drop <code>.ics</code> files onto the drop zone.</div>
+        <div>
+            <label for="calendarUrl">Apple Calendar URL</label>
+            <input id="calendarUrl" type="text" placeholder="webcal://p00-caldav.icloud.com/published/2/..." />
+        </div>
+        <div class="btn-row">
+            <button id="calendarLoadBtn" class="btn" type="button">Load URL</button>
+            <button id="calendarFileBtn" class="btn" type="button">Load .ics File</button>
+            <input id="calendarFileInput" type="file" accept=".ics,text/calendar" style="display:none" />
+            <span id="calendarStatus" class="cal-status"></span>
         </div>
 
+        <div class="config-panel-section">Color scales</div>
+        <div class="sub">Built-in color directives are shown here. Add <code>color &lt;tag&gt;=...</code> lines in pasted or dropped config files to override a tag.</div>
+        <div id="colorConfigWrap">
+            <div id="colorConfig" class="color-config" aria-live="polite"></div>
+        </div>
+    </div>
+</div>
+
+<div class="wrap">
+    <header>
+        <div class="header-row">
+            <div class="hamburger-wrap">
+                <button id="hamburgerBtn" class="hamburger-btn" type="button" title="Menu" aria-label="Menu">&#9776;</button>
+                <div id="hamburgerMenu" class="hamburger-menu">
+                    <button id="menuConfigure" class="hamburger-item" type="button">Configure&hellip;</button>
+                </div>
+            </div>
+            <h1>Weather v4.3</h1>
+            <button id="configGearBtn" class="gear-btn" type="button" title="Open Configuration" aria-label="Open Configuration">&#9881;</button>
+        </div>
+        <p class="sub">Click a day to append an hourly table. Click an hour to open weather.com for that place/hour.</p>
+    </header>
+
+    <section class="panel controls">
         <div class="btn-row">
-            <label for="numDays"># Days</label>
-            <input id="numDays" type="number" min="1" max="14" step="1" value="7" style="width:60px" />
             <label><input id="showDecimals" type="checkbox" checked /> Decimals</label>
             <label><input id="cityOnly" type="checkbox" checked /> City-only labels</label>
             <label><input id="onlyIcons" type="checkbox" /> Icons only</label>
             <button id="run" class="btn" type="button">Generate</button>
             <button id="clearBtn" class="btn" type="button">Clear</button>
             <button id="exportBtn" class="btn" type="button">Export</button>
-            <button id="toggleColorsBtn" class="btn" type="button" aria-expanded="true" aria-controls="colorConfigWrap">Hide Color Scales</button>
         </div>
 
         <div id="drop" class="dropzone" tabindex="0" aria-label="Drop or click to load directive files">
-            <input id="file" type="file" accept=".txt,.csv,text/plain" multiple style="display:none" />
+            <input id="file" type="file" accept=".txt,.csv,.ics,text/plain,text/calendar" multiple style="display:none" />
             <strong>Drop file(s) here or click to browse</strong>
             <div class="sub">Files may contain <code>place</code>, <code>color</code>, <code>hours</code>, <code>days</code>, <code>state</code>, <code>country</code>, <code>decimals</code>, <code>cityonly</code>, <code>onlyicons</code>, <code>colorscales</code>, and <code>add</code> directives. Lines starting with <code>#</code> are comments.</div>
         </div>
 
-        <div class="row">
-            <div>
-                <label for="paste">Directives</label>
-                <textarea id="paste" placeholder="place Piscataway, NJ
+        <div>
+            <label for="paste">Directives</label>
+            <textarea id="paste" placeholder="place Piscataway, NJ
 place 40.728,-73.995,Greenwich Village
 hours 8 17
 days 7
 color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
-            </div>
-            <div>
-                <label for="colorConfig">Color scales</label>
-                <div class="sub">Built-in color directives are shown here. Add <code>color &lt;tag&gt;=...</code> lines in pasted or dropped config files to override a tag.</div>
-                <div id="colorConfigWrap">
-                    <div id="colorConfig" class="color-config" aria-live="polite"></div>
-                </div>
-            </div>
         </div>
     </section>
 
@@ -614,6 +702,116 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             return null;
         }
 
+        // -------- ICS calendar parsing
+        function parseICSDateTime(dtStr) {
+            // Handles: 20260418T140000Z, 20260418T140000, VALUE=DATE:20260418
+            const s = dtStr.replace(/^.*:/,""); // strip TZID= or VALUE= prefix parts
+            const m = s.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2}))?(.*)$/);
+            if (!m) return null;
+            const [, yr, mo, dy, hh, mm, ss, rest] = m;
+            if (!hh) return { date: `${yr}-${mo}-${dy}`, allDay: true, ts: new Date(Number(yr), Number(mo)-1, Number(dy)).getTime() };
+            const isUTC = rest && rest.includes("Z");
+            const dt = isUTC
+                ? new Date(Date.UTC(Number(yr), Number(mo)-1, Number(dy), Number(hh), Number(mm), Number(ss||0)))
+                : new Date(Number(yr), Number(mo)-1, Number(dy), Number(hh), Number(mm), Number(ss||0));
+            return { date: `${yr}-${mo}-${dy}`, allDay: false, ts: dt.getTime(), hour: dt.getHours(), dt };
+        }
+        function unfoldICS(text) {
+            return text.replace(/\r\n /g, "").replace(/\r\n\t/g, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+        }
+        function parseICS(text) {
+            const unfolded = unfoldICS(text);
+            const events = [];
+            const blocks = unfolded.split("BEGIN:VEVENT");
+            for (let i = 1; i < blocks.length; i++) {
+                const block = blocks[i].split("END:VEVENT")[0];
+                const lines = block.split("\n");
+                const ev = {};
+                for (const line of lines) {
+                    const sep = line.indexOf(":");
+                    if (sep < 0) continue;
+                    const key = line.slice(0, sep).split(";")[0].trim().toUpperCase();
+                    const val = line.slice(sep + 1).trim();
+                    if (key === "DTSTART") ev.dtstart = parseICSDateTime(line.slice(line.indexOf(":")+1).trim());
+                    else if (key === "DTEND") ev.dtend = parseICSDateTime(line.slice(line.indexOf(":")+1).trim());
+                    else if (key === "SUMMARY") ev.summary = val;
+                    else if (key === "LOCATION") ev.location = val;
+                    else if (key === "DESCRIPTION") ev.description = val;
+                }
+                if (ev.dtstart) events.push(ev);
+            }
+            return events;
+        }
+        function getEventsForDayAndHour(events, dayISO, hour) {
+            const matches = [];
+            for (const ev of events) {
+                if (!ev.dtstart) continue;
+                const startDate = ev.dtstart.date;
+                const endDate = ev.dtend ? ev.dtend.date : startDate;
+                if (ev.dtstart.allDay) {
+                    if (dayISO >= startDate && dayISO <= endDate) matches.push(ev);
+                    continue;
+                }
+                const startTs = ev.dtstart.ts;
+                const endTs = ev.dtend ? ev.dtend.ts : startTs + 3600000;
+                const hourStart = new Date(dayISO.split("-").map(Number).reduce((_, v, i) =>
+                    i === 0 ? new Date(v, 0, 1) : (i === 1 ? (_.setMonth(v-1), _) : (_.setDate(v), _)), null)).getTime();
+                // Build hour start/end from dayISO + hour
+                const [y, m, d] = dayISO.split("-").map(Number);
+                const slotStart = new Date(y, m-1, d, hour, 0, 0).getTime();
+                const slotEnd = slotStart + 3600000;
+                if (startTs < slotEnd && endTs > slotStart) matches.push(ev);
+            }
+            return matches;
+        }
+        function formatEventTime(ev) {
+            if (!ev.dtstart || ev.dtstart.allDay) return "All day";
+            const fmt2 = (d) => {
+                const h = d.getHours(), m = d.getMinutes();
+                return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+            };
+            const start = fmt2(ev.dtstart.dt || new Date(ev.dtstart.ts));
+            if (!ev.dtend) return start;
+            const end = fmt2(ev.dtend.dt || new Date(ev.dtend.ts));
+            return `${start}–${end}`;
+        }
+
+        let calendarEvents = [];
+        const CORS_PROXY = "https://corsproxy.io/?";
+
+        async function fetchCalendar(rawUrl) {
+            if (!rawUrl || !rawUrl.trim()) return [];
+            let url = rawUrl.trim();
+            // webcal:// is just https:// for iCal
+            if (url.startsWith("webcal://")) url = url.replace("webcal://", "https://");
+            // Try direct fetch first, fall back to CORS proxy
+            for (const attempt of [url, CORS_PROXY + encodeURIComponent(url)]) {
+                try {
+                    const r = await fetch(attempt, { signal: AbortSignal.timeout(10000) });
+                    if (!r.ok) continue;
+                    const text = await r.text();
+                    if (!text.includes("BEGIN:VCALENDAR")) continue;
+                    return parseICS(text);
+                } catch (e) {
+                    continue;
+                }
+            }
+            throw new Error("Could not fetch calendar. Check the URL or try dropping an .ics file.");
+        }
+        function parseICSFromFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const events = parseICS(reader.result);
+                        resolve(events);
+                    } catch (e) { reject(e); }
+                };
+                reader.onerror = () => reject(reader.error);
+                reader.readAsText(file);
+            });
+        }
+
         // -------- Geocoding & reverse (CORS-safe reverse via Nominatim)
         async function geocode(place, globalPrefs){
             let city = (place.city || "").trim();
@@ -809,7 +1007,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         }
 
         // -------- Build HOURLY table for a given day from cached hourly data
-        function buildHourlyTable(hourly, dayISO, rules, showDecimals, placeLabel, lat, lon){
+        function buildHourlyTable(hourly, dayISO, rules, showDecimals, placeLabel, lat, lon, events){
             // Collect the 24 hours for dayISO (or fewer if API window smaller)
             const rows = [];
             for (let i=0; i<hourly.time.length; i++){
@@ -829,7 +1027,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
 
             const wrap = el("div", { class:"hourly-wrap" });
             const title = el("div", { class:"hourly-title" }, [
-                el("span", { text: `Hourly — ${placeLabel} — ${new Date(dayISO).toLocaleDateString()}` }),
+                el("span", { text: `Hourly — ${placeLabel} — ${parseLocalISODate(dayISO).toLocaleDateString()}` }),
                 el("button", { class:"hourly-close", type:"button", text:"Close" })
             ]);
             wrap.append(title);
@@ -871,6 +1069,30 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                     const url = `https://weather.com/weather/hourbyhour/l/${lat.toFixed(3)},${lon.toFixed(3)}?${q.toString()}`;
                     window.open(url, "_blank", "noopener");
                 });
+
+                // Calendar events for this hour
+                if (events && events.length) {
+                    const hourNum = Number(hh);
+                    const hourEvents = getEventsForDayAndHour(events, dayISO, hourNum);
+                    if (hourEvents.length) {
+                        const indicator = el("span", { class:"cal-indicator", text:"\uD83D\uDCC5" }); // 📅
+                        const tooltip = el("div", { class:"cal-tooltip" });
+                        for (const ev of hourEvents) {
+                            const evLine = el("div", { class:"cal-event-line" });
+                            evLine.append(
+                                el("span", { class:"cal-event-title", text: ev.summary || "Event" }),
+                                el("br"),
+                                el("span", { class:"cal-event-time", text: formatEventTime(ev) })
+                            );
+                            if (ev.location) {
+                                evLine.append(el("br"), el("span", { class:"cal-event-time", text: ev.location }));
+                            }
+                            tooltip.append(evLine);
+                        }
+                        indicator.append(tooltip);
+                        timeCell.append(indicator);
+                    }
+                }
 
                 const tr = el("tr");
                 tr.append(timeCell, cT, cP, cUV, cW, cG, cRH, cCond);
@@ -942,7 +1164,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
 
                 // Daily table with click handler → build hourly block below it
                 const dailyTable = buildDailyTableFromSynth(synth, rules, showDecimals, (dayIdx, dayISO) => {
-                    const hourlyBlock = buildHourlyTable(hourly, dayISO, rules, showDecimals, coords.label, coords.lat, coords.lon);
+                    const hourlyBlock = buildHourlyTable(hourly, dayISO, rules, showDecimals, coords.label, coords.lat, coords.lon, calendarEvents);
                     card.append(hourlyBlock);
                     hourlyBlock.scrollIntoView({ behavior: "smooth", block: "nearest" });
                 });
@@ -981,7 +1203,8 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                 decimals: null,
                 cityOnly: null,
                 onlyIcons: null,
-                colorScales: null
+                colorScales: null,
+                calendar: null
             };
             async function parseOne(text){
                 const lines = (text||"").replace(/\r\n?/g,"\n").split("\n");
@@ -1022,6 +1245,8 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                     } else if (kw === "colorscales") {
                         const v = parseBoolish(rest);
                         if (v !== null) acc.colorScales = v;
+                    } else if (kw === "calendar") {
+                        acc.calendar = rest;
                     } else if (kw === "add") {
                         const fname = rest.replace(/^['"]|['"]$/g,"");
                         if (!fname) continue;
@@ -1057,7 +1282,6 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         const pasteArea = document.getElementById("paste");
         const runBtn = document.getElementById("run");
         const exportBtn = document.getElementById("exportBtn");
-        const toggleColorsBtn = document.getElementById("toggleColorsBtn");
         const grid = document.getElementById("grid");
         const stateBox = document.getElementById("prefState");
         const countryBox = document.getElementById("prefCountry");
@@ -1070,6 +1294,18 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         const endHourBox = document.getElementById("endHour");
         const numDaysBox = document.getElementById("numDays");
         const clearBtn = document.getElementById("clearBtn");
+        const hamburgerBtn = document.getElementById("hamburgerBtn");
+        const hamburgerMenu = document.getElementById("hamburgerMenu");
+        const menuConfigure = document.getElementById("menuConfigure");
+        const configPanel = document.getElementById("configPanel");
+        const configPanelClose = document.getElementById("configPanelClose");
+        const configPanelHeader = document.getElementById("configPanelHeader");
+        const configGearBtn = document.getElementById("configGearBtn");
+        const calendarUrlBox = document.getElementById("calendarUrl");
+        const calendarLoadBtn = document.getElementById("calendarLoadBtn");
+        const calendarFileBtn = document.getElementById("calendarFileBtn");
+        const calendarFileInput = document.getElementById("calendarFileInput");
+        const calendarStatus = document.getElementById("calendarStatus");
 
         function refreshColorConfigView(){
             renderColorConfig(
@@ -1093,10 +1329,6 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         }
         function syncColorVisibility(){
             if (colorConfigWrap) colorConfigWrap.classList.toggle("hidden-panel", !colorsVisible);
-            if (toggleColorsBtn) {
-                toggleColorsBtn.textContent = colorsVisible ? "Hide Color Scales" : "Show Color Scales";
-                toggleColorsBtn.setAttribute("aria-expanded", colorsVisible ? "true" : "false");
-            }
         }
         function placeDirectiveFromToken(it){
             if (!it) return null;
@@ -1118,16 +1350,53 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             lines.push(`cityonly ${cityOnlyBox.checked ? "on" : "off"}`);
             lines.push(`onlyicons ${onlyIconsBox.checked ? "on" : "off"}`);
             lines.push(`colorscales ${colorsVisible ? "show" : "hide"}`);
+            const calUrl = calendarUrlBox ? calendarUrlBox.value.trim() : "";
+            if (calUrl) lines.push(`calendar ${calUrl}`);
             for (const entry of activePlaceEntries.values()) lines.push(entry.directive);
             lines.push(...orderedColorDirectiveStrings(activeColorConfig));
             const blob = new Blob([lines.join("\n") + "\n"], { type:"text/plain;charset=utf-8" });
             const url = URL.createObjectURL(blob);
-            const a = el("a", { href:url, download:"weather-v4.2-config.txt" });
+            const a = el("a", { href:url, download:"weather-v4.3-config.txt" });
             document.body.append(a);
             a.click();
             a.remove();
             setTimeout(() => URL.revokeObjectURL(url), 0);
         }
+        // Calendar load
+        if (calendarLoadBtn) {
+            calendarLoadBtn.addEventListener("click", async () => {
+                const url = calendarUrlBox ? calendarUrlBox.value : "";
+                if (!url.trim()) { calendarStatus.textContent = "Enter a calendar URL first."; calendarStatus.className = "cal-status err"; return; }
+                calendarStatus.textContent = "Loading..."; calendarStatus.className = "cal-status";
+                try {
+                    calendarEvents = await fetchCalendar(url);
+                    calendarStatus.textContent = `Loaded ${calendarEvents.length} event${calendarEvents.length===1?"":"s"}.`;
+                    calendarStatus.className = "cal-status ok";
+                } catch (e) {
+                    calendarStatus.textContent = String(e.message || e);
+                    calendarStatus.className = "cal-status err";
+                }
+            });
+        }
+        if (calendarFileBtn && calendarFileInput) {
+            calendarFileBtn.addEventListener("click", () => calendarFileInput.click());
+            calendarFileInput.addEventListener("change", async () => {
+                const file = calendarFileInput.files[0];
+                if (!file) return;
+                calendarStatus.textContent = "Loading..."; calendarStatus.className = "cal-status";
+                try {
+                    const events = await parseICSFromFile(file);
+                    calendarEvents = events;
+                    calendarStatus.textContent = `Loaded ${calendarEvents.length} event${calendarEvents.length===1?"":"s"} from ${file.name}.`;
+                    calendarStatus.className = "cal-status ok";
+                } catch (e) {
+                    calendarStatus.textContent = `Error: ${e.message||e}`;
+                    calendarStatus.className = "cal-status err";
+                }
+                calendarFileInput.value = "";
+            });
+        }
+
         refreshColorConfigView();
         syncColorVisibility();
         document.addEventListener("click", (evt) => {
@@ -1197,6 +1466,15 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                 activeColorConfig = applyColorDirectiveOverrides(activeColorConfig, parsed.colors);
                 refreshColorConfigView();
             }
+            if (parsed.calendar) {
+                if (calendarUrlBox) calendarUrlBox.value = parsed.calendar;
+                try {
+                    calendarEvents = await fetchCalendar(parsed.calendar);
+                    if (calendarStatus) { calendarStatus.textContent = `Loaded ${calendarEvents.length} event${calendarEvents.length===1?"":"s"}.`; calendarStatus.className = "cal-status ok"; }
+                } catch(e) {
+                    if (calendarStatus) { calendarStatus.textContent = String(e.message||e); calendarStatus.className = "cal-status err"; }
+                }
+            }
 
             const prefs = { admin1:(stateBox.value||"").trim(), country: (countryBox.value||"").trim() };
             const rules = buildRulesFromConfig(activeColorConfig);
@@ -1241,15 +1519,28 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         async function processFiles(files){
             if (!files || !files.length) return;
             const fs = fileListToSet(files);
-            // Load file contents into paste textarea, then process
-            const texts = [];
-            for (const f of files) texts.push(await f.text());
-            const combined = texts.join("\n");
-            if (pasteArea) {
-                const prev = pasteArea.value.trim();
-                pasteArea.value = prev ? prev + "\n" + combined : combined;
+            const directiveTexts = [];
+            for (const f of files) {
+                if (f.name.toLowerCase().endsWith(".ics")) {
+                    try {
+                        const events = await parseICSFromFile(f);
+                        calendarEvents = calendarEvents.concat(events);
+                        if (calendarStatus) { calendarStatus.textContent = `Loaded ${calendarEvents.length} event${calendarEvents.length===1?"":"s"} from file.`; calendarStatus.className = "cal-status ok"; }
+                    } catch(e) {
+                        if (calendarStatus) { calendarStatus.textContent = `ICS parse error: ${e.message||e}`; calendarStatus.className = "cal-status err"; }
+                    }
+                } else {
+                    directiveTexts.push(await f.text());
+                }
             }
-            await processDirectives(combined, fs);
+            if (directiveTexts.length) {
+                const combined = directiveTexts.join("\n");
+                if (pasteArea) {
+                    const prev = pasteArea.value.trim();
+                    pasteArea.value = prev ? prev + "\n" + combined : combined;
+                }
+                await processDirectives(combined, fs);
+            }
         }
 
         if (dz) {
@@ -1286,10 +1577,58 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         if (exportBtn) {
             exportBtn.addEventListener("click", exportCurrentConfig);
         }
-        if (toggleColorsBtn) {
-            toggleColorsBtn.addEventListener("click", () => {
-                colorsVisible = !colorsVisible;
-                syncColorVisibility();
+        // Hamburger menu
+        if (hamburgerBtn) {
+            hamburgerBtn.addEventListener("click", (evt) => {
+                evt.stopPropagation();
+                hamburgerMenu.classList.toggle("open");
+            });
+        }
+        document.addEventListener("click", (evt) => {
+            if (hamburgerMenu && !hamburgerMenu.contains(evt.target) && evt.target !== hamburgerBtn) {
+                hamburgerMenu.classList.remove("open");
+            }
+        });
+        if (menuConfigure) {
+            menuConfigure.addEventListener("click", () => {
+                hamburgerMenu.classList.remove("open");
+                configPanel.classList.add("open");
+            });
+        }
+        if (configPanelClose) {
+            configPanelClose.addEventListener("click", () => {
+                configPanel.classList.remove("open");
+            });
+        }
+        if (configGearBtn) {
+            configGearBtn.addEventListener("click", () => {
+                configPanel.classList.toggle("open");
+            });
+        }
+        // Drag support for modeless config panel
+        if (configPanelHeader && configPanel) {
+            let dragOffX = 0, dragOffY = 0;
+            configPanelHeader.addEventListener("pointerdown", (evt) => {
+                if (evt.target === configPanelClose) return;
+                evt.preventDefault();
+                const rect = configPanel.getBoundingClientRect();
+                dragOffX = evt.clientX - rect.left;
+                dragOffY = evt.clientY - rect.top;
+                configPanel.style.transition = "none";
+                const move = (e) => {
+                    const x = Math.max(0, Math.min(window.innerWidth - 60, e.clientX - dragOffX));
+                    const y = Math.max(0, Math.min(window.innerHeight - 40, e.clientY - dragOffY));
+                    configPanel.style.left = x + "px";
+                    configPanel.style.top = y + "px";
+                    configPanel.style.right = "auto";
+                };
+                const stop = () => {
+                    window.removeEventListener("pointermove", move);
+                    window.removeEventListener("pointerup", stop);
+                    configPanel.style.transition = "";
+                };
+                window.addEventListener("pointermove", move);
+                window.addEventListener("pointerup", stop);
             });
         }
 
