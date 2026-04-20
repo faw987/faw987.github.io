@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graph SDK Pico MVP</title>
+  <style>
+    :root {
+      --bg: #f6f4ec;
+      --panel: rgba(255, 252, 244, 0.9);
+      --panel-border: #d7d0bf;
+      --ink: #22201a;
+      --muted: #6d6556;
+      --accent: #0d6b5f;
+      --accent-2: #d95d39;
+      --line: #5b6b72;
+      --node: #fffef7;
+      --node-selected: #fff1d1;
+      --edge-selected: #d95d39;
+      --shadow: 0 10px 30px rgba(53, 43, 22, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(217, 93, 57, 0.12), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(13, 107, 95, 0.14), transparent 22%),
+        linear-gradient(180deg, #fbfaf6, var(--bg));
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--panel-border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-copy {
+      padding: 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(32px, 5vw, 60px);
+      line-height: 0.95;
+      font-weight: 700;
+    }
+
+    .subhead {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+      max-width: 58ch;
+      line-height: 1.5;
+    }
+
+    .controls {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      border: 1px solid var(--panel-border);
+      border-radius: 999px;
+      padding: 10px 14px;
+      background: #fffef9;
+      color: var(--ink);
+      cursor: pointer;
+      font: inherit;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+    }
+
+    button.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .stat {
+      padding: 12px;
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.65);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 22px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 18px;
+    }
+
+    .canvas-shell {
+      overflow: hidden;
+      min-height: 620px;
+      position: relative;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      min-height: 620px;
+      display: block;
+      background:
+        linear-gradient(rgba(91, 107, 114, 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(91, 107, 114, 0.08) 1px, transparent 1px);
+      background-size: 24px 24px;
+      background-position: -1px -1px;
+    }
+
+    .sidebar {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .sidebar h2,
+    .sidebar h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    .card {
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.62);
+      padding: 14px;
+    }
+
+    .meta {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .legend {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      margin-right: 8px;
+      vertical-align: middle;
+      background: var(--accent);
+    }
+
+    .legend .secondary::before {
+      background: var(--accent-2);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      resize: vertical;
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fffef9;
+      font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: var(--ink);
+    }
+
+    .footer-note {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    .node-label,
+    .edge-label {
+      user-select: none;
+      pointer-events: none;
+      fill: var(--ink);
+    }
+
+    .node-label {
+      font: 15px Georgia, serif;
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+
+    .edge-label {
+      font: 12px Georgia, serif;
+      text-anchor: middle;
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <div class="panel hero-copy">
+        <p class="eyebrow">Pico MVP</p>
+        <h1>Graph SDK demo<br />for socializing the idea</h1>
+        <p class="subhead">
+          This is a single-file prototype of a graph visualization SDK. It shows the smallest coherent slice:
+          render a graph, drag nodes, add nodes, connect nodes, run simple layouts, and inspect the graph as JSON.
+        </p>
+      </div>
+      <div class="panel controls">
+        <div class="button-row">
+          <button id="addNodeBtn">Add Node</button>
+          <button id="connectBtn">Connect Mode</button>
+          <button id="deleteBtn">Delete Selected</button>
+          <button id="resetBtn">Reset Sample</button>
+        </div>
+        <div class="button-row">
+          <button id="treeBtn">Tree Layout</button>
+          <button id="circleBtn">Circle Layout</button>
+          <button id="randomBtn">Scatter</button>
+          <button id="exportBtn">Refresh JSON</button>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>Nodes</span><strong id="nodeCount">0</strong></div>
+          <div class="stat"><span>Edges</span><strong id="edgeCount">0</strong></div>
+          <div class="stat"><span>Mode</span><strong id="modeLabel">Select</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <div class="panel canvas-shell">
+        <svg id="canvas" viewBox="0 0 900 620" aria-label="Graph canvas"></svg>
+      </div>
+      <aside class="panel sidebar">
+        <div class="card">
+          <h2>What this shows</h2>
+          <p class="meta">
+            A tiny vertical slice of the larger SDK concept: graph model, rendering, interaction, layout, and export.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Interaction</h3>
+          <div class="legend">
+            <span>Click a node to select it</span>
+            <span>Drag a node to move it</span>
+            <span class="secondary">In connect mode, click two nodes to create an edge</span>
+            <span>Click the canvas to clear selection</span>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Selected Item</h3>
+          <p class="meta" id="selectionInfo">Nothing selected.</p>
+        </div>
+        <div class="card">
+          <h3>Graph JSON</h3>
+          <textarea id="jsonOutput" spellcheck="false"></textarea>
+        </div>
+        <p class="footer-note">
+          Everything in this file is plain HTML, CSS, and JavaScript. No build step, no dependencies.
+        </p>
+      </aside>
+    </section>
+  </div>
+
+  <script>
+    const svg = document.getElementById("canvas");
+    const jsonOutput = document.getElementById("jsonOutput");
+    const selectionInfo = document.getElementById("selectionInfo");
+    const nodeCount = document.getElementById("nodeCount");
+    const edgeCount = document.getElementById("edgeCount");
+    const modeLabel = document.getElementById("modeLabel");
+
+    const buttons = {
+      addNode: document.getElementById("addNodeBtn"),
+      connect: document.getElementById("connectBtn"),
+      delete: document.getElementById("deleteBtn"),
+      reset: document.getElementById("resetBtn"),
+      tree: document.getElementById("treeBtn"),
+      circle: document.getElementById("circleBtn"),
+      random: document.getElementById("randomBtn"),
+      export: document.getElementById("exportBtn"),
+    };
+
+    const state = {
+      mode: "select",
+      nodes: [],
+      edges: [],
+      selectedNodeId: null,
+      connectSourceId: null,
+      drag: null,
+      nextNodeId: 1,
+      nextEdgeId: 1,
+    };
+
+    const ns = "http://www.w3.org/2000/svg";
+
+    function sampleGraph() {
+      state.nodes = [
+        { id: "n1", label: "Ingest", x: 130, y: 120 },
+        { id: "n2", label: "Normalize", x: 330, y: 120 },
+        { id: "n3", label: "Analyze", x: 530, y: 120 },
+        { id: "n4", label: "Review", x: 330, y: 280 },
+        { id: "n5", label: "Publish", x: 530, y: 280 },
+      ];
+      state.edges = [
+        { id: "e1", source: "n1", target: "n2", label: "" },
+        { id: "e2", source: "n2", target: "n3", label: "" },
+        { id: "e3", source: "n2", target: "n4", label: "" },
+        { id: "e4", source: "n4", target: "n5", label: "" },
+      ];
+      state.selectedNodeId = null;
+      state.connectSourceId = null;
+      state.nextNodeId = 6;
+      state.nextEdgeId = 5;
+      render();
+    }
+
+    function createSvg(tag, attrs = {}) {
+      const el = document.createElementNS(ns, tag);
+      for (const [key, value] of Object.entries(attrs)) {
+        el.setAttribute(key, String(value));
+      }
+      return el;
+    }
+
+    function getNode(id) {
+      return state.nodes.find((node) => node.id === id) || null;
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+      if (mode !== "connect") {
+        state.connectSourceId = null;
+      }
+      buttons.connect.classList.toggle("active", mode === "connect");
+      modeLabel.textContent = mode === "connect" ? "Connect" : "Select";
+      render();
+    }
+
+    function updateSidebar() {
+      nodeCount.textContent = String(state.nodes.length);
+      edgeCount.textContent = String(state.edges.length);
+
+      const node = getNode(state.selectedNodeId);
+      if (node) {
+        selectionInfo.textContent = `Node ${node.id}: "${node.label}" at (${Math.round(node.x)}, ${Math.round(node.y)})`;
+      } else {
+        selectionInfo.textContent = state.connectSourceId
+          ? `Connect mode: source node is ${state.connectSourceId}. Click another node to create an edge.`
+          : "Nothing selected.";
+      }
+
+      jsonOutput.value = JSON.stringify(
+        {
+          nodes: state.nodes.map(({ id, label, x, y }) => ({ id, label, x: Math.round(x), y: Math.round(y) })),
+          edges: state.edges,
+        },
+        null,
+        2
+      );
+    }
+
+    function render() {
+      while (svg.firstChild) {
+        svg.removeChild(svg.firstChild);
+      }
+
+      const defs = createSvg("defs");
+      const marker = createSvg("marker", {
+        id: "arrow",
+        viewBox: "0 0 10 10",
+        refX: "9",
+        refY: "5",
+        markerWidth: "8",
+        markerHeight: "8",
+        orient: "auto-start-reverse",
+      });
+      marker.appendChild(createSvg("path", { d: "M 0 0 L 10 5 L 0 10 z", fill: "#5b6b72" }));
+      defs.appendChild(marker);
+      svg.appendChild(defs);
+
+      const edgeLayer = createSvg("g");
+      const nodeLayer = createSvg("g");
+      svg.appendChild(edgeLayer);
+      svg.appendChild(nodeLayer);
+
+      state.edges.forEach((edge) => {
+        const source = getNode(edge.source);
+        const target = getNode(edge.target);
+        if (!source || !target) return;
+
+        const line = createSvg("line", {
+          x1: source.x,
+          y1: source.y,
+          x2: target.x,
+          y2: target.y,
+          stroke: edge.id === state.selectedEdgeId ? "var(--edge-selected)" : "var(--line)",
+          "stroke-width": 2.5,
+          "marker-end": "url(#arrow)",
+        });
+        edgeLayer.appendChild(line);
+
+        if (edge.label) {
+          const label = createSvg("text", {
+            x: (source.x + target.x) / 2,
+            y: (source.y + target.y) / 2 - 8,
+            class: "edge-label",
+          });
+          label.textContent = edge.label;
+          edgeLayer.appendChild(label);
+        }
+      });
+
+      state.nodes.forEach((node) => {
+        const group = createSvg("g", { "data-node-id": node.id });
+        const selected = node.id === state.selectedNodeId || node.id === state.connectSourceId;
+
+        const rect = createSvg("rect", {
+          x: node.x - 58,
+          y: node.y - 24,
+          rx: 16,
+          ry: 16,
+          width: 116,
+          height: 48,
+          fill: selected ? "var(--node-selected)" : "var(--node)",
+          stroke: selected ? "var(--accent-2)" : "var(--line)",
+          "stroke-width": selected ? 2.5 : 1.6,
+        });
+
+        const text = createSvg("text", {
+          x: node.x,
+          y: node.y + 1,
+          class: "node-label",
+        });
+        text.textContent = node.label;
+
+        group.appendChild(rect);
+        group.appendChild(text);
+        group.addEventListener("pointerdown", onNodePointerDown);
+        group.addEventListener("click", onNodeClick);
+        nodeLayer.appendChild(group);
+      });
+
+      updateSidebar();
+    }
+
+    function addNode() {
+      const id = `n${state.nextNodeId++}`;
+      state.nodes.push({
+        id,
+        label: `Node ${state.nextNodeId - 1}`,
+        x: 150 + (state.nodes.length % 4) * 140,
+        y: 420 + Math.floor(state.nodes.length / 4) * 70,
+      });
+      state.selectedNodeId = id;
+      render();
+    }
+
+    function addEdge(sourceId, targetId) {
+      if (sourceId === targetId) return;
+      const exists = state.edges.some(
+        (edge) => edge.source === sourceId && edge.target === targetId
+      );
+      if (exists) return;
+      state.edges.push({
+        id: `e${state.nextEdgeId++}`,
+        source: sourceId,
+        target: targetId,
+        label: "",
+      });
+    }
+
+    function deleteSelected() {
+      if (!state.selectedNodeId) return;
+      const nodeId = state.selectedNodeId;
+      state.nodes = state.nodes.filter((node) => node.id !== nodeId);
+      state.edges = state.edges.filter(
+        (edge) => edge.source !== nodeId && edge.target !== nodeId
+      );
+      state.selectedNodeId = null;
+      state.connectSourceId = null;
+      render();
+    }
+
+    function treeLayout() {
+      if (!state.nodes.length) return;
+      const root = state.nodes[0];
+      const levels = new Map([[root.id, 0]]);
+      const queue = [root.id];
+
+      while (queue.length) {
+        const id = queue.shift();
+        const level = levels.get(id);
+        state.edges
+          .filter((edge) => edge.source === id)
+          .forEach((edge) => {
+            if (!levels.has(edge.target)) {
+              levels.set(edge.target, level + 1);
+              queue.push(edge.target);
+            }
+          });
+      }
+
+      state.nodes.forEach((node) => {
+        if (!levels.has(node.id)) {
+          levels.set(node.id, 0);
+        }
+      });
+
+      const buckets = {};
+      state.nodes.forEach((node) => {
+        const level = levels.get(node.id);
+        buckets[level] = buckets[level] || [];
+        buckets[level].push(node);
+      });
+
+      Object.entries(buckets).forEach(([levelText, nodesAtLevel]) => {
+        const level = Number(levelText);
+        const spacing = 760 / Math.max(nodesAtLevel.length, 1);
+        nodesAtLevel.forEach((node, index) => {
+          node.x = 100 + spacing / 2 + index * spacing;
+          node.y = 110 + level * 120;
+        });
+      });
+
+      render();
+    }
+
+    function circleLayout() {
+      const cx = 430;
+      const cy = 290;
+      const radius = Math.max(140, 34 * state.nodes.length);
+      state.nodes.forEach((node, index) => {
+        const angle = (Math.PI * 2 * index) / Math.max(state.nodes.length, 1) - Math.PI / 2;
+        node.x = cx + radius * Math.cos(angle);
+        node.y = cy + radius * Math.sin(angle);
+      });
+      render();
+    }
+
+    function randomLayout() {
+      state.nodes.forEach((node) => {
+        node.x = 100 + Math.random() * 700;
+        node.y = 90 + Math.random() * 440;
+      });
+      render();
+    }
+
+    function getSvgPoint(event) {
+      const point = svg.createSVGPoint();
+      point.x = event.clientX;
+      point.y = event.clientY;
+      return point.matrixTransform(svg.getScreenCTM().inverse());
+    }
+
+    function onNodePointerDown(event) {
+      const nodeId = event.currentTarget.getAttribute("data-node-id");
+      if (!nodeId) return;
+      if (state.mode === "connect") return;
+
+      const point = getSvgPoint(event);
+      const node = getNode(nodeId);
+      if (!node) return;
+
+      state.drag = {
+        nodeId,
+        offsetX: point.x - node.x,
+        offsetY: point.y - node.y,
+      };
+      event.stopPropagation();
+    }
+
+    function onNodeClick(event) {
+      const nodeId = event.currentTarget.getAttribute("data-node-id");
+      if (!nodeId) return;
+
+      if (state.mode === "connect") {
+        if (!state.connectSourceId) {
+          state.connectSourceId = nodeId;
+        } else {
+          addEdge(state.connectSourceId, nodeId);
+          state.connectSourceId = null;
+        }
+      } else {
+        state.selectedNodeId = nodeId;
+      }
+
+      event.stopPropagation();
+      render();
+    }
+
+    svg.addEventListener("pointermove", (event) => {
+      if (!state.drag) return;
+      const point = getSvgPoint(event);
+      const node = getNode(state.drag.nodeId);
+      if (!node) return;
+
+      node.x = Math.max(70, Math.min(830, point.x - state.drag.offsetX));
+      node.y = Math.max(50, Math.min(570, point.y - state.drag.offsetY));
+      render();
+    });
+
+    window.addEventListener("pointerup", () => {
+      state.drag = null;
+    });
+
+    svg.addEventListener("click", () => {
+      state.selectedNodeId = null;
+      if (state.mode !== "connect") {
+        state.connectSourceId = null;
+      }
+      render();
+    });
+
+    buttons.addNode.addEventListener("click", addNode);
+    buttons.connect.addEventListener("click", () => {
+      setMode(state.mode === "connect" ? "select" : "connect");
+    });
+    buttons.delete.addEventListener("click", deleteSelected);
+    buttons.reset.addEventListener("click", sampleGraph);
+    buttons.tree.addEventListener("click", treeLayout);
+    buttons.circle.addEventListener("click", circleLayout);
+    buttons.random.addEventListener("click", randomLayout);
+    buttons.export.addEventListener("click", updateSidebar);
+
+    sampleGraph();
+  </script>
+</body>
+</html>
