@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>myPols — Who represents me?</title>
+<style>
+  :root {
+    --bg:       #0e1116;
+    --panel:   #161b22;
+    --panel-2: #1f2630;
+    --border:  #2a3240;
+    --text:    #e6edf3;
+    --muted:   #8b949e;
+    --accent:  #5aa9ff;
+    --accent-2:#3b82f6;
+    --good:    #3fb950;
+    --warn:    #d29922;
+    --bad:     #f85149;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  header {
+    padding: 18px 24px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 22px;
+    letter-spacing: 0.3px;
+  }
+  header .tagline { color: var(--muted); font-size: 14px; }
+  main {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    margin: 0 0 10px;
+    font-size: 15px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+  }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch; }
+  input[type=text] {
+    flex: 1 1 260px;
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    min-width: 0;
+  }
+  input[type=text]:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  button {
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  button:hover:not(:disabled) { background: #2a3240; border-color: var(--accent); }
+  button.primary { background: var(--accent-2); border-color: var(--accent-2); color: white; }
+  button.primary:hover:not(:disabled) { background: #2563eb; }
+  button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  #status {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 13px;
+    min-height: 18px;
+  }
+  #status.err { color: var(--bad); }
+  #status.ok  { color: var(--good); }
+
+  .resolved-address {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .resolved-address .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  .resolved-address .addr  { margin-top: 4px; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 13px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  thead th {
+    text-align: left;
+    padding: 10px 12px;
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+  }
+  tbody td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(90,169,255,0.05); }
+
+  .level-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+  .level-federal { background: #1f3a5f; color: #9ecbff; }
+  .level-state   { background: #3a2e5f; color: #c9b2ff; }
+  .level-local   { background: #2f4a2f; color: #a6e2a6; }
+  .level-other   { background: #3a3a3a; color: #d0d0d0; }
+
+  .pol-name { font-weight: 600; }
+  .pol-party { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .pol-contact a {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 13px;
+    word-break: break-word;
+  }
+  .pol-contact a:hover { text-decoration: underline; }
+
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  .filter-group { display: flex; gap: 20px; flex-wrap: wrap; }
+  .filter-level {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    background: var(--panel-2);
+    min-width: 160px;
+  }
+  .filter-level strong {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .filter-level label {
+    display: block;
+    font-size: 14px;
+    margin: 4px 0;
+    cursor: pointer;
+    user-select: none;
+  }
+  .filter-level input[type=checkbox] { margin-right: 6px; vertical-align: -1px; }
+
+  details.settings {
+    margin-top: 18px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: var(--panel);
+  }
+  details.settings summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 13px;
+    user-select: none;
+  }
+  details.settings .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 10px;
+  }
+  details.settings label { font-size: 12px; color: var(--muted); }
+  details.settings input {
+    padding: 8px 10px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 12px;
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 24px;
+    font-size: 14px;
+  }
+  .spinner {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid var(--muted);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: -2px;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>myPols</h1>
+  <span class="tagline">Find the politicians who represent you.</span>
+</header>
+
+<main>
+
+  <!-- ============ LOCATION INPUT ============ -->
+  <section class="card">
+    <h2>1. Where do you live?</h2>
+    <div class="row">
+      <button id="geo-btn" class="primary">Use my current location</button>
+      <input id="addr-input" type="text" placeholder="…or enter an address (street, city, state)">
+      <button id="addr-btn">Look up</button>
+    </div>
+    <div class="hint">We use your address only to look up your elected representatives. It is not stored or sent anywhere other than the geocoder and LLM gateway.</div>
+    <div id="status"></div>
+    <div id="resolved" class="resolved-address" style="display:none">
+      <div class="label">Using address</div>
+      <div class="addr" id="resolved-addr"></div>
+    </div>
+  </section>
+
+  <!-- ============ FILTERS ============ -->
+  <section class="card">
+    <h2>2. Which offices?</h2>
+    <div class="filter-group">
+      <div class="filter-level">
+        <strong>Federal</strong>
+        <label><input type="checkbox" name="filter" value="federal:senate" checked> Senate</label>
+        <label><input type="checkbox" name="filter" value="federal:house"> House</label>
+      </div>
+      <div class="filter-level">
+        <strong>State</strong>
+        <label><input type="checkbox" name="filter" value="state:senate"> Senate</label>
+        <label><input type="checkbox" name="filter" value="state:house"> House</label>
+      </div>
+      <div class="filter-level">
+        <strong>Local</strong>
+        <label><input type="checkbox" name="filter" value="local"> All local offices</label>
+      </div>
+    </div>
+    <div class="hint">Start narrow to keep responses short and reliable; expand as the gateway's output limit is raised.</div>
+  </section>
+
+  <!-- ============ RESULTS ============ -->
+  <section class="card" id="results-card" style="display:none">
+    <h2>3. Your representatives</h2>
+    <div id="results"></div>
+  </section>
+
+  <details class="settings">
+    <summary>AI gateway settings</summary>
+    <div class="field">
+      <label for="ep-input">Endpoint</label>
+      <input id="ep-input" type="text">
+    </div>
+    <div class="field">
+      <label for="model-input">Model</label>
+      <input id="model-input" type="text">
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="settings-save">Save</button>
+    </div>
+  </details>
+
+</main>
+
+<script>
+// ============================================================
+//  CONFIG / GATEWAY
+// ============================================================
+const DEFAULT_ENDPOINT = location.hostname === 'localhost'
+  ? '/chat'
+  : 'https://llm-gateway-730560815836.us-central1.run.app/chat';
+const DEFAULT_MODEL = 'gpt-4.1-mini';
+
+function loadSettings() {
+  return {
+    endpoint: localStorage.getItem('mypols_endpoint') || DEFAULT_ENDPOINT,
+    model:    localStorage.getItem('mypols_model')    || DEFAULT_MODEL,
+  };
+}
+function saveSettings(endpoint, model) {
+  localStorage.setItem('mypols_endpoint', endpoint);
+  localStorage.setItem('mypols_model',    model);
+}
+
+const epInput    = document.getElementById('ep-input');
+const modelInput = document.getElementById('model-input');
+(function initSettings() {
+  const s = loadSettings();
+  epInput.value    = s.endpoint;
+  modelInput.value = s.model;
+})();
+document.getElementById('settings-save').addEventListener('click', () => {
+  saveSettings(epInput.value.trim() || DEFAULT_ENDPOINT, modelInput.value.trim() || DEFAULT_MODEL);
+  setStatus('Settings saved.', 'ok');
+});
+
+// ============================================================
+//  STATUS
+// ============================================================
+const statusEl = document.getElementById('status');
+function setStatus(msg, kind) {
+  statusEl.textContent = msg || '';
+  statusEl.className = kind || '';
+}
+function setBusy(msg) {
+  statusEl.innerHTML = `<span class="spinner"></span>${msg}`;
+  statusEl.className = '';
+}
+
+// ============================================================
+//  GEOLOCATION + REVERSE GEOCODE
+// ============================================================
+const geoBtn  = document.getElementById('geo-btn');
+const addrBtn = document.getElementById('addr-btn');
+const addrInput = document.getElementById('addr-input');
+const resolvedEl = document.getElementById('resolved');
+const resolvedAddr = document.getElementById('resolved-addr');
+
+geoBtn.addEventListener('click', async () => {
+  if (!navigator.geolocation) {
+    setStatus('Your browser does not support geolocation. Please enter an address.', 'err');
+    addrInput.focus();
+    return;
+  }
+  setBusy('Requesting your location…');
+  geoBtn.disabled = true;
+  try {
+    const pos = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true, timeout: 15000, maximumAge: 60000,
+      });
+    });
+    const { latitude, longitude } = pos.coords;
+    setBusy(`Got location (${latitude.toFixed(4)}, ${longitude.toFixed(4)}). Reverse-geocoding…`);
+    const address = await reverseGeocode(latitude, longitude);
+    if (!address) {
+      setStatus('Could not determine an address from your location. Please type it in.', 'warn');
+      addrInput.focus();
+      return;
+    }
+    showResolvedAddress(address);
+    await lookupPoliticians(address);
+  } catch (err) {
+    console.error('[geo]', err);
+    let msg = err.message || 'Could not get location.';
+    if (err.code === 1) msg = 'Location permission denied. Please enter an address below.';
+    if (err.code === 2) msg = 'Location unavailable. Please enter an address below.';
+    if (err.code === 3) msg = 'Location request timed out. Please enter an address below.';
+    setStatus(msg, 'err');
+    addrInput.focus();
+  } finally {
+    geoBtn.disabled = false;
+  }
+});
+
+addrBtn.addEventListener('click', async () => {
+  const raw = addrInput.value.trim();
+  if (!raw) {
+    setStatus('Please enter an address.', 'err');
+    addrInput.focus();
+    return;
+  }
+  addrBtn.disabled = true;
+  try {
+    setBusy('Geocoding address…');
+    const normalized = await forwardGeocode(raw);
+    const address = normalized || raw;
+    showResolvedAddress(address);
+    await lookupPoliticians(address);
+  } catch (err) {
+    console.error('[addr]', err);
+    setStatus(`Address lookup failed: ${err.message}`, 'err');
+  } finally {
+    addrBtn.disabled = false;
+  }
+});
+
+addrInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') addrBtn.click();
+});
+
+async function reverseGeocode(lat, lng) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`;
+  const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  if (!resp.ok) throw new Error(`Nominatim ${resp.status}`);
+  const data = await resp.json();
+  return data.display_name || null;
+}
+
+async function forwardGeocode(query) {
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=1&addressdetails=1`;
+  const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  if (!resp.ok) return null;
+  const data = await resp.json();
+  if (!Array.isArray(data) || data.length === 0) return null;
+  return data[0].display_name || null;
+}
+
+function showResolvedAddress(addr) {
+  resolvedEl.style.display = 'block';
+  resolvedAddr.textContent = addr;
+}
+
+// ============================================================
+//  POLITICIAN LOOKUP (via LLM gateway)
+// ============================================================
+const resultsCard = document.getElementById('results-card');
+const resultsEl   = document.getElementById('results');
+
+function getSelectedScopes() {
+  return [...document.querySelectorAll('input[name="filter"]:checked')].map(el => el.value);
+}
+
+function buildScopeInstructions(scopes) {
+  const lines = [];
+  if (scopes.includes('federal:senate')) lines.push('- The two U.S. Senators for the state containing this address.');
+  if (scopes.includes('federal:house'))  lines.push('- The U.S. House Representative for this address (include district).');
+  if (scopes.includes('state:senate'))   lines.push('- The State Senator for this address (include district).');
+  if (scopes.includes('state:house'))    lines.push('- The State Representative or Assembly member for this address (include district).');
+  if (scopes.includes('local'))          lines.push('- All local officials whose jurisdiction covers this address: Mayor, City/Town Council, County officials (Executive, Commissioners, DA, Sheriff, etc.), School Board, and any other elected local offices.');
+  return lines;
+}
+
+async function lookupPoliticians(address) {
+  const scopes = getSelectedScopes();
+  if (scopes.length === 0) {
+    setStatus('Select at least one office category above.', 'warn');
+    return;
+  }
+
+  setBusy('Asking AI for the politicians who represent this address…');
+  resultsCard.style.display = 'block';
+  resultsEl.innerHTML = '<div class="empty">Loading…</div>';
+
+  const scopeLines = buildScopeInstructions(scopes);
+
+  const systemPrompt = `You are a civic information assistant. Given a residential address, respond with a JSON array of the elected politicians who currently represent someone living at that address.
+
+Return ONLY valid JSON — no prose, no markdown code fences. The shape is:
+
+[
+  {
+    "level": "federal" | "state" | "local",
+    "role": "e.g. U.S. Senator, U.S. Representative (District 7), State Senator (District 12), State Representative (District 34), Mayor, City Council, School Board, County Commissioner",
+    "name": "Full name of the current office holder",
+    "party": "Democratic" | "Republican" | "Independent" | "" ,
+    "district": "District identifier if applicable, else empty string",
+    "website": "Official website URL or empty string",
+    "email": "Public contact email or empty string",
+    "phone": "Public contact phone or empty string"
+  }
+]
+
+INCLUDE ONLY these offices — do not include any others:
+${scopeLines.join('\n')}
+
+Order the array: federal first, then state, then local. Include only officials whose jurisdiction actually covers the given address. If you are uncertain about a specific office holder, still include the role but set "name" to "(uncertain — please verify)". Do not hallucinate names.`;
+
+  try {
+    const settings = loadSettings();
+    const resp = await fetch(settings.endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        provider: 'openai',
+        model: settings.model,
+        message: systemPrompt + '\n\nAddress: ' + address,
+        stream: false,
+      }),
+    });
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.error || `Gateway returned ${resp.status}`);
+    }
+    const data = await resp.json();
+    const raw = data.response || '';
+    console.log('[AI] raw response:', raw);
+
+    const pols = parsePoliticiansJson(raw);
+    if (!pols || pols.length === 0) {
+      resultsEl.innerHTML = `<div class="empty">AI returned a response but no politicians could be parsed.<br><small>${escapeHtml(raw.slice(0, 400))}</small></div>`;
+      setStatus('No politicians parsed from response.', 'warn');
+      return;
+    }
+    renderPoliticians(pols);
+    setStatus(`Found ${pols.length} representative${pols.length === 1 ? '' : 's'}.`, 'ok');
+  } catch (err) {
+    console.error('[AI]', err);
+    resultsEl.innerHTML = `<div class="empty">AI request failed: ${escapeHtml(err.message)}</div>`;
+    setStatus('AI request failed.', 'err');
+  }
+}
+
+function parsePoliticiansJson(text) {
+  if (!text) return null;
+  let s = text.trim();
+  // Strip markdown code fences if the model added them despite instructions
+  s = s.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+
+  const first = s.indexOf('[');
+  if (first < 0) return null;
+  const last = s.lastIndexOf(']');
+  const candidate = last > first ? s.slice(first, last + 1) : s.slice(first);
+
+  try {
+    const arr = JSON.parse(candidate);
+    return Array.isArray(arr) ? arr : null;
+  } catch (e) {
+    // Response likely truncated mid-object — salvage the complete entries.
+    const repaired = repairTruncatedJsonArray(s.slice(first));
+    if (repaired) {
+      try {
+        const arr = JSON.parse(repaired);
+        if (Array.isArray(arr)) {
+          console.warn('[parse] recovered', arr.length, 'entries from truncated response');
+          setStatus(`Response was truncated; showing ${arr.length} recovered entr${arr.length === 1 ? 'y' : 'ies'}.`, 'warn');
+          return arr;
+        }
+      } catch (e2) {
+        console.warn('[parse] repair parse failed', e2);
+      }
+    }
+    console.warn('[parse] JSON.parse failed', e);
+    return null;
+  }
+}
+
+// Walk a string that starts with '[' and return the longest valid prefix
+// containing only complete top-level objects, closed with ']'. Returns null
+// if no complete object was found.
+function repairTruncatedJsonArray(s) {
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  let lastCompleteObjectEnd = -1;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (escape) { escape = false; continue; }
+    if (c === '\\') { escape = true; continue; }
+    if (c === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (c === '{' || c === '[') {
+      depth++;
+    } else if (c === '}' || c === ']') {
+      depth--;
+      if (c === '}' && depth === 1) lastCompleteObjectEnd = i;
+    }
+  }
+  if (lastCompleteObjectEnd < 0) return null;
+  return s.slice(0, lastCompleteObjectEnd + 1) + ']';
+}
+
+// ============================================================
+//  RENDER TABLE
+// ============================================================
+const LEVEL_ORDER = { federal: 0, state: 1, local: 2 };
+
+function renderPoliticians(pols) {
+  const sorted = [...pols].sort((a, b) => {
+    const la = LEVEL_ORDER[(a.level||'').toLowerCase()] ?? 3;
+    const lb = LEVEL_ORDER[(b.level||'').toLowerCase()] ?? 3;
+    if (la !== lb) return la - lb;
+    return (a.role || '').localeCompare(b.role || '');
+  });
+
+  const rows = sorted.map(p => {
+    const level = (p.level || 'other').toLowerCase();
+    const levelClass = LEVEL_ORDER[level] !== undefined ? `level-${level}` : 'level-other';
+    const role = escapeHtml(p.role || '—');
+    const district = p.district ? ` <span style="color:var(--muted)">· ${escapeHtml(p.district)}</span>` : '';
+    const name = escapeHtml(p.name || '—');
+    const party = p.party ? `<div class="pol-party">${escapeHtml(p.party)}</div>` : '';
+    const contactBits = [];
+    if (p.website) contactBits.push(`<a href="${escapeAttr(p.website)}" target="_blank" rel="noopener">Website</a>`);
+    if (p.email)   contactBits.push(`<a href="mailto:${escapeAttr(p.email)}">${escapeHtml(p.email)}</a>`);
+    if (p.phone)   contactBits.push(`<span>${escapeHtml(p.phone)}</span>`);
+    const contact = contactBits.length ? contactBits.join('<br>') : '<span style="color:var(--muted)">—</span>';
+
+    return `<tr>
+      <td><span class="level-chip ${levelClass}">${escapeHtml(level)}</span></td>
+      <td>${role}${district}</td>
+      <td><div class="pol-name">${name}</div>${party}</td>
+      <td class="pol-contact">${contact}</td>
+    </tr>`;
+  }).join('');
+
+  resultsEl.innerHTML = `
+    <table>
+      <thead>
+        <tr><th>Level</th><th>Role</th><th>Politician</th><th>Contact</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="hint" style="margin-top:12px">
+      Data generated by an LLM based on your address. Verify any specific name or contact against an official source before acting on it.
+    </div>
+  `;
+}
+
+// ============================================================
+//  UTIL
+// ============================================================
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[c]);
+}
+function escapeAttr(s) {
+  return escapeHtml(s);
+}
+
+setStatus('Click "Use my current location" or type an address and press Look up.');
+</script>
+</body>
+</html>
