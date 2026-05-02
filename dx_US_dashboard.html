@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ham Radio DX Band Dashboard – US MUF Map</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #050816;
+      color: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+    }
+    h1, h2 { margin: 0 0 10px; }
+    .header { margin-bottom: 20px; }
+    .bands-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .band-card {
+      background: #111827;
+      border-radius: 10px;
+      padding: 12px 14px;
+      min-width: 150px;
+      max-width: 220px;
+      box-shadow: 0 0 0 1px #1f2937;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: transform 0.3s ease, background 0.3s ease;
+    }
+    .band-card.updated {
+      transform: scale(1.03);
+      background: #1a2336;
+    }
+    .band-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .band-name { font-weight: 600; font-size: 1.1rem; }
+    .band-rating {
+      font-size: 0.85rem;
+      padding: 2px 6px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .rating-Excellent { background: #16a34a33; color: #4ade80; }
+    .rating-Good      { background: #22c55e22; color: #86efac; }
+    .rating-Fair      { background: #eab30822; color: #facc15; }
+    .rating-Poor      { background: #b91c1c22; color: #fca5a5; }
+    .recommendation {
+      margin-top: 20px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #0f172a;
+      border: 1px solid #1f2937;
+      font-size: 0.95rem;
+    }
+    .primary-band { font-weight: 600; color: #4ade80; }
+    .region-buttons {
+      margin: 8px 0 8px;
+    }
+    .region-button {
+      background: #111827;
+      border: 1px solid #1f2937;
+      color: #e5e7eb;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      margin-right: 6px;
+    }
+    .region-button.active {
+      background: #22c55e33;
+      border-color: #22c55e;
+      color: #bbf7d0;
+    }
+    .map-controls {
+      font-size: 0.85rem;
+      margin: 6px 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .map-controls label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    input[type="range"] {
+      width: 200px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Ham Radio DX Band Dashboard (US MUF Map)</h1>
+  <div id="station-info">N2XXX – New Jersey – 100 W SSB – DX Focus</div>
+  <div id="solar-info">SFI 145 · K 2 · A 8 – High SFI, quiet geomagnetic field</div>
+</div>
+
+<h2>US Propagation Forecast Map</h2>
+
+<div class="region-buttons">
+  <button class="region-button active" data-region="ALL">All</button>
+  <button class="region-button" data-region="EU">Europe</button>
+  <button class="region-button" data-region="SA">South America</button>
+  <button class="region-button" data-region="AF">Africa</button>
+  <button class="region-button" data-region="JA">Japan/Asia</button>
+</div>
+
+<div class="map-controls">
+  <label>
+    <input type="checkbox" id="animateToggle" checked>
+    Animate forecast
+  </label>
+  <label>
+    Forecast hour (UTC):
+    <input type="range" id="hourSlider" min="0" max="23" value="12">
+    <span id="hourSliderLabel">12:00</span>
+  </label>
+</div>
+
+<canvas id="propMap" width="900" height="450"
+        style="border:1px solid #1f2937;border-radius:10px;background:#020617;margin-bottom:10px;"></canvas>
+
+<div id="mapLegend" style="margin:6px 0 6px;font-size:0.85rem;line-height:1.4;">
+  <strong>MUF Color Scale (MHz)</strong><br>
+  <span style="color:#ffb703;">■</span> 26+ (10m wide open) &nbsp;
+  <span style="color:#fb8500;">■</span> 22–26 (12m) &nbsp;
+  <span style="color:#8ecae6;">■</span> 18–22 (15m) &nbsp;
+  <span style="color:#219ebc;">■</span> 14–18 (17m/20m) &nbsp;
+  <span style="color:#264653;">■</span> 10–14 (low HF) &nbsp;
+  <span style="color:#1b263b;">■</span> &lt;10 (poor)
+</div>
+
+<div id="timeInfo" style="font-size:0.85rem;opacity:0.85;margin-bottom:20px;">
+  Forecast: <span id="forecastHour"></span> UTC &nbsp;|&nbsp;
+  Local NJ Time: <span id="localTime"></span>
+</div>
+
+<div class="recommendation" id="recommendation"></div>
+
+<h2>Band conditions right now</h2>
+<div class="bands-container" id="bands"></div>
+
+<script>
+// -------------------- Band data + logic --------------------
+let bands = [
+  { name: "80m", freq: 3.5 },
+  { name: "40m", freq: 7.1 },
+  { name: "20m", freq: 14.2 },
+  { name: "17m", freq: 18.1 },
+  { name: "15m", freq: 21.3 },
+  { name: "12m", freq: 24.9 },
+  { name: "10m", freq: 28.4 }
+];
+
+let selectedRegion = "ALL";
+
+function randomScore(base, variance) {
+  return Math.max(10, Math.min(100, Math.round(base + (Math.random() * variance - variance/2))));
+}
+
+function ratingFromScore(score) {
+  if (score >= 80) return "Excellent";
+  if (score >= 60) return "Good";
+  if (score >= 45) return "Fair";
+  return "Poor";
+}
+
+function ssbViable(score) {
+  return score >= 55;
+}
+
+function dxRegions(band) {
+  switch (band.name) {
+    case "80m": return ["EU"];
+    case "40m": return ["EU", "SA", "AF"];
+    case "20m": return ["EU", "AF", "SA", "JA"];
+    case "17m": return ["EU", "SA", "AF"];
+    case "15m": return ["EU", "SA", "AF", "JA"];
+    case "12m": return ["SA", "AF", "JA"];
+    case "10m": return ["SA", "AF", "JA"];
+    default: return [];
+  }
+}
+
+function renderBands() {
+  const container = document.getElementById("bands");
+  container.innerHTML = "";
+
+  const sorted = [...bands].sort((a, b) => b.score - a.score);
+
+  sorted.forEach(b => {
+    const card = document.createElement("div");
+    card.className = "band-card updated";
+
+    const rating = ratingFromScore(b.score);
+    const regions = dxRegions(b);
+    const regionText = selectedRegion === "ALL"
+      ? regions.join(", ")
+      : regions.includes(selectedRegion) ? selectedRegion : "Limited";
+
+    card.innerHTML = `
+      <div class="band-header">
+        <div class="band-name">${b.name}</div>
+        <div class="band-rating rating-${rating}">${rating}</div>
+      </div>
+      <div>Score: ${b.score} · ${b.freq} MHz</div>
+      <div style="font-size:0.85rem;opacity:0.85;">
+        DX focus: ${regionText}<br>
+        SSB: ${ssbViable(b.score) ? "viable" : "weak"}<br>
+        Spots: ${Math.floor(Math.random() * 120)}
+      </div>
+    `;
+
+    container.appendChild(card);
+    setTimeout(() => card.classList.remove("updated"), 400);
+  });
+
+  const best = sorted[0];
+  const second = sorted[1];
+
+  const regionLabel = {
+    ALL: "all directions",
+    EU: "Europe",
+    SA: "South America",
+    AF: "Africa",
+    JA: "Japan/Asia"
+  }[selectedRegion];
+
+  document.getElementById("recommendation").innerHTML = `
+    DX target: <strong>${regionLabel}</strong><br>
+    Best band right now: <span class="primary-band">${best.name}</span><br>
+    Next best: ${second.name}<br>
+    Summary: ${best.name} strongest for DX toward ${regionLabel}; ${second.name} also productive.
+  `;
+}
+
+function updateBands() {
+  bands.forEach(b => {
+    const base = {
+      "80m": 50,
+      "40m": 65,
+      "20m": 90,
+      "17m": 75,
+      "15m": 80,
+      "12m": 60,
+      "10m": 50
+    }[b.name];
+
+    b.score = randomScore(base, 20);
+  });
+
+  renderBands();
+}
+
+// -------------------- US-only propagation map --------------------
+const canvas = document.getElementById("propMap");
+const ctx = canvas.getContext("2d");
+const W = canvas.width;
+const H = canvas.height;
+
+const US_LON_MIN = -125;
+const US_LON_MAX = -66;
+const US_LAT_MIN = 24;
+const US_LAT_MAX = 50;
+
+let forecastHourUTC = 12;
+let animate = true;
+
+function lonLatToXY(lon, lat) {
+  const x = ((lon - US_LON_MIN) / (US_LON_MAX - US_LON_MIN)) * W;
+  const y = ((US_LAT_MAX - lat) / (US_LAT_MAX - US_LAT_MIN)) * H;
+  return { x, y };
+}
+
+function xyToLonLat(x, y) {
+  const lon = US_LON_MIN + (x / W) * (US_LON_MAX - US_LON_MIN);
+  const lat = US_LAT_MAX - (y / H) * (US_LAT_MAX - US_LAT_MIN);
+  return { lon, lat };
+}
+
+function mufAt(lat, lon, hourUTC) {
+  const localTime = (hourUTC + lon / 15 + 24) % 24;
+  const dayFactor = Math.max(0, Math.cos((localTime - 12) * Math.PI / 12));
+  const latFactor = Math.max(0.2, 1 - Math.abs(lat - 35) / 60);
+  const base = 8 + 18 * dayFactor * latFactor;
+  const noise = (Math.random() - 0.5) * 1.2;
+  return base + noise;
+}
+
+function mufColor(muf) {
+  if (muf > 26) return "#ffb703";
+  if (muf > 22) return "#fb8500";
+  if (muf > 18) return "#8ecae6";
+  if (muf > 14) return "#219ebc";
+  if (muf > 10) return "#264653";
+  return "#1b263b";
+}
+
+function drawDayNight(hourUTC) {
+  const stepX = 5;
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  ctx.fillStyle = "#020617";
+  for (let x = 0; x < W; x += stepX) {
+    const { lon } = xyToLonLat(x, H / 2);
+    const localTime = (hourUTC + lon / 15 + 24) % 24;
+    if (localTime < 6 || localTime > 18) {
+      ctx.fillRect(x, 0, stepX, H);
+    }
+  }
+  ctx.restore();
+}
+
+function drawGraylineCurves(hourUTC) {
+  ctx.save();
+  ctx.strokeStyle = "rgba(248,250,252,0.4)";
+  ctx.lineWidth = 1.2;
+
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 5) {
+    const { lon } = xyToLonLat(x, H / 2);
+    const localTime = (hourUTC + lon / 15 + 24) % 24;
+    const offset = Math.abs(localTime - 6);
+    const lat = Math.max(US_LAT_MIN, Math.min(US_LAT_MAX, 30 + (offset - 3) * 3));
+    const { x: px, y: py } = lonLatToXY(lon, lat);
+    if (x === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 5) {
+    const { lon } = xyToLonLat(x, H / 2);
+    const localTime = (hourUTC + lon / 15 + 24) % 24;
+    const offset = Math.abs(localTime - 18);
+    const lat = Math.max(US_LAT_MIN, Math.min(US_LAT_MAX, 44 - (offset - 3) * 3));
+    const { x: px, y: py } = lonLatToXY(lon, lat);
+    if (x === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// Medium-smooth US outline (R2)
+function drawUSOutline() {
+  ctx.save();
+  ctx.strokeStyle = "#334155";
+  ctx.lineWidth = 1.5;
+  ctx.fillStyle = "rgba(15,23,42,0.7)";
+
+  const ptsLatLon = [
+    // West coast & SW
+    [-124.5,48.8],[-123.5,48.2],[-122.5,47.5],[-122,46.5],
+    [-123,45.5],[-124,44.5],[-124,43.5],[-123,42.5],
+    [-122,41.5],[-121,40.5],[-120,39.5],[-119,38.5],
+    [-118.5,37.5],[-118,36.5],[-117,35.5],[-116,34.5],
+    [-115,34],[-114,33.5],[-114.5,33],[-114.8,32.5],
+    [-114.7,32.2],[-112.5,32],[-110.5,31.7],[-108.5,31.4],
+    [-106.8,31.1],[-104.8,30.7],[-102.8,30.2],[-100.8,29.7],
+    [-99.2,29.2],[-97.8,28.7],[-96.7,28.4],[-95.7,28.3],
+    [-94.7,28.6],[-93.7,28.9],[-92.7,29.1],[-91.7,29.3],
+    [-90.7,29.4],[-89.7,29.6],[-88.7,29.9],[-87.7,30.2],
+    [-86.7,30.3],[-85.7,30.2],[-84.7,29.9],[-83.7,29.6],
+    [-82.7,29.3],[-81.9,28.9],[-81.4,28.1],[-81.1,27.2],
+    [-80.9,26.2],[-80.6,25.6],[-80.3,25.3],[-80.1,25.4],
+    [-80,26.2],[-80,27.2],[-80,28.2],[-80,29.2],[-80,30.2],
+    // SE & East coast
+    [-80.4,31.2],[-80.9,32.2],[-81.4,33.2],[-81.9,34.2],
+    [-82.4,35.2],[-82.9,36.2],[-82.1,36.8],[-81.1,37.3],
+    [-80.1,37.8],[-79.1,38.3],[-78.1,38.8],[-77.1,39.3],
+    [-76.1,39.7],[-75.1,40.1],[-74.1,40.5],[-73.1,40.9],
+    [-72.1,41.4],[-71.1,41.9],[-70.3,42.5],[-69.7,43.2],
+    [-69.2,43.9],[-68.7,44.6],[-68.2,45.1],[-67.7,45.5],
+    // Northern border back west
+    [-69,46],[-71,46.5],[-73.5,47],[-76,47.5],[-79,48],
+    [-82,48.3],[-85,48.6],[-88,48.8],[-91,49],[-94,49],
+    [-97,48.8],[-100,48.7],[-103,48.6],[-106,48.5],
+    [-109,48.4],[-112,48.3],[-115,48.2],[-118,48.2],
+    [-121,48.4],[-124,48.7],[-124.5,48.8]
+  ];
+
+  ctx.beginPath();
+  ptsLatLon.forEach((p, i) => {
+    const { x, y } = lonLatToXY(p[0], p[1]);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawMUF(hourUTC) {
+  const step = 8;
+  for (let x = 0; x < W; x += step) {
+    for (let y = 0; y < H; y += step) {
+      const { lon, lat } = xyToLonLat(x + step / 2, y + step / 2);
+      const muf = mufAt(lat, lon, hourUTC);
+      ctx.fillStyle = mufColor(muf);
+      ctx.fillRect(x, y, step, step);
+    }
+  }
+}
+
+function drawNJ() {
+  const njLon = -74;
+  const njLat = 40;
+  const { x, y } = lonLatToXY(njLon, njLat);
+  ctx.fillStyle = "#00ff99";
+  ctx.beginPath();
+  ctx.arc(x, y, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.font = "12px sans-serif";
+  ctx.fillText("NJ", x + 8, y - 4);
+}
+
+function drawSunAndHUD(hourUTC) {
+  const subLon = -((hourUTC - 12) * 15);
+  const subLat = 0;
+  const clampedLon = Math.max(US_LON_MIN, Math.min(US_LON_MAX, subLon));
+  const clampedLat = Math.max(US_LAT_MIN, Math.min(US_LAT_MAX, subLat));
+  const { x, y } = lonLatToXY(clampedLon, clampedLat);
+
+  ctx.save();
+  ctx.fillStyle = "#fde68a";
+  ctx.beginPath();
+  ctx.arc(x, y, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.font = "12px sans-serif";
+  ctx.fillStyle = "rgba(248,250,252,0.9)";
+  ctx.fillText("Sun", x + 8, y - 4);
+
+  ctx.fillStyle = "rgba(15,23,42,0.7)";
+  ctx.fillRect(10, 10, 170, 40);
+  ctx.strokeStyle = "rgba(148,163,184,0.8)";
+  ctx.strokeRect(10, 10, 170, 40);
+
+  ctx.fillStyle = "rgba(248,250,252,0.9)";
+  ctx.font = "11px sans-serif";
+  ctx.fillText(`Forecast UTC: ${hourUTC.toString().padStart(2,"0")}:00`, 18, 26);
+
+  const now = new Date();
+  const localHours = now.getHours().toString().padStart(2, "0");
+  const localMinutes = now.getMinutes().toString().padStart(2, "0");
+  ctx.fillText(`Local NJ: ${localHours}:${localMinutes}`, 18, 40);
+
+  ctx.restore();
+}
+
+function updateTimeDisplay() {
+  document.getElementById("forecastHour").textContent =
+    forecastHourUTC.toString().padStart(2, "0") + ":00";
+
+  const now = new Date();
+  const localHours = now.getHours().toString().padStart(2, "0");
+  const localMinutes = now.getMinutes().toString().padStart(2, "0");
+  document.getElementById("localTime").textContent =
+    `${localHours}:${localMinutes}`;
+}
+
+function renderPropMap() {
+  ctx.clearRect(0, 0, W, H);
+
+  drawMUF(forecastHourUTC);
+  drawDayNight(forecastHourUTC);
+  drawGraylineCurves(forecastHourUTC);
+  drawUSOutline();
+  drawNJ();
+  drawSunAndHUD(forecastHourUTC);
+  updateTimeDisplay();
+}
+
+// -------------------- Region selection --------------------
+function setRegion(regionId) {
+  selectedRegion = regionId;
+  document.querySelectorAll(".region-button").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.region === regionId);
+  });
+  renderPropMap();
+  renderBands();
+}
+
+document.querySelectorAll(".region-button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    setRegion(btn.dataset.region);
+  });
+});
+
+// -------------------- Animation + controls --------------------
+const animateToggle = document.getElementById("animateToggle");
+const hourSlider = document.getElementById("hourSlider");
+const hourSliderLabel = document.getElementById("hourSliderLabel");
+
+animateToggle.addEventListener("change", () => {
+  animate = animateToggle.checked;
+});
+
+hourSlider.addEventListener("input", () => {
+  const val = parseInt(hourSlider.value, 10);
+  hourSliderLabel.textContent = `${val.toString().padStart(2,"0")}:00`;
+  if (!animate) {
+    forecastHourUTC = val;
+    renderPropMap();
+  }
+});
+
+// Loops
+renderPropMap();
+setInterval(() => {
+  if (animate) {
+    forecastHourUTC = (forecastHourUTC + 1) % 24;
+    hourSlider.value = forecastHourUTC;
+    hourSliderLabel.textContent = `${forecastHourUTC.toString().padStart(2,"0")}:00`;
+    renderPropMap();
+  } else {
+    renderPropMap();
+  }
+}, 2000);
+
+updateBands();
+setInterval(updateBands, 5000);
+</script>
+
+</body>
+</html>
+
+
