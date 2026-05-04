@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DX Band Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #1a2535;
+  --bg2:     #1e2d40;
+  --bg3:     #243348;
+  --panel:   #1e2d40;
+  --panel2:  #243348;
+  --border:  #2e4a68;
+  --border2: #3d6a96;
+  --accent:  #38c8f0;
+  --accent2: #2fdd8e;
+  --accent3: #ff7a45;
+  --accent4: #f5c842;
+  --text:    #cde4f5;
+  --text2:   #7aadcc;
+  --text3:   #4a7a9b;
+  --exc:     #2fdd8e;
+  --good:    #38c8f0;
+  --fair:    #f5c842;
+  --poor:    #ff5555;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* subtle scanlines */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+  pointer-events:none; z-index:1000;
+}
+
+/* ── HEADER ── */
+.header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 20px;
+  border-bottom:1px solid var(--border);
+  background: linear-gradient(180deg, rgba(56,200,240,0.06) 0%, transparent 100%);
+  position:relative;
+}
+.header::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+.logo {
+  font-family:'Orbitron',monospace; font-size:20px; font-weight:900;
+  color:var(--accent); text-shadow:0 0 18px rgba(56,200,240,0.5); letter-spacing:4px;
+}
+.logo span { color:var(--accent2); }
+.header-center {
+  font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--text3);
+  letter-spacing:2px;
+}
+.header-right { display:flex; align-items:center; gap:16px; }
+.live-dot {
+  display:flex; align-items:center; gap:6px;
+  font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--accent2);
+}
+.live-dot::before {
+  content:''; width:7px; height:7px; border-radius:50%;
+  background:var(--accent2); box-shadow:0 0 8px var(--accent2);
+  animation:pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
+.utc {
+  font-family:'Share Tech Mono',monospace; font-size:13px; color:var(--accent);
+  background:rgba(56,200,240,0.06); border:1px solid var(--border);
+  padding:4px 10px; border-radius:3px;
+}
+
+/* ── GRID ── */
+.grid {
+  display:grid;
+  grid-template-columns: 300px 1fr 280px;
+  grid-template-rows: 1fr;
+  gap:10px; padding:10px;
+  height:calc(100vh - 53px);
+}
+
+/* ── PANEL BASE ── */
+.panel {
+  background:var(--panel); border:1px solid var(--border);
+  border-radius:5px; position:relative; overflow:hidden;
+}
+.panel::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg, transparent, var(--border2), transparent);
+}
+.panel-title {
+  font-family:'Orbitron',monospace; font-size:9px; font-weight:700;
+  letter-spacing:3px; color:var(--text); text-transform:uppercase;
+  padding:8px 12px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.tag {
+  font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--accent);
+  background:rgba(56,200,240,0.08); border:1px solid rgba(56,200,240,0.25);
+  padding:1px 6px; border-radius:2px;
+}
+.tag.green { color:var(--accent2); background:rgba(47,221,142,0.08); border-color:rgba(47,221,142,0.25); }
+
+/* ── TOOLTIPS ── */
+.panel-title { cursor:default; }
+.help-icon {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:14px; height:14px; border-radius:50%;
+  border:1px solid var(--text3); color:var(--text3);
+  font-family:'Rajdhani',sans-serif; font-size:9px; font-weight:700;
+  letter-spacing:0; text-transform:none; margin-left:6px;
+  cursor:help; flex-shrink:0; transition:border-color 0.15s, color 0.15s;
+}
+.panel-title:hover .help-icon { border-color:var(--accent); color:var(--accent); }
+#tooltip {
+  display:none; position:fixed; z-index:9999;
+  max-width:320px; background:#0e1d2e;
+  border:1px solid var(--border2); border-radius:5px;
+  padding:12px 14px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(56,200,240,0.08);
+  pointer-events:none;
+}
+#tooltip::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+#tooltip.visible { display:block; }
+.tt-title {
+  font-family:'Orbitron',monospace; font-size:9px; font-weight:700;
+  letter-spacing:2px; color:var(--accent); text-transform:uppercase; margin-bottom:7px;
+}
+.tt-body { font-family:'Rajdhani',sans-serif; font-size:13px; color:var(--text2); line-height:1.5; }
+.tt-body b { color:var(--text); font-weight:600; }
+.tt-tip {
+  margin-top:8px; padding-top:8px; border-top:1px solid var(--border);
+  font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--accent2);
+}
+
+/* ── LEFT COL: SOLAR + SUN POS ── */
+.left-col { grid-column:1; grid-row:1; display:flex; flex-direction:column; gap:10px; overflow:hidden; }
+
+/* Solar indices */
+.solar-grid {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:1px; background:var(--border);
+}
+.solar-cell {
+  background:var(--panel2); padding:12px 10px; text-align:center;
+}
+.s-label {
+  font-size:9px; color:var(--text3); letter-spacing:1px;
+  text-transform:uppercase; margin-bottom:5px;
+  font-family:'Share Tech Mono',monospace;
+}
+.s-val {
+  font-family:'Orbitron',monospace; font-size:26px; font-weight:700;
+  color:var(--accent); text-shadow:0 0 12px rgba(56,200,240,0.4); line-height:1;
+}
+.s-sub { font-size:9px; color:var(--text3); margin-top:3px; font-family:'Share Tech Mono',monospace; }
+.s-green .s-val { color:var(--accent2); text-shadow:0 0 12px rgba(47,221,142,0.4); }
+.s-amber .s-val { color:var(--accent4); text-shadow:0 0 12px rgba(245,200,66,0.4); }
+.s-orange .s-val { color:var(--accent3); text-shadow:0 0 12px rgba(255,122,69,0.4); }
+
+/* Sun position panel */
+.sun-panel { flex:1; display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+.sun-body { padding:12px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.sun-metric { background:var(--panel2); border:1px solid var(--border); border-radius:3px; padding:10px; text-align:center; }
+.sun-metric .sm-label { font-size:9px; color:var(--text3); font-family:'Share Tech Mono',monospace; letter-spacing:1px; margin-bottom:4px; }
+.sun-metric .sm-val { font-family:'Orbitron',monospace; font-size:18px; font-weight:700; color:var(--accent4); }
+.sun-metric .sm-sub { font-size:9px; color:var(--text3); margin-top:2px; font-family:'Share Tech Mono',monospace; }
+
+/* Gray line status bar */
+.gray-line-bar {
+  margin:0 12px 12px;
+  background:var(--panel2); border:1px solid var(--border);
+  border-radius:3px; padding:10px 12px;
+}
+.gl-label { font-size:9px; color:var(--text3); font-family:'Share Tech Mono',monospace; letter-spacing:1px; margin-bottom:6px; }
+.gl-status { font-family:'Orbitron',monospace; font-size:13px; font-weight:700; color:var(--accent4); }
+.gl-detail { font-size:10px; color:var(--text2); font-family:'Share Tech Mono',monospace; margin-top:4px; }
+
+/* Solar cycle progress bar */
+.cycle-bar-wrap { margin:0 12px 12px; }
+.cycle-bar-wrap .cb-label { font-size:9px; color:var(--text3); font-family:'Share Tech Mono',monospace; letter-spacing:1px; margin-bottom:5px; display:flex; justify-content:space-between; }
+.cycle-track { height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; }
+.cycle-fill { height:100%; border-radius:3px; background:linear-gradient(90deg, var(--accent2), var(--accent4), var(--accent3)); width:72%; }
+
+/* ── CENTER: BAND CONDITIONS ── */
+.center-col { grid-column:2; grid-row:1; display:flex; flex-direction:column; gap:10px; min-height:0; }
+
+/* Band conditions table */
+.band-panel { flex:1; overflow:hidden; min-height:0; }
+.band-table-wrap { overflow-y:auto; height:calc(100% - 36px); }
+table { width:100%; border-collapse:collapse; }
+th {
+  font-family:'Orbitron',monospace; font-size:9px; letter-spacing:2px;
+  color:var(--text3); padding:7px 12px; text-align:left;
+  border-bottom:1px solid var(--border); background:var(--bg2);
+  position:sticky; top:0; z-index:10;
+}
+td { padding:8px 12px; border-bottom:1px solid rgba(46,74,104,0.5); font-size:13px; color:var(--text); }
+tr:hover td { background:rgba(56,200,240,0.04); }
+.td-band { font-family:'Orbitron',monospace; font-size:12px; color:var(--accent); font-weight:700; }
+.td-freq { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--text2); }
+.td-mode { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--text2); }
+.cond-pill {
+  font-family:'Share Tech Mono',monospace; font-size:9px; font-weight:700;
+  padding:2px 7px; border-radius:2px; letter-spacing:0.5px;
+}
+.exc  { color:var(--exc);  background:rgba(47,221,142,0.1);  border:1px solid rgba(47,221,142,0.35); }
+.good { color:var(--good); background:rgba(56,200,240,0.1);  border:1px solid rgba(56,200,240,0.35); }
+.fair { color:var(--fair); background:rgba(245,200,66,0.1);  border:1px solid rgba(245,200,66,0.35); }
+.poor { color:var(--poor); background:rgba(255,85,85,0.1);   border:1px solid rgba(255,85,85,0.35); }
+
+/* Signal bar in table */
+.sig-wrap { display:flex; align-items:center; gap:7px; }
+.sig-track { width:80px; height:5px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; }
+.sig-fill { height:100%; border-radius:3px; }
+.sig-pct { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--text3); min-width:28px; }
+
+/* ── RIGHT COL: COND BARS + DX SPOTS ── */
+.right-col { grid-column:3; grid-row:1; display:flex; flex-direction:column; gap:10px; min-height:0; }
+
+/* Band condition bars */
+.cond-panel { flex:0 0 auto; }
+.cond-list { padding:2px 0; }
+.cond-row {
+  display:grid; grid-template-columns:46px 1fr 52px;
+  align-items:center; gap:8px; padding:5px 12px;
+  border-bottom:1px solid rgba(46,74,104,0.4);
+  transition:background 0.15s;
+}
+.cond-row:hover { background:rgba(56,200,240,0.04); }
+.band-name { font-family:'Orbitron',monospace; font-size:11px; font-weight:700; color:var(--accent); }
+.cond-bars { display:flex; flex-direction:column; gap:3px; }
+.cond-bar-row { display:flex; align-items:center; gap:4px; font-size:9px; color:var(--text3); font-family:'Share Tech Mono',monospace; }
+.mini-bar { flex:1; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden; }
+.mini-fill { height:100%; border-radius:2px; }
+
+/* DX Spots */
+.spots-panel { flex:1; overflow:hidden; min-height:0; }
+.spots-list { overflow-y:auto; height:calc(100% - 36px); }
+.spot-row {
+  padding:7px 12px; border-bottom:1px solid rgba(46,74,104,0.35);
+  animation:fadeIn 0.4s ease;
+}
+@keyframes fadeIn { from{opacity:0;transform:translateX(8px)} to{opacity:1;transform:none} }
+.spot-call { font-family:'Orbitron',monospace; font-size:12px; font-weight:700; color:var(--accent2); }
+.spot-entity { font-size:11px; color:var(--text2); margin:1px 0; }
+.spot-freq { font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--accent); }
+.spot-meta { display:flex; gap:5px; align-items:center; margin-top:3px; flex-wrap:wrap; }
+.spot-mode {
+  font-family:'Share Tech Mono',monospace; font-size:9px;
+  padding:1px 5px; border-radius:2px;
+}
+.mode-cw  { color:var(--accent4); background:rgba(245,200,66,0.1); border:1px solid rgba(245,200,66,0.3); }
+.mode-ssb { color:var(--accent3); background:rgba(255,122,69,0.1); border:1px solid rgba(255,122,69,0.3); }
+.mode-ft8 { color:var(--accent2); background:rgba(47,221,142,0.1); border:1px solid rgba(47,221,142,0.3); }
+.spot-band { font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--accent); background:rgba(56,200,240,0.08); border:1px solid rgba(56,200,240,0.25); padding:1px 5px; border-radius:2px; }
+.spot-time { font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--text3); }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">DX<span>WATCH</span></div>
+  <div class="header-center">HAM RADIO DX PROPAGATION DASHBOARD · W2 / NE USA</div>
+  <div class="header-right">
+    <div class="live-dot">LIVE</div>
+    <div class="utc" id="utc-clock">--:--:-- UTC</div>
+  </div>
+</header>
+
+<!-- Global tooltip -->
+<div id="tooltip"><div class="tt-title" id="tt-title"></div><div class="tt-body" id="tt-body"></div><div class="tt-tip" id="tt-tip"></div></div>
+
+<div class="grid">
+
+  <!-- ── LEFT COL ── -->
+  <div class="left-col">
+
+    <!-- Solar Indices -->
+    <div class="panel">
+      <div class="panel-title" data-tip="solar">Solar Indices <span style="display:flex;align-items:center;gap:6px;"><span class="tag">NOAA · CYCLE 25</span><span class="help-icon">?</span></span></div>
+      <div class="solar-grid">
+        <div class="solar-cell">
+          <div class="s-label">SFI</div>
+          <div class="s-val">142</div>
+          <div class="s-sub">Solar flux</div>
+        </div>
+        <div class="solar-cell s-green">
+          <div class="s-label">SSN</div>
+          <div class="s-val">178</div>
+          <div class="s-sub">Sunspot #</div>
+        </div>
+        <div class="solar-cell s-amber">
+          <div class="s-label">A-IDX</div>
+          <div class="s-val">8</div>
+          <div class="s-sub">Geomagnetic</div>
+        </div>
+        <div class="solar-cell">
+          <div class="s-label">K-IDX</div>
+          <div class="s-val">2</div>
+          <div class="s-sub">Current</div>
+        </div>
+        <div class="solar-cell s-orange">
+          <div class="s-label">X-RAY</div>
+          <div class="s-val" style="font-size:20px">B3.2</div>
+          <div class="s-sub">GOES class</div>
+        </div>
+        <div class="solar-cell s-green">
+          <div class="s-label">CYCLE</div>
+          <div class="s-val">25</div>
+          <div class="s-sub">Near peak</div>
+        </div>
+      </div>
+      <div class="cycle-bar-wrap" style="padding:10px 12px 12px;">
+        <div class="cb-label"><span>SOLAR CYCLE PROGRESS</span><span style="color:var(--accent4)">~72%</span></div>
+        <div class="cycle-track"><div class="cycle-fill"></div></div>
+      </div>
+    </div>
+
+    <!-- Sun Position -->
+    <div class="panel sun-panel">
+      <div class="panel-title" data-tip="sun">Sun Position <span style="display:flex;align-items:center;gap:6px;"><span class="tag" id="sun-tag">CALCULATING</span><span class="help-icon">?</span></span></div>
+      <div class="sun-body">
+        <div class="sun-metric">
+          <div class="sm-label">AZIMUTH</div>
+          <div class="sm-val" id="sun-az">---°</div>
+          <div class="sm-sub">True bearing</div>
+        </div>
+        <div class="sun-metric">
+          <div class="sm-label">ELEVATION</div>
+          <div class="sm-val" id="sun-el">---°</div>
+          <div class="sm-sub">Above horizon</div>
+        </div>
+        <div class="sun-metric">
+          <div class="sm-label">SUNRISE</div>
+          <div class="sm-val" style="font-size:14px" id="sun-rise">--:-- UTC</div>
+          <div class="sm-sub">Next rise</div>
+        </div>
+        <div class="sun-metric">
+          <div class="sm-label">SUNSET</div>
+          <div class="sm-val" style="font-size:14px" id="sun-set">--:-- UTC</div>
+          <div class="sm-sub">Next set</div>
+        </div>
+      </div>
+      <div class="gray-line-bar">
+        <div class="gl-label">GRAY LINE STATUS</div>
+        <div class="gl-status" id="gray-status">---</div>
+        <div class="gl-detail" id="gray-detail">Calculating propagation window...</div>
+      </div>
+      <!-- Mini sun arc visualization -->
+      <div style="padding:0 12px 12px;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:1px;margin-bottom:6px;">SUN ARC (40°N · 74°W)</div>
+        <svg viewBox="0 0 260 80" width="100%" style="overflow:visible">
+          <defs>
+            <linearGradient id="arcGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#f5c842" stop-opacity="0.2"/>
+              <stop offset="50%" stop-color="#f5c842" stop-opacity="0.8"/>
+              <stop offset="100%" stop-color="#f5c842" stop-opacity="0.2"/>
+            </linearGradient>
+          </defs>
+          <!-- Horizon line -->
+          <line x1="10" y1="65" x2="250" y2="65" stroke="#2e4a68" stroke-width="1"/>
+          <text x="10" y="75" font-family="Share Tech Mono,monospace" font-size="7" fill="#4a7a9b">RISE</text>
+          <text x="220" y="75" font-family="Share Tech Mono,monospace" font-size="7" fill="#4a7a9b">SET</text>
+          <text x="122" y="75" font-family="Share Tech Mono,monospace" font-size="7" fill="#4a7a9b" text-anchor="middle">NOON</text>
+          <!-- Arc path -->
+          <path d="M 20,65 Q 130,-10 240,65" fill="none" stroke="url(#arcGrad)" stroke-width="1.5" stroke-dasharray="4,3"/>
+          <!-- Sun dot on arc -->
+          <circle id="arc-sun" cx="130" cy="65" r="6" fill="#f5c842" opacity="0.9"/>
+          <circle id="arc-sun-glow" cx="130" cy="65" r="10" fill="#f5c842" opacity="0.2"/>
+          <!-- Gray line markers -->
+          <line id="arc-rise-marker" x1="20" y1="55" x2="20" y2="65" stroke="#38c8f0" stroke-width="1.5" opacity="0.6"/>
+          <line id="arc-set-marker" x1="240" y1="55" x2="240" y2="65" stroke="#38c8f0" stroke-width="1.5" opacity="0.6"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CENTER COL ── -->
+  <div class="center-col">
+
+    <!-- HF Band Reference Table -->
+    <div class="panel band-panel">
+      <div class="panel-title" data-tip="bands">HF Band Conditions <span style="display:flex;align-items:center;gap:6px;"><span class="tag">11 BANDS</span><span class="help-icon">?</span></span></div>
+      <div class="band-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Band</th>
+              <th>Frequency</th>
+              <th>Day</th>
+              <th>Night</th>
+              <th>Signal</th>
+              <th>Mode</th>
+              <th>Best path</th>
+              <th>UTC window</th>
+            </tr>
+          </thead>
+          <tbody id="band-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── RIGHT COL ── -->
+  <div class="right-col">
+
+    <!-- Quick condition bars -->
+    <div class="panel cond-panel">
+      <div class="panel-title" data-tip="overview">Band Overview <span style="display:flex;align-items:center;gap:6px;"><span class="tag green">NOW</span><span class="help-icon">?</span></span></div>
+      <div class="cond-list" id="cond-list"></div>
+    </div>
+
+    <!-- DX Cluster -->
+    <div class="panel spots-panel">
+      <div class="panel-title" data-tip="spots">DX Cluster Spots <span style="display:flex;align-items:center;gap:6px;"><span class="tag" id="spots-count">8 SPOTS</span><span class="help-icon">?</span></span></div>
+      <div class="spots-list" id="spots-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── UTC Clock ──────────────────────────────────────────────────────────
+function updateClock() {
+  const n = new Date();
+  const pad = v => String(v).padStart(2,'0');
+  document.getElementById('utc-clock').textContent =
+    `${pad(n.getUTCHours())}:${pad(n.getUTCMinutes())}:${pad(n.getUTCSeconds())} UTC`;
+}
+
+// ── Sun Position (40N, 74W = NJ/NY area) ──────────────────────────────
+function calcSunPos(date, lat=40, lon=-74) {
+  const JD = date.getTime()/86400000 + 2440587.5;
+  const n  = JD - 2451545.0;
+  const L  = (280.46 + 0.9856474 * n) % 360;
+  const g  = (357.528 + 0.9856003 * n) * Math.PI / 180;
+  const lam = (L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2*g)) * Math.PI / 180;
+  const eps = 23.439 * Math.PI / 180;
+  const dec = Math.asin(Math.sin(eps) * Math.sin(lam));
+  const UT  = date.getUTCHours() + date.getUTCMinutes()/60 + date.getUTCSeconds()/3600;
+  const LMST = (UT * 15 + lon + 180) % 360;
+  const HA   = (LMST - Math.atan2(Math.sin(lam), Math.cos(lam)*Math.cos(eps)) * 180/Math.PI + 360) % 360 - 180;
+  const latR = lat * Math.PI / 180;
+  const HAR  = HA * Math.PI / 180;
+  const sinEl = Math.sin(latR)*Math.sin(dec) + Math.cos(latR)*Math.cos(dec)*Math.cos(HAR);
+  const el    = Math.asin(Math.max(-1,Math.min(1,sinEl))) * 180/Math.PI;
+  const az    = Math.atan2(-Math.cos(dec)*Math.sin(HAR),
+    Math.sin(dec)*Math.cos(latR) - Math.cos(dec)*Math.cos(HAR)*Math.sin(latR)) * 180/Math.PI;
+  return { el: Math.round(el), az: Math.round((az+360)%360), dec };
+}
+
+function calcRiseSet(date, lat=40, lon=-74) {
+  const D = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const JD0 = D.getTime()/86400000 + 2440587.5;
+  const n = JD0 - 2451545.0;
+  const L = (280.46 + 0.9856474*n) % 360;
+  const g = (357.528 + 0.9856003*n) * Math.PI/180;
+  const lam = (L + 1.915*Math.sin(g) + 0.020*Math.sin(2*g)) * Math.PI/180;
+  const eps = 23.439 * Math.PI/180;
+  const dec = Math.asin(Math.sin(eps)*Math.sin(lam));
+  const latR = lat * Math.PI/180;
+  const cosH = (Math.sin(-0.0145) - Math.sin(latR)*Math.sin(dec)) / (Math.cos(latR)*Math.cos(dec));
+  if (Math.abs(cosH) > 1) return { rise:'--:--', set:'--:--' };
+  const H = Math.acos(cosH) * 180/Math.PI;
+  const RA = Math.atan2(Math.sin(lam)*Math.cos(eps), Math.cos(lam)) * 180/Math.PI;
+  const transit = (RA - lon + 360) % 360 / 15;
+  const riseH = ((transit - H/15) + 24) % 24;
+  const setH  = ((transit + H/15) + 24) % 24;
+  const fmt = h => { const hh=Math.floor(h), mm=Math.round((h-hh)*60); return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`; };
+  return { rise: fmt(riseH), set: fmt(setH), riseH, setH };
+}
+
+function updateSunUI() {
+  const now = new Date();
+  const { el, az } = calcSunPos(now);
+  const rs = calcRiseSet(now);
+
+  document.getElementById('sun-az').textContent = az + '°';
+  document.getElementById('sun-el').textContent = el + '°';
+  document.getElementById('sun-rise').textContent = rs.rise + ' UTC';
+  document.getElementById('sun-set').textContent  = rs.set  + ' UTC';
+
+  // Gray line: within ~30 min of sunrise/sunset
+  const utcH = now.getUTCHours() + now.getUTCMinutes()/60;
+  const nearRise = Math.abs(utcH - rs.riseH) < 0.5;
+  const nearSet  = Math.abs(utcH - rs.setH)  < 0.5;
+  let status, detail, tagText;
+  if (nearRise) {
+    status = 'MORNING GRAY LINE'; detail = 'Prime DX window — 40m/80m long path open';
+    tagText = 'ACTIVE'; document.getElementById('sun-tag').style.color = 'var(--accent2)';
+  } else if (nearSet) {
+    status = 'EVENING GRAY LINE'; detail = 'Prime DX window — 20m/40m closing, 80m opening';
+    tagText = 'ACTIVE'; document.getElementById('sun-tag').style.color = 'var(--accent2)';
+  } else if (el > 0) {
+    status = 'DAYLIGHT'; detail = `El ${el}° — 10m–20m bands favored, NVIS degraded`;
+    tagText = 'DAY';
+  } else {
+    status = 'NIGHTSIDE'; detail = 'MF/LF skip open — 40m/80m long path DX';
+    tagText = 'NIGHT';
+  }
+  document.getElementById('gray-status').textContent = status;
+  document.getElementById('gray-detail').textContent  = detail;
+  document.getElementById('sun-tag').textContent       = tagText;
+
+  // Animate sun on arc SVG (0=rise, 1=set mapped to x 20-240)
+  if (rs.riseH && rs.setH) {
+    const span = rs.setH - rs.riseH;
+    const prog = Math.max(0, Math.min(1, (utcH - rs.riseH) / span));
+    const x = 20 + prog * 220;
+    // arc: y = 65 - sin(prog*π)*75
+    const y = 65 - Math.sin(prog * Math.PI) * 65;
+    document.getElementById('arc-sun').setAttribute('cx', x);
+    document.getElementById('arc-sun').setAttribute('cy', y);
+    document.getElementById('arc-sun-glow').setAttribute('cx', x);
+    document.getElementById('arc-sun-glow').setAttribute('cy', y);
+  }
+}
+
+// ── Band Data ──────────────────────────────────────────────────────────
+const bands = [
+  { name:'160m', freq:'1.8–2.0',  day:'poor', night:'fair', sig:20, mode:'NVIS',      path:'< 500 km regional',      hours:'20:00–06:00' },
+  { name:'80m',  freq:'3.5–4.0',  day:'fair', night:'good', sig:45, mode:'NVIS/Skip', path:'500–2000 km',            hours:'19:00–07:00' },
+  { name:'60m',  freq:'5.3',      day:'fair', night:'good', sig:48, mode:'Regional',  path:'500–3000 km',            hours:'All night'   },
+  { name:'40m',  freq:'7.0–7.3',  day:'good', night:'exc',  sig:75, mode:'F2 skip',   path:'Worldwide / long path',  hours:'16:00–08:00' },
+  { name:'30m',  freq:'10.1',     day:'good', night:'good', sig:70, mode:'F2 / NVIS', path:'Trans-oceanic',          hours:'All day'     },
+  { name:'20m',  freq:'14.0–14.3',day:'exc',  night:'good', sig:90, mode:'F2 skip',   path:'Worldwide',              hours:'08:00–20:00' },
+  { name:'17m',  freq:'18.1',     day:'exc',  night:'fair', sig:85, mode:'F2 skip',   path:'Worldwide',              hours:'09:00–18:00' },
+  { name:'15m',  freq:'21.0–21.4',day:'good', night:'poor', sig:65, mode:'F2 / E-skip', path:'Trans-oceanic',         hours:'10:00–18:00' },
+  { name:'12m',  freq:'24.9',     day:'fair', night:'poor', sig:40, mode:'F2 / E-skip', path:'DX when open',          hours:'11:00–17:00' },
+  { name:'10m',  freq:'28.0–29.7',day:'good', night:'poor', sig:60, mode:'F2 / Sp-E', path:'Worldwide (cycle 25)',   hours:'10:00–18:00' },
+  { name:'6m',   freq:'50–54',    day:'fair', night:'poor', sig:30, mode:'Sp-E',       path:'1000–2500 km (E-skip)',  hours:'Variable'    },
+];
+const condLabel = { exc:'EXC', good:'GOOD', fair:'FAIR', poor:'POOR' };
+const barColor  = { exc:'#2fdd8e', good:'#38c8f0', fair:'#f5c842', poor:'#ff5555' };
+
+function renderBandTable() {
+  document.getElementById('band-tbody').innerHTML = bands.map(b => `
+    <tr>
+      <td class="td-band">${b.name}</td>
+      <td class="td-freq">${b.freq} MHz</td>
+      <td><span class="cond-pill ${b.day}">${condLabel[b.day]}</span></td>
+      <td><span class="cond-pill ${b.night}">${condLabel[b.night]}</span></td>
+      <td>
+        <div class="sig-wrap">
+          <div class="sig-track"><div class="sig-fill" style="width:${b.sig}%;background:${barColor[b.day]}"></div></div>
+          <span class="sig-pct">${b.sig}%</span>
+        </div>
+      </td>
+      <td class="td-mode">${b.mode}</td>
+      <td class="td-freq">${b.path}</td>
+      <td class="td-freq">${b.hours}</td>
+    </tr>`).join('');
+}
+
+function renderCondList() {
+  document.getElementById('cond-list').innerHTML = bands.map(b => `
+    <div class="cond-row">
+      <div class="band-name">${b.name}</div>
+      <div class="cond-bars">
+        <div class="cond-bar-row"><span>D</span><div class="mini-bar"><div class="mini-fill" style="width:${b.sig}%;background:${barColor[b.day]}"></div></div></div>
+        <div class="cond-bar-row"><span>N</span><div class="mini-bar"><div class="mini-fill" style="width:${Math.min(100,b.sig+15)}%;background:${barColor[b.night]}"></div></div></div>
+      </div>
+      <div class="cond-pill ${b.day}">${condLabel[b.day]}</div>
+    </div>`).join('');
+}
+
+// ── DX Spots ──────────────────────────────────────────────────────────
+const dxPool = [
+  { call:'VK9DX',  entity:'Cocos (Keeling)',      freq:'14.025', mode:'CW',  band:'20m' },
+  { call:'3B8CW',  entity:'Mauritius',             freq:'21.285', mode:'SSB', band:'15m' },
+  { call:'VU4CB',  entity:'Andaman Islands',       freq:'18.078', mode:'FT8', band:'17m' },
+  { call:'PY0F',   entity:'Fernando de Noronha',   freq:'14.074', mode:'FT8', band:'20m' },
+  { call:'ZL7C',   entity:'Chatham Island',        freq:'7.023',  mode:'CW',  band:'40m' },
+  { call:'KH1/W7', entity:'Baker & Howland Is.',   freq:'28.074', mode:'FT8', band:'10m' },
+  { call:'T32C',   entity:'East Kiribati',         freq:'18.100', mode:'SSB', band:'17m' },
+  { call:'FT5ZM',  entity:'Amsterdam Island',      freq:'21.074', mode:'FT8', band:'15m' },
+  { call:'VK0EK',  entity:'Heard Island',          freq:'14.074', mode:'FT8', band:'20m' },
+  { call:'CE0Y',   entity:'Easter Island',         freq:'7.074',  mode:'FT8', band:'40m' },
+  { call:'A9K',    entity:'Bahrain',               freq:'21.021', mode:'CW',  band:'15m' },
+  { call:'JD1BLY', entity:'Ogasawara',             freq:'18.078', mode:'FT8', band:'17m' },
+  { call:'VP8PJ',  entity:'South Sandwich',        freq:'14.025', mode:'CW',  band:'20m' },
+  { call:'YK1BA',  entity:'Syria',                 freq:'7.010',  mode:'CW',  band:'40m' },
+  { call:'ZL8R',   entity:'Kermadec Islands',      freq:'10.113', mode:'CW',  band:'30m' },
+];
+const modeClass = { CW:'mode-cw', SSB:'mode-ssb', FT8:'mode-ft8' };
+function shuffle(a) { return a.map(v=>({v,r:Math.random()})).sort((a,b)=>a.r-b.r).map(x=>x.v); }
+function renderSpots() {
+  const spots = shuffle(dxPool).slice(0,8);
+  document.getElementById('spots-list').innerHTML = spots.map(s => {
+    const mins = Math.floor(Math.random()*20);
+    const age = mins===0 ? 'NOW' : mins+'m';
+    return `<div class="spot-row">
+      <div class="spot-call">${s.call}</div>
+      <div class="spot-entity">${s.entity}</div>
+      <div class="spot-freq">${s.freq} MHz</div>
+      <div class="spot-meta">
+        <span class="spot-mode ${modeClass[s.mode]}">${s.mode}</span>
+        <span class="spot-band">${s.band}</span>
+        <span class="spot-time">${age} ago</span>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('spots-count').textContent = `${spots.length} SPOTS`;
+}
+
+// ── Tooltips ──────────────────────────────────────────────────────────
+const TIPS = {
+  solar: {
+    title: "Solar Indices",
+    body: "These numbers measure solar activity and geomagnetic stability — the two main drivers of HF propagation.\n\n<b>SFI (Solar Flux Index)</b> — Higher = better high-band conditions. &gt;150 is excellent.\n<b>SSN (Sunspot #)</b> — More sunspots = more ionospheric energy. We are near Cycle 25 peak.\n<b>A-Index</b> — Daily geomagnetic stability. Under 10 is ideal for DX.\n<b>K-Index</b> — Current 3-hr snapshot. K≥4 means a storm is disrupting propagation.\n<b>X-Ray class</b> — Solar flare intensity. M/X class events can black out HF on the sunlit side.",
+    tip: "TIP: Low A/K + high SFI = best DX conditions"
+  },
+  sun: {
+    title: "Sun Position & Gray Line",
+    body: "Shows where the sun is relative to your QTH (40°N / 74°W — NJ area).\n\n<b>Azimuth</b> — Compass bearing of the sun (0°=N, 90°=E, 180°=S, 270°=W).\n<b>Elevation</b> — Height above the horizon. Positive = daytime, negative = nighttime.\n<b>Gray Line</b> — The dawn/dusk boundary between day and night. The D-layer (which absorbs signals) is absent on the night side while the F-layer remains energized on the day side. This creates exceptional long-path DX windows at sunrise and sunset.\n<b>Sun Arc</b> — Real-time position of the sun along today's path from rise to set.",
+    tip: "TIP: Gray line windows = best DX opportunities of the day"
+  },
+  bands: {
+    title: "HF Band Conditions Table",
+    body: "Your primary operating guide. Shows all 11 HF bands with current conditions.\n\n<b>Day / Night ratings:</b> EXC · GOOD · FAIR · POOR — condition for that period.\n<b>Signal bar</b> — Relative signal reliability as a percentage.\n<b>Mode</b> — How signals are traveling (F2 skip, NVIS, E-skip, etc.).\n<b>Best Path</b> — What type of DX is possible right now.\n<b>UTC Window</b> — When this band is most productive for DX contacts.",
+    tip: "TIP: Start with bands rated GOOD or EXC for the current period"
+  },
+  overview: {
+    title: "Band Overview",
+    body: "A compact at-a-glance summary of all bands updated in real time.\n\n<b>D bar</b> — Daytime signal strength for this band.\n<b>N bar</b> — Nighttime signal strength for this band.\n<b>Badge</b> — Current condition rating (EXC / GOOD / FAIR / POOR).\n\nUse this panel for a quick scan across all bands before diving into the detail table.",
+    tip: "TIP: Green bars = get on the air now"
+  },
+  spots: {
+    title: "DX Cluster Spots",
+    body: "Simulated live reports from the global DX cluster network — where operators post when they hear a rare or distant station.\n\n<b>Callsign</b> — The DX station identifier (e.g. VK9DX = Cocos Keeling Islands).\n<b>Entity</b> — The DXCC country/territory. Collecting entities is the basis of the DXCC award.\n<b>Frequency</b> — Exact frequency in MHz where the station was heard.\n<b>Mode</b> — CW (Morse), SSB (voice), or FT8 (digital weak-signal).\n<b>Time</b> — Fresher spots are more likely still active. Spots refresh every 30 seconds.",
+    tip: "TIP: Rare entity + GOOD band rating = jump on it"
+  }
+};
+
+const tooltip  = document.getElementById('tooltip');
+const ttTitle  = document.getElementById('tt-title');
+const ttBody   = document.getElementById('tt-body');
+const ttTip    = document.getElementById('tt-tip');
+
+document.querySelectorAll('[data-tip]').forEach(el => {
+  el.addEventListener('mouseenter', e => {
+    const key = el.dataset.tip;
+    const t = TIPS[key]; if (!t) return;
+    ttTitle.textContent = t.title;
+    ttBody.innerHTML    = t.body.replace(/\n/g, '<br>');
+    ttTip.textContent   = t.tip;
+    tooltip.classList.add('visible');
+    positionTooltip(e);
+  });
+  el.addEventListener('mousemove', positionTooltip);
+  el.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+});
+
+function positionTooltip(e) {
+  const pad = 14, tw = 320, th = tooltip.offsetHeight;
+  let x = e.clientX + pad;
+  let y = e.clientY + pad;
+  if (x + tw > window.innerWidth  - pad) x = e.clientX - tw - pad;
+  if (y + th > window.innerHeight - pad) y = e.clientY - th - pad;
+  tooltip.style.left = x + 'px';
+  tooltip.style.top  = y + 'px';
+}
+
+renderBandTable();
+renderCondList();
+renderSpots();
+updateClock();
+updateSunUI();
+setInterval(updateClock, 1000);
+setInterval(updateSunUI, 30000);
+setInterval(renderSpots, 30000);
+</script>
+</body>
+</html>
