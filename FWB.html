@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forensic Workbench Dashboard — FWB</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --panel: #ffffff;
+    --border: #d2d2d7;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --accent: #0066cc;
+    --accent-hover: #0055aa;
+    --drop-bg: #fafafa;
+    --drop-border: #c7c7cc;
+    --drop-active: #007aff;
+    --drop-active-bg: #e8f3ff;
+    --row-hover: #f0f7ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+  .badge {
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  .dropzone {
+    border: 2px dashed var(--drop-border);
+    border-radius: 12px;
+    padding: 48px 24px;
+    text-align: center;
+    background: var(--drop-bg);
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+    outline: none;
+  }
+  .dropzone:hover, .dropzone:focus { border-color: var(--accent); background: #fff; }
+  .dropzone.dragover { border-color: var(--drop-active); background: var(--drop-active-bg); }
+  .dropzone p { margin: 0; color: var(--muted); }
+  .dropzone .primary { font-size: 16px; color: var(--text); margin-bottom: 4px; }
+  .controls {
+    margin: 20px 0;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  button {
+    font: inherit;
+    background: var(--accent);
+    color: #fff;
+    border: 0;
+    border-radius: 8px;
+    padding: 10px 18px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  button:hover:not(:disabled) { background: var(--accent-hover); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  button.secondary:hover:not(:disabled) { background: var(--panel); }
+  .file-list {
+    color: var(--muted);
+    font-size: 13px;
+    flex: 1 1 auto;
+  }
+  .file-list ul { margin: 0; padding-left: 18px; }
+  .status {
+    margin: 12px 0;
+    font-size: 14px;
+    color: var(--muted);
+    min-height: 20px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    background: #fafafa;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: var(--row-hover); }
+  td.col-file { font-size: 13px; max-width: 280px; word-break: break-all; }
+  td.col-page { font-variant-numeric: tabular-nums; width: 60px; text-align: right; color: var(--muted); }
+  td.col-thumb { width: 180px; }
+  td.col-thumb canvas {
+    display: block;
+    cursor: zoom-in;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    transition: transform 0.1s, border-color 0.1s;
+    background: #fff;
+  }
+  td.col-thumb canvas:hover {
+    transform: scale(1.02);
+    border-color: var(--accent);
+  }
+  td.col-thumb .thumb-error { color: #b00; font-size: 12px; }
+  td.col-notes { min-width: 200px; }
+  td.col-notes [contenteditable] {
+    display: block;
+    min-height: 60px;
+    padding: 6px 8px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    outline: none;
+    font-size: 13px;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+  td.col-notes [contenteditable]:hover { border-color: var(--border); }
+  td.col-notes [contenteditable]:focus { border-color: var(--accent); background: #fff; }
+  td.col-notes [contenteditable]:empty::before {
+    content: attr(data-placeholder);
+    color: #c7c7cc;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 48px;
+    color: var(--muted);
+    font-size: 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 16px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Forensic Workbench Dashboard</h1>
+  <span class="badge">FWB</span>
+</header>
+
+<main>
+  <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Drop or select PDF files">
+    <p class="primary">Drop PDF files here</p>
+    <p>or click to select one or more PDFs</p>
+    <input type="file" id="fileInput" multiple accept="application/pdf,.pdf" hidden>
+  </div>
+
+  <div class="controls">
+    <button id="createSummaryBtn" disabled>Create Summary Table</button>
+    <button id="clearBtn" class="secondary" disabled>Clear</button>
+    <div class="file-list" id="fileList"></div>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <table id="summaryTable" hidden>
+    <thead>
+      <tr>
+        <th>File</th>
+        <th>Page</th>
+        <th>Thumbnail</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <div class="empty-state" id="emptyState">No PDFs loaded yet. Drop files above to get started.</div>
+</main>
+
+<footer>FWB &middot; PDFs are processed locally in your browser</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(() => {
+  const PDFJS_VERSION = '3.11.174';
+  const PDFJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + PDFJS_VERSION;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + '/pdf.worker.min.js';
+
+  // --- DOM refs ---
+  const dropzone     = document.getElementById('dropzone');
+  const fileInput    = document.getElementById('fileInput');
+  const createBtn    = document.getElementById('createSummaryBtn');
+  const clearBtn     = document.getElementById('clearBtn');
+  const fileListEl   = document.getElementById('fileList');
+  const statusEl     = document.getElementById('status');
+  const table        = document.getElementById('summaryTable');
+  const tbody        = table.querySelector('tbody');
+  const emptyState   = document.getElementById('emptyState');
+
+  // --- State ---
+  let files = [];        // [{file: File, pdfDoc: PDFDocumentProxy, id: number}]
+  let nextId = 1;
+  let busy = false;
+
+  // --- Drop zone & file input ---
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  });
+  fileInput.addEventListener('change', e => {
+    addFiles(e.target.files);
+    fileInput.value = '';
+  });
+
+  ['dragenter', 'dragover'].forEach(ev =>
+    dropzone.addEventListener(ev, e => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      dropzone.classList.add('dragover');
+    })
+  );
+  ['dragleave', 'drop'].forEach(ev =>
+    dropzone.addEventListener(ev, e => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove('dragover');
+    })
+  );
+  dropzone.addEventListener('drop', e => {
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+      addFiles(e.dataTransfer.files);
+    }
+  });
+  // Prevent the browser from opening a dropped file outside the drop zone.
+  ['dragover', 'drop'].forEach(ev =>
+    window.addEventListener(ev, e => { e.preventDefault(); }, false)
+  );
+
+  async function addFiles(fileList) {
+    const pdfs = Array.from(fileList).filter(
+      f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
+    );
+    if (pdfs.length === 0) {
+      setStatus('No PDF files found in the selection.');
+      return;
+    }
+    setStatus(`Loading ${pdfs.length} PDF${pdfs.length === 1 ? '' : 's'}...`);
+    for (const file of pdfs) {
+      try {
+        const buffer = await file.arrayBuffer();
+        // .slice(0) gives PDF.js its own copy so we can keep the original around.
+        const pdfDoc = await pdfjsLib.getDocument({ data: buffer.slice(0) }).promise;
+        files.push({ file, pdfDoc, id: nextId++ });
+      } catch (err) {
+        console.error('Failed to load', file.name, err);
+        setStatus(`Failed to load ${file.name}: ${err.message}`);
+      }
+    }
+    renderFileList();
+    updateButtons();
+    const totalPages = files.reduce((s, f) => s + f.pdfDoc.numPages, 0);
+    setStatus(`${files.length} PDF${files.length === 1 ? '' : 's'} loaded (${totalPages} page${totalPages === 1 ? '' : 's'} total).`);
+  }
+
+  function renderFileList() {
+    if (files.length === 0) { fileListEl.textContent = ''; return; }
+    const items = files.map(f =>
+      `<li>${escapeHtml(f.file.name)} &mdash; ${f.pdfDoc.numPages} page${f.pdfDoc.numPages === 1 ? '' : 's'}</li>`
+    ).join('');
+    fileListEl.innerHTML = `<ul>${items}</ul>`;
+  }
+
+  function updateButtons() {
+    createBtn.disabled = busy || files.length === 0;
+    clearBtn.disabled  = busy || files.length === 0;
+  }
+
+  function setStatus(msg) { statusEl.textContent = msg; }
+
+  // --- Build summary table ---
+  createBtn.addEventListener('click', async () => {
+    if (files.length === 0 || busy) return;
+    busy = true;
+    updateButtons();
+    tbody.innerHTML = '';
+    emptyState.hidden = true;
+    table.hidden = false;
+
+    const totalPages = files.reduce((s, f) => s + f.pdfDoc.numPages, 0);
+    let done = 0;
+
+    for (const entry of files) {
+      const { file, pdfDoc } = entry;
+      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        done++;
+        setStatus(`Rendering thumbnails: ${done} / ${totalPages}`);
+
+        const tr = document.createElement('tr');
+
+        const tdFile = document.createElement('td');
+        tdFile.className = 'col-file';
+        tdFile.textContent = file.name;
+        tr.appendChild(tdFile);
+
+        const tdPage = document.createElement('td');
+        tdPage.className = 'col-page';
+        tdPage.textContent = String(pageNum);
+        tr.appendChild(tdPage);
+
+        const tdThumb = document.createElement('td');
+        tdThumb.className = 'col-thumb';
+        tr.appendChild(tdThumb);
+
+        const tdNotes = document.createElement('td');
+        tdNotes.className = 'col-notes';
+        const notesDiv = document.createElement('div');
+        notesDiv.contentEditable = 'true';
+        notesDiv.dataset.placeholder = 'Add notes...';
+        tdNotes.appendChild(notesDiv);
+        tr.appendChild(tdNotes);
+
+        tbody.appendChild(tr);
+
+        try {
+          const canvas = await renderThumbnail(pdfDoc, pageNum);
+          canvas.title = `Open ${file.name} — Page ${pageNum}`;
+          canvas.addEventListener('click', () => openInViewer(entry, pageNum));
+          tdThumb.appendChild(canvas);
+        } catch (err) {
+          console.error('Thumbnail failed', file.name, pageNum, err);
+          const errDiv = document.createElement('div');
+          errDiv.className = 'thumb-error';
+          errDiv.textContent = 'Render error: ' + err.message;
+          tdThumb.appendChild(errDiv);
+        }
+      }
+    }
+
+    setStatus(`Summary table built: ${totalPages} page${totalPages === 1 ? '' : 's'} across ${files.length} file${files.length === 1 ? '' : 's'}.`);
+    busy = false;
+    updateButtons();
+  });
+
+  async function renderThumbnail(pdfDoc, pageNum) {
+    const page = await pdfDoc.getPage(pageNum);
+    const targetWidth = 160; // CSS px
+    const baseViewport = page.getViewport({ scale: 1 });
+    const scale = targetWidth / baseViewport.width;
+    const viewport = page.getViewport({ scale });
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.ceil(viewport.width  * dpr);
+    canvas.height = Math.ceil(viewport.height * dpr);
+    canvas.style.width  = viewport.width  + 'px';
+    canvas.style.height = viewport.height + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    return canvas;
+  }
+
+  // --- Clear ---
+  clearBtn.addEventListener('click', () => {
+    if (busy) return;
+    files = [];
+    tbody.innerHTML = '';
+    table.hidden = true;
+    emptyState.hidden = false;
+    fileListEl.textContent = '';
+    setStatus('');
+    updateButtons();
+  });
+
+  // --- Viewer popup ---
+  // Strategy: open a single named popup window. Each click postMessages
+  // {fileId, fileName, pageNum, fileData?} into it. The viewer caches loaded
+  // docs by fileId so we only ship the bytes once per session.
+  let viewerWindow = null;
+  let viewerReady = false;
+  let readyWaiters = [];
+  let viewerSentFiles = new Set();
+  let sendChain = Promise.resolve();
+  let viewerObjectUrl = null;
+
+  window.addEventListener('message', e => {
+    if (!e.data || e.source !== viewerWindow) return;
+    if (e.data.type === 'viewerReady') {
+      viewerReady = true;
+      const waiters = readyWaiters;
+      readyWaiters = [];
+      waiters.forEach(r => r());
+    }
+  });
+
+  function ensureViewerWindow() {
+    if (viewerWindow && !viewerWindow.closed) {
+      viewerWindow.focus();
+      return true;
+    }
+    if (viewerObjectUrl) URL.revokeObjectURL(viewerObjectUrl);
+    const blob = new Blob([buildViewerHtml()], { type: 'text/html' });
+    viewerObjectUrl = URL.createObjectURL(blob);
+    viewerWindow = window.open(viewerObjectUrl, 'fwb-viewer', 'width=1000,height=1100,scrollbars=yes,resizable=yes');
+    if (!viewerWindow) {
+      alert('The viewer popup was blocked. Please allow popups for this page.');
+      return false;
+    }
+    viewerReady = false;
+    readyWaiters = [];
+    viewerSentFiles = new Set();
+    viewerWindow.focus();
+    return true;
+  }
+
+  function waitForViewerReady() {
+    if (viewerReady) return Promise.resolve();
+    return new Promise(resolve => readyWaiters.push(resolve));
+  }
+
+  function openInViewer(entry, pageNum) {
+    if (!ensureViewerWindow()) return;
+    sendChain = sendChain.then(async () => {
+      // The window may have been replaced between scheduling and running.
+      if (!viewerWindow || viewerWindow.closed) {
+        if (!ensureViewerWindow()) return;
+      }
+      const targetWindow = viewerWindow;
+      let fileData = null;
+      if (!viewerSentFiles.has(entry.id)) {
+        fileData = await entry.file.arrayBuffer();
+      }
+      await waitForViewerReady();
+      if (targetWindow !== viewerWindow || targetWindow.closed) return;
+      const msg = { fileId: entry.id, fileName: entry.file.name, pageNum };
+      if (fileData) {
+        msg.fileData = fileData;
+        targetWindow.postMessage(msg, '*', [fileData]);
+        viewerSentFiles.add(entry.id);
+      } else {
+        targetWindow.postMessage(msg, '*');
+      }
+    }).catch(err => console.error('Viewer send failed', err));
+  }
+
+  // The viewer is built as an embedded HTML doc served from a blob URL so
+  // everything ships in this single file. Note: `<\/script>` is escaped to
+  // avoid prematurely terminating *this* outer script tag.
+  function buildViewerHtml() {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FWB Viewer</title>
+<style>
+  body { margin: 0; padding: 0; background: #2a2a2a; color: #eee;
+         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 10px 16px; background: #1a1a1a; display: flex;
+           justify-content: space-between; align-items: center; gap: 12px;
+           border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 1; }
+  #title { font-size: 13px; font-weight: 500; flex: 1;
+           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #pageInfo { font-size: 12px; color: #aaa; flex-shrink: 0; }
+  #status { padding: 24px; text-align: center; color: #999; font-size: 13px; }
+  #wrap { display: flex; justify-content: center; padding: 24px; }
+  canvas { box-shadow: 0 4px 24px rgba(0,0,0,0.5); max-width: 100%;
+           height: auto; background: #fff; }
+</style>
+</head>
+<body>
+<header>
+  <span id="title">FWB Viewer</span>
+  <span id="pageInfo"></span>
+</header>
+<div id="status">Waiting for page...</div>
+<div id="wrap"></div>
+<script src="${PDFJS_BASE}/pdf.min.js"><\/script>
+<script>
+(() => {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '${PDFJS_BASE}/pdf.worker.min.js';
+  const docs = new Map(); // fileId -> PDFDocumentProxy
+  const titleEl = document.getElementById('title');
+  const pageInfoEl = document.getElementById('pageInfo');
+  const wrapEl = document.getElementById('wrap');
+  const statusEl = document.getElementById('status');
+  let queue = Promise.resolve();
+  let currentRender = null;
+
+  async function handle(req) {
+    if (!req || typeof req !== 'object') return;
+    const { fileId, fileName, fileData, pageNum } = req;
+    if (typeof pageNum !== 'number') return;
+    statusEl.style.display = 'block';
+    statusEl.textContent = 'Loading page ' + pageNum + '...';
+    let pdf = docs.get(fileId);
+    if (!pdf) {
+      if (!fileData) {
+        statusEl.textContent = 'Error: PDF data missing for ' + (fileName || 'file');
+        return;
+      }
+      pdf = await pdfjsLib.getDocument({ data: fileData }).promise;
+      docs.set(fileId, pdf);
+    }
+    const page = await pdf.getPage(pageNum);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const containerWidth = Math.max(320, Math.min(window.innerWidth - 48, 1400));
+    const baseViewport = page.getViewport({ scale: 1 });
+    const scale = containerWidth / baseViewport.width;
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.ceil(viewport.width  * dpr);
+    canvas.height = Math.ceil(viewport.height * dpr);
+    canvas.style.width  = viewport.width  + 'px';
+    canvas.style.height = viewport.height + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    if (currentRender) { try { currentRender.cancel(); } catch (e) {} }
+    currentRender = page.render({ canvasContext: ctx, viewport });
+    try {
+      await currentRender.promise;
+    } catch (e) {
+      if (e && e.name === 'RenderingCancelledException') return;
+      throw e;
+    }
+    wrapEl.innerHTML = '';
+    wrapEl.appendChild(canvas);
+    titleEl.textContent = fileName || '';
+    pageInfoEl.textContent = 'Page ' + pageNum + ' of ' + pdf.numPages;
+    document.title = (fileName || 'FWB Viewer') + ' \\u2014 Page ' + pageNum;
+    statusEl.style.display = 'none';
+  }
+
+  window.addEventListener('message', e => {
+    queue = queue
+      .then(() => handle(e.data))
+      .catch(err => {
+        console.error(err);
+        statusEl.style.display = 'block';
+        statusEl.textContent = 'Error: ' + (err && err.message ? err.message : err);
+      });
+  });
+
+  // Tell the opener we're ready to receive page requests.
+  function signalReady() {
+    if (window.opener && !window.opener.closed) {
+      try { window.opener.postMessage({ type: 'viewerReady' }, '*'); } catch (e) {}
+    }
+  }
+  if (document.readyState === 'complete') signalReady();
+  else window.addEventListener('load', signalReady);
+})();
+<\/script>
+</body>
+</html>`;
+  }
+
+  // --- Util ---
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+})();
+</script>
+</body>
+</html>
