@@ -232,6 +232,13 @@
   #settings-panel .settings-save-btn {
     margin-top: 14px; padding: 8px 16px;
   }
+  #settings-panel hr.section-divider {
+    margin: 18px 0 10px; border: none; border-top: 1px solid var(--border);
+  }
+  #settings-panel .library-row {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
+  }
+  #settings-panel .library-row button { padding: 8px 14px; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -245,6 +252,16 @@
   <input id="settings-endpoint" type="text" placeholder="e.g. http://localhost:8080/chat">
   <p class="hint">Full URL of the ai_proxy <code>/chat</code> endpoint.</p>
   <button class="settings-save-btn" id="settings-save-btn">Save</button>
+
+  <hr class="section-divider">
+  <h3>Prompt Library</h3>
+  <p class="hint" id="library-count-hint">No prompts in library.</p>
+  <div class="library-row">
+    <button class="settings-save-btn" id="library-edit-btn">Edit</button>
+    <button class="settings-save-btn" id="library-import-btn">Import</button>
+    <button class="settings-save-btn" id="library-export-btn">Export</button>
+  </div>
+  <input type="file" id="library-import-file" accept="application/json,.json" hidden>
 </div>
 
 <header>
@@ -295,6 +312,14 @@
   // Kept in memory only; pre-populate + persist comes in a later iteration.
   const llmSettings = { endpoint: '', provider: 'openai', model: 'gpt-4.1-mini' };
 
+  // Prompt library — array of { id, name, text }. In-memory only;
+  // persistence is via the Import / Export buttons on the hamburger menu.
+  let promptLibrary = [];
+  function makeId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
   // --- DOM refs ---
   const dropzone     = document.getElementById('dropzone');
   const fileInput    = document.getElementById('fileInput');
@@ -342,6 +367,141 @@
       } catch (e) {}
     }
   }
+
+  // --- Prompt library: refs, sync, import/export ---
+  const libraryEditBtn   = document.getElementById('library-edit-btn');
+  const libraryImportBtn = document.getElementById('library-import-btn');
+  const libraryExportBtn = document.getElementById('library-export-btn');
+  const libraryImportFile = document.getElementById('library-import-file');
+  const libraryCountHint = document.getElementById('library-count-hint');
+
+  function updateLibraryCountHint() {
+    const n = promptLibrary.length;
+    libraryCountHint.textContent = n === 0
+      ? 'No prompts in library.'
+      : (n + ' prompt' + (n === 1 ? '' : 's') + ' in library.');
+  }
+  updateLibraryCountHint();
+
+  function onLibraryChanged() {
+    updateLibraryCountHint();
+    pushLibraryToEditor();
+    pushLibraryToViewer();
+  }
+
+  function pushLibraryToViewer() {
+    if (viewerWindow && !viewerWindow.closed && viewerReady) {
+      try {
+        viewerWindow.postMessage(
+          { type: 'promptLibrary', promptLibrary: promptLibrary.map(p => ({ ...p })) },
+          '*'
+        );
+      } catch (e) {}
+    }
+  }
+
+  function pushLibraryToEditor() {
+    if (editorWindow && !editorWindow.closed && editorReady) {
+      try {
+        editorWindow.postMessage(
+          { type: 'promptLibrary', promptLibrary: promptLibrary.map(p => ({ ...p })) },
+          '*'
+        );
+      } catch (e) {}
+    }
+  }
+
+  libraryExportBtn.addEventListener('click', () => {
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      prompts: promptLibrary.map(p => ({ name: p.name, text: p.text }))
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'fwb-prompt-library.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    setStatus('Exported ' + promptLibrary.length + ' prompt'
+      + (promptLibrary.length === 1 ? '' : 's') + ' to JSON.');
+  });
+
+  libraryImportBtn.addEventListener('click', () => libraryImportFile.click());
+
+  libraryImportFile.addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const raw = Array.isArray(data)
+        ? data
+        : (data && Array.isArray(data.prompts) ? data.prompts : null);
+      if (!raw) throw new Error('Expected an array or an object with a "prompts" array.');
+      promptLibrary = raw
+        .filter(p => p && typeof p.name === 'string' && typeof p.text === 'string')
+        .map(p => ({ id: makeId(), name: p.name, text: p.text }));
+      onLibraryChanged();
+      setStatus('Imported ' + promptLibrary.length + ' prompt'
+        + (promptLibrary.length === 1 ? '' : 's') + ' from ' + file.name + '.');
+    } catch (err) {
+      console.error('Library import failed', err);
+      setStatus('Import failed: ' + (err && err.message ? err.message : err));
+    }
+  });
+
+  // --- Prompt library editor window ---
+  let editorWindow = null;
+  let editorReady = false;
+  let editorObjectUrl = null;
+
+  libraryEditBtn.addEventListener('click', openEditorWindow);
+
+  function openEditorWindow() {
+    if (editorWindow && !editorWindow.closed) {
+      editorWindow.focus();
+      pushLibraryToEditor();
+      return;
+    }
+    if (editorObjectUrl) URL.revokeObjectURL(editorObjectUrl);
+    const blob = new Blob([buildEditorHtml()], { type: 'text/html' });
+    editorObjectUrl = URL.createObjectURL(blob);
+    editorWindow = window.open(
+      editorObjectUrl, 'fwb-prompt-editor',
+      'width=820,height=900,scrollbars=yes,resizable=yes'
+    );
+    if (!editorWindow) {
+      alert('The prompt editor popup was blocked. Please allow popups for this page.');
+      return;
+    }
+    editorReady = false;
+    editorWindow.focus();
+  }
+
+  window.addEventListener('message', e => {
+    if (!e.data) return;
+    if (editorWindow && e.source === editorWindow) {
+      if (e.data.type === 'editorReady') {
+        editorReady = true;
+        pushLibraryToEditor();
+      } else if (e.data.type === 'promptLibrary' && Array.isArray(e.data.promptLibrary)) {
+        promptLibrary = e.data.promptLibrary
+          .filter(p => p && typeof p.name === 'string' && typeof p.text === 'string')
+          .map(p => ({
+            id: typeof p.id === 'string' && p.id ? p.id : makeId(),
+            name: p.name,
+            text: p.text
+          }));
+        updateLibraryCountHint();
+        pushLibraryToViewer();
+      }
+    }
+  });
 
   // --- Drop zone & file input ---
   dropzone.addEventListener('click', () => fileInput.click());
@@ -609,7 +769,8 @@
         fileId: entry.id,
         fileName: entry.file.name,
         pageNum,
-        llmSettings: { ...llmSettings }
+        llmSettings: { ...llmSettings },
+        promptLibrary: promptLibrary.map(p => ({ ...p }))
       };
       if (fileData) {
         msg.fileData = fileData;
@@ -619,6 +780,255 @@
         targetWindow.postMessage(msg, '*');
       }
     }).catch(err => console.error('Viewer send failed', err));
+  }
+
+  // The prompt library editor is its own embedded HTML doc, same blob-URL
+  // pattern as the viewer. It posts the full library back to this window
+  // on every mutation; we treat that as the source of truth.
+  function buildEditorHtml() {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FWB — Prompt Library Editor</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+         Roboto, sans-serif; background: #f5f5f7; color: #1d1d1f; }
+  header { padding: 16px 24px; background: #fff;
+           border-bottom: 1px solid #d2d2d7;
+           display: flex; align-items: baseline; gap: 12px; }
+  header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+  header .hint { color: #6e6e73; font-size: 12px; }
+  main { max-width: 720px; margin: 0 auto; padding: 24px;
+         display: flex; flex-direction: column; gap: 20px; }
+  section { background: #fff; border: 1px solid #d2d2d7;
+            border-radius: 8px; padding: 16px 20px; }
+  section h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+  label { display: block; font-size: 12px; color: #6e6e73; margin-top: 10px; }
+  input[type="text"], textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid #d2d2d7;
+    border-radius: 6px; font: inherit; outline: none; margin-top: 4px;
+  }
+  input[type="text"]:focus, textarea:focus { border-color: #0066cc; }
+  textarea { min-height: 110px; resize: vertical; font-family: inherit; }
+  .row { margin-top: 12px; display: flex; gap: 8px; }
+  button { padding: 8px 16px; border-radius: 6px; border: none;
+           background: #0066cc; color: #fff; font: inherit;
+           font-weight: 500; cursor: pointer; }
+  button:hover:not(:disabled) { background: #0055aa; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary { background: #e5e5e7; color: #1d1d1f; }
+  button.secondary:hover:not(:disabled) { background: #d2d2d7; }
+  button.danger { background: #fdf0f0; color: #b00020; }
+  button.danger:hover:not(:disabled) { background: #fde0e0; }
+  ul#promptList { list-style: none; padding: 0; margin: 0; }
+  .prompt-row { display: flex; align-items: center; padding: 8px 10px;
+                border: 1px solid transparent; border-radius: 6px;
+                cursor: pointer; gap: 8px; margin-bottom: 4px; }
+  .prompt-row:hover { background: #f0f7ff; }
+  .prompt-row.selected { background: #e8f3ff; border-color: #0066cc; }
+  .prompt-name { flex: 1; font-size: 14px; min-width: 0;
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .actions button { padding: 4px 10px; font-size: 13px; }
+  .empty { color: #6e6e73; font-style: italic; font-size: 13px; margin: 4px 0 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Prompt Library Editor</h1>
+  <span class="hint">Changes sync live to the main window.</span>
+</header>
+<main>
+  <section>
+    <h2>Existing Prompts</h2>
+    <ul id="promptList"></ul>
+    <p class="empty" id="emptyMsg">No prompts yet. Add one below.</p>
+  </section>
+  <section id="editSection" hidden>
+    <h2>Edit Selected Prompt</h2>
+    <label for="editName">Name</label>
+    <input id="editName" type="text">
+    <label for="editText">Prompt text</label>
+    <textarea id="editText"></textarea>
+    <div class="row"><button id="saveEditBtn">Save Changes</button></div>
+  </section>
+  <section>
+    <h2>Add New Prompt</h2>
+    <label for="addName">Name</label>
+    <input id="addName" type="text" placeholder="e.g. Summarize">
+    <label for="addText">Prompt text</label>
+    <textarea id="addText" placeholder="Enter the prompt text..."></textarea>
+    <div class="row"><button id="addBtn">Add Prompt</button></div>
+  </section>
+</main>
+<script>
+(() => {
+  let library = [];
+  let selectedId = null;
+
+  const listEl = document.getElementById('promptList');
+  const emptyMsg = document.getElementById('emptyMsg');
+  const editSection = document.getElementById('editSection');
+  const editName = document.getElementById('editName');
+  const editText = document.getElementById('editText');
+  const saveEditBtn = document.getElementById('saveEditBtn');
+  const addName = document.getElementById('addName');
+  const addText = document.getElementById('addText');
+  const addBtn = document.getElementById('addBtn');
+
+  function makeId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
+  function postLibrary() {
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.postMessage(
+          { type: 'promptLibrary', promptLibrary: library.map(p => ({ ...p })) },
+          '*'
+        );
+      } catch (e) {}
+    }
+  }
+
+  function render() {
+    listEl.innerHTML = '';
+    if (selectedId && !library.find(p => p.id === selectedId)) selectedId = null;
+
+    if (!library.length) {
+      emptyMsg.style.display = '';
+      editSection.hidden = true;
+      return;
+    }
+    emptyMsg.style.display = 'none';
+
+    library.forEach((p, i) => {
+      const li = document.createElement('li');
+      li.dataset.id = p.id;
+      li.className = 'prompt-row' + (p.id === selectedId ? ' selected' : '');
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'prompt-name';
+      nameSpan.textContent = p.name || '(untitled)';
+      nameSpan.addEventListener('click', () => selectPrompt(p.id));
+      li.appendChild(nameSpan);
+
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+
+      const upBtn = document.createElement('button');
+      upBtn.className = 'secondary';
+      upBtn.textContent = '\\u2191';
+      upBtn.title = 'Move up';
+      upBtn.disabled = i === 0;
+      upBtn.addEventListener('click', e => {
+        e.stopPropagation(); movePrompt(p.id, -1);
+      });
+      actions.appendChild(upBtn);
+
+      const downBtn = document.createElement('button');
+      downBtn.className = 'secondary';
+      downBtn.textContent = '\\u2193';
+      downBtn.title = 'Move down';
+      downBtn.disabled = i === library.length - 1;
+      downBtn.addEventListener('click', e => {
+        e.stopPropagation(); movePrompt(p.id, 1);
+      });
+      actions.appendChild(downBtn);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'danger';
+      delBtn.textContent = '\\u2715';
+      delBtn.title = 'Delete';
+      delBtn.addEventListener('click', e => {
+        e.stopPropagation(); deletePrompt(p.id);
+      });
+      actions.appendChild(delBtn);
+
+      li.appendChild(actions);
+      listEl.appendChild(li);
+    });
+
+    if (selectedId) {
+      const p = library.find(x => x.id === selectedId);
+      editSection.hidden = false;
+      editName.value = p.name;
+      editText.value = p.text;
+    } else {
+      editSection.hidden = true;
+    }
+  }
+
+  function selectPrompt(id) {
+    selectedId = id;
+    render();
+  }
+
+  function movePrompt(id, dir) {
+    const idx = library.findIndex(p => p.id === id);
+    if (idx < 0) return;
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= library.length) return;
+    const tmp = library[idx];
+    library[idx] = library[newIdx];
+    library[newIdx] = tmp;
+    render();
+    postLibrary();
+  }
+
+  function deletePrompt(id) {
+    library = library.filter(p => p.id !== id);
+    if (selectedId === id) selectedId = null;
+    render();
+    postLibrary();
+  }
+
+  saveEditBtn.addEventListener('click', () => {
+    if (!selectedId) return;
+    const name = (editName.value || '').trim();
+    if (!name) { editName.focus(); return; }
+    const idx = library.findIndex(p => p.id === selectedId);
+    if (idx < 0) return;
+    library[idx] = { ...library[idx], name: name, text: editText.value };
+    render();
+    postLibrary();
+  });
+
+  addBtn.addEventListener('click', () => {
+    const name = (addName.value || '').trim();
+    if (!name) { addName.focus(); return; }
+    const text = addText.value;
+    library.push({ id: makeId(), name: name, text: text });
+    addName.value = '';
+    addText.value = '';
+    render();
+    postLibrary();
+  });
+
+  window.addEventListener('message', e => {
+    if (!e.data || e.source !== window.opener) return;
+    if (e.data.type === 'promptLibrary' && Array.isArray(e.data.promptLibrary)) {
+      library = e.data.promptLibrary.map(p => ({ ...p }));
+      render();
+    }
+  });
+
+  render();
+
+  function signalReady() {
+    if (window.opener && !window.opener.closed) {
+      try { window.opener.postMessage({ type: 'editorReady' }, '*'); } catch (e) {}
+    }
+  }
+  if (document.readyState === 'complete') signalReady();
+  else window.addEventListener('load', signalReady);
+})();
+<\/script>
+</body>
+</html>`;
   }
 
   // The viewer is built as an embedded HTML doc served from a blob URL so
@@ -659,6 +1069,16 @@
   .llm-status { font-size: 12px; color: #aaa; min-height: 16px;
                 white-space: pre-wrap; }
   .llm-status.error { color: #ff6b6b; }
+  .library-section { display: flex; flex-direction: column; gap: 6px; }
+  .library-label { font-size: 11px; color: #888;
+                   text-transform: uppercase; letter-spacing: 0.5px; }
+  .library-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .library-list .lib-item { background: #2a2a2a; color: #eee;
+                             padding: 4px 12px; border-radius: 14px;
+                             font-size: 12px; cursor: pointer;
+                             border: 1px solid #444; user-select: none; }
+  .library-list .lib-item:hover { background: #1a3a5a; border-color: #0066cc; }
+  .library-list .lib-empty { color: #777; font-size: 11px; font-style: italic; }
 </style>
 </head>
 <body>
@@ -667,8 +1087,12 @@
   <span id="pageInfo"></span>
 </header>
 <div class="llm-panel">
+  <div class="library-section">
+    <div class="library-label">Library prompts &mdash; click to copy, double-click to run</div>
+    <div id="libraryList" class="library-list"></div>
+  </div>
+  <textarea id="llmPrompt" placeholder="...or type an ad-hoc prompt here"></textarea>
   <button id="llmBtn" disabled>Examine page using LLM</button>
-  <textarea id="llmPrompt" placeholder="Prompt to send with the page (e.g. 'Describe what is shown on this page.')"></textarea>
   <div id="llmStatus" class="llm-status"></div>
 </div>
 <div id="status">Waiting for page...</div>
@@ -679,6 +1103,7 @@
   pdfjsLib.GlobalWorkerOptions.workerSrc = '${PDFJS_BASE}/pdf.worker.min.js';
   // Updated by every message from the opener.
   const llmSettings = { endpoint: '', provider: 'openai', model: 'gpt-4.1-mini' };
+  let promptLibrary = [];
   const docs = new Map(); // fileId -> PDFDocumentProxy
   const titleEl = document.getElementById('title');
   const pageInfoEl = document.getElementById('pageInfo');
@@ -687,10 +1112,37 @@
   const llmBtn = document.getElementById('llmBtn');
   const llmPrompt = document.getElementById('llmPrompt');
   const llmStatus = document.getElementById('llmStatus');
+  const libraryListEl = document.getElementById('libraryList');
   let queue = Promise.resolve();
   let currentRender = null;
   let current = null; // { fileId, pageNum, fileName, canvas }
   let llmBusy = false;
+
+  function renderLibrary() {
+    libraryListEl.innerHTML = '';
+    if (!promptLibrary.length) {
+      const empty = document.createElement('span');
+      empty.className = 'lib-empty';
+      empty.textContent = 'No saved prompts. Open the hamburger menu in the main window to add some.';
+      libraryListEl.appendChild(empty);
+      return;
+    }
+    for (const p of promptLibrary) {
+      const item = document.createElement('span');
+      item.className = 'lib-item';
+      item.textContent = p.name;
+      item.title = p.text + '\\n\\n(Double-click to run)';
+      item.addEventListener('click', () => {
+        llmPrompt.value = p.text;
+      });
+      item.addEventListener('dblclick', () => {
+        llmPrompt.value = p.text;
+        examineWithLlm();
+      });
+      libraryListEl.appendChild(item);
+    }
+  }
+  renderLibrary();
 
   function setLlmStatus(msg, isError) {
     llmStatus.textContent = msg || '';
@@ -706,7 +1158,12 @@
     if (req.llmSettings && typeof req.llmSettings === 'object') {
       Object.assign(llmSettings, req.llmSettings);
     }
-    if (req.type === 'llmSettings') return; // settings-only message
+    if (Array.isArray(req.promptLibrary)) {
+      promptLibrary = req.promptLibrary.map(p => ({ ...p }));
+      renderLibrary();
+    }
+    if (req.type === 'llmSettings') return;   // settings-only message
+    if (req.type === 'promptLibrary') return; // library-only message
     const { fileId, fileName, fileData, pageNum } = req;
     if (typeof pageNum !== 'number') return;
     statusEl.style.display = 'block';
