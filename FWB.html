@@ -159,6 +159,24 @@
     content: attr(data-placeholder);
     color: #c7c7cc;
   }
+  td.col-llm-response {
+    min-width: 240px;
+    font-size: 13px;
+    white-space: pre-wrap;
+    color: var(--text);
+  }
+  td.col-llm-response:empty::before {
+    content: 'No LLM response yet.';
+    color: #c7c7cc;
+    font-style: italic;
+  }
+  td.col-llm-response.pending {
+    color: var(--muted);
+    font-style: italic;
+  }
+  td.col-llm-response.error {
+    color: #b00;
+  }
   .empty-state {
     text-align: center;
     padding: 48px;
@@ -174,9 +192,60 @@
     font-size: 12px;
     padding: 16px;
   }
+  /* Hamburger settings menu */
+  #settings-toggle {
+    position: fixed; top: 14px; right: 16px; z-index: 1000;
+    width: 40px; height: 40px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--panel);
+    cursor: pointer; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 5px;
+    padding: 0; transition: background 0.15s;
+  }
+  #settings-toggle:hover { background: #f0f0f0; }
+  #settings-toggle .bar {
+    width: 20px; height: 2px; background: var(--text); border-radius: 1px;
+    transition: transform 0.25s, opacity 0.25s;
+  }
+  #settings-toggle.open .bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  #settings-toggle.open .bar:nth-child(2) { opacity: 0; }
+  #settings-toggle.open .bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+  #settings-panel {
+    display: none; position: fixed; top: 64px; right: 16px; z-index: 999;
+    width: 380px; padding: 20px; border-radius: 12px;
+    background: var(--panel); border: 1px solid var(--border);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  }
+  #settings-panel.open { display: block; }
+  #settings-panel h3 { font-size: 16px; margin: 0 0 12px; font-weight: 600; }
+  #settings-panel label {
+    display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px;
+  }
+  #settings-panel input[type="text"] {
+    width: 100%; padding: 8px 10px; border-radius: 6px;
+    border: 1px solid var(--border); font: inherit; outline: none;
+    box-sizing: border-box;
+  }
+  #settings-panel input[type="text"]:focus { border-color: var(--accent); }
+  #settings-panel .hint {
+    font-size: 12px; color: var(--muted); margin: 6px 0 0;
+  }
+  #settings-panel .settings-save-btn {
+    margin-top: 14px; padding: 8px 16px;
+  }
 </style>
 </head>
 <body>
+
+<button id="settings-toggle" title="Settings" aria-label="Settings">
+  <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+</button>
+<div id="settings-panel">
+  <h3>AI Gateway Settings</h3>
+  <label for="settings-endpoint">Gateway Endpoint</label>
+  <input id="settings-endpoint" type="text" placeholder="e.g. http://localhost:8080/chat">
+  <p class="hint">Full URL of the ai_proxy <code>/chat</code> endpoint.</p>
+  <button class="settings-save-btn" id="settings-save-btn">Save</button>
+</div>
 
 <header>
   <h1>Forensic Workbench Dashboard</h1>
@@ -205,6 +274,7 @@
         <th>Page</th>
         <th>Thumbnail</th>
         <th>Notes</th>
+        <th>LLM Response</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -221,6 +291,10 @@
   const PDFJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + PDFJS_VERSION;
   pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + '/pdf.worker.min.js';
 
+  // LLM gateway settings — set by the user via the hamburger menu.
+  // Kept in memory only; pre-populate + persist comes in a later iteration.
+  const llmSettings = { endpoint: '', provider: 'openai', model: 'gpt-4.1-mini' };
+
   // --- DOM refs ---
   const dropzone     = document.getElementById('dropzone');
   const fileInput    = document.getElementById('fileInput');
@@ -236,6 +310,38 @@
   let files = [];        // [{file: File, pdfDoc: PDFDocumentProxy, id: number}]
   let nextId = 1;
   let busy = false;
+
+  // --- Settings panel ---
+  const settingsToggle    = document.getElementById('settings-toggle');
+  const settingsPanel     = document.getElementById('settings-panel');
+  const settingsEndpointEl = document.getElementById('settings-endpoint');
+  const settingsSaveBtn   = document.getElementById('settings-save-btn');
+
+  settingsToggle.addEventListener('click', () => {
+    settingsToggle.classList.toggle('open');
+    settingsPanel.classList.toggle('open');
+  });
+
+  settingsSaveBtn.addEventListener('click', () => {
+    llmSettings.endpoint = settingsEndpointEl.value.trim();
+    settingsToggle.classList.remove('open');
+    settingsPanel.classList.remove('open');
+    pushLlmSettingsToViewer();
+    setStatus(llmSettings.endpoint
+      ? 'Gateway endpoint saved.'
+      : 'Gateway endpoint cleared.');
+  });
+
+  function pushLlmSettingsToViewer() {
+    if (viewerWindow && !viewerWindow.closed && viewerReady) {
+      try {
+        viewerWindow.postMessage(
+          { type: 'llmSettings', llmSettings: { ...llmSettings } },
+          '*'
+        );
+      } catch (e) {}
+    }
+  }
 
   // --- Drop zone & file input ---
   dropzone.addEventListener('click', () => fileInput.click());
@@ -332,6 +438,8 @@
         setStatus(`Rendering thumbnails: ${done} / ${totalPages}`);
 
         const tr = document.createElement('tr');
+        tr.dataset.fileId = String(entry.id);
+        tr.dataset.pageNum = String(pageNum);
 
         const tdFile = document.createElement('td');
         tdFile.className = 'col-file';
@@ -354,6 +462,10 @@
         notesDiv.dataset.placeholder = 'Add notes...';
         tdNotes.appendChild(notesDiv);
         tr.appendChild(tdNotes);
+
+        const tdLlm = document.createElement('td');
+        tdLlm.className = 'col-llm-response';
+        tr.appendChild(tdLlm);
 
         tbody.appendChild(tr);
 
@@ -425,8 +537,34 @@
       const waiters = readyWaiters;
       readyWaiters = [];
       waiters.forEach(r => r());
+    } else if (e.data.type === 'llmResponse') {
+      applyLlmResponse(e.data);
     }
   });
+
+  function findRow(fileId, pageNum) {
+    return tbody.querySelector(
+      `tr[data-file-id="${fileId}"][data-page-num="${pageNum}"]`
+    );
+  }
+
+  function applyLlmResponse(payload) {
+    const { fileId, pageNum, status, text } = payload || {};
+    const row = findRow(fileId, pageNum);
+    if (!row) return;
+    const cell = row.querySelector('td.col-llm-response');
+    if (!cell) return;
+    cell.classList.remove('pending', 'error');
+    if (status === 'pending') {
+      cell.classList.add('pending');
+      cell.textContent = 'Querying LLM...';
+    } else if (status === 'error') {
+      cell.classList.add('error');
+      cell.textContent = text || 'LLM request failed.';
+    } else {
+      cell.textContent = text || '';
+    }
+  }
 
   function ensureViewerWindow() {
     if (viewerWindow && !viewerWindow.closed) {
@@ -467,7 +605,12 @@
       }
       await waitForViewerReady();
       if (targetWindow !== viewerWindow || targetWindow.closed) return;
-      const msg = { fileId: entry.id, fileName: entry.file.name, pageNum };
+      const msg = {
+        fileId: entry.id,
+        fileName: entry.file.name,
+        pageNum,
+        llmSettings: { ...llmSettings }
+      };
       if (fileData) {
         msg.fileData = fileData;
         targetWindow.postMessage(msg, '*', [fileData]);
@@ -500,6 +643,22 @@
   #wrap { display: flex; justify-content: center; padding: 24px; }
   canvas { box-shadow: 0 4px 24px rgba(0,0,0,0.5); max-width: 100%;
            height: auto; background: #fff; }
+  .llm-panel { padding: 12px 16px; background: #1a1a1a;
+               border-bottom: 1px solid #333; display: flex;
+               flex-direction: column; gap: 8px; }
+  .llm-panel button { font: inherit; background: #0066cc; color: #fff;
+                      border: 0; border-radius: 6px; padding: 8px 14px;
+                      cursor: pointer; font-weight: 500; align-self: flex-start; }
+  .llm-panel button:hover:not(:disabled) { background: #0055aa; }
+  .llm-panel button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .llm-panel textarea { font: inherit; width: 100%; min-height: 60px;
+                        padding: 6px 8px; background: #2a2a2a; color: #eee;
+                        border: 1px solid #444; border-radius: 6px;
+                        resize: vertical; box-sizing: border-box; }
+  .llm-panel textarea:focus { border-color: #0066cc; outline: none; }
+  .llm-status { font-size: 12px; color: #aaa; min-height: 16px;
+                white-space: pre-wrap; }
+  .llm-status.error { color: #ff6b6b; }
 </style>
 </head>
 <body>
@@ -507,22 +666,47 @@
   <span id="title">FWB Viewer</span>
   <span id="pageInfo"></span>
 </header>
+<div class="llm-panel">
+  <button id="llmBtn" disabled>Examine page using LLM</button>
+  <textarea id="llmPrompt" placeholder="Prompt to send with the page (e.g. 'Describe what is shown on this page.')"></textarea>
+  <div id="llmStatus" class="llm-status"></div>
+</div>
 <div id="status">Waiting for page...</div>
 <div id="wrap"></div>
 <script src="${PDFJS_BASE}/pdf.min.js"><\/script>
 <script>
 (() => {
   pdfjsLib.GlobalWorkerOptions.workerSrc = '${PDFJS_BASE}/pdf.worker.min.js';
+  // Updated by every message from the opener.
+  const llmSettings = { endpoint: '', provider: 'openai', model: 'gpt-4.1-mini' };
   const docs = new Map(); // fileId -> PDFDocumentProxy
   const titleEl = document.getElementById('title');
   const pageInfoEl = document.getElementById('pageInfo');
   const wrapEl = document.getElementById('wrap');
   const statusEl = document.getElementById('status');
+  const llmBtn = document.getElementById('llmBtn');
+  const llmPrompt = document.getElementById('llmPrompt');
+  const llmStatus = document.getElementById('llmStatus');
   let queue = Promise.resolve();
   let currentRender = null;
+  let current = null; // { fileId, pageNum, fileName, canvas }
+  let llmBusy = false;
+
+  function setLlmStatus(msg, isError) {
+    llmStatus.textContent = msg || '';
+    llmStatus.classList.toggle('error', !!isError);
+  }
+
+  function updateLlmButton() {
+    llmBtn.disabled = llmBusy || !current;
+  }
 
   async function handle(req) {
     if (!req || typeof req !== 'object') return;
+    if (req.llmSettings && typeof req.llmSettings === 'object') {
+      Object.assign(llmSettings, req.llmSettings);
+    }
+    if (req.type === 'llmSettings') return; // settings-only message
     const { fileId, fileName, fileData, pageNum } = req;
     if (typeof pageNum !== 'number') return;
     statusEl.style.display = 'block';
@@ -563,7 +747,89 @@
     pageInfoEl.textContent = 'Page ' + pageNum + ' of ' + pdf.numPages;
     document.title = (fileName || 'FWB Viewer') + ' \\u2014 Page ' + pageNum;
     statusEl.style.display = 'none';
+    current = { fileId: fileId, pageNum: pageNum, fileName: fileName || '', canvas: canvas };
+    setLlmStatus('');
+    updateLlmButton();
   }
+
+  function postToOpener(payload) {
+    if (window.opener && !window.opener.closed) {
+      try { window.opener.postMessage(payload, '*'); } catch (e) {}
+    }
+  }
+
+  async function examineWithLlm() {
+    if (!current || llmBusy) return;
+    const endpoint = (llmSettings.endpoint || '').trim();
+    if (!endpoint) {
+      setLlmStatus(
+        'No gateway endpoint configured. Open the hamburger menu in the main window and save one.',
+        true
+      );
+      return;
+    }
+    const promptText = (llmPrompt.value || '').trim() ||
+      'Describe what is shown on this page.';
+    const snapshot = current;
+    llmBusy = true;
+    updateLlmButton();
+    setLlmStatus('Sending page to LLM...', false);
+    postToOpener({
+      type: 'llmResponse',
+      fileId: snapshot.fileId,
+      pageNum: snapshot.pageNum,
+      status: 'pending'
+    });
+    try {
+      const dataUrl = snapshot.canvas.toDataURL('image/png');
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          provider: llmSettings.provider || 'openai',
+          model: llmSettings.model || 'gpt-4.1-mini',
+          input: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: promptText },
+                { type: 'image', image_url: dataUrl, detail: 'high' }
+              ]
+            }
+          ]
+        })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        const err = data && data.error ? data.error : ('HTTP ' + resp.status);
+        throw new Error(err);
+      }
+      const text = (data && typeof data.response === 'string') ? data.response : '';
+      setLlmStatus('LLM response received (' + text.length + ' chars).', false);
+      postToOpener({
+        type: 'llmResponse',
+        fileId: snapshot.fileId,
+        pageNum: snapshot.pageNum,
+        status: 'success',
+        text: text
+      });
+    } catch (err) {
+      const msg = (err && err.message) ? err.message : String(err);
+      setLlmStatus('Error: ' + msg, true);
+      postToOpener({
+        type: 'llmResponse',
+        fileId: snapshot.fileId,
+        pageNum: snapshot.pageNum,
+        status: 'error',
+        text: 'Error: ' + msg
+      });
+    } finally {
+      llmBusy = false;
+      updateLlmButton();
+    }
+  }
+
+  llmBtn.addEventListener('click', examineWithLlm);
 
   window.addEventListener('message', e => {
     queue = queue
