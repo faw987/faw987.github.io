@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Forensic Workbench Dashboard — FWB</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <style>
   :root {
     --bg: #f5f5f7;
@@ -241,6 +242,84 @@
   #settings-panel .library-row button { padding: 8px 14px; font-size: 13px; }
   #settings-panel .demo-btn { background: #16a34a; }
   #settings-panel .demo-btn:hover:not(:disabled) { background: #128a3d; }
+  /* Doc modal */
+  #doc-modal {
+    display: none; position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0,0,0,0.45);
+    align-items: center; justify-content: center; padding: 40px;
+  }
+  #doc-modal.open { display: flex; }
+  #doc-modal-content {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; max-width: 900px; width: 100%; max-height: 90vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  #doc-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px; border-bottom: 1px solid var(--border); gap: 12px;
+  }
+  #doc-modal-header h3 {
+    font-size: 17px; color: var(--text); margin: 0; font-weight: 600;
+    flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #doc-modal-actions { display: flex; align-items: center; gap: 8px; }
+  #doc-view-toggle {
+    background: transparent; color: var(--text);
+    font: inherit; font-size: 13px; font-weight: 500;
+    padding: 6px 12px; border-radius: 6px;
+    border: 1px solid var(--border); cursor: pointer;
+  }
+  #doc-view-toggle:hover { background: #f0f0f0; }
+  #doc-modal-close {
+    background: transparent; color: var(--muted); font-size: 22px;
+    padding: 0 10px; line-height: 1; border-radius: 6px;
+    border: 0; cursor: pointer;
+  }
+  #doc-modal-close:hover { background: #f0f0f0; color: var(--text); }
+  #doc-modal-body {
+    padding: 18px 26px; overflow-y: auto; color: var(--text);
+    font-size: 15px; line-height: 1.6;
+  }
+  #doc-modal-body.raw {
+    white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+  }
+  #doc-modal-body.rendered h1 {
+    font-size: 24px; margin: 16px 0 12px;
+    border-bottom: 1px solid var(--border); padding-bottom: 8px;
+  }
+  #doc-modal-body.rendered h2 {
+    font-size: 19px; margin: 16px 0 10px;
+    border-bottom: 1px solid var(--border); padding-bottom: 6px;
+  }
+  #doc-modal-body.rendered h3 { font-size: 16px; margin: 14px 0 8px; }
+  #doc-modal-body.rendered h4 { font-size: 15px; margin: 12px 0 6px; }
+  #doc-modal-body.rendered p { margin: 10px 0; }
+  #doc-modal-body.rendered ul,
+  #doc-modal-body.rendered ol { margin: 10px 0 10px 24px; }
+  #doc-modal-body.rendered li { margin: 4px 0; }
+  #doc-modal-body.rendered strong { color: var(--text); }
+  #doc-modal-body.rendered a { color: var(--accent); text-decoration: none; }
+  #doc-modal-body.rendered a:hover { text-decoration: underline; }
+  #doc-modal-body.rendered code {
+    background: #f0f0f0; color: #b91c1c; padding: 2px 6px;
+    border-radius: 4px; font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  #doc-modal-body.rendered pre {
+    background: #f5f5f7; border: 1px solid var(--border);
+    border-radius: 6px; padding: 12px 14px; overflow-x: auto; margin: 10px 0;
+  }
+  #doc-modal-body.rendered pre code {
+    background: transparent; padding: 0; color: var(--text);
+  }
+  #doc-modal-body.rendered blockquote {
+    border-left: 3px solid var(--border); padding: 4px 12px; margin: 10px 0;
+    color: var(--muted);
+  }
 </style>
 </head>
 <body>
@@ -267,6 +346,23 @@
     <button class="settings-save-btn" id="library-export-btn">Export</button>
   </div>
   <input type="file" id="library-import-file" accept="application/json,.json" hidden>
+
+  <hr class="section-divider">
+  <h3>Documentation</h3>
+  <button class="settings-save-btn" id="open-guide-btn" style="margin-top: 6px;">User Guide</button>
+</div>
+
+<div id="doc-modal" role="dialog" aria-modal="true" aria-labelledby="doc-modal-title">
+  <div id="doc-modal-content">
+    <div id="doc-modal-header">
+      <h3 id="doc-modal-title">Document</h3>
+      <div id="doc-modal-actions">
+        <button id="doc-view-toggle" title="Toggle between rendered and raw markdown">Show Markdown</button>
+        <button id="doc-modal-close" title="Close" aria-label="Close">&times;</button>
+      </div>
+    </div>
+    <div id="doc-modal-body"></div>
+  </div>
 </div>
 
 <header>
@@ -517,6 +613,79 @@
       loadDemoBtn.textContent = 'Load Demo Data';
     }
   }
+
+  // --- Doc modal (User Guide) ---
+  const docModal       = document.getElementById('doc-modal');
+  const docModalTitle  = document.getElementById('doc-modal-title');
+  const docModalBody   = document.getElementById('doc-modal-body');
+  const docViewToggle  = document.getElementById('doc-view-toggle');
+  const docModalClose  = document.getElementById('doc-modal-close');
+  const openGuideBtn   = document.getElementById('open-guide-btn');
+  let docRawSource = '';
+  let docViewMode = 'rendered'; // 'rendered' | 'raw'
+
+  function applyDocView() {
+    if (docViewMode === 'rendered') {
+      docModalBody.classList.remove('raw');
+      docModalBody.classList.add('rendered');
+      if (window.marked) {
+        docModalBody.innerHTML = marked.parse(docRawSource);
+        docModalBody.querySelectorAll('a').forEach(a => {
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+        });
+      } else {
+        docModalBody.textContent = docRawSource;
+      }
+      docViewToggle.textContent = 'Show Markdown';
+    } else {
+      docModalBody.classList.remove('rendered');
+      docModalBody.classList.add('raw');
+      docModalBody.textContent = docRawSource;
+      docViewToggle.textContent = 'Show Formatted';
+    }
+  }
+
+  async function openDoc(filename, title) {
+    docModalTitle.textContent = title;
+    docRawSource = 'Loading…';
+    docViewMode = 'rendered';
+    docModalBody.classList.remove('raw', 'rendered');
+    docModalBody.textContent = 'Loading…';
+    docModal.classList.add('open');
+    try {
+      const url = DEMO_BASE_URL + filename + '?t=' + Date.now();
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' for ' + url);
+      docRawSource = await res.text();
+      applyDocView();
+    } catch (err) {
+      docRawSource = 'Failed to load ' + filename + ': '
+        + (err && err.message ? err.message : err);
+      docModalBody.classList.remove('rendered');
+      docModalBody.classList.add('raw');
+      docModalBody.textContent = docRawSource;
+    }
+  }
+
+  openGuideBtn.addEventListener('click', () => {
+    settingsToggle.classList.remove('open');
+    settingsPanel.classList.remove('open');
+    openDoc('FWB_user_doc.md', 'FWB User Guide');
+  });
+  docViewToggle.addEventListener('click', () => {
+    docViewMode = (docViewMode === 'rendered') ? 'raw' : 'rendered';
+    applyDocView();
+  });
+  docModalClose.addEventListener('click', () => docModal.classList.remove('open'));
+  docModal.addEventListener('click', e => {
+    if (e.target === docModal) docModal.classList.remove('open');
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && docModal.classList.contains('open')) {
+      docModal.classList.remove('open');
+    }
+  });
 
   // --- Prompt library editor window ---
   let editorWindow = null;
