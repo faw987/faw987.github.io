@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "exportedAt": "2026-05-09T15:03:58.712Z",
+  "prompts": [
+    {
+      "name": "Headers",
+      "text": "Examine the page for what you might think of as header type information, that is like the name of the institution, the name of the account, the range of dates, the page number of so many pages, and summarize just that information."
+    },
+    {
+      "name": "money",
+      "text": "Go through the page carefully looking for anything that has to do with money and specifically summarize those things."
+    },
+    {
+      "name": "summarize",
+      "text": "Examine the page very carefully and summarize the most important information on it. Typically, the most important information has to do with money, but that's the task of the general summarize. "
+    }
+  ]
+}
