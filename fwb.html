@@ -1407,8 +1407,8 @@
 <div class="llm-panel">
   <div class="model-section">
     <span class="model-label">Model</span>
-    <label><input type="radio" name="modelChoice" value="gpt-54-nano" checked> GPT-54-nano</label>
-    <label><input type="radio" name="modelChoice" value="gpt-54-mini"> GPT-54-mini</label>
+    <label><input type="radio" name="modelChoice" value="gpt-5.4-nano" checked> gpt-5.4-nano</label>
+    <label><input type="radio" name="modelChoice" value="gpt-5.4-mini"> gpt-5.4-mini</label>
   </div>
   <div class="library-section">
     <div class="library-label">Library prompts &mdash; click to copy, double-click to run</div>
@@ -1430,7 +1430,7 @@
   let promptLibrary = [];
   function getSelectedModel() {
     const r = document.querySelector('input[name="modelChoice"]:checked');
-    return (r && r.value) || 'gpt-54-nano';
+    return (r && r.value) || 'gpt-5.4-nano';
   }
   const docs = new Map(); // fileId -> PDFDocumentProxy
   const titleEl = document.getElementById('title');
