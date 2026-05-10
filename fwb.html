@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forensic Workbench Dashboard — FWB</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --panel: #ffffff;
+    --border: #d2d2d7;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --accent: #0066cc;
+    --accent-hover: #0055aa;
+    --drop-bg: #fafafa;
+    --drop-border: #c7c7cc;
+    --drop-active: #007aff;
+    --drop-active-bg: #e8f3ff;
+    --row-hover: #f0f7ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+  .badge {
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+  .badge.version {
+    background: #f0f0f0;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    font-weight: 600;
+  }
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  .dropzone {
+    border: 2px dashed var(--drop-border);
+    border-radius: 12px;
+    padding: 48px 24px;
+    text-align: center;
+    background: var(--drop-bg);
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+    outline: none;
+  }
+  .dropzone:hover, .dropzone:focus { border-color: var(--accent); background: #fff; }
+  .dropzone.dragover { border-color: var(--drop-active); background: var(--drop-active-bg); }
+  .dropzone p { margin: 0; color: var(--muted); }
+  .dropzone .primary { font-size: 16px; color: var(--text); margin-bottom: 4px; }
+  .controls {
+    margin: 20px 0;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  button {
+    font: inherit;
+    background: var(--accent);
+    color: #fff;
+    border: 0;
+    border-radius: 8px;
+    padding: 10px 18px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  button:hover:not(:disabled) { background: var(--accent-hover); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  button.secondary:hover:not(:disabled) { background: var(--panel); }
+  .file-list {
+    color: var(--muted);
+    font-size: 13px;
+    flex: 1 1 auto;
+  }
+  .file-list ul { margin: 0; padding-left: 18px; }
+  .status {
+    margin: 12px 0;
+    font-size: 14px;
+    color: var(--muted);
+    min-height: 20px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    background: #fafafa;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: var(--row-hover); }
+  td.col-file { font-size: 13px; max-width: 280px; word-break: break-all; }
+  td.col-page { font-variant-numeric: tabular-nums; width: 60px; text-align: right; color: var(--muted); }
+  td.col-thumb { width: 180px; }
+  td.col-thumb canvas {
+    display: block;
+    cursor: zoom-in;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    transition: transform 0.1s, border-color 0.1s;
+    background: #fff;
+  }
+  td.col-thumb canvas:hover {
+    transform: scale(1.02);
+    border-color: var(--accent);
+  }
+  td.col-thumb .thumb-error { color: #b00; font-size: 12px; }
+  td.col-notes { min-width: 200px; }
+  td.col-notes [contenteditable] {
+    display: block;
+    min-height: 60px;
+    padding: 6px 8px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    outline: none;
+    font-size: 13px;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
+  td.col-notes [contenteditable]:hover { border-color: var(--border); }
+  td.col-notes [contenteditable]:focus { border-color: var(--accent); background: #fff; }
+  td.col-notes [contenteditable]:empty::before {
+    content: attr(data-placeholder);
+    color: #c7c7cc;
+  }
+  td.col-llm-response {
+    min-width: 240px;
+    max-width: 320px;
+    padding: 6px 8px;
+  }
+  .llm-response-content {
+    font-size: 13px;
+    white-space: pre-wrap;
+    color: var(--text);
+    max-height: 200px;
+    overflow-y: auto;
+    cursor: zoom-in;
+    padding: 4px 6px;
+    border-radius: 4px;
+  }
+  .llm-response-content:hover { background: #fafafa; }
+  .llm-response-content:empty::before {
+    content: 'No LLM response yet. Double-click to expand.';
+    color: #c7c7cc;
+    font-style: italic;
+  }
+  .llm-response-content.pending {
+    color: var(--muted);
+    font-style: italic;
+  }
+  .llm-response-content.error {
+    color: #b00;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 48px;
+    color: var(--muted);
+    font-size: 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 16px;
+  }
+  /* Hamburger settings menu */
+  #settings-toggle {
+    position: fixed; top: 14px; right: 16px; z-index: 1000;
+    width: 40px; height: 40px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--panel);
+    cursor: pointer; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 5px;
+    padding: 0; transition: background 0.15s;
+  }
+  #settings-toggle:hover { background: #f0f0f0; }
+  #settings-toggle .bar {
+    width: 20px; height: 2px; background: var(--text); border-radius: 1px;
+    transition: transform 0.25s, opacity 0.25s;
+  }
+  #settings-toggle.open .bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  #settings-toggle.open .bar:nth-child(2) { opacity: 0; }
+  #settings-toggle.open .bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+  #settings-panel {
+    display: none; position: fixed; top: 64px; right: 16px; z-index: 999;
+    width: 380px; padding: 20px; border-radius: 12px;
+    background: var(--panel); border: 1px solid var(--border);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  }
+  #settings-panel.open { display: block; }
+  #settings-panel h3 { font-size: 16px; margin: 0 0 12px; font-weight: 600; }
+  #settings-panel label {
+    display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px;
+  }
+  #settings-panel input[type="text"] {
+    width: 100%; padding: 8px 10px; border-radius: 6px;
+    border: 1px solid var(--border); font: inherit; outline: none;
+    box-sizing: border-box;
+  }
+  #settings-panel input[type="text"]:focus { border-color: var(--accent); }
+  #settings-panel .hint {
+    font-size: 12px; color: var(--muted); margin: 6px 0 0;
+  }
+  #settings-panel .settings-save-btn {
+    margin-top: 14px; padding: 8px 16px;
+  }
+  #settings-panel hr.section-divider {
+    margin: 18px 0 10px; border: none; border-top: 1px solid var(--border);
+  }
+  #settings-panel .library-row {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
+  }
+  #settings-panel .library-row button { padding: 8px 14px; font-size: 13px; }
+  #settings-panel .demo-btn { background: #16a34a; }
+  #settings-panel .demo-btn:hover:not(:disabled) { background: #128a3d; }
+  #settings-panel .debug-row {
+    display: flex; align-items: center; gap: 8px; margin-top: 6px;
+  }
+  #settings-panel .debug-row label {
+    font-size: 13px; color: var(--text); margin: 0;
+  }
+  /* Doc modal */
+  #doc-modal {
+    display: none; position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0,0,0,0.45);
+    align-items: center; justify-content: center; padding: 40px;
+  }
+  #doc-modal.open { display: flex; }
+  #doc-modal-content {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; max-width: 900px; width: 100%; max-height: 90vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  #doc-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px; border-bottom: 1px solid var(--border); gap: 12px;
+  }
+  #doc-modal-header h3 {
+    font-size: 17px; color: var(--text); margin: 0; font-weight: 600;
+    flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #doc-modal-actions { display: flex; align-items: center; gap: 8px; }
+  #doc-view-toggle {
+    background: transparent; color: var(--text);
+    font: inherit; font-size: 13px; font-weight: 500;
+    padding: 6px 12px; border-radius: 6px;
+    border: 1px solid var(--border); cursor: pointer;
+  }
+  #doc-view-toggle:hover { background: #f0f0f0; }
+  #doc-modal-close {
+    background: transparent; color: var(--muted); font-size: 22px;
+    padding: 0 10px; line-height: 1; border-radius: 6px;
+    border: 0; cursor: pointer;
+  }
+  #doc-modal-close:hover { background: #f0f0f0; color: var(--text); }
+  #doc-modal-body {
+    padding: 18px 26px; overflow-y: auto; color: var(--text);
+    font-size: 15px; line-height: 1.6;
+  }
+  #doc-modal-body.raw {
+    white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+  }
+  #doc-modal-body.rendered h1 {
+    font-size: 24px; margin: 16px 0 12px;
+    border-bottom: 1px solid var(--border); padding-bottom: 8px;
+  }
+  #doc-modal-body.rendered h2 {
+    font-size: 19px; margin: 16px 0 10px;
+    border-bottom: 1px solid var(--border); padding-bottom: 6px;
+  }
+  #doc-modal-body.rendered h3 { font-size: 16px; margin: 14px 0 8px; }
+  #doc-modal-body.rendered h4 { font-size: 15px; margin: 12px 0 6px; }
+  #doc-modal-body.rendered p { margin: 10px 0; }
+  #doc-modal-body.rendered ul,
+  #doc-modal-body.rendered ol { margin: 10px 0 10px 24px; }
+  #doc-modal-body.rendered li { margin: 4px 0; }
+  #doc-modal-body.rendered strong { color: var(--text); }
+  #doc-modal-body.rendered a { color: var(--accent); text-decoration: none; }
+  #doc-modal-body.rendered a:hover { text-decoration: underline; }
+  #doc-modal-body.rendered code {
+    background: #f0f0f0; color: #b91c1c; padding: 2px 6px;
+    border-radius: 4px; font-size: 13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  #doc-modal-body.rendered pre {
+    background: #f5f5f7; border: 1px solid var(--border);
+    border-radius: 6px; padding: 12px 14px; overflow-x: auto; margin: 10px 0;
+  }
+  #doc-modal-body.rendered pre code {
+    background: transparent; padding: 0; color: var(--text);
+  }
+  #doc-modal-body.rendered blockquote {
+    border-left: 3px solid var(--border); padding: 4px 12px; margin: 10px 0;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<button id="settings-toggle" title="Settings" aria-label="Settings">
+  <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+</button>
+<div id="settings-panel">
+  <button class="settings-save-btn demo-btn" id="load-demo-btn" style="width: 100%; margin: 0 0 6px;">Load Demo Data</button>
+  <p class="hint" style="margin: 0 0 14px;">Fetches a sample prompt library and a test PDF from GitHub.</p>
+
+  <h3>AI Gateway Settings</h3>
+  <label for="settings-endpoint">Gateway Endpoint</label>
+  <input id="settings-endpoint" type="text" placeholder="e.g. http://localhost:8080/chat">
+  <p class="hint">Full URL of the ai_proxy <code>/chat</code> endpoint.</p>
+  <button class="settings-save-btn" id="settings-save-btn">Save</button>
+
+  <hr class="section-divider">
+  <h3>Prompt Library</h3>
+  <p class="hint" id="library-count-hint">No prompts in library.</p>
+  <div class="library-row">
+    <button class="settings-save-btn" id="library-edit-btn">Edit</button>
+    <button class="settings-save-btn" id="library-import-btn">Import</button>
+    <button class="settings-save-btn" id="library-export-btn">Export</button>
+  </div>
+  <input type="file" id="library-import-file" accept="application/json,.json" hidden>
+
+  <hr class="section-divider">
+  <h3>Debug</h3>
+  <div class="debug-row">
+    <input type="checkbox" id="debug-toggle">
+    <label for="debug-toggle">Log gateway requests to console</label>
+  </div>
+
+  <hr class="section-divider">
+  <h3>Documentation</h3>
+  <button class="settings-save-btn" id="open-guide-btn" style="margin-top: 6px;">User Guide</button>
+</div>
+
+<div id="doc-modal" role="dialog" aria-modal="true" aria-labelledby="doc-modal-title">
+  <div id="doc-modal-content">
+    <div id="doc-modal-header">
+      <h3 id="doc-modal-title">Document</h3>
+      <div id="doc-modal-actions">
+        <button id="doc-view-toggle" title="Toggle between rendered and raw markdown">Show Markdown</button>
+        <button id="doc-modal-close" title="Close" aria-label="Close">&times;</button>
+      </div>
+    </div>
+    <div id="doc-modal-body"></div>
+  </div>
+</div>
+
+<header>
+  <h1>Forensic Workbench Dashboard</h1>
+  <span class="badge">FWB</span>
+  <span class="badge version">V0.1</span>
+</header>
+
+<main>
+  <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Drop or select PDF files">
+    <p class="primary">Drop PDF files here</p>
+    <p>or click to select one or more PDFs</p>
+    <input type="file" id="fileInput" multiple accept="application/pdf,.pdf" hidden>
+  </div>
+
+  <div class="controls">
+    <button id="createSummaryBtn" disabled>Create Summary Table</button>
+    <button id="clearBtn" class="secondary" disabled>Clear</button>
+    <div class="file-list" id="fileList"></div>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <table id="summaryTable" hidden>
+    <thead>
+      <tr>
+        <th>File</th>
+        <th>Page</th>
+        <th>Thumbnail</th>
+        <th>Notes</th>
+        <th>LLM Response</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <div class="empty-state" id="emptyState">No PDFs loaded yet. Drop files above to get started.</div>
+</main>
+
+<footer>FWB &middot; PDFs are processed locally in your browser</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(() => {
+  const PDFJS_VERSION = '3.11.174';
+  const PDFJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + PDFJS_VERSION;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_BASE + '/pdf.worker.min.js';
+
+  // LLM gateway settings — set by the user via the hamburger menu.
+  // Kept in memory only; pre-populate + persist comes in a later iteration.
+  const DEFAULT_LLM_ENDPOINT =
+    'https://llm-gateway-730560815836.us-central1.run.app/chat';
+  // Source of the Load Demo Data button. Update this path if the demo files
+  // are hosted elsewhere on GitHub Pages.
+  const DEMO_BASE_URL = 'https://faw987.github.io/';
+  const DEMO_LIBRARY_FILE = 'fwb-prompt-library.json';
+  const DEMO_PDF_FILE = 'forensic_test_00.pdf';
+  // Note: `model` is owned by the viewer (radio buttons). Main keeps endpoint,
+  // provider, and the debug flag, and pushes those to the viewer.
+  const llmSettings = {
+    endpoint: DEFAULT_LLM_ENDPOINT,
+    provider: 'openai',
+    debug: false
+  };
+
+  // Prompt library — array of { id, name, text }. In-memory only;
+  // persistence is via the Import / Export buttons on the hamburger menu.
+  let promptLibrary = [];
+  function makeId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
+  // --- DOM refs ---
+  const dropzone     = document.getElementById('dropzone');
+  const fileInput    = document.getElementById('fileInput');
+  const createBtn    = document.getElementById('createSummaryBtn');
+  const clearBtn     = document.getElementById('clearBtn');
+  const fileListEl   = document.getElementById('fileList');
+  const statusEl     = document.getElementById('status');
+  const table        = document.getElementById('summaryTable');
+  const tbody        = table.querySelector('tbody');
+  const emptyState   = document.getElementById('emptyState');
+
+  // --- State ---
+  let files = [];        // [{file: File, pdfDoc: PDFDocumentProxy, id: number}]
+  let nextId = 1;
+  let busy = false;
+
+  // --- Settings panel ---
+  const settingsToggle    = document.getElementById('settings-toggle');
+  const settingsPanel     = document.getElementById('settings-panel');
+  const settingsEndpointEl = document.getElementById('settings-endpoint');
+  const settingsSaveBtn   = document.getElementById('settings-save-btn');
+
+  settingsEndpointEl.value = llmSettings.endpoint;
+
+  settingsToggle.addEventListener('click', () => {
+    settingsToggle.classList.toggle('open');
+    settingsPanel.classList.toggle('open');
+  });
+
+  settingsSaveBtn.addEventListener('click', () => {
+    const entered = settingsEndpointEl.value.trim();
+    llmSettings.endpoint = entered || DEFAULT_LLM_ENDPOINT;
+    settingsEndpointEl.value = llmSettings.endpoint;
+    settingsToggle.classList.remove('open');
+    settingsPanel.classList.remove('open');
+    pushLlmSettingsToViewer();
+    setStatus(entered
+      ? 'Gateway endpoint saved.'
+      : 'Using default gateway endpoint.');
+  });
+
+  // --- Debug toggle ---
+  const debugToggle = document.getElementById('debug-toggle');
+  debugToggle.checked = llmSettings.debug;
+  debugToggle.addEventListener('change', () => {
+    llmSettings.debug = debugToggle.checked;
+    pushLlmSettingsToViewer();
+  });
+
+  function pushLlmSettingsToViewer() {
+    if (viewerWindow && !viewerWindow.closed && viewerReady) {
+      try {
+        viewerWindow.postMessage(
+          { type: 'llmSettings', llmSettings: { ...llmSettings } },
+          '*'
+        );
+      } catch (e) {}
+    }
+  }
+
+  // --- Prompt library: refs, sync, import/export ---
+  const libraryEditBtn   = document.getElementById('library-edit-btn');
+  const libraryImportBtn = document.getElementById('library-import-btn');
+  const libraryExportBtn = document.getElementById('library-export-btn');
+  const libraryImportFile = document.getElementById('library-import-file');
+  const libraryCountHint = document.getElementById('library-count-hint');
+
+  function updateLibraryCountHint() {
+    const n = promptLibrary.length;
+    libraryCountHint.textContent = n === 0
+      ? 'No prompts in library.'
+      : (n + ' prompt' + (n === 1 ? '' : 's') + ' in library.');
+  }
+  updateLibraryCountHint();
+
+  function onLibraryChanged() {
+    updateLibraryCountHint();
+    pushLibraryToEditor();
+    pushLibraryToViewer();
+  }
+
+  function pushLibraryToViewer() {
+    if (viewerWindow && !viewerWindow.closed && viewerReady) {
+      try {
+        viewerWindow.postMessage(
+          { type: 'promptLibrary', promptLibrary: promptLibrary.map(p => ({ ...p })) },
+          '*'
+        );
+      } catch (e) {}
+    }
+  }
+
+  function pushLibraryToEditor() {
+    if (editorWindow && !editorWindow.closed && editorReady) {
+      try {
+        editorWindow.postMessage(
+          { type: 'promptLibrary', promptLibrary: promptLibrary.map(p => ({ ...p })) },
+          '*'
+        );
+      } catch (e) {}
+    }
+  }
+
+  libraryExportBtn.addEventListener('click', () => {
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      prompts: promptLibrary.map(p => ({ name: p.name, text: p.text }))
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'fwb-prompt-library.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    setStatus('Exported ' + promptLibrary.length + ' prompt'
+      + (promptLibrary.length === 1 ? '' : 's') + ' to JSON.');
+  });
+
+  libraryImportBtn.addEventListener('click', () => libraryImportFile.click());
+
+  libraryImportFile.addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const raw = Array.isArray(data)
+        ? data
+        : (data && Array.isArray(data.prompts) ? data.prompts : null);
+      if (!raw) throw new Error('Expected an array or an object with a "prompts" array.');
+      promptLibrary = raw
+        .filter(p => p && typeof p.name === 'string' && typeof p.text === 'string')
+        .map(p => ({ id: makeId(), name: p.name, text: p.text }));
+      onLibraryChanged();
+      setStatus('Imported ' + promptLibrary.length + ' prompt'
+        + (promptLibrary.length === 1 ? '' : 's') + ' from ' + file.name + '.');
+    } catch (err) {
+      console.error('Library import failed', err);
+      setStatus('Import failed: ' + (err && err.message ? err.message : err));
+    }
+  });
+
+  // --- Load Demo Data button ---
+  const loadDemoBtn = document.getElementById('load-demo-btn');
+  loadDemoBtn.addEventListener('click', loadDemoData);
+
+  async function loadDemoData() {
+    if (loadDemoBtn.disabled) return;
+    loadDemoBtn.disabled = true;
+    loadDemoBtn.textContent = 'Loading demo data…';
+    setStatus('Fetching demo data from GitHub…');
+    try {
+      const libUrl = DEMO_BASE_URL + DEMO_LIBRARY_FILE;
+      const pdfUrl = DEMO_BASE_URL + DEMO_PDF_FILE;
+      const [libResp, pdfResp] = await Promise.all([fetch(libUrl), fetch(pdfUrl)]);
+      if (!libResp.ok) throw new Error('Library fetch failed (' + libResp.status + ') ' + libUrl);
+      if (!pdfResp.ok) throw new Error('PDF fetch failed (' + pdfResp.status + ') ' + pdfUrl);
+
+      const data = await libResp.json();
+      const raw = Array.isArray(data)
+        ? data
+        : (data && Array.isArray(data.prompts) ? data.prompts : null);
+      if (!raw) throw new Error('Library JSON has unexpected shape.');
+      promptLibrary = raw
+        .filter(p => p && typeof p.name === 'string' && typeof p.text === 'string')
+        .map(p => ({ id: makeId(), name: p.name, text: p.text }));
+      onLibraryChanged();
+
+      const pdfBlob = await pdfResp.blob();
+      const pdfFile = new File([pdfBlob], DEMO_PDF_FILE, { type: 'application/pdf' });
+      await addFiles([pdfFile]);
+
+      settingsToggle.classList.remove('open');
+      settingsPanel.classList.remove('open');
+      setStatus('Demo data loaded: ' + promptLibrary.length + ' prompt'
+        + (promptLibrary.length === 1 ? '' : 's') + ' and ' + DEMO_PDF_FILE + '.');
+    } catch (err) {
+      console.error('Demo data load failed', err);
+      setStatus('Demo load failed: ' + (err && err.message ? err.message : err));
+    } finally {
+      loadDemoBtn.disabled = false;
+      loadDemoBtn.textContent = 'Load Demo Data';
+    }
+  }
+
+  // --- Doc modal (User Guide) ---
+  const docModal       = document.getElementById('doc-modal');
+  const docModalTitle  = document.getElementById('doc-modal-title');
+  const docModalBody   = document.getElementById('doc-modal-body');
+  const docViewToggle  = document.getElementById('doc-view-toggle');
+  const docModalClose  = document.getElementById('doc-modal-close');
+  const openGuideBtn   = document.getElementById('open-guide-btn');
+  let docRawSource = '';
+  let docViewMode = 'rendered'; // 'rendered' | 'raw'
+
+  function applyDocView() {
+    if (docViewMode === 'rendered') {
+      docModalBody.classList.remove('raw');
+      docModalBody.classList.add('rendered');
+      if (window.marked) {
+        docModalBody.innerHTML = marked.parse(docRawSource);
+        docModalBody.querySelectorAll('a').forEach(a => {
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+        });
+      } else {
+        docModalBody.textContent = docRawSource;
+      }
+      docViewToggle.textContent = 'Show Markdown';
+    } else {
+      docModalBody.classList.remove('rendered');
+      docModalBody.classList.add('raw');
+      docModalBody.textContent = docRawSource;
+      docViewToggle.textContent = 'Show Formatted';
+    }
+  }
+
+  async function openDoc(filename, title) {
+    docModalTitle.textContent = title;
+    docRawSource = 'Loading…';
+    docViewMode = 'rendered';
+    docModalBody.classList.remove('raw', 'rendered');
+    docModalBody.textContent = 'Loading…';
+    docModal.classList.add('open');
+    try {
+      const url = DEMO_BASE_URL + filename + '?t=' + Date.now();
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' for ' + url);
+      docRawSource = await res.text();
+      applyDocView();
+    } catch (err) {
+      docRawSource = 'Failed to load ' + filename + ': '
+        + (err && err.message ? err.message : err);
+      docModalBody.classList.remove('rendered');
+      docModalBody.classList.add('raw');
+      docModalBody.textContent = docRawSource;
+    }
+  }
+
+  openGuideBtn.addEventListener('click', () => {
+    settingsToggle.classList.remove('open');
+    settingsPanel.classList.remove('open');
+    openDoc('FWB_user_doc.md', 'FWB User Guide');
+  });
+  docViewToggle.addEventListener('click', () => {
+    docViewMode = (docViewMode === 'rendered') ? 'raw' : 'rendered';
+    applyDocView();
+  });
+  docModalClose.addEventListener('click', () => docModal.classList.remove('open'));
+  docModal.addEventListener('click', e => {
+    if (e.target === docModal) docModal.classList.remove('open');
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && docModal.classList.contains('open')) {
+      docModal.classList.remove('open');
+    }
+  });
+
+  // --- Prompt library editor window ---
+  let editorWindow = null;
+  let editorReady = false;
+  let editorObjectUrl = null;
+
+  libraryEditBtn.addEventListener('click', openEditorWindow);
+
+  function openEditorWindow() {
+    if (editorWindow && !editorWindow.closed) {
+      editorWindow.focus();
+      pushLibraryToEditor();
+      return;
+    }
+    if (editorObjectUrl) URL.revokeObjectURL(editorObjectUrl);
+    const blob = new Blob([buildEditorHtml()], { type: 'text/html' });
+    editorObjectUrl = URL.createObjectURL(blob);
+    editorWindow = window.open(
+      editorObjectUrl, 'fwb-prompt-editor',
+      'width=820,height=900,scrollbars=yes,resizable=yes'
+    );
+    if (!editorWindow) {
+      alert('The prompt editor popup was blocked. Please allow popups for this page.');
+      return;
+    }
+    editorReady = false;
+    editorWindow.focus();
+  }
+
+  window.addEventListener('message', e => {
+    if (!e.data) return;
+    if (editorWindow && e.source === editorWindow) {
+      if (e.data.type === 'editorReady') {
+        editorReady = true;
+        pushLibraryToEditor();
+      } else if (e.data.type === 'promptLibrary' && Array.isArray(e.data.promptLibrary)) {
+        promptLibrary = e.data.promptLibrary
+          .filter(p => p && typeof p.name === 'string' && typeof p.text === 'string')
+          .map(p => ({
+            id: typeof p.id === 'string' && p.id ? p.id : makeId(),
+            name: p.name,
+            text: p.text
+          }));
+        updateLibraryCountHint();
+        pushLibraryToViewer();
+      }
+    }
+  });
+
+  // --- Drop zone & file input ---
+  dropzone.addEventListener('click', () => fileInput.click());
+  dropzone.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  });
+  fileInput.addEventListener('change', e => {
+    addFiles(e.target.files);
+    fileInput.value = '';
+  });
+
+  ['dragenter', 'dragover'].forEach(ev =>
+    dropzone.addEventListener(ev, e => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      dropzone.classList.add('dragover');
+    })
+  );
+  ['dragleave', 'drop'].forEach(ev =>
+    dropzone.addEventListener(ev, e => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropzone.classList.remove('dragover');
+    })
+  );
+  dropzone.addEventListener('drop', e => {
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+      addFiles(e.dataTransfer.files);
+    }
+  });
+  // Prevent the browser from opening a dropped file outside the drop zone.
+  ['dragover', 'drop'].forEach(ev =>
+    window.addEventListener(ev, e => { e.preventDefault(); }, false)
+  );
+
+  async function addFiles(fileList) {
+    const pdfs = Array.from(fileList).filter(
+      f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
+    );
+    if (pdfs.length === 0) {
+      setStatus('No PDF files found in the selection.');
+      return;
+    }
+    setStatus(`Loading ${pdfs.length} PDF${pdfs.length === 1 ? '' : 's'}...`);
+    for (const file of pdfs) {
+      try {
+        const buffer = await file.arrayBuffer();
+        // .slice(0) gives PDF.js its own copy so we can keep the original around.
+        const pdfDoc = await pdfjsLib.getDocument({ data: buffer.slice(0) }).promise;
+        files.push({ file, pdfDoc, id: nextId++ });
+      } catch (err) {
+        console.error('Failed to load', file.name, err);
+        setStatus(`Failed to load ${file.name}: ${err.message}`);
+      }
+    }
+    renderFileList();
+    updateButtons();
+    const totalPages = files.reduce((s, f) => s + f.pdfDoc.numPages, 0);
+    setStatus(`${files.length} PDF${files.length === 1 ? '' : 's'} loaded (${totalPages} page${totalPages === 1 ? '' : 's'} total).`);
+  }
+
+  function renderFileList() {
+    if (files.length === 0) { fileListEl.textContent = ''; return; }
+    const items = files.map(f =>
+      `<li>${escapeHtml(f.file.name)} &mdash; ${f.pdfDoc.numPages} page${f.pdfDoc.numPages === 1 ? '' : 's'}</li>`
+    ).join('');
+    fileListEl.innerHTML = `<ul>${items}</ul>`;
+  }
+
+  function updateButtons() {
+    createBtn.disabled = busy || files.length === 0;
+    clearBtn.disabled  = busy || files.length === 0;
+  }
+
+  function setStatus(msg) { statusEl.textContent = msg; }
+
+  // --- Build summary table ---
+  createBtn.addEventListener('click', async () => {
+    if (files.length === 0 || busy) return;
+    busy = true;
+    updateButtons();
+    tbody.innerHTML = '';
+    emptyState.hidden = true;
+    table.hidden = false;
+
+    const totalPages = files.reduce((s, f) => s + f.pdfDoc.numPages, 0);
+    let done = 0;
+
+    for (const entry of files) {
+      const { file, pdfDoc } = entry;
+      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        done++;
+        setStatus(`Rendering thumbnails: ${done} / ${totalPages}`);
+
+        const tr = document.createElement('tr');
+        tr.dataset.fileId = String(entry.id);
+        tr.dataset.pageNum = String(pageNum);
+
+        const tdFile = document.createElement('td');
+        tdFile.className = 'col-file';
+        tdFile.textContent = file.name;
+        tr.appendChild(tdFile);
+
+        const tdPage = document.createElement('td');
+        tdPage.className = 'col-page';
+        tdPage.textContent = String(pageNum);
+        tr.appendChild(tdPage);
+
+        const tdThumb = document.createElement('td');
+        tdThumb.className = 'col-thumb';
+        tr.appendChild(tdThumb);
+
+        const tdNotes = document.createElement('td');
+        tdNotes.className = 'col-notes';
+        const notesDiv = document.createElement('div');
+        notesDiv.contentEditable = 'true';
+        notesDiv.dataset.placeholder = 'Add notes...';
+        tdNotes.appendChild(notesDiv);
+        tr.appendChild(tdNotes);
+
+        const tdLlm = document.createElement('td');
+        tdLlm.className = 'col-llm-response';
+        const llmDiv = document.createElement('div');
+        llmDiv.className = 'llm-response-content';
+        llmDiv.title = 'Double-click to view full response';
+        tdLlm.appendChild(llmDiv);
+        tr.appendChild(tdLlm);
+
+        tbody.appendChild(tr);
+
+        try {
+          const canvas = await renderThumbnail(pdfDoc, pageNum);
+          canvas.title = `Open ${file.name} — Page ${pageNum}`;
+          canvas.addEventListener('click', () => openInViewer(entry, pageNum));
+          tdThumb.appendChild(canvas);
+        } catch (err) {
+          console.error('Thumbnail failed', file.name, pageNum, err);
+          const errDiv = document.createElement('div');
+          errDiv.className = 'thumb-error';
+          errDiv.textContent = 'Render error: ' + err.message;
+          tdThumb.appendChild(errDiv);
+        }
+      }
+    }
+
+    setStatus(`Summary table built: ${totalPages} page${totalPages === 1 ? '' : 's'} across ${files.length} file${files.length === 1 ? '' : 's'}.`);
+    busy = false;
+    updateButtons();
+  });
+
+  async function renderThumbnail(pdfDoc, pageNum) {
+    const page = await pdfDoc.getPage(pageNum);
+    const targetWidth = 160; // CSS px
+    const baseViewport = page.getViewport({ scale: 1 });
+    const scale = targetWidth / baseViewport.width;
+    const viewport = page.getViewport({ scale });
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.ceil(viewport.width  * dpr);
+    canvas.height = Math.ceil(viewport.height * dpr);
+    canvas.style.width  = viewport.width  + 'px';
+    canvas.style.height = viewport.height + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    return canvas;
+  }
+
+  // --- Clear ---
+  clearBtn.addEventListener('click', () => {
+    if (busy) return;
+    files = [];
+    tbody.innerHTML = '';
+    table.hidden = true;
+    emptyState.hidden = false;
+    fileListEl.textContent = '';
+    setStatus('');
+    updateButtons();
+  });
+
+  // --- Viewer popup ---
+  // Strategy: open a single named popup window. Each click postMessages
+  // {fileId, fileName, pageNum, fileData?} into it. The viewer caches loaded
+  // docs by fileId so we only ship the bytes once per session.
+  let viewerWindow = null;
+  let viewerReady = false;
+  let readyWaiters = [];
+  let viewerSentFiles = new Set();
+  let sendChain = Promise.resolve();
+  let viewerObjectUrl = null;
+
+  window.addEventListener('message', e => {
+    if (!e.data || e.source !== viewerWindow) return;
+    if (e.data.type === 'viewerReady') {
+      viewerReady = true;
+      const waiters = readyWaiters;
+      readyWaiters = [];
+      waiters.forEach(r => r());
+    } else if (e.data.type === 'llmResponse') {
+      applyLlmResponse(e.data);
+    }
+  });
+
+  function findRow(fileId, pageNum) {
+    return tbody.querySelector(
+      `tr[data-file-id="${fileId}"][data-page-num="${pageNum}"]`
+    );
+  }
+
+  const LLM_SEPARATOR = '\n\n----------\n\n';
+
+  function applyLlmResponse(payload) {
+    const { fileId, pageNum, status, text } = payload || {};
+    const row = findRow(fileId, pageNum);
+    if (!row) return;
+    const div = row.querySelector('.llm-response-content');
+    if (!div) return;
+    if (status === 'pending') {
+      // Stash the prior accumulated content the first time we go pending,
+      // so we can append rather than clobber when the response arrives.
+      if (!div.classList.contains('pending')) {
+        div.dataset.savedContent = div.textContent;
+      }
+      div.classList.remove('error');
+      div.classList.add('pending');
+      div.textContent = 'Querying LLM...';
+      return;
+    }
+    const prior = div.classList.contains('pending')
+      ? (div.dataset.savedContent || '')
+      : div.textContent;
+    delete div.dataset.savedContent;
+    div.classList.remove('pending', 'error');
+    const entry = (status === 'error')
+      ? (text || 'LLM request failed.')
+      : (text || '');
+    if (status === 'error') div.classList.add('error');
+    div.textContent = prior ? prior + LLM_SEPARATOR + entry : entry;
+    div.scrollTop = div.scrollHeight;
+  }
+
+  // Double-click any LLM-response cell to view the full accumulated content
+  // in a modal (markdown-rendered by default; toggle for raw view).
+  tbody.addEventListener('dblclick', e => {
+    const div = e.target.closest('.llm-response-content');
+    if (!div) return;
+    const content = div.classList.contains('pending')
+      ? (div.dataset.savedContent || '')
+      : div.textContent;
+    if (!content) return;
+    openLlmModal(content);
+  });
+
+  function openLlmModal(content) {
+    docModalTitle.textContent = 'LLM Response';
+    docRawSource = content;
+    docViewMode = 'rendered';
+    docModal.classList.add('open');
+    applyDocView();
+  }
+
+  function ensureViewerWindow() {
+    if (viewerWindow && !viewerWindow.closed) {
+      viewerWindow.focus();
+      return true;
+    }
+    if (viewerObjectUrl) URL.revokeObjectURL(viewerObjectUrl);
+    const blob = new Blob([buildViewerHtml()], { type: 'text/html' });
+    viewerObjectUrl = URL.createObjectURL(blob);
+    viewerWindow = window.open(viewerObjectUrl, 'fwb-viewer', 'width=1000,height=1100,scrollbars=yes,resizable=yes');
+    if (!viewerWindow) {
+      alert('The viewer popup was blocked. Please allow popups for this page.');
+      return false;
+    }
+    viewerReady = false;
+    readyWaiters = [];
+    viewerSentFiles = new Set();
+    viewerWindow.focus();
+    return true;
+  }
+
+  function waitForViewerReady() {
+    if (viewerReady) return Promise.resolve();
+    return new Promise(resolve => readyWaiters.push(resolve));
+  }
+
+  function openInViewer(entry, pageNum) {
+    if (!ensureViewerWindow()) return;
+    sendChain = sendChain.then(async () => {
+      // The window may have been replaced between scheduling and running.
+      if (!viewerWindow || viewerWindow.closed) {
+        if (!ensureViewerWindow()) return;
+      }
+      const targetWindow = viewerWindow;
+      let fileData = null;
+      if (!viewerSentFiles.has(entry.id)) {
+        fileData = await entry.file.arrayBuffer();
+      }
+      await waitForViewerReady();
+      if (targetWindow !== viewerWindow || targetWindow.closed) return;
+      const msg = {
+        fileId: entry.id,
+        fileName: entry.file.name,
+        pageNum,
+        llmSettings: { ...llmSettings },
+        promptLibrary: promptLibrary.map(p => ({ ...p }))
+      };
+      if (fileData) {
+        msg.fileData = fileData;
+        targetWindow.postMessage(msg, '*', [fileData]);
+        viewerSentFiles.add(entry.id);
+      } else {
+        targetWindow.postMessage(msg, '*');
+      }
+    }).catch(err => console.error('Viewer send failed', err));
+  }
+
+  // The prompt library editor is its own embedded HTML doc, same blob-URL
+  // pattern as the viewer. It posts the full library back to this window
+  // on every mutation; we treat that as the source of truth.
+  function buildEditorHtml() {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FWB — Prompt Library Editor</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+         Roboto, sans-serif; background: #f5f5f7; color: #1d1d1f; }
+  header { padding: 16px 24px; background: #fff;
+           border-bottom: 1px solid #d2d2d7;
+           display: flex; align-items: baseline; gap: 12px; }
+  header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+  header .hint { color: #6e6e73; font-size: 12px; }
+  main { max-width: 720px; margin: 0 auto; padding: 24px;
+         display: flex; flex-direction: column; gap: 20px; }
+  section { background: #fff; border: 1px solid #d2d2d7;
+            border-radius: 8px; padding: 16px 20px; }
+  section h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+  label { display: block; font-size: 12px; color: #6e6e73; margin-top: 10px; }
+  input[type="text"], textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid #d2d2d7;
+    border-radius: 6px; font: inherit; outline: none; margin-top: 4px;
+  }
+  input[type="text"]:focus, textarea:focus { border-color: #0066cc; }
+  textarea { min-height: 110px; resize: vertical; font-family: inherit; }
+  .row { margin-top: 12px; display: flex; gap: 8px; }
+  button { padding: 8px 16px; border-radius: 6px; border: none;
+           background: #0066cc; color: #fff; font: inherit;
+           font-weight: 500; cursor: pointer; }
+  button:hover:not(:disabled) { background: #0055aa; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary { background: #e5e5e7; color: #1d1d1f; }
+  button.secondary:hover:not(:disabled) { background: #d2d2d7; }
+  button.danger { background: #fdf0f0; color: #b00020; }
+  button.danger:hover:not(:disabled) { background: #fde0e0; }
+  ul#promptList { list-style: none; padding: 0; margin: 0; }
+  .prompt-row { display: flex; align-items: center; padding: 8px 10px;
+                border: 1px solid transparent; border-radius: 6px;
+                cursor: pointer; gap: 8px; margin-bottom: 4px; }
+  .prompt-row:hover { background: #f0f7ff; }
+  .prompt-row.selected { background: #e8f3ff; border-color: #0066cc; }
+  .prompt-name { flex: 1; font-size: 14px; min-width: 0;
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .actions button { padding: 4px 10px; font-size: 13px; }
+  .empty { color: #6e6e73; font-style: italic; font-size: 13px; margin: 4px 0 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Prompt Library Editor</h1>
+  <span class="hint">Changes sync live to the main window.</span>
+</header>
+<main>
+  <section>
+    <h2>Existing Prompts</h2>
+    <ul id="promptList"></ul>
+    <p class="empty" id="emptyMsg">No prompts yet. Add one below.</p>
+  </section>
+  <section id="editSection" hidden>
+    <h2>Edit Selected Prompt</h2>
+    <label for="editName">Name</label>
+    <input id="editName" type="text">
+    <label for="editText">Prompt text</label>
+    <textarea id="editText"></textarea>
+    <div class="row"><button id="saveEditBtn">Save Changes</button></div>
+  </section>
+  <section>
+    <h2>Add New Prompt</h2>
+    <label for="addName">Name</label>
+    <input id="addName" type="text" placeholder="e.g. Summarize">
+    <label for="addText">Prompt text</label>
+    <textarea id="addText" placeholder="Enter the prompt text..."></textarea>
+    <div class="row"><button id="addBtn">Add Prompt</button></div>
+  </section>
+</main>
+<script>
+(() => {
+  let library = [];
+  let selectedId = null;
+
+  const listEl = document.getElementById('promptList');
+  const emptyMsg = document.getElementById('emptyMsg');
+  const editSection = document.getElementById('editSection');
+  const editName = document.getElementById('editName');
+  const editText = document.getElementById('editText');
+  const saveEditBtn = document.getElementById('saveEditBtn');
+  const addName = document.getElementById('addName');
+  const addText = document.getElementById('addText');
+  const addBtn = document.getElementById('addBtn');
+
+  function makeId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
+  function postLibrary() {
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.postMessage(
+          { type: 'promptLibrary', promptLibrary: library.map(p => ({ ...p })) },
+          '*'
+        );
+      } catch (e) {}
+    }
+  }
+
+  function render() {
+    listEl.innerHTML = '';
+    if (selectedId && !library.find(p => p.id === selectedId)) selectedId = null;
+
+    if (!library.length) {
+      emptyMsg.style.display = '';
+      editSection.hidden = true;
+      return;
+    }
+    emptyMsg.style.display = 'none';
+
+    library.forEach((p, i) => {
+      const li = document.createElement('li');
+      li.dataset.id = p.id;
+      li.className = 'prompt-row' + (p.id === selectedId ? ' selected' : '');
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'prompt-name';
+      nameSpan.textContent = p.name || '(untitled)';
+      nameSpan.addEventListener('click', () => selectPrompt(p.id));
+      li.appendChild(nameSpan);
+
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+
+      const upBtn = document.createElement('button');
+      upBtn.className = 'secondary';
+      upBtn.textContent = '\\u2191';
+      upBtn.title = 'Move up';
+      upBtn.disabled = i === 0;
+      upBtn.addEventListener('click', e => {
+        e.stopPropagation(); movePrompt(p.id, -1);
+      });
+      actions.appendChild(upBtn);
+
+      const downBtn = document.createElement('button');
+      downBtn.className = 'secondary';
+      downBtn.textContent = '\\u2193';
+      downBtn.title = 'Move down';
+      downBtn.disabled = i === library.length - 1;
+      downBtn.addEventListener('click', e => {
+        e.stopPropagation(); movePrompt(p.id, 1);
+      });
+      actions.appendChild(downBtn);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'danger';
+      delBtn.textContent = '\\u2715';
+      delBtn.title = 'Delete';
+      delBtn.addEventListener('click', e => {
+        e.stopPropagation(); deletePrompt(p.id);
+      });
+      actions.appendChild(delBtn);
+
+      li.appendChild(actions);
+      listEl.appendChild(li);
+    });
+
+    if (selectedId) {
+      const p = library.find(x => x.id === selectedId);
+      editSection.hidden = false;
+      editName.value = p.name;
+      editText.value = p.text;
+    } else {
+      editSection.hidden = true;
+    }
+  }
+
+  function selectPrompt(id) {
+    selectedId = id;
+    render();
+  }
+
+  function movePrompt(id, dir) {
+    const idx = library.findIndex(p => p.id === id);
+    if (idx < 0) return;
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= library.length) return;
+    const tmp = library[idx];
+    library[idx] = library[newIdx];
+    library[newIdx] = tmp;
+    render();
+    postLibrary();
+  }
+
+  function deletePrompt(id) {
+    library = library.filter(p => p.id !== id);
+    if (selectedId === id) selectedId = null;
+    render();
+    postLibrary();
+  }
+
+  saveEditBtn.addEventListener('click', () => {
+    if (!selectedId) return;
+    const name = (editName.value || '').trim();
+    if (!name) { editName.focus(); return; }
+    const idx = library.findIndex(p => p.id === selectedId);
+    if (idx < 0) return;
+    library[idx] = { ...library[idx], name: name, text: editText.value };
+    render();
+    postLibrary();
+  });
+
+  addBtn.addEventListener('click', () => {
+    const name = (addName.value || '').trim();
+    if (!name) { addName.focus(); return; }
+    const text = addText.value;
+    library.push({ id: makeId(), name: name, text: text });
+    addName.value = '';
+    addText.value = '';
+    render();
+    postLibrary();
+  });
+
+  window.addEventListener('message', e => {
+    if (!e.data || e.source !== window.opener) return;
+    if (e.data.type === 'promptLibrary' && Array.isArray(e.data.promptLibrary)) {
+      library = e.data.promptLibrary.map(p => ({ ...p }));
+      render();
+    }
+  });
+
+  render();
+
+  function signalReady() {
+    if (window.opener && !window.opener.closed) {
+      try { window.opener.postMessage({ type: 'editorReady' }, '*'); } catch (e) {}
+    }
+  }
+  if (document.readyState === 'complete') signalReady();
+  else window.addEventListener('load', signalReady);
+})();
+<\/script>
+</body>
+</html>`;
+  }
+
+  // The viewer is built as an embedded HTML doc served from a blob URL so
+  // everything ships in this single file. Note: `<\/script>` is escaped to
+  // avoid prematurely terminating *this* outer script tag.
+  function buildViewerHtml() {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FWB Viewer</title>
+<style>
+  body { margin: 0; padding: 0; background: #2a2a2a; color: #eee;
+         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 10px 16px; background: #1a1a1a; display: flex;
+           justify-content: space-between; align-items: center; gap: 12px;
+           border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 1; }
+  #title { font-size: 13px; font-weight: 500; flex: 1;
+           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #pageInfo { font-size: 12px; color: #aaa; flex-shrink: 0; }
+  #status { padding: 24px; text-align: center; color: #999; font-size: 13px; }
+  #wrap { display: flex; justify-content: center; padding: 24px; }
+  canvas { box-shadow: 0 4px 24px rgba(0,0,0,0.5); max-width: 100%;
+           height: auto; background: #fff; }
+  .llm-panel { padding: 12px 16px; background: #1a1a1a;
+               border-bottom: 1px solid #333; display: flex;
+               flex-direction: column; gap: 8px; }
+  .llm-panel button { font: inherit; background: #0066cc; color: #fff;
+                      border: 0; border-radius: 6px; padding: 8px 14px;
+                      cursor: pointer; font-weight: 500; align-self: flex-start; }
+  .llm-panel button:hover:not(:disabled) { background: #0055aa; }
+  .llm-panel button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .llm-panel textarea { font: inherit; width: 100%; min-height: 60px;
+                        padding: 6px 8px; background: #2a2a2a; color: #eee;
+                        border: 1px solid #444; border-radius: 6px;
+                        resize: vertical; box-sizing: border-box; }
+  .llm-panel textarea:focus { border-color: #0066cc; outline: none; }
+  .llm-status { font-size: 12px; color: #aaa; min-height: 16px;
+                white-space: pre-wrap; }
+  .llm-status.error { color: #ff6b6b; }
+  .library-section { display: flex; flex-direction: column; gap: 6px; }
+  .library-label { font-size: 11px; color: #888;
+                   text-transform: uppercase; letter-spacing: 0.5px; }
+  .library-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .library-list .lib-item { background: #2a2a2a; color: #eee;
+                             padding: 4px 12px; border-radius: 14px;
+                             font-size: 12px; cursor: pointer;
+                             border: 1px solid #444; user-select: none; }
+  .library-list .lib-item:hover { background: #1a3a5a; border-color: #0066cc; }
+  .library-list .lib-empty { color: #777; font-size: 11px; font-style: italic; }
+  .model-section { display: flex; align-items: center; gap: 14px;
+                   font-size: 12px; color: #ccc; flex-wrap: wrap; }
+  .model-section .model-label { color: #888;
+                                text-transform: uppercase;
+                                letter-spacing: 0.5px; font-size: 11px; }
+  .model-section label { display: flex; align-items: center;
+                         gap: 5px; cursor: pointer; }
+  .model-section input[type="radio"] { margin: 0; }
+</style>
+</head>
+<body>
+<header>
+  <span id="title">FWB Viewer</span>
+  <span id="pageInfo"></span>
+</header>
+<div class="llm-panel">
+  <div class="model-section">
+    <span class="model-label">Model</span>
+    <label><input type="radio" name="modelChoice" value="gpt-54-nano" checked> GPT-54-nano</label>
+    <label><input type="radio" name="modelChoice" value="gpt-54-mini"> GPT-54-mini</label>
+  </div>
+  <div class="library-section">
+    <div class="library-label">Library prompts &mdash; click to copy, double-click to run</div>
+    <div id="libraryList" class="library-list"></div>
+  </div>
+  <textarea id="llmPrompt" placeholder="...or type an ad-hoc prompt here"></textarea>
+  <button id="llmBtn" disabled>Examine page using LLM</button>
+  <div id="llmStatus" class="llm-status"></div>
+</div>
+<div id="status">Waiting for page...</div>
+<div id="wrap"></div>
+<script src="${PDFJS_BASE}/pdf.min.js"><\/script>
+<script>
+(() => {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '${PDFJS_BASE}/pdf.worker.min.js';
+  // Updated by every message from the opener. The model is owned by the
+  // radio buttons in this viewer, not by the opener.
+  const llmSettings = { endpoint: '', provider: 'openai', debug: false };
+  let promptLibrary = [];
+  function getSelectedModel() {
+    const r = document.querySelector('input[name="modelChoice"]:checked');
+    return (r && r.value) || 'gpt-54-nano';
+  }
+  const docs = new Map(); // fileId -> PDFDocumentProxy
+  const titleEl = document.getElementById('title');
+  const pageInfoEl = document.getElementById('pageInfo');
+  const wrapEl = document.getElementById('wrap');
+  const statusEl = document.getElementById('status');
+  const llmBtn = document.getElementById('llmBtn');
+  const llmPrompt = document.getElementById('llmPrompt');
+  const llmStatus = document.getElementById('llmStatus');
+  const libraryListEl = document.getElementById('libraryList');
+  let queue = Promise.resolve();
+  let currentRender = null;
+  let current = null; // { fileId, pageNum, fileName, canvas }
+  let llmBusy = false;
+
+  function renderLibrary() {
+    libraryListEl.innerHTML = '';
+    if (!promptLibrary.length) {
+      const empty = document.createElement('span');
+      empty.className = 'lib-empty';
+      empty.textContent = 'No saved prompts. Open the hamburger menu in the main window to add some.';
+      libraryListEl.appendChild(empty);
+      return;
+    }
+    for (const p of promptLibrary) {
+      const item = document.createElement('span');
+      item.className = 'lib-item';
+      item.textContent = p.name;
+      item.title = p.text + '\\n\\n(Double-click to run)';
+      item.addEventListener('click', () => {
+        llmPrompt.value = p.text;
+      });
+      item.addEventListener('dblclick', () => {
+        llmPrompt.value = p.text;
+        examineWithLlm();
+      });
+      libraryListEl.appendChild(item);
+    }
+  }
+  renderLibrary();
+
+  function setLlmStatus(msg, isError) {
+    llmStatus.textContent = msg || '';
+    llmStatus.classList.toggle('error', !!isError);
+  }
+
+  function updateLlmButton() {
+    llmBtn.disabled = llmBusy || !current;
+  }
+
+  async function handle(req) {
+    if (!req || typeof req !== 'object') return;
+    if (req.llmSettings && typeof req.llmSettings === 'object') {
+      Object.assign(llmSettings, req.llmSettings);
+    }
+    if (Array.isArray(req.promptLibrary)) {
+      promptLibrary = req.promptLibrary.map(p => ({ ...p }));
+      renderLibrary();
+    }
+    if (req.type === 'llmSettings') return;   // settings-only message
+    if (req.type === 'promptLibrary') return; // library-only message
+    const { fileId, fileName, fileData, pageNum } = req;
+    if (typeof pageNum !== 'number') return;
+    statusEl.style.display = 'block';
+    statusEl.textContent = 'Loading page ' + pageNum + '...';
+    let pdf = docs.get(fileId);
+    if (!pdf) {
+      if (!fileData) {
+        statusEl.textContent = 'Error: PDF data missing for ' + (fileName || 'file');
+        return;
+      }
+      pdf = await pdfjsLib.getDocument({ data: fileData }).promise;
+      docs.set(fileId, pdf);
+    }
+    const page = await pdf.getPage(pageNum);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const containerWidth = Math.max(320, Math.min(window.innerWidth - 48, 1400));
+    const baseViewport = page.getViewport({ scale: 1 });
+    const scale = containerWidth / baseViewport.width;
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width  = Math.ceil(viewport.width  * dpr);
+    canvas.height = Math.ceil(viewport.height * dpr);
+    canvas.style.width  = viewport.width  + 'px';
+    canvas.style.height = viewport.height + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    if (currentRender) { try { currentRender.cancel(); } catch (e) {} }
+    currentRender = page.render({ canvasContext: ctx, viewport });
+    try {
+      await currentRender.promise;
+    } catch (e) {
+      if (e && e.name === 'RenderingCancelledException') return;
+      throw e;
+    }
+    wrapEl.innerHTML = '';
+    wrapEl.appendChild(canvas);
+    titleEl.textContent = fileName || '';
+    pageInfoEl.textContent = 'Page ' + pageNum + ' of ' + pdf.numPages;
+    document.title = (fileName || 'FWB Viewer') + ' \\u2014 Page ' + pageNum;
+    statusEl.style.display = 'none';
+    current = { fileId: fileId, pageNum: pageNum, fileName: fileName || '', canvas: canvas };
+    setLlmStatus('');
+    updateLlmButton();
+  }
+
+  function postToOpener(payload) {
+    if (window.opener && !window.opener.closed) {
+      try { window.opener.postMessage(payload, '*'); } catch (e) {}
+    }
+  }
+
+  async function examineWithLlm() {
+    if (!current || llmBusy) return;
+    const endpoint = (llmSettings.endpoint || '').trim();
+    if (!endpoint) {
+      setLlmStatus(
+        'No gateway endpoint configured. Open the hamburger menu in the main window and save one.',
+        true
+      );
+      return;
+    }
+    const promptText = (llmPrompt.value || '').trim() ||
+      'Describe what is shown on this page.';
+    const snapshot = current;
+    llmBusy = true;
+    updateLlmButton();
+    setLlmStatus('Sending page to LLM...', false);
+    postToOpener({
+      type: 'llmResponse',
+      fileId: snapshot.fileId,
+      pageNum: snapshot.pageNum,
+      status: 'pending'
+    });
+    try {
+      const dataUrl = snapshot.canvas.toDataURL('image/png');
+      const model = getSelectedModel();
+      if (llmSettings.debug) {
+        console.log('[FWB Debug] Sending '
+          + (snapshot.fileName || 'page') + ' page '
+          + snapshot.pageNum + ' to ' + model);
+      }
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          provider: llmSettings.provider || 'openai',
+          model: model,
+          input: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: promptText },
+                { type: 'image', image_url: dataUrl, detail: 'high' }
+              ]
+            }
+          ]
+        })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        const err = data && data.error ? data.error : ('HTTP ' + resp.status);
+        throw new Error(err);
+      }
+      const text = (data && typeof data.response === 'string') ? data.response : '';
+      setLlmStatus('LLM response received (' + text.length + ' chars).', false);
+      postToOpener({
+        type: 'llmResponse',
+        fileId: snapshot.fileId,
+        pageNum: snapshot.pageNum,
+        status: 'success',
+        text: text
+      });
+    } catch (err) {
+      const msg = (err && err.message) ? err.message : String(err);
+      setLlmStatus('Error: ' + msg, true);
+      postToOpener({
+        type: 'llmResponse',
+        fileId: snapshot.fileId,
+        pageNum: snapshot.pageNum,
+        status: 'error',
+        text: 'Error: ' + msg
+      });
+    } finally {
+      llmBusy = false;
+      updateLlmButton();
+    }
+  }
+
+  llmBtn.addEventListener('click', examineWithLlm);
+
+  window.addEventListener('message', e => {
+    queue = queue
+      .then(() => handle(e.data))
+      .catch(err => {
+        console.error(err);
+        statusEl.style.display = 'block';
+        statusEl.textContent = 'Error: ' + (err && err.message ? err.message : err);
+      });
+  });
+
+  // Tell the opener we're ready to receive page requests.
+  function signalReady() {
+    if (window.opener && !window.opener.closed) {
+      try { window.opener.postMessage({ type: 'viewerReady' }, '*'); } catch (e) {}
+    }
+  }
+  if (document.readyState === 'complete') signalReady();
+  else window.addEventListener('load', signalReady);
+})();
+<\/script>
+</body>
+</html>`;
+  }
+
+  // --- Util ---
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+})();
+</script>
+</body>
+</html>
