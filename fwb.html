@@ -166,11 +166,37 @@
     content: attr(data-placeholder);
     color: #c7c7cc;
   }
-  td.col-llm-response {
+  td.col-llm-response,
+  td.col-prompt-result {
     min-width: 240px;
     max-width: 320px;
     padding: 6px 8px;
   }
+  th.col-select, td.col-select {
+    width: 36px; text-align: center;
+    padding-left: 8px; padding-right: 4px;
+  }
+  th.col-select input[type="checkbox"],
+  td.col-select input[type="checkbox"] { cursor: pointer; margin: 0; }
+  th.col-prompt {
+    min-width: 200px; max-width: 280px;
+    text-transform: none; letter-spacing: 0;
+  }
+  th.col-prompt .col-prompt-label {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-weight: 600; font-size: 12px;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  th.col-prompt .col-prompt-label input[type="checkbox"] {
+    margin: 0; cursor: pointer;
+  }
+  th.col-prompt .col-prompt-label .prompt-name-text {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    max-width: 220px;
+  }
+  tr.row-selected td { background: #f0f7ff; }
+  .apply-btn { background: #16a34a; }
+  .apply-btn:hover:not(:disabled) { background: #128a3d; }
   .llm-response-content {
     font-size: 13px;
     white-space: pre-wrap;
@@ -397,7 +423,7 @@
 <header>
   <h1>Forensic Workbench Dashboard</h1>
   <span class="badge">FWB</span>
-  <span class="badge version">V0.1</span>
+  <span class="badge version">V0.3</span>
 </header>
 
 <main>
@@ -409,6 +435,7 @@
 
   <div class="controls">
     <button id="createSummaryBtn" disabled>Create Summary Table</button>
+    <button id="applyBtn" class="apply-btn" disabled title="Select at least one row and one prompt column">Apply</button>
     <button id="clearBtn" class="secondary" disabled>Clear</button>
     <div class="file-list" id="fileList"></div>
   </div>
@@ -416,15 +443,7 @@
   <div class="status" id="status"></div>
 
   <table id="summaryTable" hidden>
-    <thead>
-      <tr>
-        <th>File</th>
-        <th>Page</th>
-        <th>Thumbnail</th>
-        <th>Notes</th>
-        <th>LLM Response</th>
-      </tr>
-    </thead>
+    <thead></thead>
     <tbody></tbody>
   </table>
   <div class="empty-state" id="emptyState">No PDFs loaded yet. Drop files above to get started.</div>
@@ -456,22 +475,38 @@
     debug: false
   };
 
-  // Prompt library — array of { id, name, text }. In-memory only;
-  // persistence is via the Import / Export buttons on the hamburger menu.
+  // Prompt library — array of { id, name, text, manual, summaryColumn }.
+  // `manual`: prompt is offered in the viewer's detail page menu.
+  // `summaryColumn`: prompt gets a dedicated column in the summary table.
+  // In-memory only; persistence is via the Import / Export buttons.
   let promptLibrary = [];
   function makeId() {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
     return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+  // Normalize a raw prompt object from JSON / postMessage into the canonical
+  // shape. Missing `manual` defaults to true so pre-V0.3 libraries keep
+  // appearing in the viewer; missing `summaryColumn` defaults to false.
+  function normalizePrompt(p) {
+    return {
+      id: typeof p.id === 'string' && p.id ? p.id : makeId(),
+      name: String(p.name || ''),
+      text: String(p.text || ''),
+      manual: p.manual === undefined ? true : !!p.manual,
+      summaryColumn: !!p.summaryColumn
+    };
   }
 
   // --- DOM refs ---
   const dropzone     = document.getElementById('dropzone');
   const fileInput    = document.getElementById('fileInput');
   const createBtn    = document.getElementById('createSummaryBtn');
+  const applyBtn     = document.getElementById('applyBtn');
   const clearBtn     = document.getElementById('clearBtn');
   const fileListEl   = document.getElementById('fileList');
   const statusEl     = document.getElementById('status');
   const table        = document.getElementById('summaryTable');
+  const thead        = table.querySelector('thead');
   const tbody        = table.querySelector('tbody');
   const emptyState   = document.getElementById('emptyState');
 
@@ -479,6 +514,10 @@
   let files = [];        // [{file: File, pdfDoc: PDFDocumentProxy, id: number}]
   let nextId = 1;
   let busy = false;
+  // Snapshot of the summary-column prompts at the time the table was built.
+  // The table's columns are stable until Create Summary Table runs again.
+  let currentSummaryPrompts = [];
+  const DEFAULT_APPLY_MODEL = 'gpt-5.4-nano';
 
   // --- Settings panel ---
   const settingsToggle    = document.getElementById('settings-toggle');
@@ -569,9 +608,14 @@
 
   libraryExportBtn.addEventListener('click', () => {
     const payload = {
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
-      prompts: promptLibrary.map(p => ({ name: p.name, text: p.text }))
+      prompts: promptLibrary.map(p => ({
+        name: p.name,
+        text: p.text,
+        manual: p.manual,
+        summaryColumn: p.summaryColumn
+      }))
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -601,7 +645,7 @@
       if (!raw) throw new Error('Expected an array or an object with a "prompts" array.');
       promptLibrary = raw
         .filter(p => p && typeof p.name === 'string' && typeof p.text === 'string')
-        .map(p => ({ id: makeId(), name: p.name, text: p.text }));
+        .map(normalizePrompt);
       onLibraryChanged();
       setStatus('Imported ' + promptLibrary.length + ' prompt'
         + (promptLibrary.length === 1 ? '' : 's') + ' from ' + file.name + '.');
@@ -634,7 +678,7 @@
       if (!raw) throw new Error('Library JSON has unexpected shape.');
       promptLibrary = raw
         .filter(p => p && typeof p.name === 'string' && typeof p.text === 'string')
-        .map(p => ({ id: makeId(), name: p.name, text: p.text }));
+        .map(normalizePrompt);
       onLibraryChanged();
 
       const pdfBlob = await pdfResp.blob();
@@ -764,11 +808,7 @@
       } else if (e.data.type === 'promptLibrary' && Array.isArray(e.data.promptLibrary)) {
         promptLibrary = e.data.promptLibrary
           .filter(p => p && typeof p.name === 'string' && typeof p.text === 'string')
-          .map(p => ({
-            id: typeof p.id === 'string' && p.id ? p.id : makeId(),
-            name: p.name,
-            text: p.text
-          }));
+          .map(normalizePrompt);
         updateLibraryCountHint();
         pushLibraryToViewer();
       }
@@ -847,6 +887,30 @@
   function updateButtons() {
     createBtn.disabled = busy || files.length === 0;
     clearBtn.disabled  = busy || files.length === 0;
+    updateApplyButton();
+  }
+
+  // Apply is enabled when the table is built, we're not busy, and the user
+  // has checked at least one row AND at least one summary-column header.
+  function updateApplyButton() {
+    if (busy || table.hidden || currentSummaryPrompts.length === 0) {
+      applyBtn.disabled = true;
+      applyBtn.title = busy
+        ? 'Working…'
+        : (table.hidden
+          ? 'Build the summary table first'
+          : 'No prompts are marked as Summary table heading');
+      return;
+    }
+    const rowsSelected = !!tbody.querySelector('.row-select:checked');
+    const colsSelected = !!thead.querySelector('.col-select-prompt:checked');
+    if (rowsSelected && colsSelected) {
+      applyBtn.disabled = false;
+      applyBtn.title = 'Run selected prompts on selected rows';
+    } else {
+      applyBtn.disabled = true;
+      applyBtn.title = 'Select at least one row and one prompt column';
+    }
   }
 
   function setStatus(msg) { statusEl.textContent = msg; }
@@ -855,7 +919,13 @@
   createBtn.addEventListener('click', async () => {
     if (files.length === 0 || busy) return;
     busy = true;
+    // Snapshot summary-column prompts now; library edits after this point
+    // won't change the table's columns until Create Summary Table runs again.
+    currentSummaryPrompts = promptLibrary
+      .filter(p => p.summaryColumn)
+      .map(p => ({ ...p }));
     updateButtons();
+    buildTableHeader();
     tbody.innerHTML = '';
     emptyState.hidden = true;
     table.hidden = false;
@@ -872,6 +942,15 @@
         const tr = document.createElement('tr');
         tr.dataset.fileId = String(entry.id);
         tr.dataset.pageNum = String(pageNum);
+
+        const tdSelect = document.createElement('td');
+        tdSelect.className = 'col-select';
+        const rowCb = document.createElement('input');
+        rowCb.type = 'checkbox';
+        rowCb.className = 'row-select';
+        rowCb.title = 'Select this row';
+        tdSelect.appendChild(rowCb);
+        tr.appendChild(tdSelect);
 
         const tdFile = document.createElement('td');
         tdFile.className = 'col-file';
@@ -903,6 +982,17 @@
         tdLlm.appendChild(llmDiv);
         tr.appendChild(tdLlm);
 
+        for (const prompt of currentSummaryPrompts) {
+          const tdPrompt = document.createElement('td');
+          tdPrompt.className = 'col-prompt-result';
+          tdPrompt.dataset.promptId = prompt.id;
+          const div = document.createElement('div');
+          div.className = 'llm-response-content';
+          div.title = 'Double-click to view full response';
+          tdPrompt.appendChild(div);
+          tr.appendChild(tdPrompt);
+        }
+
         tbody.appendChild(tr);
 
         try {
@@ -923,6 +1013,74 @@
     setStatus(`Summary table built: ${totalPages} page${totalPages === 1 ? '' : 's'} across ${files.length} file${files.length === 1 ? '' : 's'}.`);
     busy = false;
     updateButtons();
+  });
+
+  function buildTableHeader() {
+    thead.innerHTML = '';
+    const tr = document.createElement('tr');
+
+    const thSelect = document.createElement('th');
+    thSelect.className = 'col-select';
+    const selectAllCb = document.createElement('input');
+    selectAllCb.type = 'checkbox';
+    selectAllCb.id = 'row-select-all';
+    selectAllCb.title = 'Select / deselect all rows';
+    selectAllCb.addEventListener('change', () => {
+      tbody.querySelectorAll('.row-select').forEach(cb => {
+        cb.checked = selectAllCb.checked;
+        cb.closest('tr').classList.toggle('row-selected', cb.checked);
+      });
+      updateApplyButton();
+    });
+    thSelect.appendChild(selectAllCb);
+    tr.appendChild(thSelect);
+
+    for (const label of ['File', 'Page', 'Thumbnail', 'Notes', 'LLM Response']) {
+      const th = document.createElement('th');
+      th.textContent = label;
+      tr.appendChild(th);
+    }
+
+    for (const prompt of currentSummaryPrompts) {
+      const th = document.createElement('th');
+      th.className = 'col-prompt';
+      th.dataset.promptId = prompt.id;
+      const lbl = document.createElement('label');
+      lbl.className = 'col-prompt-label';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'col-select-prompt';
+      cb.dataset.promptId = prompt.id;
+      cb.title = 'Include this prompt column in Apply';
+      const span = document.createElement('span');
+      span.className = 'prompt-name-text';
+      span.textContent = prompt.name;
+      span.title = prompt.name + '\n\n' + prompt.text;
+      lbl.appendChild(cb);
+      lbl.appendChild(span);
+      th.appendChild(lbl);
+      tr.appendChild(th);
+    }
+
+    thead.appendChild(tr);
+  }
+
+  // Re-evaluate Apply enable-state whenever any selection checkbox changes.
+  // Row checkboxes also toggle a visual "selected" class on the <tr>.
+  table.addEventListener('change', e => {
+    const t = e.target;
+    if (!(t instanceof HTMLInputElement) || t.type !== 'checkbox') return;
+    if (t.classList.contains('row-select')) {
+      t.closest('tr').classList.toggle('row-selected', t.checked);
+      const all = tbody.querySelectorAll('.row-select');
+      const checked = tbody.querySelectorAll('.row-select:checked');
+      const selectAllCb = thead.querySelector('#row-select-all');
+      if (selectAllCb) {
+        selectAllCb.checked = all.length > 0 && checked.length === all.length;
+        selectAllCb.indeterminate = checked.length > 0 && checked.length < all.length;
+      }
+    }
+    updateApplyButton();
   });
 
   async function renderThumbnail(pdfDoc, pageNum) {
@@ -948,12 +1106,150 @@
     if (busy) return;
     files = [];
     tbody.innerHTML = '';
+    thead.innerHTML = '';
+    currentSummaryPrompts = [];
     table.hidden = true;
     emptyState.hidden = false;
     fileListEl.textContent = '';
     setStatus('');
     updateButtons();
   });
+
+  // --- Apply: run selected prompts on selected rows ---
+  applyBtn.addEventListener('click', runApplyMatrix);
+
+  async function runApplyMatrix() {
+    if (busy) return;
+    const selectedRows = Array.from(tbody.querySelectorAll('tr'))
+      .filter(tr => tr.querySelector('.row-select:checked'))
+      .map(tr => ({
+        fileId: Number(tr.dataset.fileId),
+        pageNum: Number(tr.dataset.pageNum),
+        tr: tr
+      }));
+    const selectedPromptIds = Array.from(
+      thead.querySelectorAll('.col-select-prompt:checked')
+    ).map(cb => cb.dataset.promptId);
+    const selectedPrompts = currentSummaryPrompts.filter(
+      p => selectedPromptIds.includes(p.id)
+    );
+    if (!selectedRows.length || !selectedPrompts.length) return;
+
+    const endpoint = (llmSettings.endpoint || '').trim();
+    if (!endpoint) {
+      setStatus('No gateway endpoint configured. Open the hamburger menu and save one.');
+      return;
+    }
+
+    busy = true;
+    updateButtons();
+
+    const total = selectedRows.length * selectedPrompts.length;
+    let done = 0;
+
+    for (const row of selectedRows) {
+      const entry = files.find(f => f.id === row.fileId);
+      if (!entry) {
+        for (const prompt of selectedPrompts) {
+          setPromptCell(row.tr, prompt.id, 'error', 'File no longer loaded.');
+          done++;
+        }
+        continue;
+      }
+      let dataUrl = null;
+      let renderErr = null;
+      try {
+        dataUrl = await renderPageToDataUrl(entry.pdfDoc, row.pageNum);
+      } catch (err) {
+        renderErr = err;
+      }
+      for (const prompt of selectedPrompts) {
+        done++;
+        if (renderErr) {
+          setPromptCell(row.tr, prompt.id, 'error',
+            'Render error: ' + (renderErr.message || renderErr));
+          setStatus(`Apply: ${done}/${total}`);
+          continue;
+        }
+        setStatus(
+          `Apply: ${done}/${total} — ${entry.file.name} p.${row.pageNum} · ${prompt.name}`
+        );
+        setPromptCell(row.tr, prompt.id, 'pending', 'Querying LLM...');
+        try {
+          const text = await callGateway(endpoint, dataUrl, prompt.text);
+          setPromptCell(row.tr, prompt.id, 'success', text);
+        } catch (err) {
+          setPromptCell(row.tr, prompt.id, 'error',
+            'Error: ' + (err && err.message ? err.message : err));
+        }
+      }
+    }
+
+    busy = false;
+    updateButtons();
+    setStatus(`Apply complete: ${total} cell${total === 1 ? '' : 's'} processed.`);
+  }
+
+  function setPromptCell(tr, promptId, status, text) {
+    const td = tr.querySelector(`td.col-prompt-result[data-prompt-id="${promptId}"]`);
+    if (!td) return;
+    const div = td.querySelector('.llm-response-content');
+    if (!div) return;
+    div.classList.remove('pending', 'error');
+    if (status === 'pending') {
+      div.classList.add('pending');
+      div.textContent = text || 'Querying LLM...';
+      return;
+    }
+    if (status === 'error') {
+      div.classList.add('error');
+    }
+    div.textContent = text || '';
+  }
+
+  // Render a PDF page to a PNG data URL at a resolution suitable for the LLM.
+  async function renderPageToDataUrl(pdfDoc, pageNum) {
+    const page = await pdfDoc.getPage(pageNum);
+    const targetWidth = 1024;
+    const baseViewport = page.getViewport({ scale: 1 });
+    const scale = targetWidth / baseViewport.width;
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    return canvas.toDataURL('image/png');
+  }
+
+  async function callGateway(endpoint, dataUrl, promptText) {
+    if (llmSettings.debug) {
+      console.log('[FWB Debug] Apply gateway call', { endpoint, model: DEFAULT_APPLY_MODEL });
+    }
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        provider: llmSettings.provider || 'openai',
+        model: DEFAULT_APPLY_MODEL,
+        input: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: promptText || 'Describe what is shown on this page.' },
+              { type: 'image', image_url: dataUrl, detail: 'high' }
+            ]
+          }
+        ]
+      })
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      const err = data && data.error ? data.error : ('HTTP ' + resp.status);
+      throw new Error(err);
+    }
+    return (data && typeof data.response === 'string') ? data.response : '';
+  }
 
   // --- Viewer popup ---
   // Strategy: open a single named popup window. Each click postMessages
@@ -1140,9 +1436,18 @@
   .prompt-row.selected { background: #e8f3ff; border-color: #0066cc; }
   .prompt-name { flex: 1; font-size: 14px; min-width: 0;
                  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prompt-badges { display: flex; gap: 4px; flex-shrink: 0; margin-right: 6px; }
+  .prompt-badge { font-size: 10px; font-weight: 700; padding: 2px 6px;
+                  border-radius: 4px; letter-spacing: 0.4px; }
+  .prompt-badge.manual { background: #e8f3ff; color: #0066cc; }
+  .prompt-badge.col { background: #e6f7ec; color: #128a3d; }
   .actions { display: flex; gap: 4px; flex-shrink: 0; }
   .actions button { padding: 4px 10px; font-size: 13px; }
   .empty { color: #6e6e73; font-style: italic; font-size: 13px; margin: 4px 0 0; }
+  .flag-row { display: flex; gap: 16px; margin-top: 12px; }
+  .flag-row label { display: flex; align-items: center; gap: 6px;
+                    font-size: 13px; color: #1d1d1f; margin: 0; cursor: pointer; }
+  .flag-row input[type="checkbox"] { margin: 0; }
 </style>
 </head>
 <body>
@@ -1162,6 +1467,10 @@
     <input id="editName" type="text">
     <label for="editText">Prompt text</label>
     <textarea id="editText"></textarea>
+    <div class="flag-row">
+      <label><input id="editManual" type="checkbox"> Manual (show in detail page)</label>
+      <label><input id="editSummaryColumn" type="checkbox"> Summary table heading</label>
+    </div>
     <div class="row"><button id="saveEditBtn">Save Changes</button></div>
   </section>
   <section>
@@ -1170,6 +1479,10 @@
     <input id="addName" type="text" placeholder="e.g. Summarize">
     <label for="addText">Prompt text</label>
     <textarea id="addText" placeholder="Enter the prompt text..."></textarea>
+    <div class="flag-row">
+      <label><input id="addManual" type="checkbox" checked> Manual (show in detail page)</label>
+      <label><input id="addSummaryColumn" type="checkbox"> Summary table heading</label>
+    </div>
     <div class="row"><button id="addBtn">Add Prompt</button></div>
   </section>
 </main>
@@ -1183,10 +1496,24 @@
   const editSection = document.getElementById('editSection');
   const editName = document.getElementById('editName');
   const editText = document.getElementById('editText');
+  const editManual = document.getElementById('editManual');
+  const editSummaryColumn = document.getElementById('editSummaryColumn');
   const saveEditBtn = document.getElementById('saveEditBtn');
   const addName = document.getElementById('addName');
   const addText = document.getElementById('addText');
+  const addManual = document.getElementById('addManual');
+  const addSummaryColumn = document.getElementById('addSummaryColumn');
   const addBtn = document.getElementById('addBtn');
+
+  function normalizePrompt(p) {
+    return {
+      id: typeof p.id === 'string' && p.id ? p.id : makeId(),
+      name: String(p.name || ''),
+      text: String(p.text || ''),
+      manual: p.manual === undefined ? true : !!p.manual,
+      summaryColumn: !!p.summaryColumn
+    };
+  }
 
   function makeId() {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
@@ -1225,6 +1552,24 @@
       nameSpan.textContent = p.name || '(untitled)';
       nameSpan.addEventListener('click', () => selectPrompt(p.id));
       li.appendChild(nameSpan);
+
+      const badges = document.createElement('span');
+      badges.className = 'prompt-badges';
+      if (p.manual) {
+        const b = document.createElement('span');
+        b.className = 'prompt-badge manual';
+        b.textContent = 'M';
+        b.title = 'Manual \\u2014 shown in detail-page menu';
+        badges.appendChild(b);
+      }
+      if (p.summaryColumn) {
+        const b = document.createElement('span');
+        b.className = 'prompt-badge col';
+        b.textContent = 'T';
+        b.title = 'Table column \\u2014 appears as a summary-table heading';
+        badges.appendChild(b);
+      }
+      li.appendChild(badges);
 
       const actions = document.createElement('div');
       actions.className = 'actions';
@@ -1267,6 +1612,8 @@
       editSection.hidden = false;
       editName.value = p.name;
       editText.value = p.text;
+      editManual.checked = !!p.manual;
+      editSummaryColumn.checked = !!p.summaryColumn;
     } else {
       editSection.hidden = true;
     }
@@ -1302,7 +1649,13 @@
     if (!name) { editName.focus(); return; }
     const idx = library.findIndex(p => p.id === selectedId);
     if (idx < 0) return;
-    library[idx] = { ...library[idx], name: name, text: editText.value };
+    library[idx] = {
+      ...library[idx],
+      name: name,
+      text: editText.value,
+      manual: editManual.checked,
+      summaryColumn: editSummaryColumn.checked
+    };
     render();
     postLibrary();
   });
@@ -1310,10 +1663,16 @@
   addBtn.addEventListener('click', () => {
     const name = (addName.value || '').trim();
     if (!name) { addName.focus(); return; }
-    const text = addText.value;
-    library.push({ id: makeId(), name: name, text: text });
+    library.push(normalizePrompt({
+      name: name,
+      text: addText.value,
+      manual: addManual.checked,
+      summaryColumn: addSummaryColumn.checked
+    }));
     addName.value = '';
     addText.value = '';
+    addManual.checked = true;
+    addSummaryColumn.checked = false;
     render();
     postLibrary();
   });
@@ -1321,7 +1680,7 @@
   window.addEventListener('message', e => {
     if (!e.data || e.source !== window.opener) return;
     if (e.data.type === 'promptLibrary' && Array.isArray(e.data.promptLibrary)) {
-      library = e.data.promptLibrary.map(p => ({ ...p }));
+      library = e.data.promptLibrary.map(normalizePrompt);
       render();
     }
   });
@@ -1448,14 +1807,15 @@
 
   function renderLibrary() {
     libraryListEl.innerHTML = '';
-    if (!promptLibrary.length) {
+    const manualPrompts = promptLibrary.filter(p => p.manual !== false);
+    if (!manualPrompts.length) {
       const empty = document.createElement('span');
       empty.className = 'lib-empty';
-      empty.textContent = 'No saved prompts. Open the hamburger menu in the main window to add some.';
+      empty.textContent = 'No manual prompts. Mark a prompt as "Manual" in the library editor to make it appear here.';
       libraryListEl.appendChild(empty);
       return;
     }
-    for (const p of promptLibrary) {
+    for (const p of manualPrompts) {
       const item = document.createElement('span');
       item.className = 'lib-item';
       item.textContent = p.name;
