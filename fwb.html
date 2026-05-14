@@ -1047,12 +1047,23 @@
   }
 
   function updateAggButton() {
+    const rowsSelected = !!tbody.querySelector('.row-select:checked');
+    const rowsCount = tbody.querySelectorAll('.row-select:checked').length;
+    // Diagnostic: surface the live decision in the status bar so we can see
+    // what state the button is reacting to. Remove once the bug is solved.
+    setStatus('[agg-btn] busy=' + busy + ' tableHidden=' + table.hidden
+      + ' rowsChecked=' + rowsCount);
+    console.log('[FWB updateAggButton]', {
+      busy: busy,
+      tableHidden: table.hidden,
+      rowsChecked: rowsCount,
+      createAggBtn: !!createAggBtn
+    });
     if (busy || table.hidden) {
       createAggBtn.disabled = true;
       createAggBtn.title = busy ? 'Working…' : 'Build the summary table first';
       return;
     }
-    const rowsSelected = !!tbody.querySelector('.row-select:checked');
     if (rowsSelected) {
       createAggBtn.disabled = false;
       createAggBtn.title = 'Create a new aggregation or add selected pages to an existing one';
