@@ -624,9 +624,10 @@
     debug: false
   };
 
-  // Prompt library — array of { id, name, text, manual, summaryColumn }.
+  // Prompt library — array of { id, name, text, manual, summaryColumn, aggregationColumn }.
   // `manual`: prompt is offered in the viewer's detail page menu.
-  // `summaryColumn`: prompt gets a dedicated column in the summary table.
+  // `summaryColumn`: prompt gets a dedicated column in the page summary table.
+  // `aggregationColumn`: prompt gets a dedicated column in the aggregation detail table.
   // In-memory only; persistence is via the Import / Export buttons.
   let promptLibrary = [];
   function makeId() {
@@ -635,14 +636,15 @@
   }
   // Normalize a raw prompt object from JSON / postMessage into the canonical
   // shape. Missing `manual` defaults to true so pre-V0.3 libraries keep
-  // appearing in the viewer; missing `summaryColumn` defaults to false.
+  // appearing in the viewer; missing column flags default to false.
   function normalizePrompt(p) {
     return {
       id: typeof p.id === 'string' && p.id ? p.id : makeId(),
       name: String(p.name || ''),
       text: String(p.text || ''),
       manual: p.manual === undefined ? true : !!p.manual,
-      summaryColumn: !!p.summaryColumn
+      summaryColumn: !!p.summaryColumn,
+      aggregationColumn: !!p.aggregationColumn
     };
   }
 
@@ -678,6 +680,10 @@
   // Snapshot of the summary-column prompts at the time the table was built.
   // The table's columns are stable until Create Summary Table runs again.
   let currentSummaryPrompts = [];
+  // Same idea for the aggregation-detail table: snapshot the aggregation-
+  // column prompts at Create Summary Table time so the agg detail columns
+  // stay stable until the table is rebuilt.
+  let currentAggregationPrompts = [];
   // Aggregations: named groups of page refs. pageRefs = [{fileId, pageNum}].
   // Notes is aggregation-level; LLM/prompt result cells are empty in V0.4
   // (Apply runs only against the page-summary table for now).
@@ -797,7 +803,8 @@
         name: p.name,
         text: p.text,
         manual: p.manual,
-        summaryColumn: p.summaryColumn
+        summaryColumn: p.summaryColumn,
+        aggregationColumn: p.aggregationColumn
       }))
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1122,6 +1129,9 @@
     currentSummaryPrompts = promptLibrary
       .filter(p => p.summaryColumn)
       .map(p => ({ ...p }));
+    currentAggregationPrompts = promptLibrary
+      .filter(p => p.aggregationColumn)
+      .map(p => ({ ...p }));
     updateButtons();
     buildTableHeader();
     tbody.innerHTML = '';
@@ -1318,6 +1328,7 @@
     tbody.innerHTML = '';
     thead.innerHTML = '';
     currentSummaryPrompts = [];
+    currentAggregationPrompts = [];
     aggregations = [];
     selectedAggregationId = null;
     pageHeading.hidden = true;
@@ -1770,6 +1781,22 @@
 
     aggDetailThead.innerHTML = '';
     const headTr = document.createElement('tr');
+
+    const thSelect = document.createElement('th');
+    thSelect.className = 'col-select';
+    const selectAllCb = document.createElement('input');
+    selectAllCb.type = 'checkbox';
+    selectAllCb.className = 'agg-detail-select-all';
+    selectAllCb.title = 'Select / deselect all rows';
+    selectAllCb.addEventListener('change', () => {
+      aggDetailTbody.querySelectorAll('.row-select').forEach(cb => {
+        cb.checked = selectAllCb.checked;
+        cb.closest('tr').classList.toggle('row-selected', cb.checked);
+      });
+    });
+    thSelect.appendChild(selectAllCb);
+    headTr.appendChild(thSelect);
+
     const emptyTh = document.createElement('th');
     emptyTh.style.width = '40px';
     headTr.appendChild(emptyTh);
@@ -1778,14 +1805,24 @@
       th.textContent = label;
       headTr.appendChild(th);
     }
-    for (const prompt of currentSummaryPrompts) {
+    for (const prompt of currentAggregationPrompts) {
       const th = document.createElement('th');
       th.className = 'col-prompt';
+      th.dataset.promptId = prompt.id;
+      const lbl = document.createElement('label');
+      lbl.className = 'col-prompt-label';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'col-select-prompt';
+      cb.dataset.promptId = prompt.id;
+      cb.title = 'Select this prompt column';
       const span = document.createElement('span');
       span.className = 'prompt-name-text';
       span.textContent = prompt.name;
       span.title = prompt.name + '\n\n' + prompt.text;
-      th.appendChild(span);
+      lbl.appendChild(cb);
+      lbl.appendChild(span);
+      th.appendChild(lbl);
       headTr.appendChild(th);
     }
     aggDetailThead.appendChild(headTr);
@@ -1799,6 +1836,18 @@
       const sourceTr = tbody.querySelector(
         `tr[data-file-id="${ref.fileId}"][data-page-num="${ref.pageNum}"]`
       );
+
+      const tdSelect = document.createElement('td');
+      tdSelect.className = 'col-select';
+      const rowCb = document.createElement('input');
+      rowCb.type = 'checkbox';
+      rowCb.className = 'row-select';
+      rowCb.title = 'Select this row';
+      rowCb.addEventListener('change', () => {
+        tr.classList.toggle('row-selected', rowCb.checked);
+      });
+      tdSelect.appendChild(rowCb);
+      tr.appendChild(tdSelect);
 
       const tdDel = document.createElement('td');
       tdDel.className = 'col-agg-delete';
@@ -1839,9 +1888,10 @@
       tdLlm.textContent = readCellText(sourceTr, '.col-llm-response .llm-response-content');
       tr.appendChild(tdLlm);
 
-      for (const prompt of currentSummaryPrompts) {
+      for (const prompt of currentAggregationPrompts) {
         const tdPrompt = document.createElement('td');
         tdPrompt.className = 'col-agg-readonly';
+        tdPrompt.dataset.promptId = prompt.id;
         tdPrompt.textContent = readCellText(
           sourceTr,
           `.col-prompt-result[data-prompt-id="${prompt.id}"] .llm-response-content`
@@ -2053,6 +2103,7 @@
                   border-radius: 4px; letter-spacing: 0.4px; }
   .prompt-badge.manual { background: #e8f3ff; color: #0066cc; }
   .prompt-badge.col { background: #e6f7ec; color: #128a3d; }
+  .prompt-badge.agg { background: #fff1e6; color: #b35b00; }
   .actions { display: flex; gap: 4px; flex-shrink: 0; }
   .actions button { padding: 4px 10px; font-size: 13px; }
   .empty { color: #6e6e73; font-style: italic; font-size: 13px; margin: 4px 0 0; }
@@ -2082,6 +2133,7 @@
     <div class="flag-row">
       <label><input id="editManual" type="checkbox"> Manual (show in detail page)</label>
       <label><input id="editSummaryColumn" type="checkbox"> Summary table heading</label>
+      <label><input id="editAggregationColumn" type="checkbox"> Aggregation detail heading</label>
     </div>
     <div class="row"><button id="saveEditBtn">Save Changes</button></div>
   </section>
@@ -2094,6 +2146,7 @@
     <div class="flag-row">
       <label><input id="addManual" type="checkbox" checked> Manual (show in detail page)</label>
       <label><input id="addSummaryColumn" type="checkbox"> Summary table heading</label>
+      <label><input id="addAggregationColumn" type="checkbox"> Aggregation detail heading</label>
     </div>
     <div class="row"><button id="addBtn">Add Prompt</button></div>
   </section>
@@ -2110,11 +2163,13 @@
   const editText = document.getElementById('editText');
   const editManual = document.getElementById('editManual');
   const editSummaryColumn = document.getElementById('editSummaryColumn');
+  const editAggregationColumn = document.getElementById('editAggregationColumn');
   const saveEditBtn = document.getElementById('saveEditBtn');
   const addName = document.getElementById('addName');
   const addText = document.getElementById('addText');
   const addManual = document.getElementById('addManual');
   const addSummaryColumn = document.getElementById('addSummaryColumn');
+  const addAggregationColumn = document.getElementById('addAggregationColumn');
   const addBtn = document.getElementById('addBtn');
 
   function normalizePrompt(p) {
@@ -2123,7 +2178,8 @@
       name: String(p.name || ''),
       text: String(p.text || ''),
       manual: p.manual === undefined ? true : !!p.manual,
-      summaryColumn: !!p.summaryColumn
+      summaryColumn: !!p.summaryColumn,
+      aggregationColumn: !!p.aggregationColumn
     };
   }
 
@@ -2181,6 +2237,13 @@
         b.title = 'Table column \\u2014 appears as a summary-table heading';
         badges.appendChild(b);
       }
+      if (p.aggregationColumn) {
+        const b = document.createElement('span');
+        b.className = 'prompt-badge agg';
+        b.textContent = 'A';
+        b.title = 'Aggregation column \\u2014 appears as an aggregation-detail heading';
+        badges.appendChild(b);
+      }
       li.appendChild(badges);
 
       const actions = document.createElement('div');
@@ -2226,6 +2289,7 @@
       editText.value = p.text;
       editManual.checked = !!p.manual;
       editSummaryColumn.checked = !!p.summaryColumn;
+      editAggregationColumn.checked = !!p.aggregationColumn;
     } else {
       editSection.hidden = true;
     }
@@ -2266,7 +2330,8 @@
       name: name,
       text: editText.value,
       manual: editManual.checked,
-      summaryColumn: editSummaryColumn.checked
+      summaryColumn: editSummaryColumn.checked,
+      aggregationColumn: editAggregationColumn.checked
     };
     render();
     postLibrary();
@@ -2279,12 +2344,14 @@
       name: name,
       text: addText.value,
       manual: addManual.checked,
-      summaryColumn: addSummaryColumn.checked
+      summaryColumn: addSummaryColumn.checked,
+      aggregationColumn: addAggregationColumn.checked
     }));
     addName.value = '';
     addText.value = '';
     addManual.checked = true;
     addSummaryColumn.checked = false;
+    addAggregationColumn.checked = false;
     render();
     postLibrary();
   });
