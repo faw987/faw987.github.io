@@ -12,7 +12,7 @@ FWB shows three related tables, all driven from the PDFs you load:
 
 - **Page Summary** — one row per page across every loaded PDF. This is the primary review surface.
 - **Aggregations** — named groups of pages you pick from the page summary. One row per aggregation.
-- **Aggregation Detail** — the pages that make up the currently selected aggregation, with the live data from their page-summary rows. Its prompt columns are driven by an independent flag in the prompt library (see *Prompt Library* below), so the detail table can show a different set of prompt columns than the page summary table.
+- **Aggregation Detail** — the pages that make up the currently selected aggregation, in an order you control. Its prompt columns are driven by an independent flag in the prompt library, so the detail table can show a different set of prompt columns than either the page summary or the aggregations table.
 
 ## Workflow
 
@@ -29,7 +29,7 @@ FWB shows three related tables, all driven from the PDFs you load:
 
 The *Notes* column is plain editable text — type anything you want to remember about a page.
 
-## Apply: run prompts across many rows
+## Apply: run prompts across many rows (Page Summary)
 
 Once the page summary table is built, you can fill the per-prompt columns in bulk:
 
@@ -50,13 +50,48 @@ Aggregations let you collect pages that belong together — e.g. all pages of a 
    - Type a name in **New aggregation** and click *Save*, or
    - Pick an existing aggregation from the list to add the selected pages to it.
 
-The **Aggregations** table appears below the page summary table with one row per aggregation. Columns mirror the page summary table: *Name, Pages, Thumbnail* (the first page), *Notes, LLM Response*, and any prompt columns you've defined, plus a delete (**✕**) icon. Aggregation-level *Notes* are independent of the per-page notes.
+The **Aggregations** table appears below the page summary table with one row per aggregation. Columns mirror the page summary table: *Name, Pages, Thumbnail* (the first page in the aggregation), *Notes, LLM Response*, and any *Summary table heading* prompt columns, plus a delete (**✕**) icon. Aggregation-level *Notes* are independent of the per-page notes.
 
-Click an aggregation's **Name** to open the **Aggregation Detail** table — one row per page in the aggregation, pulling live data from the page summary. Each detail row has a **✕** to remove that page from the aggregation. Removing pages does not affect the underlying page summary row.
+Click an aggregation's **Name** to open the **Aggregation Detail** table. Clicking the **✕** in the Aggregations table deletes the whole aggregation (with a confirmation prompt). The pages themselves are unaffected.
 
-The detail table mirrors the page summary table's selection model: a *Select* column with a header *select-all* checkbox lets you pick rows, and any prompt marked **Aggregation detail heading** in the library editor becomes its own column with a selection checkbox in the heading. Cells in those columns currently pull their text from the matching prompt's cell in the page summary row, so a prompt flagged only for *Aggregation detail heading* (not also for *Summary table heading*) will show as a column but its cells will be empty until a future Apply-on-aggregation pass populates them.
+## Aggregation Detail table
 
-Clicking the **✕** in the Aggregations table deletes the whole aggregation (with a confirmation prompt). The pages themselves are unaffected.
+The detail table has one row per page in the aggregation, in an order you control. Its columns are *Drag, Select, ✕, File, Page, Thumbnail, Notes, LLM Response*, followed by one column for every prompt marked **Aggregation detail heading** in the library editor.
+
+A toolbar above the table holds two buttons:
+
+- **Apply** — runs the selected prompt columns against the selected rows of the aggregation detail (same model as the page-summary Apply). Results are stored on the aggregation, so they survive page-summary rebuilds and re-selecting the aggregation.
+- **Save as PDF** — prompts you for a filename and assembles all aggregation pages, in the current order, into a single PDF, pulling pages directly from the original source PDFs.
+
+### Selecting rows and columns
+
+- The leftmost *Select* column has a header checkbox that toggles all rows.
+- Each prompt column header has its own checkbox.
+- **Apply** is enabled once at least one row and one prompt column are checked.
+
+### Reordering rows
+
+Each row has a **☰** drag handle at the very left. Grab the handle and drag the row up or down — drop targets are highlighted with a colored bar above or below the row. Drop the row to commit the new order. The aggregation's stored page order is updated immediately, and the aggregation-summary thumbnail (which shows the first page) refreshes to track the new first row.
+
+You can only initiate a drag from the handle, so selecting text in other cells won't accidentally start a row drag.
+
+### Apply results vs. page-summary fallback
+
+When an aggregation-detail cell hasn't been filled in by an agg-detail Apply, FWB falls back to showing the matching cell from the page-summary row (if that prompt is also marked *Summary table heading* and you've run Apply there). Once you run Apply on the agg detail, the agg-level result replaces the fallback and is stored on the aggregation. To re-fetch, simply select the row + column again and click Apply — the new result overwrites the stored value.
+
+### Save as PDF
+
+Click **Save as PDF**, accept or edit the suggested filename (default: `<aggregation name>.pdf`), and FWB will:
+
+1. Read each unique source PDF directly from your loaded files (no re-rendering).
+2. Copy each page referenced by the aggregation, in the user-defined order.
+3. Save and download the assembled PDF.
+
+Source quality is preserved — pages are copied from the original PDFs rather than from the rendered thumbnails. A status line shows progress while the PDF is being assembled.
+
+### Removing pages from an aggregation
+
+Each detail row has a **✕** button to remove that page from the aggregation. Removing pages does not affect the underlying page summary row.
 
 ## Hamburger menu (☰)
 
@@ -75,19 +110,18 @@ A library is a list of named prompts you can apply to any page or run across the
 
 - **Edit** — opens the library editor in a separate window. Add prompts (name + text), reorder them with the ↑/↓ buttons, edit the selected prompt, or delete entries. Each prompt has three independent checkboxes:
   - **Manual** — the prompt appears in the viewer's pill list when you open a detail page.
-  - **Summary table heading** — the prompt becomes a column in the page summary table, eligible for Apply.
-  - **Aggregation detail heading** — the prompt becomes a column in the aggregation detail table.
-  Any combination is valid. A small **M**, **T**, or **A** badge next to each list entry shows which flags are set.
-  Changes sync live to the main window and to any open viewer.
-- **Export** — saves the current library as `fwb-prompt-library.json`, including the per-prompt flags.
-- **Import** — loads a JSON file. Either an array of `{ name, text, manual, summaryColumn, aggregationColumn }` objects, or `{ "prompts": [ ... ] }`. Missing flags default to `manual: true, summaryColumn: false, aggregationColumn: false` on import, so libraries exported before this option was added load without changes.
+  - **Summary table heading** — the prompt becomes a column in the page summary table, eligible for Apply on the page summary.
+  - **Aggregation detail heading** — the prompt becomes a column in the aggregation detail table, eligible for Apply on the aggregation detail.
+  Any combination is valid. A small **M**, **T**, or **A** badge next to each list entry shows which flags are set. Changes sync live to the main window and to any open viewer.
+- **Export** — saves the current library as `fwb-prompt-library.json`, including all per-prompt flags.
+- **Import** — loads a JSON file. Either an array of `{ name, text, manual, summaryColumn, aggregationColumn }` objects, or `{ "prompts": [ ... ] }`. Missing flags default to `manual: true, summaryColumn: false, aggregationColumn: false` on import, so libraries exported before any given flag was added load without changes.
 
 ### User Guide
 Opens this document.
 
 ## What is and isn't persisted
 
-For now, the gateway endpoint, the prompt library, your notes, the page summary table, and any aggregations are kept **in memory for the session**. Use **Export** to save your library; **Import** to restore it. The PDFs you've loaded and any LLM responses you've generated do not persist either — closing or reloading the page clears them.
+For now, the gateway endpoint, the prompt library, your notes, the page summary table, aggregations, and aggregation-level prompt results are kept **in memory for the session**. Use **Export** to save your library; **Import** to restore it. Use **Save as PDF** to capture an aggregation's pages as a deliverable. The PDFs you've loaded and any LLM responses you've generated do not persist on their own — closing or reloading the page clears them.
 
 Persistence is on the roadmap; this iteration deliberately keeps state explicit.
 
@@ -95,15 +129,15 @@ Persistence is on the roadmap; this iteration deliberately keeps state explicit.
 
 - The viewer caches each PDF after the first thumbnail click, so subsequent clicks on the same file are fast.
 - Hover a library pill in the viewer to see the full prompt text in a tooltip.
-- Hover a column header in the page summary table to see the full prompt text for that column.
+- Hover a column header to see the full prompt text for that column.
 - High-resolution pages can produce sizable base64 images — if a request fails with a payload error, try a less detailed prompt or a smaller PDF.
-- Aggregations survive a rebuild of the page summary table — the page references stay valid as long as you don't *Clear*.
+- Aggregations and their stored Apply results survive a rebuild of the page summary table — the page references stay valid as long as you don't *Clear*.
+- The Save-as-PDF output draws from the original source PDFs, so text remains selectable and the file size stays close to the originals.
 
 ## Limitations
 
 - Image input requires the gateway to use the OpenAI provider.
 - No OCR for scanned PDFs (pages are sent as rendered images, which most modern vision models handle well).
-- Apply runs sequentially across the selected matrix; very large selections may take a while.
-- Apply does not yet operate on aggregation rows — only the page summary table. The aggregation detail table's row and column-select checkboxes are wired for selection state but no Apply action is connected yet.
-- A prompt flagged only as *Aggregation detail heading* (not also *Summary table heading*) will show as an empty column in the aggregation detail table — its cells stay blank until aggregation-level Apply lands.
-- The Aggregation Detail table is rebuilt only when you click an aggregation name or add/remove pages. Edits to a page's Notes or LLM cells made after that won't propagate until you click the aggregation again.
+- Apply (both page-summary and aggregation-detail) runs sequentially across the selected matrix; very large selections may take a while.
+- Apply does not yet operate on the **Aggregations** table itself as a multi-page-as-one-document operation. The agg-detail Apply still calls the LLM one page at a time.
+- The Aggregation Detail table's *Notes* and (fallback) *LLM Response* values are refreshed only when you click an aggregation name or add / remove pages. Page-summary edits made after that won't propagate until you click the aggregation again. Agg-level Apply results, however, are stored on the aggregation and always shown.

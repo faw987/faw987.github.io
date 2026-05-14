@@ -537,7 +537,7 @@
 <header>
   <h1>Forensic Workbench Dashboard</h1>
   <span class="badge">FWB</span>
-  <span class="badge version">V0.4</span>
+  <span class="badge version">V0.5</span>
 </header>
 
 <main>
@@ -706,9 +706,10 @@
   // column prompts at Create Summary Table time so the agg detail columns
   // stay stable until the table is rebuilt.
   let currentAggregationPrompts = [];
-  // Aggregations: named groups of page refs. pageRefs = [{fileId, pageNum}].
-  // Notes is aggregation-level; LLM/prompt result cells are empty in V0.4
-  // (Apply runs only against the page-summary table for now).
+  // Aggregations: named groups of page refs. Shape:
+  // { id, name, pageRefs: [{fileId, pageNum}], notes, promptResults }.
+  // `promptResults` is populated by the agg-detail Apply and keyed by
+  // `${fileId}:${pageNum}:${promptId}` → { status, text }.
   let aggregations = [];
   let nextAggId = 1;
   let selectedAggregationId = null;
