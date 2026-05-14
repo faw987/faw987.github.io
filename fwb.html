@@ -493,6 +493,31 @@
   <button class="settings-save-btn demo-btn" id="load-demo-btn" style="width: 100%; margin: 0 0 6px;">Load Demo Data</button>
   <p class="hint" style="margin: 0 0 14px;">Fetches a sample prompt library and a test PDF from GitHub.</p>
 
+  <h3>Project</h3>
+  <p class="hint" style="margin: 0 0 8px;">
+    Save or open a complete analysis: PDFs, notes, LLM responses, aggregations, and the prompt library.
+  </p>
+  <div class="project-mode-row" style="display: flex; flex-direction: column; gap: 4px;
+       font-size: 12px; color: var(--text); margin: 0 0 8px;">
+    <span style="color: var(--muted); font-size: 11px;
+          text-transform: uppercase; letter-spacing: 0.4px;">Save mode</span>
+    <label style="display: flex; gap: 6px; align-items: center; cursor: pointer;">
+      <input type="radio" name="projectMode" value="bundled" checked>
+      Bundled &mdash; PDFs embedded in the file (larger, self-contained)
+    </label>
+    <label style="display: flex; gap: 6px; align-items: center; cursor: pointer;">
+      <input type="radio" name="projectMode" value="referenced">
+      Referenced &mdash; re-attach PDFs on open (smaller file)
+    </label>
+  </div>
+  <div class="library-row">
+    <button class="settings-save-btn" id="project-save-btn">Save Project</button>
+    <button class="settings-save-btn" id="project-open-btn">Open Project</button>
+  </div>
+  <input type="file" id="project-open-file" accept="application/json,.json" hidden>
+  <input type="file" id="project-attach-file" accept="application/pdf,.pdf" multiple hidden>
+
+  <hr class="section-divider">
   <h3>AI Gateway Settings</h3>
   <label for="settings-endpoint">Gateway Endpoint</label>
   <input id="settings-endpoint" type="text" placeholder="e.g. http://localhost:8080/chat">
@@ -537,7 +562,7 @@
 <header>
   <h1>Forensic Workbench Dashboard</h1>
   <span class="badge">FWB</span>
-  <span class="badge version">V0.5</span>
+  <span class="badge version">V0.6</span>
 </header>
 
 <main>
@@ -868,6 +893,333 @@
     }
   });
 
+  // --- Project save / open ---
+  const projectSaveBtn   = document.getElementById('project-save-btn');
+  const projectOpenBtn   = document.getElementById('project-open-btn');
+  const projectOpenFile  = document.getElementById('project-open-file');
+  const projectAttachFile = document.getElementById('project-attach-file');
+
+  projectSaveBtn.addEventListener('click', saveProject);
+  projectOpenBtn.addEventListener('click', () => projectOpenFile.click());
+  projectOpenFile.addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      await openProjectFromFile(file);
+    } catch (err) {
+      console.error('Open project failed', err);
+      setStatus('Open project failed: ' + (err && err.message ? err.message : err));
+    }
+  });
+
+  function getSelectedProjectMode() {
+    const checked = document.querySelector('input[name="projectMode"]:checked');
+    return checked ? checked.value : 'bundled';
+  }
+
+  async function sha256Hex(arrayBuffer) {
+    if (!(crypto && crypto.subtle)) return '';
+    const hash = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    return Array.from(new Uint8Array(hash))
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => {
+        const s = String(r.result || '');
+        const i = s.indexOf(',');
+        resolve(i >= 0 ? s.slice(i + 1) : s);
+      };
+      r.onerror = () => reject(r.error || new Error('FileReader failed'));
+      r.readAsDataURL(blob);
+    });
+  }
+
+  function base64ToFile(b64, name) {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new File([bytes], name, { type: 'application/pdf' });
+  }
+
+  // Snapshot one row's per-prompt, notes, and llm-response text from the DOM.
+  function extractPageRowData(fileId, pageNum) {
+    const tr = tbody.querySelector(
+      `tr[data-file-id="${fileId}"][data-page-num="${pageNum}"]`);
+    if (!tr) {
+      return { fileId, pageNum, notes: '', llmResponse: '', promptResults: {} };
+    }
+    const notesEl = tr.querySelector('.col-notes [contenteditable]');
+    const llmEl = tr.querySelector('.col-llm-response .llm-response-content');
+    const promptResults = {};
+    tr.querySelectorAll('.col-prompt-result').forEach(td => {
+      const promptId = td.dataset.promptId;
+      const div = td.querySelector('.llm-response-content');
+      const text = div ? (div.textContent || '') : '';
+      if (promptId && text) promptResults[promptId] = text;
+    });
+    return {
+      fileId, pageNum,
+      notes: notesEl ? (notesEl.textContent || '') : '',
+      llmResponse: llmEl ? (llmEl.textContent || '') : '',
+      promptResults
+    };
+  }
+
+  function populatePageRowData(page) {
+    const tr = tbody.querySelector(
+      `tr[data-file-id="${page.fileId}"][data-page-num="${page.pageNum}"]`);
+    if (!tr) return;
+    const notesEl = tr.querySelector('.col-notes [contenteditable]');
+    if (notesEl) notesEl.textContent = page.notes || '';
+    const llmEl = tr.querySelector('.col-llm-response .llm-response-content');
+    if (llmEl) llmEl.textContent = page.llmResponse || '';
+    for (const [promptId, text] of Object.entries(page.promptResults || {})) {
+      const td = tr.querySelector(`.col-prompt-result[data-prompt-id="${promptId}"]`);
+      if (!td) continue;
+      const div = td.querySelector('.llm-response-content');
+      if (div) div.textContent = text;
+    }
+  }
+
+  async function saveProject() {
+    if (busy) return;
+    const mode = getSelectedProjectMode();
+    if (!files.length && !promptLibrary.length) {
+      setStatus('Nothing to save: no PDFs loaded and no prompts in library.');
+      return;
+    }
+    busy = true;
+    updateButtons();
+    setStatus(mode === 'bundled'
+      ? 'Saving project (bundling PDFs)…'
+      : 'Saving project (referenced)…');
+
+    try {
+      const fileEntries = [];
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        setStatus(`Saving project: file ${i + 1} / ${files.length} (${f.file.name})`);
+        const buf = await f.file.arrayBuffer();
+        const sha = await sha256Hex(buf);
+        const entry = {
+          id: f.id,
+          name: f.file.name,
+          size: f.file.size,
+          sha256: sha
+        };
+        if (mode === 'bundled') {
+          entry.data = await blobToBase64(new Blob([buf]));
+        }
+        fileEntries.push(entry);
+      }
+
+      const pages = [];
+      if (!table.hidden) {
+        for (const f of files) {
+          for (let pageNum = 1; pageNum <= f.pdfDoc.numPages; pageNum++) {
+            const data = extractPageRowData(f.id, pageNum);
+            if (data.notes || data.llmResponse || Object.keys(data.promptResults).length) {
+              pages.push(data);
+            }
+          }
+        }
+      }
+
+      const aggs = aggregations.map(a => ({
+        id: a.id,
+        name: a.name,
+        notes: a.notes || '',
+        pageRefs: a.pageRefs.map(r => ({ fileId: r.fileId, pageNum: r.pageNum })),
+        promptResults: a.promptResults || {}
+      }));
+
+      const project = {
+        kind: 'fwb-project',
+        version: 1,
+        appVersion: '0.6',
+        exportedAt: new Date().toISOString(),
+        mode,
+        nextId,
+        promptLibrary: promptLibrary.map(p => ({ ...p })),
+        currentSummaryPrompts: currentSummaryPrompts.map(p => ({ ...p })),
+        currentAggregationPrompts: currentAggregationPrompts.map(p => ({ ...p })),
+        summaryTableBuilt: !table.hidden,
+        files: fileEntries,
+        pages,
+        aggregations: aggs,
+        selectedAggregationId
+      };
+
+      const defaultName = (mode === 'bundled' ? 'fwb-project-bundled' : 'fwb-project')
+        + '-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.json';
+      const entered = window.prompt('Save project as:', defaultName);
+      if (!entered) {
+        setStatus('Save cancelled.');
+        return;
+      }
+      const filename = entered.toLowerCase().endsWith('.json') ? entered : entered + '.json';
+
+      const blob = new Blob([JSON.stringify(project)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+
+      const sizeKb = Math.round(blob.size / 1024);
+      setSettingsOpen(false);
+      setStatus('Project saved (' + mode + ', ' + sizeKb + ' KB) to ' + filename + '.');
+    } catch (err) {
+      console.error('Save project failed', err);
+      setStatus('Save failed: ' + (err && err.message ? err.message : err));
+    } finally {
+      busy = false;
+      updateButtons();
+    }
+  }
+
+  // Wait for the next change event on the attach-file input, resolving to
+  // an array of File objects. Allows opening referenced projects which
+  // require the user to pick the source PDFs.
+  function awaitAttachedFiles() {
+    return new Promise(resolve => {
+      const handler = e => {
+        projectAttachFile.removeEventListener('change', handler);
+        const picked = Array.from(e.target.files || []);
+        e.target.value = '';
+        resolve(picked);
+      };
+      projectAttachFile.addEventListener('change', handler);
+      projectAttachFile.click();
+    });
+  }
+
+  async function resolveProjectFiles(project) {
+    const needsAttach = project.files.filter(f => !f.data);
+    if (!needsAttach.length) return new Map(); // bundled — no attach needed
+    setStatus('Project needs these PDFs re-attached: '
+      + needsAttach.map(f => f.name).join(', '));
+    const picked = await awaitAttachedFiles();
+    if (!picked.length) throw new Error('No files selected.');
+    const byName = new Map();
+    for (const f of picked) byName.set(f.name, f);
+    const missing = needsAttach.filter(f => !byName.has(f.name)).map(f => f.name);
+    if (missing.length) {
+      throw new Error('Missing PDFs: ' + missing.join(', '));
+    }
+    return byName;
+  }
+
+  async function openProjectFromFile(file) {
+    if (busy) return;
+    setStatus('Reading project file…');
+    const text = await file.text();
+    let project;
+    try {
+      project = JSON.parse(text);
+    } catch (e) {
+      throw new Error('Not a valid JSON file.');
+    }
+    if (!project || project.kind !== 'fwb-project') {
+      throw new Error('Not an FWB project file.');
+    }
+    if (!Array.isArray(project.files)) project.files = [];
+    if (!Array.isArray(project.pages)) project.pages = [];
+    if (!Array.isArray(project.aggregations)) project.aggregations = [];
+
+    // Re-attach phase happens BEFORE we wipe current state, so a cancelled
+    // open doesn't destroy the user's in-progress work.
+    const attached = await resolveProjectFiles(project);
+
+    busy = true;
+    updateButtons();
+    setStatus('Restoring project…');
+    try {
+      // Reset all state to match the Clear button.
+      files = [];
+      tbody.innerHTML = '';
+      thead.innerHTML = '';
+      currentSummaryPrompts = [];
+      currentAggregationPrompts = [];
+      aggregations = [];
+      selectedAggregationId = null;
+      pageHeading.hidden = true;
+      table.hidden = true;
+      emptyState.hidden = false;
+      fileListEl.textContent = '';
+
+      // Restore prompt library so column construction sees the right prompts.
+      promptLibrary = Array.isArray(project.promptLibrary)
+        ? project.promptLibrary
+            .filter(p => p && typeof p.name === 'string' && typeof p.text === 'string')
+            .map(normalizePrompt)
+        : [];
+      onLibraryChanged();
+
+      // Restore files, preserving original ids so saved pageRefs still resolve.
+      let maxId = 0;
+      for (const sf of project.files) {
+        let restored;
+        if (sf.data) {
+          restored = base64ToFile(sf.data, sf.name);
+        } else {
+          restored = attached.get(sf.name);
+          if (!restored) throw new Error('Internal: missing attached file ' + sf.name);
+        }
+        const buffer = await restored.arrayBuffer();
+        const pdfDoc = await pdfjsLib.getDocument({ data: buffer.slice(0) }).promise;
+        files.push({ file: restored, pdfDoc, id: sf.id });
+        if (sf.id > maxId) maxId = sf.id;
+      }
+      nextId = Math.max(maxId + 1, project.nextId || 1);
+      renderFileList();
+
+      // Restore aggregations BEFORE rebuilding the summary table so the agg
+      // re-renders can see them as soon as buildSummaryTable's tail runs.
+      aggregations = project.aggregations.map(a => ({
+        id: a.id,
+        name: a.name || '',
+        notes: a.notes || '',
+        pageRefs: Array.isArray(a.pageRefs)
+          ? a.pageRefs.map(r => ({ fileId: r.fileId, pageNum: r.pageNum }))
+          : [],
+        promptResults: a.promptResults || {}
+      }));
+      selectedAggregationId = project.selectedAggregationId || null;
+
+      // Build the summary table only if the project had one. buildSummaryTable
+      // snapshots `currentSummaryPrompts` / `currentAggregationPrompts` from
+      // `promptLibrary`, so the saved snapshots match by construction.
+      // Release busy briefly: buildSummaryTable owns its own busy lifecycle
+      // and will short-circuit if busy is already true.
+      if (project.summaryTableBuilt && files.length) {
+        busy = false;
+        await buildSummaryTable();
+        busy = true;
+        for (const page of project.pages) populatePageRowData(page);
+      }
+
+      renderAggSummary();
+      renderAggDetail();
+
+      setSettingsOpen(false);
+      setStatus('Project loaded: ' + files.length + ' PDF'
+        + (files.length === 1 ? '' : 's') + ', ' + promptLibrary.length + ' prompt'
+        + (promptLibrary.length === 1 ? '' : 's') + ', ' + aggregations.length + ' aggregation'
+        + (aggregations.length === 1 ? '' : 's') + '.');
+    } finally {
+      busy = false;
+      updateButtons();
+    }
+  }
+
   // --- Load Demo Data button ---
   const loadDemoBtn = document.getElementById('load-demo-btn');
   loadDemoBtn.addEventListener('click', loadDemoData);
@@ -1146,7 +1498,8 @@
   function setStatus(msg) { statusEl.textContent = msg; }
 
   // --- Build summary table ---
-  createBtn.addEventListener('click', async () => {
+  createBtn.addEventListener('click', buildSummaryTable);
+  async function buildSummaryTable() {
     if (files.length === 0 || busy) return;
     busy = true;
     // Snapshot summary-column prompts now; library edits after this point
@@ -1257,7 +1610,7 @@
     // pull live data) match the new state.
     renderAggSummary();
     renderAggDetail();
-  });
+  }
 
   function buildTableHeader() {
     thead.innerHTML = '';
