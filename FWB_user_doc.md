@@ -100,6 +100,33 @@ The hamburger icon in the top-right opens the configuration panel. When the pane
 ### Load Demo Data
 Pulls a sample prompt library (`fwb-prompt-library.json`) and a test PDF (`forensic_test_00.pdf`) from GitHub and loads them into the dashboard. Useful for first-time use or for sharing a working demo.
 
+### Project (Save / Open)
+
+A *project file* captures a complete analysis as a single JSON file: the loaded PDFs (optionally embedded), the prompt library, every page's notes and LLM response, every Apply result on the page summary, and every aggregation with its name, page order, notes, and stored agg-detail Apply results.
+
+- **Save Project** — pick a save mode, then click *Save Project*. You'll be prompted for a filename (default `fwb-project-<timestamp>.json`). The panel closes and a status line confirms the save and reports the file size.
+- **Open Project** — click *Open Project* and pick a previously-saved `.json` file. FWB clears its current state, restores the project, rebuilds the page summary table (if it was built in the saved project), and re-renders any aggregations. If anything fails before state is wiped (e.g. you cancel a re-attach) your in-progress work is left alone.
+
+#### Save modes
+
+Choose one before clicking *Save Project*:
+
+- **Bundled** — PDFs are embedded in the JSON file as base64. The resulting file is self-contained: anyone with it can open the project without needing the original PDFs. Trade-off is size — base64 inflates PDF bytes by about a third, so projects with many or large PDFs become big.
+- **Referenced** — only the PDF filenames, sizes, and SHA-256 hashes are stored. The resulting file is small (typically a few KB plus per-page text), but on **Open Project** FWB asks you to re-attach the source PDFs from disk. Files are matched by filename; the hash is recorded for future verification but not enforced yet.
+
+Use bundled when you want a portable, self-contained deliverable; use referenced when you're working a case across multiple sessions on the same machine and want the project file to stay light.
+
+#### What round-trips
+- All loaded PDFs (bundled or re-attached) with their original `fileId`s preserved so aggregations remain valid.
+- The full prompt library, including all three per-prompt flags.
+- The Page Summary table: notes, LLM Response, and each *Summary table heading* prompt-result cell.
+- All aggregations: name, notes, page order (including any drag-to-reorder you did), and the agg-detail `promptResults` from Apply.
+- The currently selected aggregation, so the Aggregation Detail table reopens on the same group.
+
+#### What does **not** persist
+- Settings (gateway endpoint, debug toggle, save-mode radio) are still session-scoped.
+- LLM responses that were *in flight* when you saved aren't restored as pending — only completed text is captured.
+
 ### AI Gateway Settings
 - **Gateway Endpoint** — full URL of an `ai_proxy` `/chat` endpoint. The default points at a hosted Cloud Run instance. Override it if you run the gateway locally (typically `http://localhost:8080/chat`).
 - The gateway holds provider keys; the browser never sees them.
@@ -121,9 +148,13 @@ Opens this document.
 
 ## What is and isn't persisted
 
-For now, the gateway endpoint, the prompt library, your notes, the page summary table, aggregations, and aggregation-level prompt results are kept **in memory for the session**. Use **Export** to save your library; **Import** to restore it. Use **Save as PDF** to capture an aggregation's pages as a deliverable. The PDFs you've loaded and any LLM responses you've generated do not persist on their own — closing or reloading the page clears them.
+State is kept **in memory for the session**, with three explicit persistence paths:
 
-Persistence is on the roadmap; this iteration deliberately keeps state explicit.
+- **Save Project** (hamburger panel → Project) — a single JSON file capturing PDFs, prompt library, notes, LLM responses, Apply results, and aggregations. Bundled mode embeds the PDFs; referenced mode keeps the file small and re-attaches PDFs on open.
+- **Prompt Library → Export** — a JSON of just the prompt library, useful when you want to share prompts without an analysis attached.
+- **Aggregation Detail → Save as PDF** — an aggregation's pages assembled into a standalone PDF deliverable.
+
+Closing or reloading the page clears everything that hasn't been saved. The gateway endpoint, debug toggle, and project save-mode radio are session-scoped too. Automatic in-browser autosave is on the roadmap.
 
 ## Tips
 
