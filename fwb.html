@@ -197,6 +197,96 @@
   tr.row-selected td { background: #f0f7ff; }
   .apply-btn { background: #16a34a; }
   .apply-btn:hover:not(:disabled) { background: #128a3d; }
+  /* Section headings for each table */
+  h2.section-heading {
+    font-size: 16px; font-weight: 600; margin: 24px 0 10px;
+    color: var(--text); display: flex; align-items: baseline; gap: 10px;
+  }
+  h2.section-heading .heading-meta {
+    font-size: 12px; color: var(--muted); font-weight: 400;
+  }
+  /* AGG summary table */
+  td.col-agg-name {
+    font-weight: 500; font-size: 14px; cursor: pointer; color: var(--accent);
+    max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  td.col-agg-name:hover { text-decoration: underline; }
+  tr.aggregation-active td { background: #e8f3ff; }
+  tr.aggregation-active td.col-agg-name { font-weight: 600; }
+  td.col-agg-pages { font-variant-numeric: tabular-nums; width: 80px;
+                     color: var(--muted); text-align: right; }
+  td.col-agg-delete { width: 40px; text-align: center; padding: 4px; }
+  td.col-agg-delete button {
+    background: transparent; color: #b00020; border: 0;
+    font-size: 18px; line-height: 1; padding: 4px 8px;
+    border-radius: 6px; cursor: pointer; font-weight: 500;
+  }
+  td.col-agg-delete button:hover { background: #fdf0f0; }
+  td.col-agg-notes [contenteditable] {
+    display: block; min-height: 40px; padding: 4px 6px;
+    border: 1px solid transparent; border-radius: 4px; outline: none;
+    font-size: 13px; white-space: pre-wrap;
+  }
+  td.col-agg-notes [contenteditable]:hover { border-color: var(--border); }
+  td.col-agg-notes [contenteditable]:focus { border-color: var(--accent); background: #fff; }
+  td.col-agg-notes [contenteditable]:empty::before {
+    content: attr(data-placeholder); color: #c7c7cc;
+  }
+  td.col-agg-readonly {
+    min-width: 200px; max-width: 320px; padding: 6px 8px;
+    font-size: 13px; color: var(--muted); white-space: pre-wrap;
+    max-height: 160px; overflow-y: auto;
+  }
+  td.col-agg-readonly:empty::before {
+    content: '—'; color: #d2d2d7;
+  }
+  /* Aggregation modal */
+  #agg-modal {
+    display: none; position: fixed; inset: 0; z-index: 2100;
+    background: rgba(0,0,0,0.45);
+    align-items: center; justify-content: center; padding: 40px;
+  }
+  #agg-modal.open { display: flex; }
+  #agg-modal-content {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; max-width: 480px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    display: flex; flex-direction: column;
+  }
+  #agg-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px; border-bottom: 1px solid var(--border);
+  }
+  #agg-modal-header h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  #agg-modal-header button {
+    background: transparent; color: var(--muted); font-size: 22px;
+    padding: 0 10px; line-height: 1; border-radius: 6px;
+    border: 0; cursor: pointer;
+  }
+  #agg-modal-header button:hover { background: #f0f0f0; color: var(--text); }
+  #agg-modal-body { padding: 18px 22px; color: var(--text); font-size: 14px; }
+  #agg-modal-body .hint { color: var(--muted); margin: 0 0 14px; }
+  #agg-modal-body .group { margin: 10px 0; }
+  #agg-modal-body label.choice {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 0; cursor: pointer;
+  }
+  #agg-modal-body input[type="text"] {
+    width: 100%; padding: 8px 10px; border-radius: 6px;
+    border: 1px solid var(--border); font: inherit; outline: none;
+    margin-top: 6px; box-sizing: border-box;
+  }
+  #agg-modal-body input[type="text"]:focus { border-color: var(--accent); }
+  #agg-modal-body .existing-list {
+    max-height: 200px; overflow-y: auto; margin: 6px 0;
+    border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px;
+  }
+  #agg-modal-body .existing-list:empty { display: none; }
+  #agg-modal-footer {
+    display: flex; justify-content: flex-end; gap: 8px;
+    padding: 12px 22px; border-top: 1px solid var(--border);
+  }
   .llm-response-content {
     font-size: 13px;
     white-space: pre-wrap;
@@ -423,7 +513,7 @@
 <header>
   <h1>Forensic Workbench Dashboard</h1>
   <span class="badge">FWB</span>
-  <span class="badge version">V0.3</span>
+  <span class="badge version">V0.4</span>
 </header>
 
 <main>
@@ -436,18 +526,65 @@
   <div class="controls">
     <button id="createSummaryBtn" disabled>Create Summary Table</button>
     <button id="applyBtn" class="apply-btn" disabled title="Select at least one row and one prompt column">Apply</button>
+    <button id="createAggBtn" disabled title="Select at least one row to create or add to an aggregation">Create / Add Aggregation</button>
     <button id="clearBtn" class="secondary" disabled>Clear</button>
     <div class="file-list" id="fileList"></div>
   </div>
 
   <div class="status" id="status"></div>
 
+  <h2 class="section-heading" id="pageSummaryHeading" hidden>Page Summary</h2>
   <table id="summaryTable" hidden>
     <thead></thead>
     <tbody></tbody>
   </table>
   <div class="empty-state" id="emptyState">No PDFs loaded yet. Drop files above to get started.</div>
+
+  <h2 class="section-heading" id="aggSummaryHeading" hidden>
+    Aggregations
+    <span class="heading-meta" id="aggSummaryMeta"></span>
+  </h2>
+  <table id="aggSummaryTable" hidden>
+    <thead></thead>
+    <tbody></tbody>
+  </table>
+
+  <h2 class="section-heading" id="aggDetailHeading" hidden>
+    Aggregation Detail
+    <span class="heading-meta" id="aggDetailMeta"></span>
+  </h2>
+  <table id="aggDetailTable" hidden>
+    <thead></thead>
+    <tbody></tbody>
+  </table>
 </main>
+
+<div id="agg-modal" role="dialog" aria-modal="true" aria-labelledby="agg-modal-title">
+  <div id="agg-modal-content">
+    <div id="agg-modal-header">
+      <h3 id="agg-modal-title">Create / Add to Aggregation</h3>
+      <button id="agg-modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div id="agg-modal-body">
+      <p class="hint" id="agg-modal-selection-hint">0 pages selected.</p>
+      <div class="group" id="agg-modal-existing-group">
+        <div style="font-weight: 500; margin-bottom: 4px;">Add to existing</div>
+        <div class="existing-list" id="agg-modal-existing-list"></div>
+      </div>
+      <div class="group">
+        <label class="choice">
+          <input type="radio" name="aggTarget" value="__new__" checked>
+          <span>New aggregation</span>
+        </label>
+        <input type="text" id="agg-modal-new-name" placeholder="Aggregation name">
+      </div>
+    </div>
+    <div id="agg-modal-footer">
+      <button class="secondary" id="agg-modal-cancel">Cancel</button>
+      <button id="agg-modal-submit">Save</button>
+    </div>
+  </div>
+</div>
 
 <footer>FWB &middot; PDFs are processed locally in your browser</footer>
 
@@ -502,13 +639,25 @@
   const fileInput    = document.getElementById('fileInput');
   const createBtn    = document.getElementById('createSummaryBtn');
   const applyBtn     = document.getElementById('applyBtn');
+  const createAggBtn = document.getElementById('createAggBtn');
   const clearBtn     = document.getElementById('clearBtn');
   const fileListEl   = document.getElementById('fileList');
   const statusEl     = document.getElementById('status');
+  const pageHeading  = document.getElementById('pageSummaryHeading');
   const table        = document.getElementById('summaryTable');
   const thead        = table.querySelector('thead');
   const tbody        = table.querySelector('tbody');
   const emptyState   = document.getElementById('emptyState');
+  const aggHeading       = document.getElementById('aggSummaryHeading');
+  const aggMeta          = document.getElementById('aggSummaryMeta');
+  const aggTable         = document.getElementById('aggSummaryTable');
+  const aggThead         = aggTable.querySelector('thead');
+  const aggTbody         = aggTable.querySelector('tbody');
+  const aggDetailHeading = document.getElementById('aggDetailHeading');
+  const aggDetailMeta    = document.getElementById('aggDetailMeta');
+  const aggDetailTable   = document.getElementById('aggDetailTable');
+  const aggDetailThead   = aggDetailTable.querySelector('thead');
+  const aggDetailTbody   = aggDetailTable.querySelector('tbody');
 
   // --- State ---
   let files = [];        // [{file: File, pdfDoc: PDFDocumentProxy, id: number}]
@@ -517,6 +666,12 @@
   // Snapshot of the summary-column prompts at the time the table was built.
   // The table's columns are stable until Create Summary Table runs again.
   let currentSummaryPrompts = [];
+  // Aggregations: named groups of page refs. pageRefs = [{fileId, pageNum}].
+  // Notes is aggregation-level; LLM/prompt result cells are empty in V0.4
+  // (Apply runs only against the page-summary table for now).
+  let aggregations = [];
+  let nextAggId = 1;
+  let selectedAggregationId = null;
   const DEFAULT_APPLY_MODEL = 'gpt-5.4-nano';
 
   // --- Settings panel ---
@@ -888,6 +1043,23 @@
     createBtn.disabled = busy || files.length === 0;
     clearBtn.disabled  = busy || files.length === 0;
     updateApplyButton();
+    updateAggButton();
+  }
+
+  function updateAggButton() {
+    if (busy || table.hidden) {
+      createAggBtn.disabled = true;
+      createAggBtn.title = busy ? 'Working…' : 'Build the summary table first';
+      return;
+    }
+    const rowsSelected = !!tbody.querySelector('.row-select:checked');
+    if (rowsSelected) {
+      createAggBtn.disabled = false;
+      createAggBtn.title = 'Create a new aggregation or add selected pages to an existing one';
+    } else {
+      createAggBtn.disabled = true;
+      createAggBtn.title = 'Select at least one row to create or add to an aggregation';
+    }
   }
 
   // Apply is enabled when the table is built, we're not busy, and the user
@@ -928,6 +1100,7 @@
     buildTableHeader();
     tbody.innerHTML = '';
     emptyState.hidden = true;
+    pageHeading.hidden = false;
     table.hidden = false;
 
     const totalPages = files.reduce((s, f) => s + f.pdfDoc.numPages, 0);
@@ -1013,6 +1186,11 @@
     setStatus(`Summary table built: ${totalPages} page${totalPages === 1 ? '' : 's'} across ${files.length} file${files.length === 1 ? '' : 's'}.`);
     busy = false;
     updateButtons();
+    // The page-table rebuild may have changed which summary-column prompts
+    // exist. Refresh the AGG tables so their headers and detail cells (which
+    // pull live data) match the new state.
+    renderAggSummary();
+    renderAggDetail();
   });
 
   function buildTableHeader() {
@@ -1108,9 +1286,14 @@
     tbody.innerHTML = '';
     thead.innerHTML = '';
     currentSummaryPrompts = [];
+    aggregations = [];
+    selectedAggregationId = null;
+    pageHeading.hidden = true;
     table.hidden = true;
     emptyState.hidden = false;
     fileListEl.textContent = '';
+    renderAggSummary();
+    renderAggDetail();
     setStatus('');
     updateButtons();
   });
@@ -1249,6 +1432,403 @@
       throw new Error(err);
     }
     return (data && typeof data.response === 'string') ? data.response : '';
+  }
+
+  // --- Aggregations ---
+  const aggModal           = document.getElementById('agg-modal');
+  const aggModalClose      = document.getElementById('agg-modal-close');
+  const aggModalCancel     = document.getElementById('agg-modal-cancel');
+  const aggModalSubmit     = document.getElementById('agg-modal-submit');
+  const aggModalHint       = document.getElementById('agg-modal-selection-hint');
+  const aggModalExisting   = document.getElementById('agg-modal-existing-list');
+  const aggModalExistingGp = document.getElementById('agg-modal-existing-group');
+  const aggModalNewName    = document.getElementById('agg-modal-new-name');
+
+  function makeAggId() { return 'agg-' + (nextAggId++); }
+
+  // Snapshot of page refs picked from the page-summary table when the user
+  // clicked Create / Add Aggregation. Held across the modal interaction.
+  let pendingAggRefs = [];
+
+  createAggBtn.addEventListener('click', () => {
+    if (createAggBtn.disabled) return;
+    const refs = [];
+    tbody.querySelectorAll('tr').forEach(tr => {
+      const cb = tr.querySelector('.row-select');
+      if (cb && cb.checked) {
+        refs.push({
+          fileId: Number(tr.dataset.fileId),
+          pageNum: Number(tr.dataset.pageNum)
+        });
+      }
+    });
+    if (!refs.length) return;
+    pendingAggRefs = refs;
+    openAggModal();
+  });
+
+  function openAggModal() {
+    aggModalHint.textContent = pendingAggRefs.length + ' page'
+      + (pendingAggRefs.length === 1 ? '' : 's') + ' selected.';
+    aggModalExisting.innerHTML = '';
+    if (aggregations.length === 0) {
+      aggModalExistingGp.style.display = 'none';
+    } else {
+      aggModalExistingGp.style.display = '';
+      for (const agg of aggregations) {
+        const label = document.createElement('label');
+        label.className = 'choice';
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = 'aggTarget';
+        radio.value = agg.id;
+        radio.addEventListener('change', syncNewNameEnabled);
+        const span = document.createElement('span');
+        span.textContent = agg.name + ' (' + agg.pageRefs.length + ' page'
+          + (agg.pageRefs.length === 1 ? '' : 's') + ')';
+        label.appendChild(radio);
+        label.appendChild(span);
+        aggModalExisting.appendChild(label);
+      }
+    }
+    const newRadio = aggModal.querySelector('input[value="__new__"]');
+    newRadio.checked = true;
+    aggModalNewName.value = '';
+    syncNewNameEnabled();
+    aggModal.classList.add('open');
+    setTimeout(() => aggModalNewName.focus(), 0);
+  }
+  // Static "New aggregation" radio is in the markup once; attach its
+  // change listener at init time so we don't accumulate listeners on
+  // every modal open.
+  aggModal.querySelector('input[value="__new__"]')
+    .addEventListener('change', syncNewNameEnabled);
+  // Focusing the name field implies the user wants to create a new
+  // aggregation; flip the radio so submit picks the right branch.
+  aggModalNewName.addEventListener('focus', () => {
+    const newRadio = aggModal.querySelector('input[value="__new__"]');
+    if (newRadio && !newRadio.checked) {
+      newRadio.checked = true;
+      syncNewNameEnabled();
+    }
+  });
+
+  function syncNewNameEnabled() {
+    const chosen = aggModal.querySelector('input[name="aggTarget"]:checked');
+    const isNew = chosen && chosen.value === '__new__';
+    aggModalNewName.disabled = !isNew;
+    aggModalNewName.style.opacity = isNew ? '1' : '0.4';
+  }
+
+  function closeAggModal() { aggModal.classList.remove('open'); }
+  aggModalClose.addEventListener('click', closeAggModal);
+  aggModalCancel.addEventListener('click', closeAggModal);
+  aggModal.addEventListener('click', e => {
+    if (e.target === aggModal) closeAggModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && aggModal.classList.contains('open')) closeAggModal();
+  });
+
+  aggModalSubmit.addEventListener('click', () => {
+    const chosen = aggModal.querySelector('input[name="aggTarget"]:checked');
+    if (!chosen) return;
+    if (chosen.value === '__new__') {
+      const name = (aggModalNewName.value || '').trim();
+      if (!name) { aggModalNewName.focus(); return; }
+      const agg = {
+        id: makeAggId(),
+        name: name,
+        pageRefs: dedupeRefs(pendingAggRefs),
+        notes: ''
+      };
+      aggregations.push(agg);
+      selectedAggregationId = agg.id;
+      setStatus('Aggregation "' + name + '" created with '
+        + agg.pageRefs.length + ' page'
+        + (agg.pageRefs.length === 1 ? '' : 's') + '.');
+    } else {
+      const agg = aggregations.find(a => a.id === chosen.value);
+      if (!agg) return;
+      const before = agg.pageRefs.length;
+      agg.pageRefs = dedupeRefs(agg.pageRefs.concat(pendingAggRefs));
+      const added = agg.pageRefs.length - before;
+      selectedAggregationId = agg.id;
+      setStatus('Added ' + added + ' page' + (added === 1 ? '' : 's')
+        + ' to "' + agg.name + '".');
+    }
+    closeAggModal();
+    renderAggSummary();
+    renderAggDetail();
+  });
+
+  function dedupeRefs(refs) {
+    const seen = new Set();
+    const out = [];
+    for (const r of refs) {
+      const key = r.fileId + ':' + r.pageNum;
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push({ fileId: r.fileId, pageNum: r.pageNum });
+      }
+    }
+    return out;
+  }
+
+  function renderAggSummary() {
+    if (!aggregations.length) {
+      aggHeading.hidden = true;
+      aggTable.hidden = true;
+      aggMeta.textContent = '';
+      aggThead.innerHTML = '';
+      aggTbody.innerHTML = '';
+      return;
+    }
+    aggHeading.hidden = false;
+    aggTable.hidden = false;
+    aggMeta.textContent = aggregations.length + ' aggregation'
+      + (aggregations.length === 1 ? '' : 's');
+
+    aggThead.innerHTML = '';
+    const headTr = document.createElement('tr');
+    for (const label of ['Name', 'Pages', 'Thumbnail', 'Notes', 'LLM Response']) {
+      const th = document.createElement('th');
+      th.textContent = label;
+      headTr.appendChild(th);
+    }
+    for (const prompt of currentSummaryPrompts) {
+      const th = document.createElement('th');
+      th.className = 'col-prompt';
+      const span = document.createElement('span');
+      span.className = 'prompt-name-text';
+      span.textContent = prompt.name;
+      span.title = prompt.name + '\n\n' + prompt.text;
+      th.appendChild(span);
+      headTr.appendChild(th);
+    }
+    headTr.appendChild(document.createElement('th'));
+    aggThead.appendChild(headTr);
+
+    aggTbody.innerHTML = '';
+    for (const agg of aggregations) {
+      const tr = document.createElement('tr');
+      tr.dataset.aggId = agg.id;
+      if (agg.id === selectedAggregationId) tr.classList.add('aggregation-active');
+
+      const tdName = document.createElement('td');
+      tdName.className = 'col-agg-name';
+      tdName.textContent = agg.name;
+      tdName.title = 'Click to view pages in this aggregation';
+      tdName.addEventListener('click', () => {
+        selectedAggregationId = agg.id;
+        renderAggSummary();
+        renderAggDetail();
+      });
+      tr.appendChild(tdName);
+
+      const tdPages = document.createElement('td');
+      tdPages.className = 'col-agg-pages';
+      tdPages.textContent = agg.pageRefs.length + (agg.pageRefs.length === 1 ? ' page' : ' pages');
+      tr.appendChild(tdPages);
+
+      const tdThumb = document.createElement('td');
+      tdThumb.className = 'col-thumb';
+      const firstRef = agg.pageRefs[0];
+      if (firstRef) {
+        const cloned = cloneThumbnailFromPageTable(firstRef);
+        if (cloned) {
+          cloned.title = 'Open first page in viewer';
+          cloned.addEventListener('click', () => {
+            const entry = files.find(f => f.id === firstRef.fileId);
+            if (entry) openInViewer(entry, firstRef.pageNum);
+          });
+          tdThumb.appendChild(cloned);
+        }
+      }
+      tr.appendChild(tdThumb);
+
+      const tdNotes = document.createElement('td');
+      tdNotes.className = 'col-agg-notes';
+      const notesDiv = document.createElement('div');
+      notesDiv.contentEditable = 'true';
+      notesDiv.dataset.placeholder = 'Aggregation notes...';
+      notesDiv.textContent = agg.notes || '';
+      notesDiv.addEventListener('input', () => { agg.notes = notesDiv.textContent; });
+      tdNotes.appendChild(notesDiv);
+      tr.appendChild(tdNotes);
+
+      const tdLlm = document.createElement('td');
+      tdLlm.className = 'col-agg-readonly';
+      tr.appendChild(tdLlm);
+
+      for (const prompt of currentSummaryPrompts) {
+        const tdPrompt = document.createElement('td');
+        tdPrompt.className = 'col-agg-readonly';
+        tdPrompt.dataset.promptId = prompt.id;
+        tr.appendChild(tdPrompt);
+      }
+
+      const tdDelete = document.createElement('td');
+      tdDelete.className = 'col-agg-delete';
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '✕';
+      delBtn.title = 'Delete this aggregation';
+      delBtn.addEventListener('click', () => deleteAggregation(agg.id));
+      tdDelete.appendChild(delBtn);
+      tr.appendChild(tdDelete);
+
+      aggTbody.appendChild(tr);
+    }
+  }
+
+  function deleteAggregation(id) {
+    const agg = aggregations.find(a => a.id === id);
+    if (!agg) return;
+    if (!confirm('Delete aggregation "' + agg.name + '"? This does not affect the underlying pages.')) {
+      return;
+    }
+    aggregations = aggregations.filter(a => a.id !== id);
+    if (selectedAggregationId === id) selectedAggregationId = null;
+    renderAggSummary();
+    renderAggDetail();
+  }
+
+  function cloneThumbnailFromPageTable(ref) {
+    const tr = tbody.querySelector(
+      `tr[data-file-id="${ref.fileId}"][data-page-num="${ref.pageNum}"]`
+    );
+    if (!tr) return null;
+    const src = tr.querySelector('.col-thumb canvas');
+    if (!src) return null;
+    const dst = document.createElement('canvas');
+    dst.width = src.width;
+    dst.height = src.height;
+    dst.style.width = src.style.width;
+    dst.style.height = src.style.height;
+    dst.style.cursor = 'zoom-in';
+    dst.getContext('2d').drawImage(src, 0, 0);
+    return dst;
+  }
+
+  function readCellText(tr, selector) {
+    const el = tr && tr.querySelector(selector);
+    return el ? (el.textContent || '') : '';
+  }
+
+  function renderAggDetail() {
+    if (!selectedAggregationId) {
+      aggDetailHeading.hidden = true;
+      aggDetailTable.hidden = true;
+      aggDetailMeta.textContent = '';
+      aggDetailThead.innerHTML = '';
+      aggDetailTbody.innerHTML = '';
+      return;
+    }
+    const agg = aggregations.find(a => a.id === selectedAggregationId);
+    if (!agg) {
+      selectedAggregationId = null;
+      renderAggDetail();
+      return;
+    }
+    aggDetailHeading.hidden = false;
+    aggDetailTable.hidden = false;
+    aggDetailHeading.firstChild.nodeValue = 'Aggregation Detail — ' + agg.name + ' ';
+    aggDetailMeta.textContent = agg.pageRefs.length + ' page'
+      + (agg.pageRefs.length === 1 ? '' : 's');
+
+    aggDetailThead.innerHTML = '';
+    const headTr = document.createElement('tr');
+    const emptyTh = document.createElement('th');
+    emptyTh.style.width = '40px';
+    headTr.appendChild(emptyTh);
+    for (const label of ['File', 'Page', 'Thumbnail', 'Notes', 'LLM Response']) {
+      const th = document.createElement('th');
+      th.textContent = label;
+      headTr.appendChild(th);
+    }
+    for (const prompt of currentSummaryPrompts) {
+      const th = document.createElement('th');
+      th.className = 'col-prompt';
+      const span = document.createElement('span');
+      span.className = 'prompt-name-text';
+      span.textContent = prompt.name;
+      span.title = prompt.name + '\n\n' + prompt.text;
+      th.appendChild(span);
+      headTr.appendChild(th);
+    }
+    aggDetailThead.appendChild(headTr);
+
+    aggDetailTbody.innerHTML = '';
+    for (const ref of agg.pageRefs) {
+      const tr = document.createElement('tr');
+      tr.dataset.fileId = String(ref.fileId);
+      tr.dataset.pageNum = String(ref.pageNum);
+      const entry = files.find(f => f.id === ref.fileId);
+      const sourceTr = tbody.querySelector(
+        `tr[data-file-id="${ref.fileId}"][data-page-num="${ref.pageNum}"]`
+      );
+
+      const tdDel = document.createElement('td');
+      tdDel.className = 'col-agg-delete';
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '✕';
+      delBtn.title = 'Remove this page from the aggregation';
+      delBtn.addEventListener('click', () => removePageFromAggregation(agg.id, ref));
+      tdDel.appendChild(delBtn);
+      tr.appendChild(tdDel);
+
+      const tdFile = document.createElement('td');
+      tdFile.className = 'col-file';
+      tdFile.textContent = entry ? entry.file.name : '(missing)';
+      tr.appendChild(tdFile);
+
+      const tdPage = document.createElement('td');
+      tdPage.className = 'col-page';
+      tdPage.textContent = String(ref.pageNum);
+      tr.appendChild(tdPage);
+
+      const tdThumb = document.createElement('td');
+      tdThumb.className = 'col-thumb';
+      const cloned = cloneThumbnailFromPageTable(ref);
+      if (cloned && entry) {
+        cloned.title = 'Open ' + entry.file.name + ' — Page ' + ref.pageNum;
+        cloned.addEventListener('click', () => openInViewer(entry, ref.pageNum));
+        tdThumb.appendChild(cloned);
+      }
+      tr.appendChild(tdThumb);
+
+      const tdNotes = document.createElement('td');
+      tdNotes.className = 'col-agg-readonly';
+      tdNotes.textContent = readCellText(sourceTr, '.col-notes [contenteditable]');
+      tr.appendChild(tdNotes);
+
+      const tdLlm = document.createElement('td');
+      tdLlm.className = 'col-agg-readonly';
+      tdLlm.textContent = readCellText(sourceTr, '.col-llm-response .llm-response-content');
+      tr.appendChild(tdLlm);
+
+      for (const prompt of currentSummaryPrompts) {
+        const tdPrompt = document.createElement('td');
+        tdPrompt.className = 'col-agg-readonly';
+        tdPrompt.textContent = readCellText(
+          sourceTr,
+          `.col-prompt-result[data-prompt-id="${prompt.id}"] .llm-response-content`
+        );
+        tr.appendChild(tdPrompt);
+      }
+
+      aggDetailTbody.appendChild(tr);
+    }
+  }
+
+  function removePageFromAggregation(aggId, ref) {
+    const agg = aggregations.find(a => a.id === aggId);
+    if (!agg) return;
+    agg.pageRefs = agg.pageRefs.filter(
+      r => !(r.fileId === ref.fileId && r.pageNum === ref.pageNum)
+    );
+    renderAggSummary();
+    renderAggDetail();
   }
 
   // --- Viewer popup ---
