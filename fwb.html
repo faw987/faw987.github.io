@@ -337,11 +337,23 @@
   #settings-toggle:hover { background: #f0f0f0; }
   #settings-toggle .bar {
     width: 20px; height: 2px; background: var(--text); border-radius: 1px;
-    transition: transform 0.25s, opacity 0.25s;
+    transition: transform 0.25s, opacity 0.25s, background-color 0.2s;
   }
+  #settings-toggle.open {
+    border-color: var(--accent);
+    background: #fff;
+    animation: settings-open-nudge 0.9s ease-out;
+  }
+  #settings-toggle.open:hover { background: #f5faff; }
+  #settings-toggle.open .bar { background: var(--accent); }
   #settings-toggle.open .bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
   #settings-toggle.open .bar:nth-child(2) { opacity: 0; }
   #settings-toggle.open .bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+  @keyframes settings-open-nudge {
+    0%   { box-shadow: 0 0 0 0 rgba(0, 102, 204, 0.55); transform: scale(1); }
+    50%  { box-shadow: 0 0 0 10px rgba(0, 102, 204, 0); transform: scale(1.08); }
+    100% { box-shadow: 0 0 0 0 rgba(0, 102, 204, 0); transform: scale(1); }
+  }
   #settings-panel {
     display: none; position: fixed; top: 64px; right: 16px; z-index: 999;
     width: 380px; padding: 20px; border-radius: 12px;
@@ -682,17 +694,33 @@
 
   settingsEndpointEl.value = llmSettings.endpoint;
 
+  // Single source of truth for the hamburger panel's open state.
+  // Keeps the X-icon class, the panel class, and the tooltip in sync — so
+  // hovering the icon while the menu is open reveals "Close menu" rather
+  // than the original "Settings".
+  function setSettingsOpen(open) {
+    // Toggling animation: removing then re-adding `.open` retriggers the
+    // CSS nudge keyframes even if it was already in `.open` state.
+    if (open) {
+      settingsToggle.classList.remove('open');
+      // Reflow to ensure the animation restarts cleanly on rapid re-open.
+      void settingsToggle.offsetWidth;
+    }
+    settingsToggle.classList.toggle('open', open);
+    settingsPanel.classList.toggle('open', open);
+    settingsToggle.title = open ? 'Close menu' : 'Settings';
+    settingsToggle.setAttribute('aria-label', open ? 'Close menu' : 'Settings');
+  }
+
   settingsToggle.addEventListener('click', () => {
-    settingsToggle.classList.toggle('open');
-    settingsPanel.classList.toggle('open');
+    setSettingsOpen(!settingsToggle.classList.contains('open'));
   });
 
   settingsSaveBtn.addEventListener('click', () => {
     const entered = settingsEndpointEl.value.trim();
     llmSettings.endpoint = entered || DEFAULT_LLM_ENDPOINT;
     settingsEndpointEl.value = llmSettings.endpoint;
-    settingsToggle.classList.remove('open');
-    settingsPanel.classList.remove('open');
+    setSettingsOpen(false);
     pushLlmSettingsToViewer();
     setStatus(entered
       ? 'Gateway endpoint saved.'
@@ -840,8 +868,7 @@
       const pdfFile = new File([pdfBlob], DEMO_PDF_FILE, { type: 'application/pdf' });
       await addFiles([pdfFile]);
 
-      settingsToggle.classList.remove('open');
-      settingsPanel.classList.remove('open');
+      setSettingsOpen(false);
       setStatus('Demo data loaded: ' + promptLibrary.length + ' prompt'
         + (promptLibrary.length === 1 ? '' : 's') + ' and ' + DEMO_PDF_FILE + '.');
     } catch (err) {
@@ -908,8 +935,7 @@
   }
 
   openGuideBtn.addEventListener('click', () => {
-    settingsToggle.classList.remove('open');
-    settingsPanel.classList.remove('open');
+    setSettingsOpen(false);
     openDoc('FWB_user_doc.md', 'FWB User Guide');
   });
   docViewToggle.addEventListener('click', () => {

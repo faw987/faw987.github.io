@@ -58,6 +58,8 @@ Clicking the **✕** in the Aggregations table deletes the whole aggregation (wi
 
 ## Hamburger menu (☰)
 
+The hamburger icon in the top-right opens the configuration panel. When the panel is open, the icon morphs into a blue **✕** and briefly pulses to draw the eye — click it again to close. Hovering the icon while open shows "Close menu" as its tooltip. The panel also closes automatically after you save the gateway endpoint, load demo data, or open the user guide.
+
 ### Load Demo Data
 Pulls a sample prompt library (`fwb-prompt-library.json`) and a test PDF (`forensic_test_00.pdf`) from GitHub and loads them into the dashboard. Useful for first-time use or for sharing a working demo.
 
