@@ -12,7 +12,7 @@ FWB shows three related tables, all driven from the PDFs you load:
 
 - **Page Summary** — one row per page across every loaded PDF. This is the primary review surface.
 - **Aggregations** — named groups of pages you pick from the page summary. One row per aggregation.
-- **Aggregation Detail** — the pages that make up the currently selected aggregation, with the live data from their page-summary rows.
+- **Aggregation Detail** — the pages that make up the currently selected aggregation, with the live data from their page-summary rows. Its prompt columns are driven by an independent flag in the prompt library (see *Prompt Library* below), so the detail table can show a different set of prompt columns than the page summary table.
 
 ## Workflow
 
@@ -54,6 +54,8 @@ The **Aggregations** table appears below the page summary table with one row per
 
 Click an aggregation's **Name** to open the **Aggregation Detail** table — one row per page in the aggregation, pulling live data from the page summary. Each detail row has a **✕** to remove that page from the aggregation. Removing pages does not affect the underlying page summary row.
 
+The detail table mirrors the page summary table's selection model: a *Select* column with a header *select-all* checkbox lets you pick rows, and any prompt marked **Aggregation detail heading** in the library editor becomes its own column with a selection checkbox in the heading. Cells in those columns currently pull their text from the matching prompt's cell in the page summary row, so a prompt flagged only for *Aggregation detail heading* (not also for *Summary table heading*) will show as a column but its cells will be empty until a future Apply-on-aggregation pass populates them.
+
 Clicking the **✕** in the Aggregations table deletes the whole aggregation (with a confirmation prompt). The pages themselves are unaffected.
 
 ## Hamburger menu (☰)
@@ -71,13 +73,14 @@ Pulls a sample prompt library (`fwb-prompt-library.json`) and a test PDF (`foren
 ### Prompt Library
 A library is a list of named prompts you can apply to any page or run across the table via Apply.
 
-- **Edit** — opens the library editor in a separate window. Add prompts (name + text), reorder them with the ↑/↓ buttons, edit the selected prompt, or delete entries. Each prompt has two checkboxes:
+- **Edit** — opens the library editor in a separate window. Add prompts (name + text), reorder them with the ↑/↓ buttons, edit the selected prompt, or delete entries. Each prompt has three independent checkboxes:
   - **Manual** — the prompt appears in the viewer's pill list when you open a detail page.
   - **Summary table heading** — the prompt becomes a column in the page summary table, eligible for Apply.
-  A small **M** or **T** badge next to each list entry shows which flags are set.
+  - **Aggregation detail heading** — the prompt becomes a column in the aggregation detail table.
+  Any combination is valid. A small **M**, **T**, or **A** badge next to each list entry shows which flags are set.
   Changes sync live to the main window and to any open viewer.
 - **Export** — saves the current library as `fwb-prompt-library.json`, including the per-prompt flags.
-- **Import** — loads a JSON file. Either an array of `{ name, text, manual, summaryColumn }` objects, or `{ "prompts": [ ... ] }`. Files exported before V0.3 default to `manual: true, summaryColumn: false` on import.
+- **Import** — loads a JSON file. Either an array of `{ name, text, manual, summaryColumn, aggregationColumn }` objects, or `{ "prompts": [ ... ] }`. Missing flags default to `manual: true, summaryColumn: false, aggregationColumn: false` on import, so libraries exported before this option was added load without changes.
 
 ### User Guide
 Opens this document.
@@ -101,5 +104,6 @@ Persistence is on the roadmap; this iteration deliberately keeps state explicit.
 - Image input requires the gateway to use the OpenAI provider.
 - No OCR for scanned PDFs (pages are sent as rendered images, which most modern vision models handle well).
 - Apply runs sequentially across the selected matrix; very large selections may take a while.
-- Apply does not yet operate on aggregation rows — only the page summary table.
+- Apply does not yet operate on aggregation rows — only the page summary table. The aggregation detail table's row and column-select checkboxes are wired for selection state but no Apply action is connected yet.
+- A prompt flagged only as *Aggregation detail heading* (not also *Summary table heading*) will show as an empty column in the aggregation detail table — its cells stay blank until aggregation-level Apply lands.
 - The Aggregation Detail table is rebuilt only when you click an aggregation name or add/remove pages. Edits to a page's Notes or LLM cells made after that won't propagate until you click the aggregation again.
