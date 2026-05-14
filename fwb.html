@@ -1122,6 +1122,11 @@
         rowCb.type = 'checkbox';
         rowCb.className = 'row-select';
         rowCb.title = 'Select this row';
+        rowCb.addEventListener('change', () => {
+          tr.classList.toggle('row-selected', rowCb.checked);
+          updateApplyButton();
+          updateAggButton();
+        });
         tdSelect.appendChild(rowCb);
         tr.appendChild(tdSelect);
 
