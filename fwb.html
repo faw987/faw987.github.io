@@ -543,6 +543,7 @@
 
   <hr class="section-divider">
   <h3>Documentation</h3>
+  <button class="settings-save-btn" id="open-prd-btn" style="margin-top: 6px;">Product Requirements</button>
   <button class="settings-save-btn" id="open-guide-btn" style="margin-top: 6px;">User Guide</button>
 </div>
 
@@ -1296,6 +1297,7 @@
   const docViewToggle  = document.getElementById('doc-view-toggle');
   const docModalClose  = document.getElementById('doc-modal-close');
   const openGuideBtn   = document.getElementById('open-guide-btn');
+  const openPrdBtn     = document.getElementById('open-prd-btn');
   let docRawSource = '';
   let docViewMode = 'rendered'; // 'rendered' | 'raw'
 
@@ -1343,6 +1345,10 @@
     }
   }
 
+  openPrdBtn.addEventListener('click', () => {
+    setSettingsOpen(false);
+    openDoc('FWB_PRD.md', 'FWB Product Requirements');
+  });
   openGuideBtn.addEventListener('click', () => {
     setSettingsOpen(false);
     openDoc('FWB_user_doc.md', 'FWB User Guide');
