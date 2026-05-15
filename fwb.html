@@ -562,7 +562,7 @@
 <header>
   <h1>Forensic Workbench Dashboard</h1>
   <span class="badge">FWB</span>
-  <span class="badge version">V0.6</span>
+  <span class="badge version">V0.7</span>
 </header>
 
 <main>
@@ -668,27 +668,53 @@
     debug: false
   };
 
-  // Prompt library — array of { id, name, text, manual, summaryColumn, aggregationColumn }.
+  // Prompt library — array of
+  // { id, name, text, manual, summaryColumn, aggregationColumn, provider, model }.
   // `manual`: prompt is offered in the viewer's detail page menu.
   // `summaryColumn`: prompt gets a dedicated column in the page summary table.
   // `aggregationColumn`: prompt gets a dedicated column in the aggregation detail table.
+  // `provider` / `model`: preferred LLM for this prompt when applied.
   // In-memory only; persistence is via the Import / Export buttons.
   let promptLibrary = [];
+  // Provider -> selectable models. A provider with an empty list has no model
+  // available yet; applying such a prompt is an error until one is added.
+  const PROVIDER_MODELS = {
+    openai: ['gpt-5.4-nano', 'gpt-5.4-mini'],
+    anthropic: [],
+    gemini: []
+  };
   function makeId() {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
     return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
   }
+  // Resolve a raw {provider, model} pair to a valid one. Unknown providers
+  // fall back to openai; an openai prompt with no / invalid model gets the
+  // default. Non-openai providers have no model available, so model is ''.
+  function normalizeProviderModel(p) {
+    const provider = PROVIDER_MODELS.hasOwnProperty(p && p.provider)
+      ? p.provider : 'openai';
+    const models = PROVIDER_MODELS[provider];
+    let model = '';
+    if (models.length) {
+      model = models.includes(p && p.model) ? p.model : models[0];
+    }
+    return { provider, model };
+  }
   // Normalize a raw prompt object from JSON / postMessage into the canonical
   // shape. Missing `manual` defaults to true so pre-V0.3 libraries keep
-  // appearing in the viewer; missing column flags default to false.
+  // appearing in the viewer; missing column flags default to false; missing
+  // provider/model default to openai + the default apply model.
   function normalizePrompt(p) {
+    const pm = normalizeProviderModel(p);
     return {
       id: typeof p.id === 'string' && p.id ? p.id : makeId(),
       name: String(p.name || ''),
       text: String(p.text || ''),
       manual: p.manual === undefined ? true : !!p.manual,
       summaryColumn: !!p.summaryColumn,
-      aggregationColumn: !!p.aggregationColumn
+      aggregationColumn: !!p.aggregationColumn,
+      provider: pm.provider,
+      model: pm.model
     };
   }
 
@@ -738,7 +764,6 @@
   let aggregations = [];
   let nextAggId = 1;
   let selectedAggregationId = null;
-  const DEFAULT_APPLY_MODEL = 'gpt-5.4-nano';
 
   // --- Settings panel ---
   const settingsToggle    = document.getElementById('settings-toggle');
@@ -852,7 +877,9 @@
         text: p.text,
         manual: p.manual,
         summaryColumn: p.summaryColumn,
-        aggregationColumn: p.aggregationColumn
+        aggregationColumn: p.aggregationColumn,
+        provider: p.provider,
+        model: p.model
       }))
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1780,7 +1807,7 @@
         );
         setPromptCell(row.tr, prompt.id, 'pending', 'Querying LLM...');
         try {
-          const text = await callGateway(endpoint, dataUrl, prompt.text);
+          const text = await callGateway(endpoint, dataUrl, prompt);
           setPromptCell(row.tr, prompt.id, 'success', text);
         } catch (err) {
           setPromptCell(row.tr, prompt.id, 'error',
@@ -1862,7 +1889,7 @@
         );
         setAggPromptCell(agg, row, prompt.id, 'pending', 'Querying LLM...');
         try {
-          const text = await callGateway(endpoint, dataUrl, prompt.text);
+          const text = await callGateway(endpoint, dataUrl, prompt);
           setAggPromptCell(agg, row, prompt.id, 'success', text);
         } catch (err) {
           setAggPromptCell(agg, row, prompt.id, 'error',
@@ -1991,16 +2018,23 @@
     return canvas.toDataURL('image/png');
   }
 
-  async function callGateway(endpoint, dataUrl, promptText) {
-    if (llmSettings.debug) {
-      console.log('[FWB Debug] Apply gateway call', { endpoint, model: DEFAULT_APPLY_MODEL });
+  async function callGateway(endpoint, dataUrl, prompt) {
+    const pm = normalizeProviderModel(prompt || {});
+    if (!pm.model) {
+      throw new Error('No model available for provider "' + pm.provider
+        + '". Set this prompt to OpenAI in the library editor.');
     }
+    if (llmSettings.debug) {
+      console.log('[FWB Debug] Apply gateway call',
+        { endpoint, provider: pm.provider, model: pm.model });
+    }
+    const promptText = prompt && prompt.text;
     const resp = await fetch(endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        provider: llmSettings.provider || 'openai',
-        model: DEFAULT_APPLY_MODEL,
+        provider: pm.provider,
+        model: pm.model,
         input: [
           {
             role: 'user',
@@ -2786,6 +2820,14 @@
   .actions { display: flex; gap: 4px; flex-shrink: 0; }
   .actions button { padding: 4px 10px; font-size: 13px; }
   .empty { color: #6e6e73; font-style: italic; font-size: 13px; margin: 4px 0 0; }
+  select { width: 100%; padding: 8px 10px; border: 1px solid #d2d2d7;
+           border-radius: 6px; font: inherit; outline: none; margin-top: 4px;
+           background: #fff; }
+  select:focus { border-color: #0066cc; }
+  select:disabled { opacity: 0.5; }
+  .model-row { display: flex; gap: 16px; margin-top: 12px; }
+  .model-row > div { flex: 1; }
+  .model-row label { margin-top: 0; }
   .flag-row { display: flex; gap: 16px; margin-top: 12px; }
   .flag-row label { display: flex; align-items: center; gap: 6px;
                     font-size: 13px; color: #1d1d1f; margin: 0; cursor: pointer; }
@@ -2809,6 +2851,20 @@
     <input id="editName" type="text">
     <label for="editText">Prompt text</label>
     <textarea id="editText"></textarea>
+    <div class="model-row">
+      <div>
+        <label for="editProvider">Provider</label>
+        <select id="editProvider">
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic</option>
+          <option value="gemini">Google (Gemini)</option>
+        </select>
+      </div>
+      <div>
+        <label for="editModel">Model</label>
+        <select id="editModel"></select>
+      </div>
+    </div>
     <div class="flag-row">
       <label><input id="editManual" type="checkbox"> Manual (show in detail page)</label>
       <label><input id="editSummaryColumn" type="checkbox"> Summary table heading</label>
@@ -2822,6 +2878,20 @@
     <input id="addName" type="text" placeholder="e.g. Summarize">
     <label for="addText">Prompt text</label>
     <textarea id="addText" placeholder="Enter the prompt text..."></textarea>
+    <div class="model-row">
+      <div>
+        <label for="addProvider">Provider</label>
+        <select id="addProvider">
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic</option>
+          <option value="gemini">Google (Gemini)</option>
+        </select>
+      </div>
+      <div>
+        <label for="addModel">Model</label>
+        <select id="addModel"></select>
+      </div>
+    </div>
     <div class="flag-row">
       <label><input id="addManual" type="checkbox" checked> Manual (show in detail page)</label>
       <label><input id="addSummaryColumn" type="checkbox"> Summary table heading</label>
@@ -2835,6 +2905,48 @@
   let library = [];
   let selectedId = null;
 
+  const PROVIDER_MODELS = {
+    openai: ['gpt-5.4-nano', 'gpt-5.4-mini'],
+    anthropic: [],
+    gemini: []
+  };
+
+  function normalizeProviderModel(p) {
+    const provider = PROVIDER_MODELS.hasOwnProperty(p && p.provider)
+      ? p.provider : 'openai';
+    const models = PROVIDER_MODELS[provider];
+    let model = '';
+    if (models.length) {
+      model = models.includes(p && p.model) ? p.model : models[0];
+    }
+    return { provider, model };
+  }
+
+  // Repopulate a model <select> from the chosen provider. Providers with no
+  // models show a single disabled "Not available" option and the select is
+  // disabled; the desired model is preselected when it is still valid.
+  function fillModelSelect(modelSel, provider, desired) {
+    const models = PROVIDER_MODELS[provider] || [];
+    modelSel.innerHTML = '';
+    if (!models.length) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'Not available';
+      modelSel.appendChild(opt);
+      modelSel.value = '';
+      modelSel.disabled = true;
+      return;
+    }
+    modelSel.disabled = false;
+    models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m;
+      modelSel.appendChild(opt);
+    });
+    modelSel.value = models.includes(desired) ? desired : models[0];
+  }
+
   const listEl = document.getElementById('promptList');
   const emptyMsg = document.getElementById('emptyMsg');
   const editSection = document.getElementById('editSection');
@@ -2843,22 +2955,37 @@
   const editManual = document.getElementById('editManual');
   const editSummaryColumn = document.getElementById('editSummaryColumn');
   const editAggregationColumn = document.getElementById('editAggregationColumn');
+  const editProvider = document.getElementById('editProvider');
+  const editModel = document.getElementById('editModel');
   const saveEditBtn = document.getElementById('saveEditBtn');
   const addName = document.getElementById('addName');
   const addText = document.getElementById('addText');
   const addManual = document.getElementById('addManual');
   const addSummaryColumn = document.getElementById('addSummaryColumn');
   const addAggregationColumn = document.getElementById('addAggregationColumn');
+  const addProvider = document.getElementById('addProvider');
+  const addModel = document.getElementById('addModel');
   const addBtn = document.getElementById('addBtn');
 
+  editProvider.addEventListener('change', () => {
+    fillModelSelect(editModel, editProvider.value, editModel.value);
+  });
+  addProvider.addEventListener('change', () => {
+    fillModelSelect(addModel, addProvider.value, addModel.value);
+  });
+  fillModelSelect(addModel, addProvider.value, '');
+
   function normalizePrompt(p) {
+    const pm = normalizeProviderModel(p);
     return {
       id: typeof p.id === 'string' && p.id ? p.id : makeId(),
       name: String(p.name || ''),
       text: String(p.text || ''),
       manual: p.manual === undefined ? true : !!p.manual,
       summaryColumn: !!p.summaryColumn,
-      aggregationColumn: !!p.aggregationColumn
+      aggregationColumn: !!p.aggregationColumn,
+      provider: pm.provider,
+      model: pm.model
     };
   }
 
@@ -2969,6 +3096,9 @@
       editManual.checked = !!p.manual;
       editSummaryColumn.checked = !!p.summaryColumn;
       editAggregationColumn.checked = !!p.aggregationColumn;
+      const pm = normalizeProviderModel(p);
+      editProvider.value = pm.provider;
+      fillModelSelect(editModel, pm.provider, pm.model);
     } else {
       editSection.hidden = true;
     }
@@ -3010,7 +3140,9 @@
       text: editText.value,
       manual: editManual.checked,
       summaryColumn: editSummaryColumn.checked,
-      aggregationColumn: editAggregationColumn.checked
+      aggregationColumn: editAggregationColumn.checked,
+      provider: editProvider.value,
+      model: editModel.value
     };
     render();
     postLibrary();
@@ -3024,13 +3156,17 @@
       text: addText.value,
       manual: addManual.checked,
       summaryColumn: addSummaryColumn.checked,
-      aggregationColumn: addAggregationColumn.checked
+      aggregationColumn: addAggregationColumn.checked,
+      provider: addProvider.value,
+      model: addModel.value
     }));
     addName.value = '';
     addText.value = '';
     addManual.checked = true;
     addSummaryColumn.checked = false;
     addAggregationColumn.checked = false;
+    addProvider.value = 'openai';
+    fillModelSelect(addModel, 'openai', '');
     render();
     postLibrary();
   });

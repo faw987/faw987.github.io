@@ -140,8 +140,14 @@ A library is a list of named prompts you can apply to any page or run across the
   - **Summary table heading** — the prompt becomes a column in the page summary table, eligible for Apply on the page summary.
   - **Aggregation detail heading** — the prompt becomes a column in the aggregation detail table, eligible for Apply on the aggregation detail.
   Any combination is valid. A small **M**, **T**, or **A** badge next to each list entry shows which flags are set. Changes sync live to the main window and to any open viewer.
-- **Export** — saves the current library as `fwb-prompt-library.json`, including all per-prompt flags.
-- **Import** — loads a JSON file. Either an array of `{ name, text, manual, summaryColumn, aggregationColumn }` objects, or `{ "prompts": [ ... ] }`. Missing flags default to `manual: true, summaryColumn: false, aggregationColumn: false` on import, so libraries exported before any given flag was added load without changes.
+
+  Each prompt also has a **Provider** and **Model**:
+  - **Provider** — *OpenAI*, *Anthropic*, or *Google (Gemini)*. This is the LLM provider used when the prompt is run via Apply (page summary or aggregation detail).
+  - **Model** — the model used for that provider. For OpenAI you can choose *gpt-5.4-nano* or *gpt-5.4-mini*. Anthropic and Google show *Not available* for now — a prompt set to one of those providers will report an error when applied until a model is available.
+
+  Prompts with no provider/model set (including libraries from earlier versions) default to OpenAI + gpt-5.4-nano.
+- **Export** — saves the current library as `fwb-prompt-library.json`, including all per-prompt flags and the provider/model.
+- **Import** — loads a JSON file. Either an array of `{ name, text, manual, summaryColumn, aggregationColumn, provider, model }` objects, or `{ "prompts": [ ... ] }`. Missing flags default to `manual: true, summaryColumn: false, aggregationColumn: false` and missing provider/model default to OpenAI + gpt-5.4-nano on import, so libraries exported before any given field was added load without changes.
 
 ### User Guide
 Opens this document.
