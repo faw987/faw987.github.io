@@ -322,6 +322,56 @@
   .llm-response-content.error {
     color: #b00;
   }
+  /* Image-returning prompt result: a clickable thumbnail in the cell. */
+  .llm-response-content.has-image {
+    white-space: normal;
+    cursor: default;
+  }
+  .llm-response-content.has-image:empty::before { content: none; }
+  img.cell-thumb {
+    max-width: 160px;
+    max-height: 180px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: zoom-in;
+    display: block;
+  }
+  img.cell-thumb:hover { border-color: var(--accent); }
+  /* Full-size image lightbox for image-returning prompt results. */
+  #img-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.82);
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    cursor: zoom-out;
+  }
+  #img-modal.open { display: flex; }
+  #img-modal img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+    background: #fff;
+  }
+  #img-modal-close {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    border: none;
+    font-size: 26px;
+    line-height: 1;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  #img-modal-close:hover { background: rgba(255, 255, 255, 0.3); }
   .empty-state {
     text-align: center;
     padding: 48px;
@@ -563,7 +613,7 @@
 <header>
   <h1>Forensic Workbench Dashboard</h1>
   <span class="badge">FWB</span>
-  <span class="badge version">V0.7</span>
+  <span class="badge version">V0.8</span>
 </header>
 
 <main>
@@ -642,6 +692,11 @@
   </div>
 </div>
 
+<div id="img-modal" role="dialog" aria-modal="true" aria-label="Full-size image result">
+  <button id="img-modal-close" title="Close" aria-label="Close">&times;</button>
+  <img id="img-modal-img" alt="LLM image result">
+</div>
+
 <footer>FWB &middot; PDFs are processed locally in your browser</footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -670,10 +725,14 @@
   };
 
   // Prompt library — array of
-  // { id, name, text, manual, summaryColumn, aggregationColumn, provider, model }.
+  // { id, name, text, manual, summaryColumn, aggregationColumn, returnsImage,
+  //   provider, model }.
   // `manual`: prompt is offered in the viewer's detail page menu.
   // `summaryColumn`: prompt gets a dedicated column in the page summary table.
   // `aggregationColumn`: prompt gets a dedicated column in the aggregation detail table.
+  // `returnsImage`: ask the gateway to return an image (e.g. an annotated /
+  //   highlighted page). The result cell shows a clickable thumbnail of the
+  //   returned image instead of text.
   // `provider` / `model`: preferred LLM for this prompt when applied.
   // In-memory only; persistence is via the Import / Export buttons.
   let promptLibrary = [];
@@ -714,6 +773,7 @@
       manual: p.manual === undefined ? true : !!p.manual,
       summaryColumn: !!p.summaryColumn,
       aggregationColumn: !!p.aggregationColumn,
+      returnsImage: !!p.returnsImage,
       provider: pm.provider,
       model: pm.model
     };
@@ -879,6 +939,7 @@
         manual: p.manual,
         summaryColumn: p.summaryColumn,
         aggregationColumn: p.aggregationColumn,
+        returnsImage: p.returnsImage,
         provider: p.provider,
         model: p.model
       }))
@@ -986,7 +1047,7 @@
     tr.querySelectorAll('.col-prompt-result').forEach(td => {
       const promptId = td.dataset.promptId;
       const div = td.querySelector('.llm-response-content');
-      const text = div ? (div.textContent || '') : '';
+      const text = div ? (div.dataset.image || div.textContent || '') : '';
       if (promptId && text) promptResults[promptId] = text;
     });
     return {
@@ -1009,7 +1070,7 @@
       const td = tr.querySelector(`.col-prompt-result[data-prompt-id="${promptId}"]`);
       if (!td) continue;
       const div = td.querySelector('.llm-response-content');
-      if (div) div.textContent = text;
+      if (div) renderResultContent(div, text);
     }
   }
 
@@ -1921,9 +1982,19 @@
     const div = td.querySelector('.llm-response-content');
     if (!div) return;
     div.classList.remove('pending', 'error');
-    if (status === 'pending') div.classList.add('pending');
-    if (status === 'error') div.classList.add('error');
-    div.textContent = text || '';
+    if (status === 'pending') {
+      div.classList.remove('has-image');
+      delete div.dataset.image;
+      div.classList.add('pending');
+      div.textContent = text || '';
+      return;
+    }
+    if (status === 'error') {
+      div.classList.add('error');
+      div.textContent = text || '';
+      return;
+    }
+    renderResultContent(div, text);
   }
 
   // --- Save aggregation pages as a single PDF ---
@@ -1992,6 +2063,35 @@
   aggApplyBtn.addEventListener('click', runAggApplyMatrix);
   aggSavePdfBtn.addEventListener('click', saveAggAsPdf);
 
+  // An image-returning prompt stores its result as an image data URL in the
+  // same slot a text result would use. Detecting that prefix lets the cell
+  // render a thumbnail and lets project save / load round-trip it for free.
+  function isImageResult(s) {
+    return typeof s === 'string' && s.slice(0, 11) === 'data:image/';
+  }
+
+  // Render a result value into a .llm-response-content div: a clickable
+  // thumbnail if it's an image data URL, plain text otherwise. The data URL
+  // is also stashed on dataset.image so DOM snapshots (project save, agg
+  // detail) can recover it even though it isn't textContent.
+  function renderResultContent(div, value) {
+    div.classList.remove('has-image');
+    delete div.dataset.image;
+    div.innerHTML = '';
+    if (isImageResult(value)) {
+      div.classList.add('has-image');
+      div.dataset.image = value;
+      const img = document.createElement('img');
+      img.className = 'cell-thumb';
+      img.src = value;
+      img.alt = 'LLM image result';
+      img.title = 'Click to view full-size image';
+      div.appendChild(img);
+    } else {
+      div.textContent = value || '';
+    }
+  }
+
   function setPromptCell(tr, promptId, status, text) {
     const td = tr.querySelector(`td.col-prompt-result[data-prompt-id="${promptId}"]`);
     if (!td) return;
@@ -1999,6 +2099,8 @@
     if (!div) return;
     div.classList.remove('pending', 'error');
     if (status === 'pending') {
+      div.classList.remove('has-image');
+      delete div.dataset.image;
       div.classList.add('pending');
       div.textContent = text || 'Querying LLM...';
       return;
@@ -2006,7 +2108,7 @@
     if (status === 'error') {
       div.classList.add('error');
     }
-    div.textContent = text || '';
+    renderResultContent(div, text);
   }
 
   // Render a PDF page to a PNG data URL at a resolution suitable for the LLM.
@@ -2034,30 +2136,64 @@
       console.log('[FWB Debug] Apply gateway call',
         { endpoint, provider: pm.provider, model: pm.model });
     }
+    const wantImage = !!(prompt && prompt.returnsImage);
     const promptText = prompt && prompt.text;
+    const defaultText = wantImage
+      ? 'Return an annotated copy of this page image.'
+      : 'Describe what is shown on this page.';
+    const body = {
+      provider: pm.provider,
+      model: pm.model,
+      input: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: promptText || defaultText },
+            { type: 'image', image_url: dataUrl, detail: 'high' }
+          ]
+        }
+      ]
+    };
+    // Ask the gateway's image-generation tool to produce an image. Per the
+    // ai_proxy contract (docs/api-reference.md) this is OpenAI-only:
+    // `force: true` pins tool_choice to image_generation so an image always
+    // comes back; `action: 'auto'` lets OpenAI edit the supplied page image
+    // (e.g. highlight text) rather than generate from scratch.
+    if (wantImage) {
+      body.image_generation = { enabled: true, force: true, action: 'auto' };
+    }
     const resp = await fetch(endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        provider: pm.provider,
-        model: pm.model,
-        input: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: promptText || 'Describe what is shown on this page.' },
-              { type: 'image', image_url: dataUrl, detail: 'high' }
-            ]
-          }
-        ]
-      })
+      body: JSON.stringify(body)
     });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) {
       const err = data && data.error ? data.error : ('HTTP ' + resp.status);
       throw new Error(err);
     }
+    if (wantImage) return extractImageResult(data);
     return (data && typeof data.response === 'string') ? data.response : '';
+  }
+
+  // Pull the generated image out of the gateway response and normalize it
+  // to a data: URL so the result cell, project save, and the lightbox all
+  // work without further special-casing. Per the ai_proxy contract the
+  // gateway returns an `images[]` array, each entry carrying base64 image
+  // data plus its MIME type (docs/api-reference.md "Successful ... response").
+  function extractImageResult(data) {
+    const images = data && Array.isArray(data.images) ? data.images : [];
+    const first = images[0];
+    if (first && typeof first.image_base64 === 'string' && first.image_base64) {
+      const mime = first.mime_type || 'image/png';
+      return 'data:' + mime + ';base64,' + first.image_base64;
+    }
+    // No image came back. Surface the gateway's text/error so the failure
+    // is diagnosable in the cell.
+    const detail = (data && typeof data.error === 'string' && data.error)
+      || (data && typeof data.response === 'string' && data.response)
+      || JSON.stringify(data || {}).slice(0, 200);
+    throw new Error('Gateway returned no image. ' + detail);
   }
 
   // --- Aggregations ---
@@ -2339,7 +2475,10 @@
 
   function readCellText(tr, selector) {
     const el = tr && tr.querySelector(selector);
-    return el ? (el.textContent || '') : '';
+    if (!el) return '';
+    // Image-result cells carry their data URL on dataset.image rather
+    // than as textContent; prefer it so images propagate to agg detail.
+    return el.dataset.image || el.textContent || '';
   }
 
   // Per-row drag state for the aggregation-detail reorder feature.
@@ -2548,14 +2687,20 @@
         const key = aggResultKey(ref.fileId, ref.pageNum, prompt.id);
         const stored = agg.promptResults[key];
         if (stored && typeof stored.text === 'string') {
-          if (stored.status === 'error') div.classList.add('error');
-          if (stored.status === 'pending') div.classList.add('pending');
-          div.textContent = stored.text;
+          if (stored.status === 'error') {
+            div.classList.add('error');
+            div.textContent = stored.text;
+          } else if (stored.status === 'pending') {
+            div.classList.add('pending');
+            div.textContent = stored.text;
+          } else {
+            renderResultContent(div, stored.text);
+          }
         } else {
-          div.textContent = readCellText(
+          renderResultContent(div, readCellText(
             sourceTr,
             `.col-prompt-result[data-prompt-id="${prompt.id}"] .llm-response-content`
-          );
+          ));
         }
         tdPrompt.appendChild(div);
         tr.appendChild(tdPrompt);
@@ -2713,6 +2858,36 @@
     applyDocView();
   }
 
+  // --- Image-result lightbox ---
+  const imgModal      = document.getElementById('img-modal');
+  const imgModalImg   = document.getElementById('img-modal-img');
+  const imgModalClose = document.getElementById('img-modal-close');
+
+  function openImageModal(src) {
+    imgModalImg.src = src;
+    imgModal.classList.add('open');
+  }
+  function closeImageModal() {
+    imgModal.classList.remove('open');
+    imgModalImg.removeAttribute('src');
+  }
+  imgModalClose.addEventListener('click', closeImageModal);
+  imgModal.addEventListener('click', e => {
+    // Click anywhere except the image itself dismisses the lightbox.
+    if (e.target !== imgModalImg) closeImageModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && imgModal.classList.contains('open')) {
+      closeImageModal();
+    }
+  });
+  // A single click on any result-cell thumbnail (page summary or agg
+  // detail) opens it full-size. Delegated so it covers rebuilt rows.
+  document.addEventListener('click', e => {
+    const img = e.target.closest && e.target.closest('img.cell-thumb');
+    if (img && img.src) openImageModal(img.src);
+  });
+
   function ensureViewerWindow() {
     if (viewerWindow && !viewerWindow.closed) {
       viewerWindow.focus();
@@ -2823,6 +2998,7 @@
   .prompt-badge.manual { background: #e8f3ff; color: #0066cc; }
   .prompt-badge.col { background: #e6f7ec; color: #128a3d; }
   .prompt-badge.agg { background: #fff1e6; color: #b35b00; }
+  .prompt-badge.img { background: #f1e6ff; color: #6b1fb3; }
   .actions { display: flex; gap: 4px; flex-shrink: 0; }
   .actions button { padding: 4px 10px; font-size: 13px; }
   .empty { color: #6e6e73; font-style: italic; font-size: 13px; margin: 4px 0 0; }
@@ -2875,6 +3051,7 @@
       <label><input id="editManual" type="checkbox"> Manual (show in detail page)</label>
       <label><input id="editSummaryColumn" type="checkbox"> Summary table heading</label>
       <label><input id="editAggregationColumn" type="checkbox"> Aggregation detail heading</label>
+      <label><input id="editReturnsImage" type="checkbox"> Returns image (thumbnail in cell)</label>
     </div>
     <div class="row"><button id="saveEditBtn">Save Changes</button></div>
   </section>
@@ -2902,6 +3079,7 @@
       <label><input id="addManual" type="checkbox" checked> Manual (show in detail page)</label>
       <label><input id="addSummaryColumn" type="checkbox"> Summary table heading</label>
       <label><input id="addAggregationColumn" type="checkbox"> Aggregation detail heading</label>
+      <label><input id="addReturnsImage" type="checkbox"> Returns image (thumbnail in cell)</label>
     </div>
     <div class="row"><button id="addBtn">Add Prompt</button></div>
   </section>
@@ -2961,6 +3139,7 @@
   const editManual = document.getElementById('editManual');
   const editSummaryColumn = document.getElementById('editSummaryColumn');
   const editAggregationColumn = document.getElementById('editAggregationColumn');
+  const editReturnsImage = document.getElementById('editReturnsImage');
   const editProvider = document.getElementById('editProvider');
   const editModel = document.getElementById('editModel');
   const saveEditBtn = document.getElementById('saveEditBtn');
@@ -2969,6 +3148,7 @@
   const addManual = document.getElementById('addManual');
   const addSummaryColumn = document.getElementById('addSummaryColumn');
   const addAggregationColumn = document.getElementById('addAggregationColumn');
+  const addReturnsImage = document.getElementById('addReturnsImage');
   const addProvider = document.getElementById('addProvider');
   const addModel = document.getElementById('addModel');
   const addBtn = document.getElementById('addBtn');
@@ -2990,6 +3170,7 @@
       manual: p.manual === undefined ? true : !!p.manual,
       summaryColumn: !!p.summaryColumn,
       aggregationColumn: !!p.aggregationColumn,
+      returnsImage: !!p.returnsImage,
       provider: pm.provider,
       model: pm.model
     };
@@ -3056,6 +3237,13 @@
         b.title = 'Aggregation column \\u2014 appears as an aggregation-detail heading';
         badges.appendChild(b);
       }
+      if (p.returnsImage) {
+        const b = document.createElement('span');
+        b.className = 'prompt-badge img';
+        b.textContent = 'I';
+        b.title = 'Returns image \\u2014 result cell shows an image thumbnail';
+        badges.appendChild(b);
+      }
       li.appendChild(badges);
 
       const actions = document.createElement('div');
@@ -3102,6 +3290,7 @@
       editManual.checked = !!p.manual;
       editSummaryColumn.checked = !!p.summaryColumn;
       editAggregationColumn.checked = !!p.aggregationColumn;
+      editReturnsImage.checked = !!p.returnsImage;
       const pm = normalizeProviderModel(p);
       editProvider.value = pm.provider;
       fillModelSelect(editModel, pm.provider, pm.model);
@@ -3147,6 +3336,7 @@
       manual: editManual.checked,
       summaryColumn: editSummaryColumn.checked,
       aggregationColumn: editAggregationColumn.checked,
+      returnsImage: editReturnsImage.checked,
       provider: editProvider.value,
       model: editModel.value
     };
@@ -3163,6 +3353,7 @@
       manual: addManual.checked,
       summaryColumn: addSummaryColumn.checked,
       aggregationColumn: addAggregationColumn.checked,
+      returnsImage: addReturnsImage.checked,
       provider: addProvider.value,
       model: addModel.value
     }));
@@ -3171,6 +3362,7 @@
     addManual.checked = true;
     addSummaryColumn.checked = false;
     addAggregationColumn.checked = false;
+    addReturnsImage.checked = false;
     addProvider.value = 'openai';
     fillModelSelect(addModel, 'openai', '');
     render();

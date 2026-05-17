@@ -8,7 +8,7 @@ Provide a fast, browser-only tool that lets a reviewer triage every page of one 
 - PDFs never leave the browser; only a chosen page image plus the user's prompt is sent over the network.
 - LLM access is mediated by an external gateway, so provider API keys are never embedded in the client.
 
-## Current scope (V0.6)
+## Current scope (V0.8)
 
 ### Loading and rendering
 - Drop or pick one or more PDFs.
@@ -17,13 +17,14 @@ Provide a fast, browser-only tool that lets a reviewer triage every page of one 
 - Click a thumbnail to open a single shared viewer popup that displays the page at higher resolution.
 
 ### Prompt library
-- Library is a list of named prompts with three independent per-prompt flags:
+- Library is a list of named prompts with four independent per-prompt flags:
   - **Manual** — prompt appears in the viewer's pill list for ad-hoc, single-page use.
   - **Summary table heading** — prompt gets a dedicated column in the Page Summary table, eligible for batch Apply on the page summary.
   - **Aggregation detail heading** — prompt gets a dedicated column in the Aggregation Detail table, eligible for batch Apply on the aggregation detail.
-- Any combination of flags is valid. Badges (`M` / `T` / `A`) in the editor list show which flags are set.
+  - **Returns image** — Apply invokes the gateway's image-generation tool (OpenAI only) via an `image_generation: { enabled, force, action }` object; the normalized `images[]` response is read back and rendered as a clickable thumbnail with a full-size lightbox. The image is stored as a `data:` URL in the same result slot as text, so it round-trips through project Save / Open and propagates to the agg-detail table with no extra persistence path.
+- Any combination of flags is valid. Badges (`M` / `T` / `A` / `I`) in the editor list show which flags are set.
 - Library editor opens in a separate window; mutations sync live to the main window and viewer.
-- Import / Export as JSON, including all per-prompt flags. Legacy files without flags default to `manual: true, summaryColumn: false, aggregationColumn: false`.
+- Import / Export as JSON, including all per-prompt flags. Legacy files without flags default to `manual: true, summaryColumn: false, aggregationColumn: false, returnsImage: false`.
 
 ### Viewer (detail page)
 - Pill list of saved library prompts (single-click copies into the prompt area; double-click runs immediately). Only `manual: true` prompts are shown.
@@ -116,3 +117,5 @@ Provide a fast, browser-only tool that lets a reviewer triage every page of one 
 - **V0.4** — Aggregations: named groupings of pages with their own summary and detail tables; *Create / Add Aggregation* flow with modal picker.
 - **V0.5** — Third prompt flag (`aggregationColumn`) and an independent prompt-column set for the Aggregation Detail table; row + column selection and **Apply** on the agg-detail table with results stored on the aggregation; drag-to-reorder agg-detail rows; **Save as PDF** that assembles the aggregation's source pages in the user-defined order using `pdf-lib`.
 - **V0.6** — Project file Save / Open under the hamburger panel, with *bundled* (PDFs embedded as base64) and *referenced* (filename + SHA-256, re-attach on open) modes. Round-trips PDFs, prompt library, page-summary notes / LLM responses / per-prompt result cells, aggregations (including agg-detail Apply results), and the selected aggregation.
+- **V0.7** — Per-prompt provider/model selection in the library editor; bundled project save / load; in-app Product Requirements access.
+- **V0.8** — Fourth prompt flag (`returnsImage`): image-returning prompts. Apply drives the ai_proxy image-generation tool (`image_generation` request object, OpenAI only) and reads the normalized `images[]` response; the result cell shows a clickable thumbnail with a full-size lightbox. Images persist through project Save / Open and propagate to the agg-detail table via the shared result slot.

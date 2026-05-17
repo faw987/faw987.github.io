@@ -118,7 +118,7 @@ Use bundled when you want a portable, self-contained deliverable; use referenced
 
 #### What round-trips
 - All loaded PDFs (bundled or re-attached) with their original `fileId`s preserved so aggregations remain valid.
-- The full prompt library, including all three per-prompt flags.
+- The full prompt library, including all four per-prompt flags.
 - The Page Summary table: notes, LLM Response, and each *Summary table heading* prompt-result cell.
 - All aggregations: name, notes, page order (including any drag-to-reorder you did), and the agg-detail `promptResults` from Apply.
 - The currently selected aggregation, so the Aggregation Detail table reopens on the same group.
@@ -135,11 +135,12 @@ Use bundled when you want a portable, self-contained deliverable; use referenced
 ### Prompt Library
 A library is a list of named prompts you can apply to any page or run across the table via Apply.
 
-- **Edit** — opens the library editor in a separate window. Add prompts (name + text), reorder them with the ↑/↓ buttons, edit the selected prompt, or delete entries. Each prompt has three independent checkboxes:
+- **Edit** — opens the library editor in a separate window. Add prompts (name + text), reorder them with the ↑/↓ buttons, edit the selected prompt, or delete entries. Each prompt has four independent checkboxes:
   - **Manual** — the prompt appears in the viewer's pill list when you open a detail page.
   - **Summary table heading** — the prompt becomes a column in the page summary table, eligible for Apply on the page summary.
   - **Aggregation detail heading** — the prompt becomes a column in the aggregation detail table, eligible for Apply on the aggregation detail.
-  Any combination is valid. A small **M**, **T**, or **A** badge next to each list entry shows which flags are set. Changes sync live to the main window and to any open viewer.
+  - **Returns image** — the prompt asks the gateway for an *image* back rather than text (for example: "highlight every date on this page and return the highlighted page"). When the result arrives, the cell shows a thumbnail of the returned image instead of text. Click the thumbnail to view the image full-size; click anywhere outside it (or press Esc) to close. Image results round-trip through Save / Open project files and propagate to the aggregation detail table the same way text results do.
+  Any combination is valid. A small **M**, **T**, **A**, or **I** badge next to each list entry shows which flags are set. Changes sync live to the main window and to any open viewer.
 
   Each prompt also has a **Provider** and **Model**:
   - **Provider** — *OpenAI*, *Anthropic*, or *Google (Gemini)*. This is the LLM provider used when the prompt is run via Apply (page summary or aggregation detail).
@@ -147,7 +148,7 @@ A library is a list of named prompts you can apply to any page or run across the
 
   Prompts with no provider/model set (including libraries from earlier versions) default to OpenAI + gpt-5.4-nano.
 - **Export** — saves the current library as `fwb-prompt-library.json`, including all per-prompt flags and the provider/model.
-- **Import** — loads a JSON file. Either an array of `{ name, text, manual, summaryColumn, aggregationColumn, provider, model }` objects, or `{ "prompts": [ ... ] }`. Missing flags default to `manual: true, summaryColumn: false, aggregationColumn: false` and missing provider/model default to OpenAI + gpt-5.4-nano on import, so libraries exported before any given field was added load without changes.
+- **Import** — loads a JSON file. Either an array of `{ name, text, manual, summaryColumn, aggregationColumn, returnsImage, provider, model }` objects, or `{ "prompts": [ ... ] }`. Missing flags default to `manual: true, summaryColumn: false, aggregationColumn: false, returnsImage: false` and missing provider/model default to OpenAI + gpt-5.4-nano on import, so libraries exported before any given field was added load without changes.
 
 ### User Guide
 Opens this document.
@@ -174,6 +175,7 @@ Closing or reloading the page clears everything that hasn't been saved. The gate
 ## Limitations
 
 - Image input requires the gateway to use the OpenAI provider.
+- A *Returns image* prompt uses the gateway's image-generation tool, which is **OpenAI only** — set such a prompt's provider to OpenAI. If no image comes back, FWB shows the gateway's error text in the cell instead of a thumbnail.
 - No OCR for scanned PDFs (pages are sent as rendered images, which most modern vision models handle well).
 - Apply (both page-summary and aggregation-detail) runs sequentially across the selected matrix; very large selections may take a while.
 - Apply does not yet operate on the **Aggregations** table itself as a multi-page-as-one-document operation. The agg-detail Apply still calls the LLM one page at a time.
