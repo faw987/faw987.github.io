@@ -50,13 +50,23 @@ Aggregations let you collect pages that belong together — e.g. all pages of a 
    - Type a name in **New aggregation** and click *Save*, or
    - Pick an existing aggregation from the list to add the selected pages to it.
 
-The **Aggregations** table appears below the page summary table with one row per aggregation. Columns mirror the page summary table: *Name, Pages, Thumbnail* (the first page in the aggregation), *Notes, LLM Response*, and any *Summary table heading* prompt columns, plus a delete (**✕**) icon. Aggregation-level *Notes* are independent of the per-page notes.
+### Aggregations of aggregations (recursive)
+
+An aggregation can contain other aggregations as well as (or instead of) pages. For example, with *A1* = page 1 and *A2* = page 2, you can build *All-A* made up of *A1* and *A2*; expanding *All-A* yields pages 1 and 2.
+
+- The **Create / Add Aggregation** dialog has an **Include aggregations as members** checklist. Tick any existing aggregations to fold them into the new (or selected) aggregation. You can build a member-only aggregation with no pages of its own — the **Create / Add Aggregation** button is available even with no page rows checked, as long as at least one aggregation already exists.
+- Membership is resolved **recursively**: opening an aggregation expands every member aggregation (and their members, and so on) down to a flat, de-duplicated page list. When an aggregation has both its own pages and member aggregations, the members are expanded first (in listed order), then its own direct pages follow.
+- Cycles are prevented: the checklist disables any aggregation that is the target itself, already a member, or whose inclusion would form a loop. Deleting an aggregation also removes it from every aggregation that listed it as a member.
+
+The **Aggregations** table appears below the page summary table with one row per aggregation. Columns mirror the page summary table: *Name, Parent, Pages, Thumbnail* (the first page in the expanded list), *Notes, LLM Response*, and any *Summary table heading* prompt columns, plus a delete (**✕**) icon. The **Parent** column shows the path of any aggregation that contains this one (e.g. `Root / Mid`; multiple parents are separated by `; `) and is blank for a top-level aggregation. The **Pages** count is the fully expanded total, marked *(expanded)* for composite aggregations. Aggregation-level *Notes* are independent of the per-page notes.
 
 Click an aggregation's **Name** to open the **Aggregation Detail** table. Clicking the **✕** in the Aggregations table deletes the whole aggregation (with a confirmation prompt). The pages themselves are unaffected.
 
 ## Aggregation Detail table
 
-The detail table has one row per page in the aggregation, in an order you control. Its columns are *Drag, Select, ✕, File, Page, Thumbnail, Notes, LLM Response*, followed by one column for every prompt marked **Aggregation detail heading** in the library editor.
+The detail table has one row per page in the aggregation (after recursive expansion of any member aggregations), in an order you control for a leaf aggregation. Its columns are *Drag, Select, ✕, File, Page, Thumbnail, Notes, LLM Response*, followed by one column for every prompt marked **Aggregation detail heading** in the library editor.
+
+For a **composite** aggregation (one that has member aggregations), the detail rows are the read-only expanded list — the drag handle and per-row **✕** are omitted, because those pages belong to the member aggregations. Reorder or remove them on the source aggregation instead; the composite reflects the change when re-opened. **Apply** and **Save as PDF** operate on the full expanded list.
 
 A toolbar above the table holds two buttons:
 
@@ -102,7 +112,7 @@ Pulls a sample prompt library (`fwb-prompt-library.json`) and a test PDF (`foren
 
 ### Project (Save / Open)
 
-A *project file* captures a complete analysis as a single JSON file: the loaded PDFs (optionally embedded), the prompt library, every page's notes and LLM response, every Apply result on the page summary, and every aggregation with its name, page order, notes, and stored agg-detail Apply results.
+A *project file* captures a complete analysis as a single JSON file: the loaded PDFs (optionally embedded), the prompt library, every page's notes and LLM response, every Apply result on the page summary, and every aggregation with its name, page order, member-aggregation links, notes, and stored agg-detail Apply results.
 
 - **Save Project** — pick a save mode, then click *Save Project*. You'll be prompted for a filename (default `fwb-project-<timestamp>.json`). The panel closes and a status line confirms the save and reports the file size.
 - **Open Project** — click *Open Project* and pick a previously-saved `.json` file. FWB clears its current state, restores the project, rebuilds the page summary table (if it was built in the saved project), and re-renders any aggregations. If anything fails before state is wiped (e.g. you cancel a re-attach) your in-progress work is left alone.

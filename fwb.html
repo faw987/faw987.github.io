@@ -212,6 +212,11 @@
     white-space: nowrap;
   }
   td.col-agg-name:hover { text-decoration: underline; }
+  td.col-agg-parent {
+    font-size: 13px; color: var(--muted);
+    max-width: 180px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   tr.aggregation-active td { background: #e8f3ff; }
   tr.aggregation-active td.col-agg-name { font-weight: 600; }
   td.col-agg-pages { font-variant-numeric: tabular-nums; width: 80px;
@@ -684,6 +689,10 @@
         </label>
         <input type="text" id="agg-modal-new-name" placeholder="Aggregation name">
       </div>
+      <div class="group" id="agg-modal-members-group">
+        <div style="font-weight: 500; margin-bottom: 4px;">Include aggregations as members</div>
+        <div class="existing-list" id="agg-modal-members-list"></div>
+      </div>
     </div>
     <div id="agg-modal-footer">
       <button class="secondary" id="agg-modal-cancel">Cancel</button>
@@ -1123,13 +1132,14 @@
         name: a.name,
         notes: a.notes || '',
         pageRefs: a.pageRefs.map(r => ({ fileId: r.fileId, pageNum: r.pageNum })),
+        childAggIds: Array.isArray(a.childAggIds) ? a.childAggIds.slice() : [],
         promptResults: a.promptResults || {}
       }));
 
       const project = {
         kind: 'fwb-project',
         version: 1,
-        appVersion: '0.6',
+        appVersion: '0.8',
         exportedAt: new Date().toISOString(),
         mode,
         nextId,
@@ -1279,6 +1289,7 @@
         pageRefs: Array.isArray(a.pageRefs)
           ? a.pageRefs.map(r => ({ fileId: r.fileId, pageNum: r.pageNum }))
           : [],
+        childAggIds: Array.isArray(a.childAggIds) ? a.childAggIds.slice() : [],
         promptResults: a.promptResults || {}
       }));
       selectedAggregationId = project.selectedAggregationId || null;
@@ -1560,6 +1571,11 @@
     if (rowsSelected) {
       createAggBtn.disabled = false;
       createAggBtn.title = 'Create a new aggregation or add selected pages to an existing one';
+    } else if (aggregations.length) {
+      // No page rows selected, but existing aggregations can still be
+      // composed into a new (or larger) aggregation.
+      createAggBtn.disabled = false;
+      createAggBtn.title = 'Combine existing aggregations into an aggregation';
     } else {
       createAggBtn.disabled = true;
       createAggBtn.title = 'Select at least one row to create or add to an aggregation';
@@ -2001,7 +2017,9 @@
   async function saveAggAsPdf() {
     if (busy) return;
     const agg = aggregations.find(a => a.id === selectedAggregationId);
-    if (!agg || !agg.pageRefs.length) return;
+    if (!agg) return;
+    const refs = expandAggregation(agg);
+    if (!refs.length) return;
     if (typeof PDFLib === 'undefined') {
       setStatus('PDF library not loaded yet. Try again in a moment.');
       return;
@@ -2021,9 +2039,9 @@
     const sourceDocCache = new Map(); // fileId → PDFLib.PDFDocument
     try {
       const newDoc = await PDFLib.PDFDocument.create();
-      for (let i = 0; i < agg.pageRefs.length; i++) {
-        const ref = agg.pageRefs[i];
-        setStatus(`Building PDF: page ${i + 1} / ${agg.pageRefs.length}`);
+      for (let i = 0; i < refs.length; i++) {
+        const ref = refs[i];
+        setStatus(`Building PDF: page ${i + 1} / ${refs.length}`);
         const entry = files.find(f => f.id === ref.fileId);
         if (!entry) {
           setStatus('Warning: source file no longer loaded for one page; skipping.');
@@ -2047,8 +2065,8 @@
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 0);
-      setStatus('Saved ' + agg.pageRefs.length + ' page'
-        + (agg.pageRefs.length === 1 ? '' : 's') + ' to ' + filename + '.');
+      setStatus('Saved ' + refs.length + ' page'
+        + (refs.length === 1 ? '' : 's') + ' to ' + filename + '.');
     } catch (err) {
       console.error('PDF save failed', err);
       setStatus('PDF save failed: ' + (err && err.message ? err.message : err));
@@ -2205,6 +2223,8 @@
   const aggModalExisting   = document.getElementById('agg-modal-existing-list');
   const aggModalExistingGp = document.getElementById('agg-modal-existing-group');
   const aggModalNewName    = document.getElementById('agg-modal-new-name');
+  const aggModalMembers    = document.getElementById('agg-modal-members-list');
+  const aggModalMembersGp  = document.getElementById('agg-modal-members-group');
 
   function makeAggId() { return 'agg-' + (nextAggId++); }
 
@@ -2224,19 +2244,26 @@
         });
       }
     });
-    if (!refs.length) return;
+    // With no pages selected the modal is still useful for composing
+    // existing aggregations into a new one.
+    if (!refs.length && !aggregations.length) return;
     pendingAggRefs = refs;
     openAggModal();
   });
 
   function openAggModal() {
     aggModalHint.textContent = pendingAggRefs.length + ' page'
-      + (pendingAggRefs.length === 1 ? '' : 's') + ' selected.';
+      + (pendingAggRefs.length === 1 ? '' : 's') + ' selected'
+      + (aggregations.length
+        ? ' — and/or include existing aggregations as members below.' : '.');
     aggModalExisting.innerHTML = '';
+    aggModalMembers.innerHTML = '';
     if (aggregations.length === 0) {
       aggModalExistingGp.style.display = 'none';
+      aggModalMembersGp.style.display = 'none';
     } else {
       aggModalExistingGp.style.display = '';
+      aggModalMembersGp.style.display = '';
       for (const agg of aggregations) {
         const label = document.createElement('label');
         label.className = 'choice';
@@ -2245,12 +2272,26 @@
         radio.name = 'aggTarget';
         radio.value = agg.id;
         radio.addEventListener('change', syncNewNameEnabled);
+        const n = expandAggregation(agg).length;
         const span = document.createElement('span');
-        span.textContent = agg.name + ' (' + agg.pageRefs.length + ' page'
-          + (agg.pageRefs.length === 1 ? '' : 's') + ')';
+        span.textContent = agg.name + ' (' + n + ' page'
+          + (n === 1 ? '' : 's') + ')';
         label.appendChild(radio);
         label.appendChild(span);
         aggModalExisting.appendChild(label);
+
+        const mLabel = document.createElement('label');
+        mLabel.className = 'choice';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'agg-member-cb';
+        cb.value = agg.id;
+        const mSpan = document.createElement('span');
+        mSpan.textContent = agg.name + ' (' + n + ' page'
+          + (n === 1 ? '' : 's') + ')';
+        mLabel.appendChild(cb);
+        mLabel.appendChild(mSpan);
+        aggModalMembers.appendChild(mLabel);
       }
     }
     const newRadio = aggModal.querySelector('input[value="__new__"]');
@@ -2280,6 +2321,36 @@
     const isNew = chosen && chosen.value === '__new__';
     aggModalNewName.disabled = !isNew;
     aggModalNewName.style.opacity = isNew ? '1' : '0.4';
+    // A member can't be the target itself, an existing member of the
+    // target, or anything that would close a cycle. Disable (and dim)
+    // those checkboxes so the choice is always valid.
+    const targetId = isNew ? null : (chosen && chosen.value);
+    const target = targetId
+      ? aggregations.find(a => a.id === targetId) : null;
+    aggModalMembers.querySelectorAll('.agg-member-cb').forEach(cb => {
+      let blocked = false;
+      let reason = '';
+      if (target) {
+        if (cb.value === target.id) { blocked = true; reason = ' (the target)'; }
+        else if ((target.childAggIds || []).includes(cb.value)) {
+          blocked = true; reason = ' (already a member)';
+        } else if (wouldCreateAggCycle(target.id, cb.value)) {
+          blocked = true; reason = ' (would create a cycle)';
+        }
+      }
+      cb.disabled = blocked;
+      if (blocked) cb.checked = false;
+      const label = cb.closest('label');
+      if (label) {
+        label.style.opacity = blocked ? '0.4' : '1';
+        const span = label.querySelector('span');
+        if (span) {
+          const base = span.textContent.replace(
+            / \((the target|already a member|would create a cycle)\)$/, '');
+          span.textContent = base + reason;
+        }
+      }
+    });
   }
 
   function closeAggModal() { aggModal.classList.remove('open'); }
@@ -2295,29 +2366,56 @@
   aggModalSubmit.addEventListener('click', () => {
     const chosen = aggModal.querySelector('input[name="aggTarget"]:checked');
     if (!chosen) return;
+    const memberIds = Array.from(
+      aggModalMembers.querySelectorAll('.agg-member-cb:checked')
+    ).filter(cb => !cb.disabled).map(cb => cb.value);
+
     if (chosen.value === '__new__') {
       const name = (aggModalNewName.value || '').trim();
       if (!name) { aggModalNewName.focus(); return; }
+      const pages = dedupeRefs(pendingAggRefs);
+      if (!pages.length && !memberIds.length) {
+        setStatus('Nothing to add: select pages or include at least one aggregation.');
+        return;
+      }
       const agg = {
         id: makeAggId(),
         name: name,
-        pageRefs: dedupeRefs(pendingAggRefs),
+        pageRefs: pages,
+        childAggIds: memberIds.slice(),
         notes: '',
         promptResults: {}
       };
       aggregations.push(agg);
       selectedAggregationId = agg.id;
-      setStatus('Aggregation "' + name + '" created with '
-        + agg.pageRefs.length + ' page'
-        + (agg.pageRefs.length === 1 ? '' : 's') + '.');
+      const total = expandAggregation(agg).length;
+      setStatus('Aggregation "' + name + '" created'
+        + (memberIds.length
+          ? ' from ' + memberIds.length + ' member aggregation'
+            + (memberIds.length === 1 ? '' : 's') : '')
+        + ' (' + total + ' page' + (total === 1 ? '' : 's') + ').');
     } else {
       const agg = aggregations.find(a => a.id === chosen.value);
       if (!agg) return;
+      if (!Array.isArray(agg.childAggIds)) agg.childAggIds = [];
       const before = agg.pageRefs.length;
       agg.pageRefs = dedupeRefs(agg.pageRefs.concat(pendingAggRefs));
-      const added = agg.pageRefs.length - before;
+      const addedPages = agg.pageRefs.length - before;
+      // Skip self / already-member / cycle-forming ids defensively even
+      // though disabled checkboxes are already filtered out above.
+      let addedMembers = 0;
+      for (const id of memberIds) {
+        if (id === agg.id) continue;
+        if (agg.childAggIds.includes(id)) continue;
+        if (wouldCreateAggCycle(agg.id, id)) continue;
+        agg.childAggIds.push(id);
+        addedMembers++;
+      }
       selectedAggregationId = agg.id;
-      setStatus('Added ' + added + ' page' + (added === 1 ? '' : 's')
+      setStatus('Added ' + addedPages + ' page' + (addedPages === 1 ? '' : 's')
+        + (addedMembers
+          ? ' and ' + addedMembers + ' member aggregation'
+            + (addedMembers === 1 ? '' : 's') : '')
         + ' to "' + agg.name + '".');
     }
     closeAggModal();
@@ -2338,6 +2436,77 @@
     return out;
   }
 
+  // --- Recursive aggregation expansion ---
+  // An aggregation may contain direct page refs AND other aggregations
+  // (`childAggIds`). Expanding flattens the tree to an ordered page list:
+  // each child aggregation is expanded first (in listed order), then this
+  // aggregation's own direct pages. `seen` guards against cycles
+  // (A contains B contains A) so a malformed tree can't loop forever; a
+  // revisited aggregation simply contributes nothing on the second visit.
+  function expandAggregationRefs(agg, seen) {
+    if (!agg || seen.has(agg.id)) return [];
+    seen.add(agg.id);
+    const out = [];
+    for (const childId of (agg.childAggIds || [])) {
+      const child = aggregations.find(a => a.id === childId);
+      if (child) out.push(...expandAggregationRefs(child, seen));
+    }
+    for (const r of (agg.pageRefs || [])) {
+      out.push({ fileId: r.fileId, pageNum: r.pageNum });
+    }
+    return out;
+  }
+
+  // Flattened, de-duplicated page list for an aggregation (first occurrence
+  // wins, so a page reachable via two children appears once).
+  function expandAggregation(agg) {
+    return dedupeRefs(expandAggregationRefs(agg, new Set()));
+  }
+
+  function isCompositeAgg(agg) {
+    return !!(agg && Array.isArray(agg.childAggIds) && agg.childAggIds.length);
+  }
+
+  // Paths of every aggregation that (transitively) contains `aggId`, e.g.
+  // "Root / Mid". Multiple parents yield multiple paths; returns [] for a
+  // top-level aggregation. `guard` breaks cycles in a malformed tree.
+  function aggParentPaths(aggId, guard) {
+    guard = guard || new Set();
+    const parents = aggregations.filter(a =>
+      Array.isArray(a.childAggIds) && a.childAggIds.includes(aggId));
+    const paths = [];
+    for (const p of parents) {
+      if (guard.has(p.id)) continue;
+      const next = new Set(guard);
+      next.add(aggId);
+      const up = aggParentPaths(p.id, next);
+      if (up.length) {
+        for (const u of up) paths.push(u + ' / ' + p.name);
+      } else {
+        paths.push(p.name);
+      }
+    }
+    return paths;
+  }
+
+  // Would making `childId` a member of `parentId` create a cycle? True if
+  // they are the same aggregation or `childId` already (transitively)
+  // contains `parentId`.
+  function wouldCreateAggCycle(parentId, childId) {
+    if (parentId === childId) return true;
+    const stack = [childId];
+    const seen = new Set();
+    while (stack.length) {
+      const cur = stack.pop();
+      if (cur === parentId) return true;
+      if (seen.has(cur)) continue;
+      seen.add(cur);
+      const a = aggregations.find(x => x.id === cur);
+      if (a && Array.isArray(a.childAggIds)) stack.push(...a.childAggIds);
+    }
+    return false;
+  }
+
   function renderAggSummary() {
     if (!aggregations.length) {
       aggHeading.hidden = true;
@@ -2354,7 +2523,7 @@
 
     aggThead.innerHTML = '';
     const headTr = document.createElement('tr');
-    for (const label of ['Name', 'Pages', 'Thumbnail', 'Notes', 'LLM Response']) {
+    for (const label of ['Name', 'Parent', 'Pages', 'Thumbnail', 'Notes', 'LLM Response']) {
       const th = document.createElement('th');
       th.textContent = label;
       headTr.appendChild(th);
@@ -2389,14 +2558,25 @@
       });
       tr.appendChild(tdName);
 
+      // Path of containing aggregation(s); blank for a top-level one.
+      const tdParent = document.createElement('td');
+      tdParent.className = 'col-agg-parent';
+      const parentPaths = aggParentPaths(agg.id);
+      tdParent.textContent = parentPaths.join('; ');
+      if (parentPaths.length) tdParent.title = parentPaths.join('; ');
+      tr.appendChild(tdParent);
+
+      const expandedRefs = expandAggregation(agg);
       const tdPages = document.createElement('td');
       tdPages.className = 'col-agg-pages';
-      tdPages.textContent = agg.pageRefs.length + (agg.pageRefs.length === 1 ? ' page' : ' pages');
+      tdPages.textContent = expandedRefs.length
+        + (expandedRefs.length === 1 ? ' page' : ' pages')
+        + (isCompositeAgg(agg) ? ' (expanded)' : '');
       tr.appendChild(tdPages);
 
       const tdThumb = document.createElement('td');
       tdThumb.className = 'col-thumb';
-      const firstRef = agg.pageRefs[0];
+      const firstRef = expandedRefs[0];
       if (firstRef) {
         const cloned = cloneThumbnailFromPageTable(firstRef);
         if (cloned) {
@@ -2447,10 +2627,22 @@
   function deleteAggregation(id) {
     const agg = aggregations.find(a => a.id === id);
     if (!agg) return;
-    if (!confirm('Delete aggregation "' + agg.name + '"? This does not affect the underlying pages.')) {
+    const parents = aggParentPaths(id);
+    const extra = parents.length
+      ? '\n\nIt is a member of: ' + parents.join('; ')
+        + '. It will be removed from those aggregations too.'
+      : '';
+    if (!confirm('Delete aggregation "' + agg.name
+      + '"? This does not affect the underlying pages.' + extra)) {
       return;
     }
     aggregations = aggregations.filter(a => a.id !== id);
+    // Detach it from any aggregation that listed it as a member.
+    for (const a of aggregations) {
+      if (Array.isArray(a.childAggIds) && a.childAggIds.includes(id)) {
+        a.childAggIds = a.childAggIds.filter(cid => cid !== id);
+      }
+    }
     if (selectedAggregationId === id) selectedAggregationId = null;
     renderAggSummary();
     renderAggDetail();
@@ -2508,8 +2700,13 @@
     aggDetailControls.hidden = false;
     aggDetailTable.hidden = false;
     aggDetailHeading.firstChild.nodeValue = 'Aggregation Detail — ' + agg.name + ' ';
-    aggDetailMeta.textContent = agg.pageRefs.length + ' page'
-      + (agg.pageRefs.length === 1 ? '' : 's');
+    const composite = isCompositeAgg(agg);
+    const detailRefs = expandAggregation(agg);
+    aggDetailMeta.textContent = detailRefs.length + ' page'
+      + (detailRefs.length === 1 ? '' : 's')
+      + (composite
+        ? ' (expanded from member aggregations — reorder/remove on the source aggregations)'
+        : '');
 
     aggDetailThead.innerHTML = '';
     const headTr = document.createElement('tr');
@@ -2566,7 +2763,7 @@
     aggDetailThead.appendChild(headTr);
 
     aggDetailTbody.innerHTML = '';
-    for (const ref of agg.pageRefs) {
+    for (const ref of detailRefs) {
       const tr = document.createElement('tr');
       tr.dataset.fileId = String(ref.fileId);
       tr.dataset.pageNum = String(ref.pageNum);
@@ -2577,52 +2774,59 @@
 
       const tdDrag = document.createElement('td');
       tdDrag.className = 'col-drag';
-      tdDrag.textContent = '☰';
-      tdDrag.title = 'Drag to reorder';
-      // Only enable drag when the user grabs the handle, so text selection
-      // inside other cells doesn't accidentally start a row drag.
-      tdDrag.addEventListener('mousedown', () => { tr.draggable = true; });
-      tdDrag.addEventListener('mouseup', () => { tr.draggable = false; });
+      // Reorder is only meaningful for a leaf aggregation's own pages. A
+      // composite's rows come from its member aggregations, so the handle
+      // and the drag listeners are omitted entirely for composites.
+      if (!composite) {
+        tdDrag.textContent = '☰';
+        tdDrag.title = 'Drag to reorder';
+        // Only enable drag when the user grabs the handle, so text selection
+        // inside other cells doesn't accidentally start a row drag.
+        tdDrag.addEventListener('mousedown', () => { tr.draggable = true; });
+        tdDrag.addEventListener('mouseup', () => { tr.draggable = false; });
+      }
       tr.appendChild(tdDrag);
 
-      tr.addEventListener('dragstart', e => {
-        aggDragRow = tr;
-        tr.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        // Firefox requires data on dataTransfer to start a drag.
-        try { e.dataTransfer.setData('text/plain', ref.fileId + ':' + ref.pageNum); }
-        catch (_) {}
-      });
-      tr.addEventListener('dragend', () => {
-        tr.classList.remove('dragging');
-        tr.draggable = false;
-        aggDragRow = null;
-        aggDetailTbody.querySelectorAll('tr').forEach(r => {
-          r.classList.remove('drop-target-above', 'drop-target-below');
+      if (!composite) {
+        tr.addEventListener('dragstart', e => {
+          aggDragRow = tr;
+          tr.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          // Firefox requires data on dataTransfer to start a drag.
+          try { e.dataTransfer.setData('text/plain', ref.fileId + ':' + ref.pageNum); }
+          catch (_) {}
         });
-        syncAggPageRefsFromDom(agg);
-      });
-      tr.addEventListener('dragover', e => {
-        if (!aggDragRow || aggDragRow === tr) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        const rect = tr.getBoundingClientRect();
-        const after = e.clientY > rect.top + rect.height / 2;
-        tr.classList.toggle('drop-target-above', !after);
-        tr.classList.toggle('drop-target-below', after);
-      });
-      tr.addEventListener('dragleave', () => {
-        tr.classList.remove('drop-target-above', 'drop-target-below');
-      });
-      tr.addEventListener('drop', e => {
-        if (!aggDragRow || aggDragRow === tr) return;
-        e.preventDefault();
-        const rect = tr.getBoundingClientRect();
-        const after = e.clientY > rect.top + rect.height / 2;
-        if (after) tr.parentNode.insertBefore(aggDragRow, tr.nextSibling);
-        else tr.parentNode.insertBefore(aggDragRow, tr);
-        tr.classList.remove('drop-target-above', 'drop-target-below');
-      });
+        tr.addEventListener('dragend', () => {
+          tr.classList.remove('dragging');
+          tr.draggable = false;
+          aggDragRow = null;
+          aggDetailTbody.querySelectorAll('tr').forEach(r => {
+            r.classList.remove('drop-target-above', 'drop-target-below');
+          });
+          syncAggPageRefsFromDom(agg);
+        });
+        tr.addEventListener('dragover', e => {
+          if (!aggDragRow || aggDragRow === tr) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          const rect = tr.getBoundingClientRect();
+          const after = e.clientY > rect.top + rect.height / 2;
+          tr.classList.toggle('drop-target-above', !after);
+          tr.classList.toggle('drop-target-below', after);
+        });
+        tr.addEventListener('dragleave', () => {
+          tr.classList.remove('drop-target-above', 'drop-target-below');
+        });
+        tr.addEventListener('drop', e => {
+          if (!aggDragRow || aggDragRow === tr) return;
+          e.preventDefault();
+          const rect = tr.getBoundingClientRect();
+          const after = e.clientY > rect.top + rect.height / 2;
+          if (after) tr.parentNode.insertBefore(aggDragRow, tr.nextSibling);
+          else tr.parentNode.insertBefore(aggDragRow, tr);
+          tr.classList.remove('drop-target-above', 'drop-target-below');
+        });
+      }
 
       const tdSelect = document.createElement('td');
       tdSelect.className = 'col-select';
@@ -2639,11 +2843,15 @@
 
       const tdDel = document.createElement('td');
       tdDel.className = 'col-agg-delete';
-      const delBtn = document.createElement('button');
-      delBtn.textContent = '✕';
-      delBtn.title = 'Remove this page from the aggregation';
-      delBtn.addEventListener('click', () => removePageFromAggregation(agg.id, ref));
-      tdDel.appendChild(delBtn);
+      // A composite's pages come from member aggregations; remove them on
+      // the source aggregation, not here.
+      if (!composite) {
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '✕';
+        delBtn.title = 'Remove this page from the aggregation';
+        delBtn.addEventListener('click', () => removePageFromAggregation(agg.id, ref));
+        tdDel.appendChild(delBtn);
+      }
       tr.appendChild(tdDel);
 
       const tdFile = document.createElement('td');
@@ -2760,7 +2968,7 @@
       return;
     }
     const agg = aggregations.find(a => a.id === selectedAggregationId);
-    const n = agg ? agg.pageRefs.length : 0;
+    const n = agg ? expandAggregation(agg).length : 0;
     aggSavePdfBtn.disabled = n === 0;
     aggSavePdfBtn.title = n === 0
       ? 'This aggregation has no pages'
