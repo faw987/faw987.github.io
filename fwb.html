@@ -304,6 +304,77 @@
     display: flex; justify-content: flex-end; gap: 8px;
     padding: 12px 22px; border-top: 1px solid var(--border);
   }
+  /* PDF builder modal */
+  #pdfbuild-modal {
+    display: none; position: fixed; inset: 0; z-index: 2100;
+    background: rgba(0,0,0,0.45);
+    align-items: center; justify-content: center; padding: 40px;
+  }
+  #pdfbuild-modal.open { display: flex; }
+  #pdfbuild-modal-content {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; max-width: 760px; width: 100%;
+    max-height: calc(100vh - 80px);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    display: flex; flex-direction: column;
+  }
+  #pdfbuild-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px; border-bottom: 1px solid var(--border);
+  }
+  #pdfbuild-modal-header h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  #pdfbuild-modal-header button {
+    background: transparent; color: var(--muted); font-size: 22px;
+    padding: 0 10px; line-height: 1; border: 0; border-radius: 6px; cursor: pointer;
+  }
+  #pdfbuild-modal-header button:hover { background: #f0f0f0; color: var(--text); }
+  #pdfbuild-modal-body {
+    padding: 16px 22px; color: var(--text); font-size: 14px;
+    overflow-y: auto;
+  }
+  #pdfbuild-modal-body .hint { color: var(--muted); margin: 0 0 14px; }
+  #pdfbuild-list { display: flex; flex-direction: column; gap: 8px; }
+  .pdfbuild-item {
+    display: flex; gap: 12px; align-items: flex-start;
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+    background: var(--panel);
+  }
+  .pdfbuild-item.dragging { opacity: 0.5; background: #f0f7ff; }
+  .pdfbuild-item.drop-target-above { border-top: 2px solid var(--accent); }
+  .pdfbuild-item.drop-target-below { border-bottom: 2px solid var(--accent); }
+  .pdfbuild-handle {
+    cursor: grab; color: var(--muted); font-size: 16px;
+    user-select: none; padding-top: 2px;
+  }
+  .pdfbuild-handle:active { cursor: grabbing; }
+  .pdfbuild-thumb canvas {
+    display: block; border: 1px solid var(--border); border-radius: 4px;
+  }
+  .pdfbuild-main { flex: 1; min-width: 0; }
+  .pdfbuild-label {
+    font-weight: 600; font-size: 13px; margin-bottom: 6px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .pdfbuild-remove {
+    background: transparent; border: 0; color: var(--muted);
+    font-size: 16px; line-height: 1; cursor: pointer; padding: 2px 6px;
+    border-radius: 6px;
+  }
+  .pdfbuild-remove:hover { background: #fdf0f0; color: var(--danger, #c0392b); }
+  .pdfbuild-cols {
+    display: flex; flex-wrap: wrap; gap: 6px 14px;
+  }
+  .pdfbuild-cols label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text); cursor: pointer;
+  }
+  .pdfbuild-cols .none {
+    font-size: 12px; color: var(--muted); font-style: italic;
+  }
+  #pdfbuild-modal-footer {
+    display: flex; justify-content: flex-end; gap: 8px;
+    padding: 12px 22px; border-top: 1px solid var(--border);
+  }
   .llm-response-content {
     font-size: 13px;
     white-space: pre-wrap;
@@ -649,6 +720,10 @@
     Aggregations
     <span class="heading-meta" id="aggSummaryMeta"></span>
   </h2>
+  <div class="agg-detail-controls" id="aggSummaryControls" hidden>
+    <button id="aggCombineBtn" disabled
+      title="Select one or more aggregation rows to combine them into a new aggregation, or add them to an existing one">Create / Add Aggregation</button>
+  </div>
   <table id="aggSummaryTable" hidden>
     <thead></thead>
     <tbody></tbody>
@@ -662,7 +737,7 @@
     <button id="aggApplyBtn" class="apply-btn" disabled
       title="Select at least one row and one prompt column">Apply</button>
     <button id="aggSavePdfBtn" disabled
-      title="Save the aggregation pages as a single PDF in current order">Save as PDF</button>
+      title="Open the PDF builder for this aggregation's pages">Save as PDF</button>
   </div>
   <table id="aggDetailTable" hidden>
     <thead></thead>
@@ -697,6 +772,23 @@
     <div id="agg-modal-footer">
       <button class="secondary" id="agg-modal-cancel">Cancel</button>
       <button id="agg-modal-submit">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="pdfbuild-modal" role="dialog" aria-modal="true" aria-labelledby="pdfbuild-modal-title">
+  <div id="pdfbuild-modal-content">
+    <div id="pdfbuild-modal-header">
+      <h3 id="pdfbuild-modal-title">Build PDF</h3>
+      <button id="pdfbuild-modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div id="pdfbuild-modal-body">
+      <p class="hint" id="pdfbuild-modal-hint"></p>
+      <div id="pdfbuild-list"></div>
+    </div>
+    <div id="pdfbuild-modal-footer">
+      <button class="secondary" id="pdfbuild-modal-cancel">Cancel</button>
+      <button id="pdfbuild-modal-submit">Save PDF</button>
     </div>
   </div>
 </div>
@@ -807,6 +899,8 @@
   const aggTable         = document.getElementById('aggSummaryTable');
   const aggThead         = aggTable.querySelector('thead');
   const aggTbody         = aggTable.querySelector('tbody');
+  const aggSummaryControls = document.getElementById('aggSummaryControls');
+  const aggCombineBtn      = document.getElementById('aggCombineBtn');
   const aggDetailHeading  = document.getElementById('aggDetailHeading');
   const aggDetailMeta     = document.getElementById('aggDetailMeta');
   const aggDetailControls = document.getElementById('aggDetailControls');
@@ -815,6 +909,12 @@
   const aggDetailTable    = document.getElementById('aggDetailTable');
   const aggDetailThead    = aggDetailTable.querySelector('thead');
   const aggDetailTbody    = aggDetailTable.querySelector('tbody');
+  const pdfBuildModal     = document.getElementById('pdfbuild-modal');
+  const pdfBuildList      = document.getElementById('pdfbuild-list');
+  const pdfBuildHint      = document.getElementById('pdfbuild-modal-hint');
+  const pdfBuildClose     = document.getElementById('pdfbuild-modal-close');
+  const pdfBuildCancel    = document.getElementById('pdfbuild-modal-cancel');
+  const pdfBuildSubmit    = document.getElementById('pdfbuild-modal-submit');
 
   // --- State ---
   let files = [];        // [{file: File, pdfDoc: PDFDocumentProxy, id: number}]
@@ -1557,6 +1657,7 @@
     clearBtn.disabled  = busy || files.length === 0;
     updateApplyButton();
     updateAggButton();
+    updateAggCombineBtn();
     updateAggApplyButton();
     updateAggSavePdfButton();
   }
@@ -2014,35 +2115,293 @@
   }
 
   // --- Save aggregation pages as a single PDF ---
-  async function saveAggAsPdf() {
+  // --- Save as PDF: the build-plan modal (experimental) ---
+  // Snapshot of the rows the modal is working with. The DOM (order +
+  // per-column checkboxes) is the source of truth at submit time; this
+  // array just holds the resolved column content keyed by `data-idx`.
+  let pdfBuildItems = [];
+  let pdfDragEl = null;
+
+  // Read the currently-rendered agg-detail rows (the already-expanded,
+  // nested-resolved page set). If any rows are checked, use just those;
+  // otherwise use them all.
+  function gatherAggDetailColumns() {
+    const rows = Array.from(aggDetailTbody.querySelectorAll('tr'));
+    const checked = rows.filter(tr => {
+      const cb = tr.querySelector('.row-select');
+      return cb && cb.checked;
+    });
+    const use = checked.length ? checked : rows;
+    return use.map(tr => {
+      const fileId = Number(tr.dataset.fileId);
+      const pageNum = Number(tr.dataset.pageNum);
+      const entry = files.find(f => f.id === fileId);
+      const fileName = entry ? entry.file.name : '(missing)';
+      const columns = [];
+      const pushText = (key, label, raw) => {
+        const v = (raw || '').trim();
+        if (!v) return;
+        columns.push({ key, label, value: v, isImage: isImageResult(v) });
+      };
+      const notesEl = tr.querySelector('.agg-detail-notes');
+      pushText('notes', 'Notes', notesEl ? notesEl.textContent : '');
+      const llmEl = tr.querySelector('.agg-detail-llm');
+      pushText('llm', 'LLM Response', llmEl ? llmEl.textContent : '');
+      for (const prompt of currentAggregationPrompts) {
+        const cell = tr.querySelector(
+          `td.col-agg-readonly[data-prompt-id="${prompt.id}"] .llm-response-content`
+        );
+        if (!cell) continue;
+        if (cell.dataset.image) {
+          columns.push({ key: prompt.id, label: prompt.name,
+            value: cell.dataset.image, isImage: true });
+        } else {
+          pushText(prompt.id, prompt.name, cell.textContent);
+        }
+      }
+      return { fileId, pageNum, fileName, columns };
+    });
+  }
+
+  function renderPdfBuildList() {
+    pdfBuildList.innerHTML = '';
+    pdfBuildItems.forEach((item, idx) => {
+      const el = document.createElement('div');
+      el.className = 'pdfbuild-item';
+      el.dataset.idx = String(idx);
+
+      const handle = document.createElement('div');
+      handle.className = 'pdfbuild-handle';
+      handle.textContent = '☰';
+      handle.title = 'Drag to reorder';
+      handle.addEventListener('mousedown', () => { el.draggable = true; });
+      handle.addEventListener('mouseup', () => { el.draggable = false; });
+      el.appendChild(handle);
+
+      const thumbWrap = document.createElement('div');
+      thumbWrap.className = 'pdfbuild-thumb';
+      const cloned = cloneThumbnailFromPageTable(
+        { fileId: item.fileId, pageNum: item.pageNum });
+      if (cloned) {
+        cloned.style.width = '54px';
+        cloned.style.height = 'auto';
+        thumbWrap.appendChild(cloned);
+      }
+      el.appendChild(thumbWrap);
+
+      const main = document.createElement('div');
+      main.className = 'pdfbuild-main';
+      const label = document.createElement('div');
+      label.className = 'pdfbuild-label';
+      const labelText = document.createElement('span');
+      labelText.textContent = item.fileName + ' — Page ' + item.pageNum;
+      const remove = document.createElement('button');
+      remove.className = 'pdfbuild-remove';
+      remove.textContent = '✕';
+      remove.title = 'Remove this page from the PDF (does not affect the aggregation)';
+      remove.addEventListener('click', () => {
+        el.remove();
+        if (!pdfBuildList.querySelector('.pdfbuild-item')) {
+          pdfBuildSubmit.disabled = true;
+        }
+      });
+      label.appendChild(labelText);
+      label.appendChild(remove);
+      main.appendChild(label);
+
+      const cols = document.createElement('div');
+      cols.className = 'pdfbuild-cols';
+      if (!item.columns.length) {
+        const none = document.createElement('span');
+        none.className = 'none';
+        none.textContent = 'No column content for this page — page image only.';
+        cols.appendChild(none);
+      } else {
+        for (const col of item.columns) {
+          const lab = document.createElement('label');
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = true;
+          cb.dataset.colKey = col.key;
+          const span = document.createElement('span');
+          span.textContent = col.label + (col.isImage ? ' (image)' : '');
+          lab.appendChild(cb);
+          lab.appendChild(span);
+          cols.appendChild(lab);
+        }
+      }
+      main.appendChild(cols);
+      el.appendChild(main);
+
+      el.addEventListener('dragstart', e => {
+        pdfDragEl = el;
+        el.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', el.dataset.idx); } catch (_) {}
+      });
+      el.addEventListener('dragend', () => {
+        el.classList.remove('dragging');
+        el.draggable = false;
+        pdfDragEl = null;
+        pdfBuildList.querySelectorAll('.pdfbuild-item').forEach(r =>
+          r.classList.remove('drop-target-above', 'drop-target-below'));
+      });
+      el.addEventListener('dragover', e => {
+        if (!pdfDragEl || pdfDragEl === el) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const rect = el.getBoundingClientRect();
+        const after = e.clientY > rect.top + rect.height / 2;
+        el.classList.toggle('drop-target-above', !after);
+        el.classList.toggle('drop-target-below', after);
+      });
+      el.addEventListener('dragleave', () => {
+        el.classList.remove('drop-target-above', 'drop-target-below');
+      });
+      el.addEventListener('drop', e => {
+        if (!pdfDragEl || pdfDragEl === el) return;
+        e.preventDefault();
+        const rect = el.getBoundingClientRect();
+        const after = e.clientY > rect.top + rect.height / 2;
+        if (after) el.parentNode.insertBefore(pdfDragEl, el.nextSibling);
+        else el.parentNode.insertBefore(pdfDragEl, el);
+        el.classList.remove('drop-target-above', 'drop-target-below');
+      });
+
+      pdfBuildList.appendChild(el);
+    });
+  }
+
+  function openPdfBuildModal() {
     if (busy) return;
     const agg = aggregations.find(a => a.id === selectedAggregationId);
     if (!agg) return;
-    const refs = expandAggregation(agg);
-    if (!refs.length) return;
     if (typeof PDFLib === 'undefined') {
       setStatus('PDF library not loaded yet. Try again in a moment.');
       return;
     }
+    pdfBuildItems = gatherAggDetailColumns();
+    if (!pdfBuildItems.length) { setStatus('No pages to save.'); return; }
+    const anySel = !!aggDetailTbody.querySelector('.row-select:checked');
+    pdfBuildHint.textContent = pdfBuildItems.length + ' page'
+      + (pdfBuildItems.length === 1 ? '' : 's') + ' '
+      + (anySel ? '(from your selected rows)' : '(all pages in this aggregation)')
+      + '. Drag to reorder, ✕ to drop a page, and tick the columns to append'
+      + ' as an annotation page after each source page.';
+    renderPdfBuildList();
+    pdfBuildSubmit.disabled = false;
+    pdfBuildModal.classList.add('open');
+  }
 
-    const safeBase = (agg.name || 'aggregation').replace(/[^a-z0-9\-_ .]/gi, '_');
+  function closePdfBuildModal() { pdfBuildModal.classList.remove('open'); }
+  pdfBuildClose.addEventListener('click', closePdfBuildModal);
+  pdfBuildCancel.addEventListener('click', closePdfBuildModal);
+  pdfBuildModal.addEventListener('click', e => {
+    if (e.target === pdfBuildModal) closePdfBuildModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && pdfBuildModal.classList.contains('open')) {
+      closePdfBuildModal();
+    }
+  });
+
+  pdfBuildSubmit.addEventListener('click', () => {
+    const els = Array.from(pdfBuildList.querySelectorAll('.pdfbuild-item'));
+    if (!els.length) { setStatus('Nothing to save — all pages were removed.'); return; }
+    const agg = aggregations.find(a => a.id === selectedAggregationId);
+    const plan = els.map(el => {
+      const item = pdfBuildItems[Number(el.dataset.idx)];
+      const keep = new Set(Array.from(
+        el.querySelectorAll('.pdfbuild-cols input:checked')
+      ).map(cb => cb.dataset.colKey));
+      return {
+        fileId: item.fileId,
+        pageNum: item.pageNum,
+        fileName: item.fileName,
+        columns: item.columns.filter(c => keep.has(c.key))
+      };
+    });
+    const safeBase = ((agg && agg.name) || 'aggregation')
+      .replace(/[^a-z0-9\-_ .]/gi, '_');
     const suggested = safeBase.endsWith('.pdf') ? safeBase : safeBase + '.pdf';
     const entered = window.prompt('Save PDF as:', suggested);
     if (!entered) return;
-    const filename = entered.toLowerCase().endsWith('.pdf') ? entered : entered + '.pdf';
+    const filename = entered.toLowerCase().endsWith('.pdf')
+      ? entered : entered + '.pdf';
+    closePdfBuildModal();
+    buildPlannedPdf(plan, filename);
+  });
 
+  // pdf-lib's standard fonts are WinAnsi-only; LLM text routinely carries
+  // smart quotes / em dashes / unicode. Fold the common cases, drop the rest.
+  function pdfSafe(s) {
+    return String(s)
+      .replace(/[‘’‚‛]/g, "'")
+      .replace(/[“”„]/g, '"')
+      .replace(/[–—−]/g, '-')
+      .replace(/…/g, '...')
+      .replace(/[   ]/g, ' ')
+      .replace(/[•●▪]/g, '-')
+      .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, '?');
+  }
+
+  function wrapText(text, font, size, maxWidth) {
+    const out = [];
+    for (const para of pdfSafe(text).split(/\r?\n/)) {
+      if (para === '') { out.push(''); continue; }
+      let line = '';
+      for (const word of para.split(/\s+/)) {
+        const test = line ? line + ' ' + word : word;
+        if (font.widthOfTextAtSize(test, size) <= maxWidth) {
+          line = test;
+        } else if (font.widthOfTextAtSize(word, size) > maxWidth) {
+          if (line) { out.push(line); line = ''; }
+          let chunk = '';
+          for (const ch of word) {
+            if (font.widthOfTextAtSize(chunk + ch, size) <= maxWidth) {
+              chunk += ch;
+            } else { out.push(chunk); chunk = ch; }
+          }
+          line = chunk;
+        } else {
+          if (line) out.push(line);
+          line = word;
+        }
+      }
+      out.push(line);
+    }
+    return out;
+  }
+
+  async function embedDataUrl(doc, dataUrl) {
+    try {
+      const m = /^data:image\/(png|jpe?g);base64,(.*)$/i.exec(dataUrl);
+      if (!m) return null;
+      const bin = atob(m[2]);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const img = /png/i.test(m[1])
+        ? await doc.embedPng(bytes) : await doc.embedJpg(bytes);
+      return img;
+    } catch (_) { return null; }
+  }
+
+  async function buildPlannedPdf(plan, filename) {
     busy = true;
     updateButtons();
     updateAggApplyButton();
     updateAggSavePdfButton();
-
-    const sourceDocCache = new Map(); // fileId → PDFLib.PDFDocument
+    const sourceDocCache = new Map();
     try {
       const newDoc = await PDFLib.PDFDocument.create();
-      for (let i = 0; i < refs.length; i++) {
-        const ref = refs[i];
-        setStatus(`Building PDF: page ${i + 1} / ${refs.length}`);
-        const entry = files.find(f => f.id === ref.fileId);
+      const font = await newDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+      const fontBold = await newDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+      const PW = 612, PH = 792, M = 50, CW = PW - 2 * M - 10;
+
+      for (let i = 0; i < plan.length; i++) {
+        const item = plan[i];
+        setStatus(`Building PDF: page ${i + 1} / ${plan.length}`);
+        const entry = files.find(f => f.id === item.fileId);
         if (!entry) {
           setStatus('Warning: source file no longer loaded for one page; skipping.');
           continue;
@@ -2052,9 +2411,57 @@
           sourceDocCache.set(entry.id, await PDFLib.PDFDocument.load(bytes));
         }
         const sourceDoc = sourceDocCache.get(entry.id);
-        const [copied] = await newDoc.copyPages(sourceDoc, [ref.pageNum - 1]);
+        const [copied] = await newDoc.copyPages(sourceDoc, [item.pageNum - 1]);
         newDoc.addPage(copied);
+
+        if (!item.columns.length) continue;
+
+        let page = newDoc.addPage([PW, PH]);
+        let y = PH - M;
+        const nl = () => { page = newDoc.addPage([PW, PH]); y = PH - M; };
+        const need = h => { if (y - h < M) nl(); };
+
+        need(20);
+        page.drawText(pdfSafe(item.fileName + ' — Page ' + item.pageNum
+          + ' — annotations'), { x: M, y: y - 13, size: 12, font: fontBold });
+        y -= 28;
+
+        for (const col of item.columns) {
+          need(18);
+          page.drawText(pdfSafe(col.label) + ':',
+            { x: M, y: y - 11, size: 11, font: fontBold });
+          y -= 20;
+          if (col.isImage) {
+            const img = await embedDataUrl(newDoc, col.value);
+            if (!img) {
+              need(16);
+              page.drawText('[image result — unsupported format, omitted]',
+                { x: M + 10, y: y - 10, size: 10, font });
+              y -= 18;
+            } else {
+              let w = img.width, h = img.height;
+              const sc = Math.min(1, CW / w);
+              w *= sc; h *= sc;
+              const maxH = PH - 2 * M;
+              if (h > maxH) { const s2 = maxH / h; w *= s2; h *= s2; }
+              need(h + 10);
+              page.drawImage(img,
+                { x: M + 10, y: y - h, width: w, height: h });
+              y -= h + 12;
+            }
+          } else {
+            for (const ln of wrapText(col.value, font, 10, CW)) {
+              need(13);
+              if (ln !== '') {
+                page.drawText(ln, { x: M + 10, y: y - 10, size: 10, font });
+              }
+              y -= 13;
+            }
+            y -= 6;
+          }
+        }
       }
+
       const pdfBytes = await newDoc.save();
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
@@ -2065,8 +2472,8 @@
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 0);
-      setStatus('Saved ' + refs.length + ' page'
-        + (refs.length === 1 ? '' : 's') + ' to ' + filename + '.');
+      setStatus('Saved ' + plan.length + ' page'
+        + (plan.length === 1 ? '' : 's') + ' to ' + filename + '.');
     } catch (err) {
       console.error('PDF save failed', err);
       setStatus('PDF save failed: ' + (err && err.message ? err.message : err));
@@ -2079,7 +2486,7 @@
   }
 
   aggApplyBtn.addEventListener('click', runAggApplyMatrix);
-  aggSavePdfBtn.addEventListener('click', saveAggAsPdf);
+  aggSavePdfBtn.addEventListener('click', openPdfBuildModal);
 
   // An image-returning prompt stores its result as an image data URL in the
   // same slot a text result would use. Detecting that prefix lets the cell
@@ -2231,6 +2638,10 @@
   // Snapshot of page refs picked from the page-summary table when the user
   // clicked Create / Add Aggregation. Held across the modal interaction.
   let pendingAggRefs = [];
+  // Aggregation ids the modal should open with pre-checked as members.
+  // Populated when the user enters via the AGG Summary table's
+  // Create / Add Aggregation button; empty for the page-summary path.
+  let pendingMemberIds = [];
 
   createAggBtn.addEventListener('click', () => {
     if (createAggBtn.disabled) return;
@@ -2248,14 +2659,53 @@
     // existing aggregations into a new one.
     if (!refs.length && !aggregations.length) return;
     pendingAggRefs = refs;
+    pendingMemberIds = [];
     openAggModal();
   });
 
+  // Entry point from the AGG Summary table: combine the checked
+  // aggregation rows into a new aggregation (or add them to an existing
+  // one). Reuses the same modal — the selected rows arrive pre-checked
+  // in its "Include aggregations as members" list.
+  aggCombineBtn.addEventListener('click', () => {
+    if (aggCombineBtn.disabled) return;
+    const ids = Array.from(
+      aggTbody.querySelectorAll('.agg-row-select:checked')
+    ).map(cb => cb.dataset.aggId);
+    if (!ids.length) return;
+    pendingAggRefs = [];
+    pendingMemberIds = ids;
+    openAggModal();
+  });
+
+  function updateAggCombineBtn() {
+    if (busy) {
+      aggCombineBtn.disabled = true;
+      aggCombineBtn.title = 'Working…';
+      return;
+    }
+    const n = aggTbody.querySelectorAll('.agg-row-select:checked').length;
+    aggCombineBtn.disabled = n === 0;
+    aggCombineBtn.title = n === 0
+      ? 'Select one or more aggregation rows to combine them into a new aggregation, or add them to an existing one'
+      : 'Combine the ' + n + ' selected aggregation'
+        + (n === 1 ? '' : 's') + ' into a new aggregation, or add to an existing one';
+  }
+
   function openAggModal() {
-    aggModalHint.textContent = pendingAggRefs.length + ' page'
-      + (pendingAggRefs.length === 1 ? '' : 's') + ' selected'
-      + (aggregations.length
-        ? ' — and/or include existing aggregations as members below.' : '.');
+    if (pendingMemberIds.length && !pendingAggRefs.length) {
+      // Entered from the AGG Summary table: composing aggregations.
+      aggModalHint.textContent = pendingMemberIds.length + ' aggregation'
+        + (pendingMemberIds.length === 1 ? '' : 's')
+        + ' selected as member' + (pendingMemberIds.length === 1 ? '' : 's')
+        + ' (pre-checked below). Name a new aggregation, or add them to an'
+        + ' existing one.';
+    } else {
+      aggModalHint.textContent = pendingAggRefs.length + ' page'
+        + (pendingAggRefs.length === 1 ? '' : 's') + ' selected'
+        + (aggregations.length
+          ? ' — and/or include existing aggregations as members below.' : '.');
+    }
     aggModalExisting.innerHTML = '';
     aggModalMembers.innerHTML = '';
     if (aggregations.length === 0) {
@@ -2286,6 +2736,7 @@
         cb.type = 'checkbox';
         cb.className = 'agg-member-cb';
         cb.value = agg.id;
+        cb.checked = pendingMemberIds.includes(agg.id);
         const mSpan = document.createElement('span');
         mSpan.textContent = agg.name + ' (' + n + ' page'
           + (n === 1 ? '' : 's') + ')';
@@ -2510,19 +2961,39 @@
   function renderAggSummary() {
     if (!aggregations.length) {
       aggHeading.hidden = true;
+      aggSummaryControls.hidden = true;
       aggTable.hidden = true;
       aggMeta.textContent = '';
       aggThead.innerHTML = '';
       aggTbody.innerHTML = '';
+      updateAggCombineBtn();
       return;
     }
     aggHeading.hidden = false;
+    aggSummaryControls.hidden = false;
     aggTable.hidden = false;
     aggMeta.textContent = aggregations.length + ' aggregation'
       + (aggregations.length === 1 ? '' : 's');
 
     aggThead.innerHTML = '';
     const headTr = document.createElement('tr');
+
+    const thSelect = document.createElement('th');
+    thSelect.className = 'col-select';
+    const selectAllCb = document.createElement('input');
+    selectAllCb.type = 'checkbox';
+    selectAllCb.id = 'agg-row-select-all';
+    selectAllCb.title = 'Select / deselect all aggregations';
+    selectAllCb.addEventListener('change', () => {
+      aggTbody.querySelectorAll('.agg-row-select').forEach(cb => {
+        cb.checked = selectAllCb.checked;
+        cb.closest('tr').classList.toggle('row-selected', cb.checked);
+      });
+      updateAggCombineBtn();
+    });
+    thSelect.appendChild(selectAllCb);
+    headTr.appendChild(thSelect);
+
     for (const label of ['Name', 'Parent', 'Pages', 'Thumbnail', 'Notes', 'LLM Response']) {
       const th = document.createElement('th');
       th.textContent = label;
@@ -2546,6 +3017,24 @@
       const tr = document.createElement('tr');
       tr.dataset.aggId = agg.id;
       if (agg.id === selectedAggregationId) tr.classList.add('aggregation-active');
+
+      const tdSelect = document.createElement('td');
+      tdSelect.className = 'col-select';
+      const rowCb = document.createElement('input');
+      rowCb.type = 'checkbox';
+      rowCb.className = 'agg-row-select';
+      rowCb.dataset.aggId = agg.id;
+      rowCb.title = 'Select this aggregation';
+      rowCb.addEventListener('change', () => {
+        tr.classList.toggle('row-selected', rowCb.checked);
+        const all = aggTbody.querySelectorAll('.agg-row-select');
+        const checked = aggTbody.querySelectorAll('.agg-row-select:checked');
+        const selAll = aggThead.querySelector('#agg-row-select-all');
+        if (selAll) selAll.checked = all.length > 0 && checked.length === all.length;
+        updateAggCombineBtn();
+      });
+      tdSelect.appendChild(rowCb);
+      tr.appendChild(tdSelect);
 
       const tdName = document.createElement('td');
       tdName.className = 'col-agg-name';
@@ -2875,12 +3364,12 @@
       tr.appendChild(tdThumb);
 
       const tdNotes = document.createElement('td');
-      tdNotes.className = 'col-agg-readonly';
+      tdNotes.className = 'col-agg-readonly agg-detail-notes';
       tdNotes.textContent = readCellText(sourceTr, '.col-notes [contenteditable]');
       tr.appendChild(tdNotes);
 
       const tdLlm = document.createElement('td');
-      tdLlm.className = 'col-agg-readonly';
+      tdLlm.className = 'col-agg-readonly agg-detail-llm';
       tdLlm.textContent = readCellText(sourceTr, '.col-llm-response .llm-response-content');
       tr.appendChild(tdLlm);
 
@@ -2972,7 +3461,8 @@
     aggSavePdfBtn.disabled = n === 0;
     aggSavePdfBtn.title = n === 0
       ? 'This aggregation has no pages'
-      : 'Save the ' + n + ' page' + (n === 1 ? '' : 's') + ' as a single PDF in current order';
+      : 'Open the PDF builder (selected rows, or all ' + n + ' page'
+        + (n === 1 ? '' : 's') + ' if none selected)';
   }
 
   function removePageFromAggregation(aggId, ref) {

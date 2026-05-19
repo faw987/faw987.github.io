@@ -55,10 +55,11 @@ Aggregations let you collect pages that belong together — e.g. all pages of a 
 An aggregation can contain other aggregations as well as (or instead of) pages. For example, with *A1* = page 1 and *A2* = page 2, you can build *All-A* made up of *A1* and *A2*; expanding *All-A* yields pages 1 and 2.
 
 - The **Create / Add Aggregation** dialog has an **Include aggregations as members** checklist. Tick any existing aggregations to fold them into the new (or selected) aggregation. You can build a member-only aggregation with no pages of its own — the **Create / Add Aggregation** button is available even with no page rows checked, as long as at least one aggregation already exists.
+- You can also start from the **Aggregations** table itself: each row has a **Select** checkbox (with a select-all box in the header). Check one or more aggregation rows and click the **Create / Add Aggregation** button above that table. The same dialog opens with those aggregations pre-checked as members — name a new aggregation to combine them, or pick an existing one to add them to. This is the natural way to build bundled / "meta" aggregations from groups you have already defined.
 - Membership is resolved **recursively**: opening an aggregation expands every member aggregation (and their members, and so on) down to a flat, de-duplicated page list. When an aggregation has both its own pages and member aggregations, the members are expanded first (in listed order), then its own direct pages follow.
 - Cycles are prevented: the checklist disables any aggregation that is the target itself, already a member, or whose inclusion would form a loop. Deleting an aggregation also removes it from every aggregation that listed it as a member.
 
-The **Aggregations** table appears below the page summary table with one row per aggregation. Columns mirror the page summary table: *Name, Parent, Pages, Thumbnail* (the first page in the expanded list), *Notes, LLM Response*, and any *Summary table heading* prompt columns, plus a delete (**✕**) icon. The **Parent** column shows the path of any aggregation that contains this one (e.g. `Root / Mid`; multiple parents are separated by `; `) and is blank for a top-level aggregation. The **Pages** count is the fully expanded total, marked *(expanded)* for composite aggregations. Aggregation-level *Notes* are independent of the per-page notes.
+The **Aggregations** table appears below the page summary table with one row per aggregation. Columns mirror the page summary table: *Select, Name, Parent, Pages, Thumbnail* (the first page in the expanded list), *Notes, LLM Response*, and any *Summary table heading* prompt columns, plus a delete (**✕**) icon. The leftmost *Select* checkbox feeds the **Create / Add Aggregation** button directly above the table (see above). The **Parent** column shows the path of any aggregation that contains this one (e.g. `Root / Mid`; multiple parents are separated by `; `) and is blank for a top-level aggregation. The **Pages** count is the fully expanded total, marked *(expanded)* for composite aggregations. Aggregation-level *Notes* are independent of the per-page notes.
 
 Click an aggregation's **Name** to open the **Aggregation Detail** table. Clicking the **✕** in the Aggregations table deletes the whole aggregation (with a confirmation prompt). The pages themselves are unaffected.
 
@@ -66,12 +67,12 @@ Click an aggregation's **Name** to open the **Aggregation Detail** table. Clicki
 
 The detail table has one row per page in the aggregation (after recursive expansion of any member aggregations), in an order you control for a leaf aggregation. Its columns are *Drag, Select, ✕, File, Page, Thumbnail, Notes, LLM Response*, followed by one column for every prompt marked **Aggregation detail heading** in the library editor.
 
-For a **composite** aggregation (one that has member aggregations), the detail rows are the read-only expanded list — the drag handle and per-row **✕** are omitted, because those pages belong to the member aggregations. Reorder or remove them on the source aggregation instead; the composite reflects the change when re-opened. **Apply** and **Save as PDF** operate on the full expanded list.
+For a **composite** aggregation (one that has member aggregations), the detail rows are the read-only expanded list — the drag handle and per-row **✕** are omitted, because those pages belong to the member aggregations. Reorder or remove them on the source aggregation instead; the composite reflects the change when re-opened. **Apply** operates on the full expanded list; **Save as PDF** opens the PDF builder seeded with the expanded list (or your checked subset), where order and removals are scoped to that one export.
 
 A toolbar above the table holds two buttons:
 
 - **Apply** — runs the selected prompt columns against the selected rows of the aggregation detail (same model as the page-summary Apply). Results are stored on the aggregation, so they survive page-summary rebuilds and re-selecting the aggregation.
-- **Save as PDF** — prompts you for a filename and assembles all aggregation pages, in the current order, into a single PDF, pulling pages directly from the original source PDFs.
+- **Save as PDF** — opens the **PDF builder** (see below) where you choose pages, order, and which columns to append before saving.
 
 ### Selecting rows and columns
 
@@ -89,15 +90,25 @@ You can only initiate a drag from the handle, so selecting text in other cells w
 
 When an aggregation-detail cell hasn't been filled in by an agg-detail Apply, FWB falls back to showing the matching cell from the page-summary row (if that prompt is also marked *Summary table heading* and you've run Apply there). Once you run Apply on the agg detail, the agg-level result replaces the fallback and is stored on the aggregation. To re-fetch, simply select the row + column again and click Apply — the new result overwrites the stored value.
 
-### Save as PDF
+### Save as PDF — the PDF builder (experimental)
 
-Click **Save as PDF**, accept or edit the suggested filename (default: `<aggregation name>.pdf`), and FWB will:
+Click **Save as PDF** to open the **PDF builder** dialog. It is pre-loaded with the **resolved page set**: if you have checked one or more rows in the aggregation detail it uses just those, otherwise it uses every page in the aggregation (nested member aggregations are already expanded into individual pages by the detail table).
 
-1. Read each unique source PDF directly from your loaded files (no re-rendering).
-2. Copy each page referenced by the aggregation, in the user-defined order.
-3. Save and download the assembled PDF.
+In the builder, each page is a card showing a thumbnail and `<file> — Page N`. You can:
 
-Source quality is preserved — pages are copied from the original PDFs rather than from the rendered thumbnails. A status line shows progress while the PDF is being assembled.
+- **Reorder** — drag a card by its **☰** handle to change the page order in the output. This affects only this PDF; it does not change the aggregation's stored order.
+- **Remove** — click **✕** on a card to drop that page from the PDF. This does not affect the aggregation.
+- **Pick columns per page** — each card lists a checkbox for every column that actually has content for that page (*Notes*, *LLM Response*, and any aggregation-detail prompt columns). All are checked by default. Image results are labelled `(image)`.
+
+Click **Save PDF**, accept or edit the suggested filename (default: `<aggregation name>.pdf`), and FWB builds the document:
+
+1. For each card, in the builder's order, the original source page is copied directly from your loaded PDF (no re-rendering — source quality is preserved).
+2. If any columns are ticked for that page, a generated **annotation page** is inserted immediately after it, listing each selected column's label and value. Image-result columns embed the image; long text wraps and spills onto additional annotation pages as needed.
+3. The assembled PDF is saved and downloaded. A status line shows progress.
+
+A page with no column content (or with every column unticked) contributes just its source page, with no annotation page — so unchecking everything reproduces the old image-only export.
+
+This feature is experimental and the layout may change.
 
 ### Removing pages from an aggregation
 
@@ -169,7 +180,7 @@ State is kept **in memory for the session**, with three explicit persistence pat
 
 - **Save Project** (hamburger panel → Project) — a single JSON file capturing PDFs, prompt library, notes, LLM responses, Apply results, and aggregations. Bundled mode embeds the PDFs; referenced mode keeps the file small and re-attaches PDFs on open.
 - **Prompt Library → Export** — a JSON of just the prompt library, useful when you want to share prompts without an analysis attached.
-- **Aggregation Detail → Save as PDF** — an aggregation's pages assembled into a standalone PDF deliverable.
+- **Aggregation Detail → Save as PDF** — the PDF builder: a standalone PDF deliverable of chosen pages, in a chosen order, with selected column data appended as annotation pages.
 
 Closing or reloading the page clears everything that hasn't been saved. The gateway endpoint, debug toggle, and project save-mode radio are session-scoped too. Automatic in-browser autosave is on the roadmap.
 
