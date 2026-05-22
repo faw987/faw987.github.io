@@ -569,6 +569,36 @@
     line-height: 1.35;
   }
 
+  .hamburger-menu .places-loaded-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--ink);
+  }
+
+  .hamburger-menu .places-loaded-info #places-loaded-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  .hamburger-menu .places-clear-btn {
+    width: auto;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.7);
+    color: var(--danger);
+  }
+
+  .hamburger-menu .places-clear-btn:hover {
+    background: rgba(192, 57, 43, 0.08);
+  }
+
   /* PDF upload modal */
   .modal-overlay {
     display: none;
@@ -691,6 +721,7 @@
     font-size: 0.9rem;
     color: var(--muted);
     line-height: 1.6;
+    white-space: pre-wrap;
   }
 
   .pdf-progress.error {
@@ -705,7 +736,7 @@
 <body>
   <div class="page">
     <section class="hero">
-      <h1>Find Nearby Subway Entrances v0.3</h1>
+      <h1>Find Nearby Subway Entrances v0.4</h1>
       <p class="subtitle">
         Search NYC subway entrances by latitude/longitude or place name, inspect station details from the generated subway API, edit the returned coordinates, and plot them on a map with the search origin.
       </p>
@@ -714,6 +745,15 @@
       </button>
       <div class="hamburger-menu" id="hamburger-menu">
         <button id="menu-import-pdf">Import Zillow PDF Emails</button>
+        <button id="menu-import-places">Import Interesting Places CSV</button>
+        <div class="menu-field" id="places-loaded-row" hidden>
+          <label>Interesting Places</label>
+          <div class="places-loaded-info">
+            <span id="places-loaded-name"></span>
+            <button type="button" class="places-clear-btn" id="places-clear-btn">Clear</button>
+          </div>
+          <div class="menu-hint" id="places-loaded-count"></div>
+        </div>
         <div class="menu-field">
           <label for="state-filter-input">State Filter</label>
           <input type="text" id="state-filter-input" placeholder="e.g. NY, OH" autocomplete="off">
@@ -741,6 +781,26 @@
           <button class="secondary-btn" id="pdf-clear-btn">Clear Files</button>
         </div>
         <div class="pdf-progress" id="pdf-progress"></div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="places-modal">
+      <div class="modal">
+        <button class="modal-close" id="places-modal-close">&times;</button>
+        <h2>Import Interesting Places CSV</h2>
+        <p>
+          Upload a CSV file with three columns: <strong>Full Name</strong>, <strong>Nickname</strong>, and <strong>"latitude, longitude"</strong> (quoted because it contains a comma). Each place becomes a new column in the exported spreadsheet, showing the straight-line distance from each listing to that place.
+        </p>
+        <div class="drop-zone" id="places-drop-zone">
+          <span class="drop-icon">&#128202;</span>
+          Drop a CSV file here<br>or click to select
+        </div>
+        <input type="file" id="places-file-input" accept=".csv,text/csv" hidden>
+        <ul class="file-list" id="places-preview-list"></ul>
+        <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;">
+          <button class="secondary-btn" id="places-clear-modal-btn">Clear Loaded Places</button>
+        </div>
+        <div class="pdf-progress" id="places-progress"></div>
       </div>
     </div>
 
@@ -2489,6 +2549,7 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
     var hamburgerBtn = document.getElementById("hamburger-btn");
     var hamburgerMenu = document.getElementById("hamburger-menu");
     var menuImportPdf = document.getElementById("menu-import-pdf");
+    var menuImportPlaces = document.getElementById("menu-import-places");
     var pdfModal = document.getElementById("pdf-modal");
     var pdfModalClose = document.getElementById("pdf-modal-close");
     var pdfDropZone = document.getElementById("pdf-drop-zone");
@@ -2499,7 +2560,75 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
     var pdfProgress = document.getElementById("pdf-progress");
     var stateFilterInput = document.getElementById("state-filter-input");
 
+    var placesModal = document.getElementById("places-modal");
+    var placesModalClose = document.getElementById("places-modal-close");
+    var placesDropZone = document.getElementById("places-drop-zone");
+    var placesFileInput = document.getElementById("places-file-input");
+    var placesPreviewList = document.getElementById("places-preview-list");
+    var placesClearModalBtn = document.getElementById("places-clear-modal-btn");
+    var placesProgress = document.getElementById("places-progress");
+    var placesLoadedRow = document.getElementById("places-loaded-row");
+    var placesLoadedName = document.getElementById("places-loaded-name");
+    var placesLoadedCount = document.getElementById("places-loaded-count");
+    var placesClearBtn = document.getElementById("places-clear-btn");
+
     var pendingFiles = [];
+
+    // ── Interesting Places state ──
+    var PLACES_STORAGE_KEY = "findSubways.interestingPlaces.v1";
+    var interestingPlaces = []; // [{ fullName, nickname, lat, lon }]
+    var interestingPlacesFileName = "";
+
+    function loadPlacesFromStorage() {
+      try {
+        var raw = localStorage.getItem(PLACES_STORAGE_KEY);
+        if (!raw) return;
+        var obj = JSON.parse(raw);
+        if (obj && Array.isArray(obj.places)) {
+          interestingPlaces = obj.places;
+          interestingPlacesFileName = obj.fileName || "";
+        }
+      } catch (e) {
+        interestingPlaces = [];
+        interestingPlacesFileName = "";
+      }
+    }
+
+    function savePlacesToStorage() {
+      try {
+        if (interestingPlaces.length) {
+          localStorage.setItem(PLACES_STORAGE_KEY, JSON.stringify({
+            fileName: interestingPlacesFileName,
+            places: interestingPlaces
+          }));
+        } else {
+          localStorage.removeItem(PLACES_STORAGE_KEY);
+        }
+      } catch (e) { /* ignore quota errors */ }
+    }
+
+    function renderPlacesLoadedRow() {
+      if (interestingPlaces.length) {
+        placesLoadedRow.hidden = false;
+        placesLoadedName.textContent = interestingPlacesFileName || "(loaded)";
+        placesLoadedCount.textContent = interestingPlaces.length + " place" + (interestingPlaces.length === 1 ? "" : "s") + " loaded";
+      } else {
+        placesLoadedRow.hidden = true;
+        placesLoadedName.textContent = "";
+        placesLoadedCount.textContent = "";
+      }
+    }
+
+    function clearInterestingPlaces() {
+      interestingPlaces = [];
+      interestingPlacesFileName = "";
+      savePlacesToStorage();
+      renderPlacesLoadedRow();
+      renderPlacesPreview();
+    }
+
+    loadPlacesFromStorage();
+    renderPlacesLoadedRow();
 
     // ── Hamburger menu ──
     hamburgerBtn.addEventListener("click", function(e) {
@@ -2527,6 +2656,236 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
     pdfModal.addEventListener("click", function(e) {
       if (e.target === pdfModal) pdfModal.classList.remove("open");
     });
+
+    menuImportPlaces.addEventListener("click", function() {
+      hamburgerMenu.classList.remove("open");
+      placesModal.classList.add("open");
+      placesProgress.textContent = "";
+      placesProgress.className = "pdf-progress";
+      renderPlacesPreview();
+    });
+
+    placesModalClose.addEventListener("click", function() {
+      placesModal.classList.remove("open");
+    });
+
+    placesModal.addEventListener("click", function(e) {
+      if (e.target === placesModal) placesModal.classList.remove("open");
+    });
+
+    placesClearBtn.addEventListener("click", function() {
+      clearInterestingPlaces();
+    });
+
+    placesClearModalBtn.addEventListener("click", function() {
+      clearInterestingPlaces();
+      placesProgress.textContent = "Cleared.";
+      placesProgress.className = "pdf-progress";
+    });
+
+    // ── CSV file handling ──
+    placesDropZone.addEventListener("click", function() {
+      placesFileInput.click();
+    });
+
+    placesDropZone.addEventListener("dragover", function(e) {
+      e.preventDefault();
+      placesDropZone.classList.add("drag-over");
+    });
+
+    placesDropZone.addEventListener("dragleave", function() {
+      placesDropZone.classList.remove("drag-over");
+    });
+
+    placesDropZone.addEventListener("drop", function(e) {
+      e.preventDefault();
+      placesDropZone.classList.remove("drag-over");
+      if (e.dataTransfer.files && e.dataTransfer.files.length) {
+        handlePlacesFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    placesFileInput.addEventListener("change", function() {
+      if (placesFileInput.files && placesFileInput.files.length) {
+        handlePlacesFile(placesFileInput.files[0]);
+      }
+      placesFileInput.value = "";
+    });
+
+    function handlePlacesFile(file) {
+      if (!file) return;
+      var nameLower = (file.name || "").toLowerCase();
+      if (!nameLower.endsWith(".csv") && file.type !== "text/csv") {
+        placesProgress.textContent = "Please choose a .csv file.";
+        placesProgress.className = "pdf-progress error";
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function() {
+        var text = String(reader.result || "");
+        try {
+          var parsed = parsePlacesCsv(text);
+          if (!parsed.places.length) {
+            placesProgress.textContent = "No valid rows found in CSV. Each row needs: full name, nickname, \"lat, lon\".";
+            placesProgress.className = "pdf-progress error";
+            return;
+          }
+          interestingPlaces = parsed.places;
+          interestingPlacesFileName = file.name;
+          savePlacesToStorage();
+          renderPlacesLoadedRow();
+          renderPlacesPreview();
+          var msg = "Loaded " + parsed.places.length + " place(s) from " + file.name;
+          if (parsed.skipped) msg += " (" + parsed.skipped + " row(s) skipped).";
+          placesProgress.textContent = msg;
+          placesProgress.className = "pdf-progress success";
+        } catch (err) {
+          placesProgress.textContent = "Error parsing CSV: " + err.message;
+          placesProgress.className = "pdf-progress error";
+        }
+      };
+      reader.onerror = function() {
+        placesProgress.textContent = "Could not read the file.";
+        placesProgress.className = "pdf-progress error";
+      };
+      reader.readAsText(file);
+    }
+
+    function renderPlacesPreview() {
+      placesPreviewList.innerHTML = "";
+      for (var i = 0; i < interestingPlaces.length; i++) {
+        var p = interestingPlaces[i];
+        var li = document.createElement("li");
+        var nameSpan = document.createElement("span");
+        nameSpan.textContent = p.nickname + " — " + p.fullName + " (" + p.lat.toFixed(5) + ", " + p.lon.toFixed(5) + ")";
+        li.appendChild(nameSpan);
+        placesPreviewList.appendChild(li);
+      }
+    }
+
+    // ── CSV parser ──
+    // Parses standard CSV with double-quoted fields (commas and newlines allowed
+    // inside quotes; doubled quotes "" represent a literal quote). Returns an
+    // array of arrays of strings. Handles \r\n and \n line endings.
+    function parseCsv(text) {
+      var rows = [];
+      var row = [];
+      var field = "";
+      var inQuotes = false;
+      var i = 0;
+      var n = text.length;
+      // Strip BOM if present
+      if (n > 0 && text.charCodeAt(0) === 0xFEFF) { i = 1; }
+      while (i < n) {
+        var ch = text.charAt(i);
+        if (inQuotes) {
+          if (ch === '"') {
+            if (i + 1 < n && text.charAt(i + 1) === '"') {
+              field += '"';
+              i += 2;
+              continue;
+            }
+            inQuotes = false;
+            i++;
+            continue;
+          }
+          field += ch;
+          i++;
+          continue;
+        }
+        if (ch === '"') { inQuotes = true; i++; continue; }
+        if (ch === ",") { row.push(field); field = ""; i++; continue; }
+        if (ch === "\r") {
+          // swallow \r, will handle row break on \n (or now if next isn't \n)
+          if (i + 1 < n && text.charAt(i + 1) === "\n") { i++; continue; }
+          row.push(field); field = "";
+          rows.push(row); row = [];
+          i++;
+          continue;
+        }
+        if (ch === "\n") {
+          row.push(field); field = "";
+          rows.push(row); row = [];
+          i++;
+          continue;
+        }
+        field += ch;
+        i++;
+      }
+      // Flush final field/row
+      if (field !== "" || row.length > 0) {
+        row.push(field);
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    function parsePlacesCsv(text) {
+      var rows = parseCsv(text);
+      var places = [];
+      var skipped = 0;
+      var startIdx = 0;
+      // Detect and skip a header row: first row's third field doesn't parse as "lat, lon".
+      if (rows.length > 0) {
+        var first = rows[0];
+        if (first.length >= 3) {
+          var probe = parseLatLon(first[2]);
+          if (!probe) startIdx = 1;
+        }
+      }
+      for (var r = startIdx; r < rows.length; r++) {
+        var cols = rows[r];
+        // Skip blank rows
+        var nonEmpty = false;
+        for (var c = 0; c < cols.length; c++) {
+          if (String(cols[c]).trim() !== "") { nonEmpty = true; break; }
+        }
+        if (!nonEmpty) continue;
+        if (cols.length < 3) { skipped++; continue; }
+        var fullName = String(cols[0] || "").trim();
+        var nickname = String(cols[1] || "").trim();
+        var latLon = parseLatLon(cols[2]);
+        if (!fullName || !nickname || !latLon) { skipped++; continue; }
+        places.push({
+          fullName: fullName,
+          nickname: nickname,
+          lat: latLon.lat,
+          lon: latLon.lon
+        });
+      }
+      return { places: places, skipped: skipped };
+    }
+
+    function parseLatLon(raw) {
+      var s = String(raw || "").trim();
+      if (!s) return null;
+      var parts = s.split(",");
+      if (parts.length !== 2) return null;
+      var lat = parseFloat(parts[0]);
+      var lon = parseFloat(parts[1]);
+      if (!isFinite(lat) || !isFinite(lon)) return null;
+      if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+      return { lat: lat, lon: lon };
+    }
+
+    // ── Haversine straight-line distance, meters ──
+    function haversineMeters(lat1, lon1, lat2, lon2) {
+      var R = 6371000; // earth radius in meters
+      var toRad = Math.PI / 180;
+      var dLat = (lat2 - lat1) * toRad;
+      var dLon = (lon2 - lon1) * toRad;
+      var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    function formatPlaceDistance(meters) {
+      var feet = Math.round(meters * 3.28084);
+      var miles = (meters / 1609.344).toFixed(3);
+      return feet + " ft (" + miles + " mi)";
+    }
 
     // ── File handling ──
     pdfDropZone.addEventListener("click", function() {
@@ -2601,20 +2960,60 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
       pdfProgress.className = "pdf-progress";
     });
 
-    // ── PDF text extraction ──
-    async function extractTextFromPdf(file) {
+    // ── PDF text + listing-link extraction ──
+    // Returns { text, listingUrls }. listingUrls is an ordered, deduped list
+    // of canonical Zillow listing URLs (one per zpid) in visual top-to-bottom
+    // order across pages — so the Nth listingUrl maps to the Nth listing
+    // parsed out of `text`. We sort by Y because PDF.js's getAnnotations()
+    // returns annotations in PDF source order, which on Zillow emails is NOT
+    // visual order (e.g. footer/viewAll links can precede the listing links).
+    async function extractFromPdf(file) {
       var arrayBuffer = await file.arrayBuffer();
       var pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       var allText = "";
+      var seen = {};
+      var orderedZpids = [];
 
       for (var p = 1; p <= pdf.numPages; p++) {
         var page = await pdf.getPage(p);
         var content = await page.getTextContent();
         var pageText = content.items.map(function(item) { return item.str; }).join(" ");
         allText += pageText + "\n";
+
+        var annots = await page.getAnnotations();
+        var pageLinks = [];
+        for (var a = 0; a < annots.length; a++) {
+          var ann = annots[a];
+          if (ann.subtype !== "Link" || !ann.url) continue;
+          var zpid = extractZpid(ann.url);
+          if (!zpid) continue;
+          // PDF coords: origin bottom-left, Y grows upward. rect[3] is top edge.
+          var topY = (ann.rect && ann.rect.length >= 4) ? ann.rect[3] : 0;
+          pageLinks.push({ zpid: zpid, topY: topY });
+        }
+        pageLinks.sort(function(x, y) { return y.topY - x.topY; });
+        for (var k = 0; k < pageLinks.length; k++) {
+          var zp = pageLinks[k].zpid;
+          if (!seen[zp]) {
+            seen[zp] = true;
+            orderedZpids.push(zp);
+          }
+        }
       }
 
-      return allText;
+      var listingUrls = orderedZpids.map(function(z) {
+        return "https://www.zillow.com/homedetails/" + z + "_zpid/";
+      });
+
+      return { text: allText, listingUrls: listingUrls };
+    }
+
+    // Zillow email links wrap the real listing URL in a click.mail.zillow.com
+    // redirector. The encoded target carries "zpid_target/<digits>_zpid",
+    // appearing as either "zpid_target/12345_zpid" or "zpid_target%2F12345_zpid".
+    function extractZpid(url) {
+      var m = String(url || "").match(/zpid_target(?:%2F|\/)(\d+)_zpid/i);
+      return m ? m[1] : null;
     }
 
     // ── US state lookup ──
@@ -2755,6 +3154,7 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
               state: state,
               openHouse: openHouse,
               listingBy: listingBy,
+              link: "",
               nearestStation: "",
               stationDistance: "",
               stationRoutes: "",
@@ -2871,12 +3271,25 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
         var allListings = [];
         var stateFilter = parseStateFilter(stateFilterInput.value);
 
+        var linkMismatchNotes = [];
         for (var f = 0; f < pendingFiles.length; f++) {
           pdfProgress.textContent = "Reading PDF " + (f + 1) + " of " + pendingFiles.length + ": " + pendingFiles[f].name + "...";
-          var text = await extractTextFromPdf(pendingFiles[f]);
-          var listings = parseZillowListings(text);
+          var extracted = await extractFromPdf(pendingFiles[f]);
+          var listings = parseZillowListings(extracted.text);
           for (var k = 0; k < listings.length; k++) {
             listings[k].sourceFile = pendingFiles[f].name;
+            if (k < extracted.listingUrls.length) {
+              listings[k].link = extracted.listingUrls[k];
+            }
+          }
+          if (listings.length !== extracted.listingUrls.length) {
+            // When counts disagree, by-index assignment is almost certainly
+            // shifting some rows. Surface this so the user can spot-check.
+            var note = pendingFiles[f].name + ": parsed " + listings.length +
+              " listing(s) but found " + extracted.listingUrls.length +
+              " Zillow link(s) — Link column may be misaligned for this file.";
+            linkMismatchNotes.push(note);
+            try { console.warn("[find_Subways] " + note); } catch (e) {}
           }
           allListings = allListings.concat(listings);
         }
@@ -2923,6 +3336,8 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
                 listing.nearestStation = subway.name;
                 listing.stationDistance = subway.distFeet + " ft (" + subway.distMiles + " mi)";
                 listing.stationRoutes = subway.routes;
+                listing.geocodedLat = subway.lat;
+                listing.geocodedLon = subway.lon;
                 listing.geocodedLatLon = subway.lat.toFixed(6) + ", " + subway.lon.toFixed(6);
                 if (subway.geocodedWithoutApt) {
                   listing.notes = "Geocoded without apt";
@@ -2944,29 +3359,32 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
         // Build spreadsheet
         pdfProgress.textContent = "Generating spreadsheet...";
 
-        var wsData = [
-          [
-            "Email Date",
-            "Rent ($/mo)",
-            "Bedrooms",
-            "Baths",
-            "Sq Ft",
-            "Pets Allowed",
-            "Address",
-            "Geocoded Lat, Lon",
-            "Open House",
-            "Listing By",
-            "Nearest Subway Station",
-            "Station Distance",
-            "Station Routes",
-            "Source File",
-            "Notes"
-          ]
+        var header = [
+          "Email Date",
+          "Rent ($/mo)",
+          "Bedrooms",
+          "Baths",
+          "Sq Ft",
+          "Pets Allowed",
+          "Address",
+          "Geocoded Lat, Lon",
+          "Link",
+          "Open House",
+          "Listing By",
+          "Nearest Subway Station",
+          "Station Distance",
+          "Station Routes",
+          "Source File",
+          "Notes"
         ];
+        for (var pi = 0; pi < interestingPlaces.length; pi++) {
+          header.push(interestingPlaces[pi].nickname);
+        }
+        var wsData = [header];
 
         for (var r = 0; r < allListings.length; r++) {
           var row = allListings[r];
-          wsData.push([
+          var rowArr = [
             row.emailDate,
             row.rent || "",
             row.bedrooms !== null ? row.bedrooms : "",
@@ -2975,6 +3393,7 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
             row.petsAllowed ? "Yes" : "No",
             row.address,
             row.geocodedLatLon || "",
+            row.link || "",
             row.openHouse,
             row.listingBy,
             row.nearestStation,
@@ -2982,14 +3401,24 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
             row.stationRoutes,
             row.sourceFile || "",
             row.notes || ""
-          ]);
+          ];
+          for (var pj = 0; pj < interestingPlaces.length; pj++) {
+            var place = interestingPlaces[pj];
+            if (typeof row.geocodedLat === "number" && typeof row.geocodedLon === "number") {
+              var meters = haversineMeters(row.geocodedLat, row.geocodedLon, place.lat, place.lon);
+              rowArr.push(formatPlaceDistance(meters));
+            } else {
+              rowArr.push("");
+            }
+          }
+          wsData.push(rowArr);
         }
 
         var wb = XLSX.utils.book_new();
         var ws = XLSX.utils.aoa_to_sheet(wsData);
 
         // Set column widths
-        ws["!cols"] = [
+        var cols = [
           { wch: 42 }, // Email Date
           { wch: 12 }, // Rent
           { wch: 10 }, // Bedrooms
@@ -2998,6 +3427,7 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
           { wch: 12 }, // Pets
           { wch: 40 }, // Address
           { wch: 24 }, // Geocoded Lat, Lon
+          { wch: 50 }, // Link
           { wch: 30 }, // Open House
           { wch: 30 }, // Listing By
           { wch: 24 }, // Nearest Station
@@ -3006,12 +3436,31 @@ function closeBy(lat, lon, maxResults, cutoffMeters) {
           { wch: 24 }, // Source File
           { wch: 24 }  // Notes
         ];
+        for (var ci = 0; ci < interestingPlaces.length; ci++) {
+          cols.push({ wch: 22 });
+        }
+        ws["!cols"] = cols;
+
+        // Make Link column cells (column index 8) clickable hyperlinks.
+        var LINK_COL = 8;
+        for (var lr = 0; lr < allListings.length; lr++) {
+          var url = allListings[lr].link;
+          if (!url) continue;
+          var cellRef = XLSX.utils.encode_cell({ r: lr + 1, c: LINK_COL });
+          if (ws[cellRef]) {
+            ws[cellRef].l = { Target: url, Tooltip: "Open listing on Zillow" };
+          }
+        }
 
         XLSX.utils.book_append_sheet(wb, ws, "Zillow Listings");
         XLSX.writeFile(wb, "zillow_listings.xlsx");
 
-        pdfProgress.textContent = "Done! Exported " + allListings.length + " listing(s) to zillow_listings.xlsx";
-        pdfProgress.className = "pdf-progress success";
+        var doneMsg = "Done! Exported " + allListings.length + " listing(s) to zillow_listings.xlsx";
+        if (linkMismatchNotes.length) {
+          doneMsg += "\nWarning: " + linkMismatchNotes.join(" | ");
+        }
+        pdfProgress.textContent = doneMsg;
+        pdfProgress.className = linkMismatchNotes.length ? "pdf-progress error" : "pdf-progress success";
       } catch (err) {
         pdfProgress.textContent = "Error: " + err.message;
         pdfProgress.className = "pdf-progress error";
