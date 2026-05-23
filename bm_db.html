@@ -1,0 +1,1697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!--
+    connect-src: https: covers a deployed (HTTPS) gateway and the opt-in oEmbed
+    endpoints. http://localhost:8080 is added so the local dev gateway
+    (ai_proxy `npm start`) is reachable when bm_db is opened over file://.
+    Both AI and oEmbed calls remain off by default and gated behind a toggle.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: https:; connect-src https: http://localhost:8080; form-action 'none'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'" />
+  <title>bm_db</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #dbe3ee;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --chip: #eef2ff;
+      --chip-active: #2563eb;
+      --chip-active-text: #ffffff;
+      --danger: #b91c1c;
+      --danger-soft: #fee2e2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 24px; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    h1 { margin: 0; font-size: 24px; }
+    .sub { color: var(--muted); font-size: 13px; }
+    .grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+    }
+    .dropzone {
+      border: 2px dashed #93c5fd;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      background: #f8fbff;
+      transition: 0.15s ease;
+    }
+    .dropzone.dragover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .muted { color: var(--muted); }
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      resize: vertical;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      padding: 10px;
+      font: inherit;
+    }
+    input[type="text"], input[type="date"], select {
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      font: inherit;
+      background: white;
+    }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .row.tight { gap: 6px; }
+    button {
+      appearance: none;
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: white;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+    button.secondary { background: white; color: var(--accent); }
+    button.ghost { background: transparent; border-color: var(--line); color: var(--text); }
+    button.danger { background: white; border-color: var(--danger); color: var(--danger); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 12px; max-height: 60vh; }
+    table { width: 100%; border-collapse: collapse; background: white; }
+    th, td { text-align: left; vertical-align: top; padding: 10px; border-bottom: 1px solid #eef1f5; font-size: 13px; }
+    th {
+      position: sticky; top: 0; background: #f8fafc; z-index: 1;
+      cursor: pointer; user-select: none;
+      white-space: nowrap;
+    }
+    th[data-sort] .arrow { opacity: 0.3; margin-left: 4px; }
+    th.sorted .arrow { opacity: 1; }
+    .chip {
+      display: inline-block;
+      background: var(--chip);
+      color: #3730a3;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin: 2px 4px 2px 0;
+      font-size: 12px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .chip.filter-chip { cursor: pointer; }
+    .chip.filter-chip.active { background: var(--chip-active); color: var(--chip-active-text); }
+    .ai-cell { white-space: nowrap; }
+    .ai-cell .ai-name { display: block; }
+    .ai-cell .ai-score { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+    .ai-empty { color: #c7ccd6; }
+    .favicon {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      margin-right: 6px;
+      vertical-align: -3px;
+      border-radius: 3px;
+      object-fit: contain;
+    }
+    .favicon-placeholder {
+      background: #e5e7eb;
+      border: 1px solid #e5e7eb;
+    }
+    .title-cell { line-height: 1.4; }
+    /* Cap the two widest columns and let their text wrap (taller rows) instead
+       of forcing horizontal scroll. ~4in title, ~4.5in URL. */
+    th[data-sort="title"], td.title-cell {
+      width: 4in; max-width: 4in;
+      white-space: normal; overflow-wrap: anywhere; word-break: break-word;
+    }
+    th[data-sort="url"], td.col-url {
+      width: 4.5in; max-width: 4.5in;
+      white-space: normal; overflow-wrap: anywhere; word-break: break-word;
+    }
+    td.col-url a { overflow-wrap: anywhere; word-break: break-word; }
+    .folder-list {
+      max-height: 40vh;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: white;
+      margin-top: 8px;
+    }
+    .folder-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-bottom: 1px solid #eef1f5;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .folder-item:last-child { border-bottom: none; }
+    .folder-item:hover { background: #f8fafc; }
+    .folder-item input[type="radio"] { margin: 0; }
+    .folder-item .count { color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+    .folder-item .path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row-actions { white-space: nowrap; }
+    .row-actions button { padding: 4px 8px; font-size: 12px; margin-right: 4px; }
+    .cell-editable { cursor: text; }
+    .cell-editable:hover { background: #f8fafc; }
+    .count-label { color: var(--muted); font-size: 13px; }
+    .results-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px; flex-wrap: wrap; }
+    dialog {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 20px;
+      max-width: 520px;
+      width: 90vw;
+    }
+    dialog::backdrop { background: rgba(15, 23, 42, 0.35); }
+    dialog h2 { margin: 0 0 12px; font-size: 18px; }
+    .setting-row { display: flex; justify-content: space-between; align-items: start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-row label { font-weight: 500; display: block; }
+    .setting-row .hint { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .banner {
+      background: var(--danger-soft);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+    a { color: var(--accent); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>bm_db</h1>
+        <div class="sub">Local bookmark database. Data stays in this browser (IndexedDB).</div>
+      </div>
+      <div class="row tight">
+        <button id="settingsBtn" class="secondary">Settings</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <div id="dropzone" class="dropzone">
+          <strong>Drop a Chrome <code>bookmarks.html</code> export here</strong>
+          <div class="muted" style="margin-top:6px;">Primary ingest path — preserves real add-dates, favicons, and folder paths. Chrome export is always the full tree; you'll pick which subtree to ingest in the next step.</div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="row">
+          <button id="importBtn">Import bookmarks.html…</button>
+          <input id="bookmarksFile" type="file" accept=".html,.htm" class="hidden" />
+          <span class="muted" style="margin-left:8px;">Import date range:</span>
+          <input id="importDateFrom" type="date" title="Earliest add-date to include" />
+          <input id="importDateTo" type="date" title="Latest add-date to include" />
+          <button id="clearImportRangeBtn" class="ghost" type="button" title="Clear import date range">Clear</button>
+        </div>
+
+        <div style="height:18px"></div>
+        <details>
+          <summary class="muted" style="cursor:pointer;">Or paste URLs (ad-hoc, no icons or real add-dates)</summary>
+          <div style="height:8px"></div>
+          <textarea id="urlInput" placeholder="https://example.com/..."></textarea>
+          <div style="height:8px"></div>
+          <div class="row">
+            <button id="processBtn" class="secondary">Process pasted URLs</button>
+            <button id="sampleBtn" class="ghost">Load sample</button>
+            <button id="clearInputBtn" class="ghost">Clear input</button>
+          </div>
+        </details>
+
+        <div style="height:10px"></div>
+        <div id="status" class="status">Ready.</div>
+      </section>
+
+      <section class="card">
+        <div class="results-header">
+          <div>
+            <strong>Filters</strong>
+            <div class="sub">Filter the collection, then export the current view.</div>
+          </div>
+          <button id="clearFiltersBtn" class="ghost">Clear filters</button>
+        </div>
+        <div class="row">
+          <input id="searchInput" type="text" placeholder="Search title / URL / note" style="flex:1; min-width:200px;" />
+          <select id="sourceFilter">
+            <option value="">All sources</option>
+          </select>
+          <input id="dateFrom" type="date" title="From date" />
+          <input id="dateTo" type="date" title="To date" />
+        </div>
+        <div style="height:8px"></div>
+        <div id="categoryFilters" class="row tight muted">
+          <span class="muted">Categories:</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="results-header">
+          <div>
+            <strong>Results</strong>
+            <span class="count-label" id="countLabel">0 rows</span>
+          </div>
+          <div class="row tight">
+            <button id="classifyBtn" class="secondary hidden" disabled title="Score the current view against your imported categories">Classify with AI</button>
+            <button id="exportCsvBtn" class="secondary" disabled>Export CSV</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th data-sort="title">Title <span class="arrow">↕</span></th>
+                <th data-sort="url">URL <span class="arrow">↕</span></th>
+                <th data-sort="categories">Categories <span class="arrow">↕</span></th>
+                <th data-sort="ai1" title="Highest-confidence AI category">AI #1 <span class="arrow">↕</span></th>
+                <th data-sort="ai2" title="Second AI category">AI #2 <span class="arrow">↕</span></th>
+                <th data-sort="ai3" title="Third AI category">AI #3 <span class="arrow">↕</span></th>
+                <th data-sort="source">Source <span class="arrow">↕</span></th>
+                <th data-sort="dateAdded">Date Added <span class="arrow">↕</span></th>
+                <th>Note</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody">
+              <tr><td colspan="10" class="muted">No rows yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <dialog id="importDialog">
+    <h2>Import scope</h2>
+    <div id="importSummary" class="muted" style="font-size:13px;"></div>
+    <div style="height:10px"></div>
+    <input id="folderFilter" type="text" placeholder="Filter folder paths (e.g. 2026/04/22)" style="width:100%;" />
+    <div id="folderList" class="folder-list"></div>
+    <div style="height:12px"></div>
+    <div class="row" style="justify-content:flex-end; gap:8px;">
+      <button id="cancelImportBtn" class="ghost">Cancel</button>
+      <button id="confirmImportBtn">Import selected</button>
+    </div>
+  </dialog>
+
+  <dialog id="settingsDialog">
+    <h2>Settings</h2>
+    <div class="setting-row">
+      <div>
+        <label><input type="checkbox" id="oembedToggle" /> Enable oEmbed enrichment</label>
+        <div class="hint">When on, the app calls YouTube / Vimeo public oEmbed endpoints for richer titles. <strong>This sends the URL (and your IP) to those providers.</strong> Off by default.</div>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div>
+        <label><input type="checkbox" id="aiToggle" /> Enable AI categorization</label>
+        <div class="hint">When on, the <em>Classify with AI</em> button sends each bookmark's <strong>title, URL, source, folder names, and note</strong> (no page content is fetched) to your gateway, which relays it to <span id="aiProviderLabel">OpenAI</span> (<span id="aiModelLabel">gpt-5.4-nano</span>). <strong>Your bookmark metadata leaves this machine.</strong> Off by default.</div>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div>
+        <label for="aiGatewayInput">Gateway URL</label>
+        <div class="hint">Base URL of your <code>ai_proxy</code> gateway. Calls go to <code>&lt;url&gt;/chat</code>. Default is the local dev server.</div>
+      </div>
+      <input id="aiGatewayInput" type="text" placeholder="http://localhost:8080" style="min-width:220px;" />
+    </div>
+    <div class="setting-row">
+      <div>
+        <label>Established categories</label>
+        <div class="hint">Import a CSV (one category per row; first column is used) that defines the categories the model scores against. <span id="aiCatCount" class="muted">No categories loaded.</span></div>
+      </div>
+      <div>
+        <input id="categoriesFile" type="file" accept=".csv,text/csv" class="hidden" />
+        <button id="importCategoriesBtn" class="secondary">Import CSV…</button>
+        <button id="clearCategoriesBtn" class="ghost">Clear</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div>
+        <label>Backup</label>
+        <div class="hint">Export a full JSON backup of the collection.</div>
+      </div>
+      <button id="backupBtn" class="secondary">Download JSON</button>
+    </div>
+    <div class="setting-row">
+      <div>
+        <label>Restore</label>
+        <div class="hint">Merge a JSON backup into the current collection. Duplicates (same URL) are skipped.</div>
+      </div>
+      <div>
+        <input id="restoreFile" type="file" accept=".json" class="hidden" />
+        <button id="restoreBtn" class="secondary">Load JSON…</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <div>
+        <label>Danger zone</label>
+        <div class="hint">Permanently delete every bookmark in this database. Cannot be undone.</div>
+      </div>
+      <button id="wipeBtn" class="danger">Wipe all</button>
+    </div>
+    <div style="height:12px"></div>
+    <div class="row" style="justify-content:flex-end;">
+      <button id="closeSettingsBtn">Done</button>
+    </div>
+  </dialog>
+
+  <script>
+  'use strict';
+
+  // ---------- constants ----------
+  const DB_NAME = 'bm_db';
+  const DB_VERSION = 1;
+  const STORE = 'bookmarks';
+  const SETTINGS_KEY = 'bm_db.settings.v1';
+  const DEFAULT_SETTINGS = {
+    oembedEnabled: false,
+    // --- AI categorization (off by default; see invariant 3 in CLAUDE.md) ---
+    aiEnabled: false,
+    // Deployed Cloud Run gateway (https, already permitted by CSP connect-src).
+    // For local dev, point this at http://localhost:8080 (also CSP-allowed).
+    aiGatewayUrl: 'https://llm-gateway-730560815836.us-central1.run.app',
+    // Fixed defaults for now; provider/model selection comes later once the
+    // gateway grows the config we need.
+    aiProvider: 'openai',
+    aiModel: 'gpt-5.4-nano',
+    // "Established" categories the user imports from a CSV. The model is asked
+    // to score a bookmark against exactly this list — nothing freeform.
+    aiCategories: []
+  };
+  // Keep prompts comfortably under the gateway's MAX_INPUT_CHARS (~8000).
+  const AI_MAX_CATEGORIES = 200;
+  const AI_TOP_N = 3;
+  const AI_REQUEST_TIMEOUT_MS = 30000;
+
+  // ---------- tiny helpers ----------
+  const $ = (id) => document.getElementById(id);
+  const uniq = (arr) => [...new Set(arr.filter(Boolean))];
+  const uuid = () => (crypto?.randomUUID ? crypto.randomUUID()
+    : 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
+
+  function escapeHtml(v) {
+    return String(v ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // ---------- URL handling ----------
+  // Allowlist http / https only. Rejects javascript:, data:, file:, etc.
+  function normalizeUrl(raw) {
+    const trimmed = String(raw || '').trim();
+    if (!trimmed) return null;
+    let parsed;
+    try { parsed = new URL(trimmed); }
+    catch {
+      try { parsed = new URL('https://' + trimmed); }
+      catch { return null; }
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    return parsed.toString();
+  }
+
+  function urlDedupKey(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.toLowerCase().replace(/^www\./, '');
+      let path = u.pathname.replace(/\/+$/, '') || '/';
+      return host + path + u.search;
+    } catch { return url.toLowerCase(); }
+  }
+
+  function extractUrlsFromText(text) {
+    const matches = String(text || '').match(/https?:\/\/[^\s<>"')]+/g) || [];
+    return matches.map(normalizeUrl).filter(Boolean);
+  }
+
+  // ---------- heuristics (ported from v0, tightened) ----------
+  const KEYWORD_MAP = Object.freeze([
+    { pattern: /(politic|election|senate|congress|white house|government|policy)/i, cats: ['Politics'] },
+    { pattern: /(ai|artificial intelligence|machine learning|chatgpt|openai|llm|neural net)/i, cats: ['Artificial Intelligence'] },
+    { pattern: /(news|opinion|editorial|analysis|commentary)/i, cats: ['News / Opinion'] },
+    { pattern: /(interview|podcast|talk show)/i, cats: ['Interview / Podcast'] },
+    { pattern: /(music|album|song|artist|concert)/i, cats: ['Music'] },
+    { pattern: /(movie|film|trailer|tv|episode|series)/i, cats: ['Entertainment'] },
+    { pattern: /(paper|journal|study|research|arxiv)/i, cats: ['Research / Academic'] },
+    { pattern: /(tutorial|guide|how to|documentation|docs)/i, cats: ['How-To / Docs'] },
+    { pattern: /(finance|market|stocks|investing|economy)/i, cats: ['Finance / Business'] },
+    { pattern: /(recipe|cooking|baking)/i, cats: ['Food / Recipe'] }
+  ]);
+
+  function detectSource(url) {
+    try {
+      const host = new URL(url).hostname.replace(/^www\./, '');
+      if (host.includes('youtube.com') || host.includes('youtu.be')) return 'YouTube';
+      if (host.includes('vimeo.com')) return 'Vimeo';
+      if (host.includes('github.com')) return 'GitHub';
+      if (host.includes('wikipedia.org')) return 'Wikipedia';
+      if (host.includes('substack.com')) return 'Substack';
+      if (host.includes('nytimes.com')) return 'NYT';
+      if (host.includes('arxiv.org')) return 'arXiv';
+      if (host.includes('reddit.com')) return 'Reddit';
+      if (host.includes('medium.com')) return 'Medium';
+      return host;
+    } catch { return 'Unknown'; }
+  }
+
+  function titleFromUrl(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.replace(/^www\./, '');
+      const bits = u.pathname.split('/').filter(Boolean);
+      if (host.includes('youtube.com')) {
+        const v = u.searchParams.get('v');
+        return v ? `YouTube: ${v}` : 'YouTube video';
+      }
+      if (host.includes('youtu.be')) {
+        return `YouTube: ${bits[0] || ''}`.trim();
+      }
+      if (bits.length) {
+        const cleaned = bits[bits.length - 1]
+          .replace(/[-_]+/g, ' ')
+          .replace(/\.[a-z0-9]+$/i, '')
+          .trim();
+        return cleaned ? cleaned.replace(/\b\w/g, c => c.toUpperCase()) : host;
+      }
+      return host;
+    } catch { return 'Untitled'; }
+  }
+
+  function categorize({ title, source, url, seedCategories }) {
+    const text = [title, source, url].filter(Boolean).join(' ');
+    const cats = [];
+    for (const entry of KEYWORD_MAP) {
+      if (entry.pattern.test(text)) cats.push(...entry.cats);
+    }
+    const host = (() => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } })();
+    if (host.includes('youtube.com') || host.includes('youtu.be') || host.includes('vimeo.com')) cats.push('Video');
+    if (seedCategories?.length) cats.push(...seedCategories);
+    if (!cats.length) cats.push('General Web');
+    return uniq(cats);
+  }
+
+  // ---------- oEmbed (opt-in) ----------
+  async function fetchOembed(url) {
+    try {
+      const u = new URL(url);
+      let endpoint = null;
+      if (u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')) {
+        endpoint = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+      } else if (u.hostname.includes('vimeo.com')) {
+        endpoint = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`;
+      }
+      if (!endpoint) return null;
+      const res = await fetch(endpoint, { method: 'GET' });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch { return null; }
+  }
+
+  // ---------- AI categorization (opt-in, routed through the gateway) ----------
+  // Parse a "simple categories" CSV: one category per row, first column only.
+  // Tolerates quoted cells and a header-ish first row. No external CSV library.
+  function parseCategoriesCsv(text) {
+    const out = [];
+    const seen = new Set();
+    const lines = String(text || '').replace(/^﻿/, '').split(/\r?\n/);
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      // First column: handle a leading quoted field, else split on comma.
+      let cell;
+      const m = line.match(/^\s*"((?:[^"]|"")*)"/);
+      if (m) cell = m[1].replace(/""/g, '"');
+      else cell = line.split(',')[0];
+      const name = cell.trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(name);
+    }
+    return out;
+  }
+
+  // POST /chat on the configured gateway. Text-only contract: { provider, model, message }.
+  // Keys live on the gateway; the browser never holds one. Throws on non-2xx.
+  async function gatewayChat(message) {
+    const base = (state.settings.aiGatewayUrl || '').replace(/\/+$/, '');
+    if (!base) throw new Error('No gateway URL configured.');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
+    let res;
+    try {
+      res = await fetch(base + '/chat', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          provider: state.settings.aiProvider,
+          model: state.settings.aiModel,
+          message,
+          // Stable id so the gateway can attribute requests to one logical user.
+          conversation_id: 'bm_db-classify'
+        }),
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+    let data = null;
+    try { data = await res.json(); } catch { /* fall through to status check */ }
+    if (!res.ok) {
+      const msg = (data && data.error) ? data.error : `gateway HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    return (data && typeof data.response === 'string') ? data.response : '';
+  }
+
+  // Build the classification prompt from metadata we already hold. No page text
+  // is fetched — the model only sees title / URL / source / folders / note.
+  function buildClassifyPrompt(rec, categories) {
+    const folders = (rec.folderCategories || []).join(', ');
+    const lines = [
+      'You categorize a saved web bookmark using ONLY the provided category list.',
+      'Pick the categories that best fit and assign each an integer confidence 0-100.',
+      'Return ONLY a JSON array (no prose, no code fence) of at most ' + AI_TOP_N +
+        ' objects: [{"category":"<verbatim from list>","confidence":<0-100>}], sorted by confidence descending.',
+      'Use category names exactly as written in the list. If none fit, return [].',
+      '',
+      'CATEGORIES:',
+      categories.map(c => '- ' + c).join('\n'),
+      '',
+      'BOOKMARK:',
+      'title: ' + (rec.title || ''),
+      'url: ' + (rec.url || ''),
+      'source: ' + (rec.source || ''),
+      'folders: ' + folders,
+      'note: ' + (rec.note || '')
+    ];
+    return lines.join('\n');
+  }
+
+  // Parse the model's reply into a validated, ranked [{category, score}] list.
+  // Defensive: strips code fences, accepts only categories from the known set.
+  function parseClassifyResponse(text, categories) {
+    if (!text) return [];
+    let s = text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    const start = s.indexOf('[');
+    const end = s.lastIndexOf(']');
+    if (start === -1 || end === -1 || end < start) return [];
+    let arr;
+    try { arr = JSON.parse(s.slice(start, end + 1)); } catch { return []; }
+    if (!Array.isArray(arr)) return [];
+    const allowed = new Map(categories.map(c => [c.toLowerCase(), c]));
+    const seen = new Set();
+    const ranked = [];
+    for (const item of arr) {
+      if (!item || typeof item.category !== 'string') continue;
+      const canonical = allowed.get(item.category.trim().toLowerCase());
+      if (!canonical || seen.has(canonical)) continue;
+      let score = Number(item.confidence);
+      if (!Number.isFinite(score)) score = 0;
+      score = Math.max(0, Math.min(100, Math.round(score)));
+      seen.add(canonical);
+      ranked.push({ category: canonical, score });
+    }
+    ranked.sort((a, b) => b.score - a.score);
+    return ranked.slice(0, AI_TOP_N);
+  }
+
+  async function classifyBookmark(rec, categories) {
+    const prompt = buildClassifyPrompt(rec, categories);
+    const reply = await gatewayChat(prompt);
+    return parseClassifyResponse(reply, categories);
+  }
+
+  // Classify a single bookmark (per-row "AI" button). The click is the consent,
+  // so no confirm dialog — but the AI toggle and a loaded category list still gate it.
+  async function classifyRow(id) {
+    if (state.processing) return;
+    const rec = state.bookmarks.get(id);
+    if (!rec) return;
+    if (!state.settings.aiEnabled) { setStatus('AI categorization is off — enable it in Settings.'); return; }
+    const categories = (state.settings.aiCategories || []).slice(0, AI_MAX_CATEGORIES);
+    if (!categories.length) { setStatus('Import a categories CSV in Settings first.'); return; }
+
+    setStatus(`Classifying "${rec.title}"…`);
+    try {
+      const ranked = await classifyBookmark(rec, categories);
+      rec.aiCategories = ranked;
+      rec.aiClassifiedAt = Date.now();
+      await db.put(rec);
+      state.bookmarks.set(rec.id, rec);
+      render();
+      setStatus(ranked.length
+        ? `Classified "${rec.title}" — top: ${ranked[0].category} (${ranked[0].score}%).`
+        : `Classified "${rec.title}" — no category matched.`);
+    } catch (err) {
+      console.warn('classify row error', rec.url, err);
+      setStatus(`AI classification failed: ${err.message}. Gateway: ${state.settings.aiGatewayUrl}`);
+    }
+  }
+
+  // Run classification over the current filtered view, one request at a time so
+  // we stay polite to the gateway and can surface progress + abort on errors.
+  async function runAiClassification() {
+    if (state.processing) return;
+    if (!state.settings.aiEnabled) { setStatus('AI categorization is off — enable it in Settings.'); return; }
+    const categories = (state.settings.aiCategories || []).slice(0, AI_MAX_CATEGORIES);
+    if (!categories.length) { setStatus('Import a categories CSV in Settings first.'); return; }
+
+    const view = currentView();
+    if (!view.length) { setStatus('No rows in the current view to classify.'); return; }
+    if (!confirm(`Send metadata for ${view.length} bookmark(s) to the gateway at ${state.settings.aiGatewayUrl} for AI categorization?`)) return;
+
+    state.processing = true;
+    els.classifyBtn.disabled = true;
+    els.processBtn.disabled = true;
+    els.importBtn.disabled = true;
+
+    let done = 0, failed = 0;
+    for (let i = 0; i < view.length; i += 1) {
+      const rec = state.bookmarks.get(view[i].id);
+      if (!rec) continue;
+      setStatus(`Classifying ${i + 1} of ${view.length}…`);
+      try {
+        const ranked = await classifyBookmark(rec, categories);
+        rec.aiCategories = ranked;
+        rec.aiClassifiedAt = Date.now();
+        await db.put(rec);
+        state.bookmarks.set(rec.id, rec);
+        done += 1;
+      } catch (err) {
+        console.warn('classify error', rec.url, err);
+        failed += 1;
+        // First failure is usually the gateway being unreachable; stop early
+        // rather than hammering it for every remaining row.
+        if (failed === 1 && done === 0) {
+          setStatus(`AI classification failed: ${err.message}. Is the gateway running at ${state.settings.aiGatewayUrl}?`);
+          break;
+        }
+      }
+    }
+
+    state.processing = false;
+    els.processBtn.disabled = false;
+    els.importBtn.disabled = false;
+    render();
+    if (done || failed > 1) {
+      const parts = [`classified ${done}`];
+      if (failed) parts.push(`${failed} failed`);
+      setStatus(`AI done — ${parts.join(', ')}.`);
+    }
+  }
+
+  // ---------- Chrome bookmarks.html parser ----------
+  // Accept data:image/... only. Anything else (data:text/html, raw http favicon URI,
+  // weird schemes) is rejected so it never reaches an <img src>.
+  function sanitizeIcon(raw) {
+    if (!raw) return null;
+    const s = String(raw).trim();
+    if (!/^data:image\/(png|jpe?g|gif|webp|svg\+xml|x-icon|vnd\.microsoft\.icon);/i.test(s)) return null;
+    if (s.length > 64 * 1024) return null; // paranoia cap; real favicons are ~1–4 KB
+    return s;
+  }
+
+  function epochSecondsToMs(raw) {
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n > 0 ? n * 1000 : null;
+  }
+
+  function parseChromeBookmarks(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const anchors = doc.querySelectorAll('a[href]');
+    const out = [];
+    for (const a of anchors) {
+      const href = a.getAttribute('href');
+      const normalized = normalizeUrl(href);
+      if (!normalized) continue;
+
+      const title = (a.textContent || '').trim() || titleFromUrl(normalized);
+      const dateAdded = epochSecondsToMs(a.getAttribute('add_date')) ?? Date.now();
+      const lastModified = epochSecondsToMs(a.getAttribute('last_modified'));
+      const icon = sanitizeIcon(a.getAttribute('icon'));
+      // ICON_URI is a raw http(s) favicon URL. We do NOT fetch it — that would
+      // be a third-party request we haven't disclosed. Recorded for future use.
+      const iconUri = a.getAttribute('icon_uri') || null;
+
+      // Build folder path by walking ancestor <DL>s; each <DL> is typically preceded
+      // (in DOM order) by an <H3> that names that folder.
+      const path = [];
+      let node = a.closest('dl');
+      while (node) {
+        let prev = node.previousElementSibling;
+        while (prev && prev.tagName !== 'H3') prev = prev.previousElementSibling;
+        if (prev && prev.tagName === 'H3') {
+          const name = (prev.textContent || '').trim();
+          if (name) path.unshift(name);
+        }
+        const parentDl = node.parentElement?.closest('dl');
+        if (parentDl === node) break;
+        node = parentDl;
+      }
+      out.push({ url: normalized, title, dateAdded, lastModified, icon, iconUri, folderPath: path });
+    }
+    return out;
+  }
+
+  // ---------- IndexedDB ----------
+  let _db = null;
+  function openDb() {
+    if (_db) return Promise.resolve(_db);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE)) {
+          const store = db.createObjectStore(STORE, { keyPath: 'id' });
+          store.createIndex('urlKey', 'urlKey', { unique: true });
+          store.createIndex('dateAdded', 'dateAdded', { unique: false });
+        }
+      };
+      req.onsuccess = () => { _db = req.result; resolve(_db); };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  // Important: no `await` between creating the transaction and queueing the
+  // first request. IDB transactions go inactive when control returns to the
+  // task queue without any pending requests.
+  function withStore(mode, fn) {
+    return openDb().then(conn => new Promise((resolve, reject) => {
+      const t = conn.transaction(STORE, mode);
+      const store = t.objectStore(STORE);
+      const req = fn(store);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+      t.onerror = () => reject(t.error);
+    }));
+  }
+
+  const db = {
+    getAll()        { return withStore('readonly',  s => s.getAll()); },
+    put(rec)        { return withStore('readwrite', s => s.put(rec)); },
+    delete(id)      { return withStore('readwrite', s => s.delete(id)); },
+    clear()         { return withStore('readwrite', s => s.clear()); },
+    getByUrlKey(key){ return withStore('readonly',  s => s.index('urlKey').get(key)); }
+  };
+
+  // ---------- settings (localStorage) ----------
+  function loadSettings() {
+    try {
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if (!raw) return { ...DEFAULT_SETTINGS };
+      return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    } catch { return { ...DEFAULT_SETTINGS }; }
+  }
+  function saveSettings(s) {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch {}
+  }
+
+  // ---------- state ----------
+  const state = {
+    bookmarks: new Map(), // id -> record
+    filters: { text: '', source: '', categories: new Set(), dateFrom: '', dateTo: '' },
+    sort: { column: 'dateAdded', dir: 'desc' },
+    settings: loadSettings(),
+    pendingDropUrls: [],
+    processing: false
+  };
+
+  const els = {
+    dropzone: $('dropzone'),
+    urlInput: $('urlInput'),
+    processBtn: $('processBtn'),
+    importBtn: $('importBtn'),
+    bookmarksFile: $('bookmarksFile'),
+    importDateFrom: $('importDateFrom'),
+    importDateTo: $('importDateTo'),
+    clearImportRangeBtn: $('clearImportRangeBtn'),
+    sampleBtn: $('sampleBtn'),
+    clearInputBtn: $('clearInputBtn'),
+    status: $('status'),
+    searchInput: $('searchInput'),
+    sourceFilter: $('sourceFilter'),
+    dateFrom: $('dateFrom'),
+    dateTo: $('dateTo'),
+    categoryFilters: $('categoryFilters'),
+    clearFiltersBtn: $('clearFiltersBtn'),
+    countLabel: $('countLabel'),
+    exportCsvBtn: $('exportCsvBtn'),
+    classifyBtn: $('classifyBtn'),
+    resultsBody: $('resultsBody'),
+    settingsBtn: $('settingsBtn'),
+    settingsDialog: $('settingsDialog'),
+    importDialog: $('importDialog'),
+    folderFilter: $('folderFilter'),
+    folderList: $('folderList'),
+    confirmImportBtn: $('confirmImportBtn'),
+    cancelImportBtn: $('cancelImportBtn'),
+    closeSettingsBtn: $('closeSettingsBtn'),
+    oembedToggle: $('oembedToggle'),
+    aiToggle: $('aiToggle'),
+    aiGatewayInput: $('aiGatewayInput'),
+    aiCatCount: $('aiCatCount'),
+    importCategoriesBtn: $('importCategoriesBtn'),
+    categoriesFile: $('categoriesFile'),
+    clearCategoriesBtn: $('clearCategoriesBtn'),
+    backupBtn: $('backupBtn'),
+    restoreBtn: $('restoreBtn'),
+    restoreFile: $('restoreFile'),
+    wipeBtn: $('wipeBtn'),
+    thead: document.querySelectorAll('th[data-sort]')
+  };
+
+  function setStatus(msg) { els.status.textContent = msg; }
+
+  // ---------- build a record ----------
+  async function buildRecord({ url, title, dateAdded, lastModified, icon, iconUri, seedCategories, origin }) {
+    const normalized = normalizeUrl(url);
+    if (!normalized) return null;
+
+    let resolvedTitle = title && title.trim() ? title.trim() : titleFromUrl(normalized);
+    let source = detectSource(normalized);
+    let metadataMode = origin || 'heuristic';
+
+    if (state.settings.oembedEnabled) {
+      const data = await fetchOembed(normalized);
+      if (data) {
+        if (data.title) resolvedTitle = data.title;
+        if (data.provider_name) {
+          source = data.author_name ? `${data.provider_name} / ${data.author_name}` : data.provider_name;
+        }
+        metadataMode = 'oembed';
+      }
+    }
+
+    const folderCategories = Array.isArray(seedCategories) ? uniq(seedCategories) : [];
+    const categories = categorize({
+      title: resolvedTitle, source, url: normalized, seedCategories: folderCategories
+    });
+
+    return {
+      id: uuid(),
+      url: normalized,
+      urlKey: urlDedupKey(normalized),
+      title: resolvedTitle,
+      userEditedTitle: false,
+      icon: sanitizeIcon(icon),
+      iconUri: iconUri || null,
+      categories,
+      folderCategories,
+      source,
+      dateAdded: Number.isFinite(dateAdded) ? dateAdded : Date.now(),
+      lastModified: Number.isFinite(lastModified) ? lastModified : null,
+      note: '',
+      aiCategories: [],   // [{ category, score }] — populated by "Classify with AI"
+      aiClassifiedAt: null,
+      metadataMode
+    };
+  }
+
+  // Re-import merge: refresh metadata without stomping user edits.
+  // Returns the updated record if anything changed, else null.
+  function mergeFromImport(existing, incoming) {
+    // incoming is the parsed bookmarks.html item: { url, title, dateAdded, lastModified, icon, iconUri, folderPath }
+    const prev = {
+      title: existing.title,
+      icon: existing.icon,
+      lastModified: existing.lastModified,
+      folderCategories: existing.folderCategories || [],
+      categories: existing.categories || []
+    };
+
+    let changed = false;
+    const next = { ...existing };
+
+    // Title: only overwrite if the user hasn't edited it.
+    if (!existing.userEditedTitle && incoming.title && incoming.title !== prev.title) {
+      next.title = incoming.title;
+      changed = true;
+    }
+
+    // Icon: always refresh if the import supplied one.
+    const cleanIcon = sanitizeIcon(incoming.icon);
+    if (cleanIcon && cleanIcon !== prev.icon) {
+      next.icon = cleanIcon;
+      changed = true;
+    }
+    if (incoming.iconUri && incoming.iconUri !== existing.iconUri) {
+      next.iconUri = incoming.iconUri;
+      changed = true;
+    }
+
+    // lastModified: take the newer value if any.
+    if (Number.isFinite(incoming.lastModified) && incoming.lastModified !== prev.lastModified) {
+      next.lastModified = incoming.lastModified;
+      changed = true;
+    }
+
+    // Categories: refresh folder-derived seeds; preserve everything else.
+    const newFolder = Array.isArray(incoming.folderPath) ? uniq(incoming.folderPath) : [];
+    const oldFolderSet = new Set(prev.folderCategories);
+    const userAndHeuristic = prev.categories.filter(c => !oldFolderSet.has(c));
+    const rebuilt = uniq([...newFolder, ...userAndHeuristic]);
+    const foldersChanged = newFolder.join('|') !== prev.folderCategories.join('|');
+    const catsChanged = rebuilt.join('|') !== prev.categories.join('|');
+    if (foldersChanged || catsChanged) {
+      next.folderCategories = newFolder;
+      next.categories = rebuilt.length ? rebuilt : ['General Web'];
+      changed = true;
+    }
+
+    return changed ? next : null;
+  }
+
+  // ---------- ingest ----------
+  async function ingest(items) {
+    // items: [{ url, title?, dateAdded?, lastModified?, icon?, iconUri?, seedCategories?, folderPath?, origin? }]
+    if (state.processing) return;
+    state.processing = true;
+    els.processBtn.disabled = true;
+    els.importBtn.disabled = true;
+
+    let added = 0, upgraded = 0, unchanged = 0, failed = 0;
+    for (let i = 0; i < items.length; i += 1) {
+      const it = items[i];
+      setStatus(`Processing ${i + 1} of ${items.length}…`);
+      const normalized = normalizeUrl(it.url);
+      if (!normalized) { failed += 1; continue; }
+      const key = urlDedupKey(normalized);
+
+      try {
+        const existing = await db.getByUrlKey(key);
+        if (existing) {
+          // Re-import merge path — only relevant when the incoming item carries
+          // bookmarks-export metadata (icon / folderPath / lastModified). For
+          // paste/drop items, there's nothing richer to merge, so skip silently.
+          const incoming = {
+            url: normalized,
+            title: it.title,
+            dateAdded: it.dateAdded,
+            lastModified: it.lastModified,
+            icon: it.icon,
+            iconUri: it.iconUri,
+            folderPath: it.seedCategories || it.folderPath
+          };
+          const merged = mergeFromImport(existing, incoming);
+          if (merged) {
+            await db.put(merged);
+            state.bookmarks.set(merged.id, merged);
+            upgraded += 1;
+          } else {
+            unchanged += 1;
+          }
+          continue;
+        }
+
+        const rec = await buildRecord({ ...it, url: normalized });
+        if (!rec) { failed += 1; continue; }
+        await db.put(rec);
+        state.bookmarks.set(rec.id, rec);
+        added += 1;
+      } catch (err) {
+        console.warn('ingest error', it.url, err);
+        failed += 1;
+      }
+    }
+
+    state.processing = false;
+    els.processBtn.disabled = false;
+    els.importBtn.disabled = false;
+    render();
+    const parts = [`added ${added}`];
+    if (upgraded) parts.push(`upgraded ${upgraded}`);
+    if (unchanged) parts.push(`${unchanged} unchanged`);
+    if (failed) parts.push(`${failed} failed`);
+    setStatus(`Done — ${parts.join(', ')}.`);
+  }
+
+  // ---------- drop handling ----------
+  function parseDropText(dt) {
+    const urls = [];
+    const uriList = dt.getData('text/uri-list');
+    if (uriList) {
+      uriList.split(/\r?\n/).forEach(line => {
+        const t = line.trim();
+        if (!t || t.startsWith('#')) return;
+        const n = normalizeUrl(t);
+        if (n) urls.push(n);
+      });
+    }
+    const plain = dt.getData('text/plain');
+    if (plain) {
+      extractUrlsFromText(plain).forEach(u => urls.push(u));
+      plain.split(/\r?\n/).forEach(line => {
+        const n = normalizeUrl(line.trim());
+        if (n) urls.push(n);
+      });
+    }
+    return uniq(urls);
+  }
+
+  // Two-stage import:
+  //   1) Parse the file and stage a de-duplicated list of bookmarks + a folder index.
+  //   2) Show the Import dialog. User picks a folder subtree (or "Everything").
+  //   3) Only the selected subset is handed to ingest().
+  async function handleDropFile(file) {
+    const text = await file.text();
+    const looksLikeBookmarks = /<DL>|<!DOCTYPE NETSCAPE-Bookmark-file/i.test(text);
+    if (!looksLikeBookmarks) {
+      setStatus('That file does not look like a Chrome bookmarks.html export.');
+      return;
+    }
+    const parsed = parseChromeBookmarks(text);
+    if (!parsed.length) {
+      setStatus('No <a href> entries found in that file.');
+      return;
+    }
+
+    // Merge duplicate URLs that appear under multiple folders.
+    const bykey = new Map();
+    for (const b of parsed) {
+      const k = urlDedupKey(b.url);
+      const prev = bykey.get(k);
+      if (prev) {
+        prev.folderPaths.push(b.folderPath || []);
+        if (!prev.icon && b.icon) prev.icon = b.icon;
+        if (!prev.iconUri && b.iconUri) prev.iconUri = b.iconUri;
+        if (Number.isFinite(b.lastModified) && (!Number.isFinite(prev.lastModified) || b.lastModified > prev.lastModified)) {
+          prev.lastModified = b.lastModified;
+        }
+      } else {
+        bykey.set(k, { ...b, folderPaths: [b.folderPath || []] });
+      }
+    }
+    const staged = [...bykey.values()];
+
+    // Build a list of unique folder-path prefixes with bookmark counts. Each
+    // bookmark contributes to every prefix of every folder path it appears in.
+    const counts = new Map(); // pathKey -> count
+    const pathKey = (arr) => arr.join('\n');
+    for (const b of staged) {
+      const seen = new Set();
+      for (const fp of b.folderPaths) {
+        for (let i = 1; i <= fp.length; i += 1) {
+          const key = pathKey(fp.slice(0, i));
+          if (seen.has(key)) continue;
+          seen.add(key);
+          counts.set(key, (counts.get(key) || 0) + 1);
+        }
+      }
+    }
+    const folderOptions = [...counts.entries()]
+      .map(([k, n]) => ({ key: k, path: k.split('\n'), count: n }))
+      .sort((a, b) => a.path.join('/').localeCompare(b.path.join('/')));
+
+    importStaging = { staged, folderOptions, totalCount: staged.length };
+    openImportDialog();
+  }
+
+  // Mutable-on-purpose: holds the parsed-but-not-yet-ingested state while the
+  // user picks a folder scope in the Import dialog. Reset after each import.
+  let importStaging = null;
+
+  function openImportDialog() {
+    const fromStr = els.importDateFrom.value;
+    const toStr = els.importDateTo.value;
+    let rangeNote = '';
+    if (fromStr && toStr) rangeNote = fromStr === toStr ? ` Date filter: ${fromStr} only.` : ` Date filter: ${fromStr} → ${toStr}.`;
+    else if (fromStr) rangeNote = ` Date filter: from ${fromStr}.`;
+    else if (toStr) rangeNote = ` Date filter: through ${toStr}.`;
+    $('importSummary').textContent =
+      `Parsed ${importStaging.totalCount} bookmarks across ${importStaging.folderOptions.length} folders. Pick a subtree to ingest.${rangeNote}`;
+    $('folderFilter').value = '';
+    renderFolderList('');
+    els.importDialog.showModal();
+  }
+
+  function renderFolderList(filterText) {
+    const q = filterText.trim().toLowerCase();
+    const items = importStaging.folderOptions.filter(o => {
+      if (!q) return true;
+      return o.path.join('/').toLowerCase().includes(q);
+    });
+    const list = $('folderList');
+    const head = `
+      <label class="folder-item">
+        <input type="radio" name="folder-scope" value="" checked>
+        <span class="path"><strong>Everything</strong></span>
+        <span class="count">${importStaging.totalCount}</span>
+      </label>`;
+    const rows = items.map(o => `
+      <label class="folder-item">
+        <input type="radio" name="folder-scope" value="${escapeHtml(o.key)}">
+        <span class="path">${escapeHtml(o.path.join(' / '))}</span>
+        <span class="count">${o.count}</span>
+      </label>`).join('');
+    list.innerHTML = head + (rows || '<div class="folder-item muted">No matching folders under this filter.</div>');
+  }
+
+  function getSelectedScopeKey() {
+    const checked = document.querySelector('input[name="folder-scope"]:checked');
+    return checked ? checked.value : '';
+  }
+
+  async function runImport() {
+    if (!importStaging) return;
+    const scopeKey = getSelectedScopeKey();
+    const scopePath = scopeKey ? scopeKey.split('\n') : [];
+
+    const inScope = (folderPaths) => {
+      if (!scopePath.length) return true;
+      return folderPaths.some(fp => {
+        if (fp.length < scopePath.length) return false;
+        for (let i = 0; i < scopePath.length; i += 1) {
+          if (fp[i] !== scopePath[i]) return false;
+        }
+        return true;
+      });
+    };
+
+    let fromStr = els.importDateFrom.value;
+    let toStr = els.importDateTo.value;
+    // If user inverted the range, swap so a typo doesn't silently exclude everything.
+    if (fromStr && toStr && fromStr > toStr) [fromStr, toStr] = [toStr, fromStr];
+    const fromMs = fromStr ? new Date(fromStr + 'T00:00:00').getTime() : null;
+    const toMs = toStr ? new Date(toStr + 'T23:59:59.999').getTime() : null;
+    const inDateRange = (dateAdded) => {
+      if (fromMs == null && toMs == null) return true;
+      if (!Number.isFinite(dateAdded)) return false;
+      if (fromMs != null && dateAdded < fromMs) return false;
+      if (toMs != null && dateAdded > toMs) return false;
+      return true;
+    };
+
+    const filtered = importStaging.staged
+      .filter(b => inScope(b.folderPaths))
+      .filter(b => inDateRange(b.dateAdded));
+    els.importDialog.close();
+
+    if (!filtered.length) {
+      const reason = (fromMs != null || toMs != null)
+        ? 'No bookmarks match the selected folder and date range.'
+        : 'No bookmarks under the selected folder.';
+      setStatus(reason);
+      importStaging = null;
+      return;
+    }
+
+    // Collapse multiple folder paths per bookmark into a single seed list.
+    // If a scope was selected, strip the scope prefix so the remaining
+    // categories are the meaningful per-bookmark sub-folders.
+    const items = filtered.map(b => {
+      const seeds = new Set();
+      for (const fp of b.folderPaths) {
+        const rest = scopePath.length ? fp.slice(scopePath.length) : fp;
+        for (const name of rest) if (name) seeds.add(name);
+      }
+      return {
+        url: b.url,
+        title: b.title,
+        dateAdded: b.dateAdded,
+        lastModified: b.lastModified,
+        icon: b.icon,
+        iconUri: b.iconUri,
+        seedCategories: [...seeds],
+        origin: 'chrome-import'
+      };
+    });
+
+    const scopeLabel = scopePath.length ? scopePath.join(' / ') : 'everything';
+    let dateLabel = '';
+    if (fromStr && toStr) dateLabel = fromStr === toStr ? `, on ${fromStr}` : `, ${fromStr} → ${toStr}`;
+    else if (fromStr) dateLabel = `, from ${fromStr}`;
+    else if (toStr) dateLabel = `, through ${toStr}`;
+    setStatus(`Importing ${items.length} bookmarks from "${scopeLabel}"${dateLabel}…`);
+    await ingest(items);
+    importStaging = null;
+  }
+
+  // ---------- filtering / sorting ----------
+  function applyFilters(list) {
+    const f = state.filters;
+    const q = f.text.toLowerCase();
+    const from = f.dateFrom ? new Date(f.dateFrom + 'T00:00:00').getTime() : null;
+    const to = f.dateTo ? new Date(f.dateTo + 'T23:59:59').getTime() : null;
+    return list.filter(r => {
+      if (q) {
+        const hay = (r.title + ' ' + r.url + ' ' + r.note + ' ' + r.categories.join(' ')).toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (f.source && r.source !== f.source) return false;
+      if (f.categories.size) {
+        const has = r.categories.some(c => f.categories.has(c));
+        if (!has) return false;
+      }
+      if (from && r.dateAdded < from) return false;
+      if (to && r.dateAdded > to) return false;
+      return true;
+    });
+  }
+
+  function applySort(list) {
+    const { column, dir } = state.sort;
+    const factor = dir === 'asc' ? 1 : -1;
+    // For AI columns, sort by the confidence score of the nth ranked category.
+    const aiRank = /^ai([1-3])$/.exec(column);
+    if (aiRank) {
+      const n = Number(aiRank[1]) - 1;
+      const scoreOf = (r) => (r.aiCategories && r.aiCategories[n]) ? r.aiCategories[n].score : -1;
+      return [...list].sort((a, b) => (scoreOf(a) - scoreOf(b)) * factor);
+    }
+    return [...list].sort((a, b) => {
+      let av = a[column], bv = b[column];
+      if (column === 'categories') { av = a.categories.join(','); bv = b.categories.join(','); }
+      if (av == null) av = '';
+      if (bv == null) bv = '';
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * factor;
+      return String(av).localeCompare(String(bv)) * factor;
+    });
+  }
+
+  function currentView() { return applySort(applyFilters([...state.bookmarks.values()])); }
+
+  // ---------- render ----------
+  function renderSourceFilter() {
+    const sources = uniq([...state.bookmarks.values()].map(r => r.source)).sort();
+    const selected = state.filters.source;
+    els.sourceFilter.innerHTML =
+      `<option value="">All sources</option>` +
+      sources.map(s => `<option value="${escapeHtml(s)}"${s === selected ? ' selected' : ''}>${escapeHtml(s)}</option>`).join('');
+  }
+
+  function renderCategoryFilters() {
+    const cats = uniq([...state.bookmarks.values()].flatMap(r => r.categories)).sort();
+    const active = state.filters.categories;
+    const chips = cats.map(c =>
+      `<span class="chip filter-chip${active.has(c) ? ' active' : ''}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</span>`
+    ).join('');
+    els.categoryFilters.innerHTML = `<span class="muted">Categories:</span> ${chips || '<span class="muted">(none yet)</span>'}`;
+  }
+
+  function renderCategoryCount() {
+    const n = (state.settings.aiCategories || []).length;
+    els.aiCatCount.textContent = n
+      ? `${n} categor${n === 1 ? 'y' : 'ies'} loaded.`
+      : 'No categories loaded.';
+  }
+
+  function renderSortIndicators() {
+    els.thead.forEach(th => {
+      const col = th.dataset.sort;
+      const arrow = th.querySelector('.arrow');
+      if (col === state.sort.column) {
+        th.classList.add('sorted');
+        if (arrow) arrow.textContent = state.sort.dir === 'asc' ? '↑' : '↓';
+      } else {
+        th.classList.remove('sorted');
+        if (arrow) arrow.textContent = '↕';
+      }
+    });
+  }
+
+  function renderTable() {
+    const view = currentView();
+    els.countLabel.textContent = `${view.length} of ${state.bookmarks.size} rows`;
+    els.exportCsvBtn.disabled = view.length === 0;
+    els.classifyBtn.classList.toggle('hidden', !state.settings.aiEnabled);
+    els.classifyBtn.disabled =
+      state.processing || view.length === 0 || !(state.settings.aiCategories || []).length;
+
+    if (!view.length) {
+      els.resultsBody.innerHTML = `<tr><td colspan="10" class="muted">No rows match.</td></tr>`;
+      return;
+    }
+
+    const aiCell = (r, n) => {
+      const hit = (r.aiCategories || [])[n];
+      if (!hit) return `<td class="ai-cell"><span class="ai-empty">—</span></td>`;
+      return `<td class="ai-cell"><span class="ai-name">${escapeHtml(hit.category)}</span>` +
+        `<span class="ai-score">${escapeHtml(String(hit.score))}%</span></td>`;
+    };
+
+    els.resultsBody.innerHTML = view.map(r => {
+      const chips = r.categories.map(c => `<span class="chip">${escapeHtml(c)}</span>`).join('');
+      const dateStr = new Date(r.dateAdded).toLocaleString();
+      const iconHtml = r.icon
+        ? `<img class="favicon" src="${escapeHtml(r.icon)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
+        : `<span class="favicon favicon-placeholder"></span>`;
+      return `<tr data-id="${escapeHtml(r.id)}">
+        <td class="cell-editable title-cell" data-field="title">${iconHtml}${escapeHtml(r.title)}</td>
+        <td class="col-url"><a href="${escapeHtml(r.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.url)}</a></td>
+        <td class="cell-editable" data-field="categories">${chips}</td>
+        ${aiCell(r, 0)}${aiCell(r, 1)}${aiCell(r, 2)}
+        <td>${escapeHtml(r.source)}</td>
+        <td>${escapeHtml(dateStr)}</td>
+        <td class="cell-editable" data-field="note">${escapeHtml(r.note)}</td>
+        <td class="row-actions"><button class="secondary" data-action="classify" title="Categorize this bookmark with AI">AI</button><button class="ghost" data-action="delete">Delete</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function render() {
+    renderSourceFilter();
+    renderCategoryFilters();
+    renderSortIndicators();
+    renderTable();
+  }
+
+  // ---------- row edits ----------
+  async function editField(id, field) {
+    const rec = state.bookmarks.get(id);
+    if (!rec) return;
+    let next;
+    if (field === 'title') {
+      next = prompt('Title:', rec.title);
+      if (next == null) return;
+      const trimmed = next.trim();
+      if (trimmed && trimmed !== rec.title) {
+        rec.title = trimmed;
+        rec.userEditedTitle = true;
+      }
+    } else if (field === 'note') {
+      next = prompt('Note:', rec.note);
+      if (next == null) return;
+      rec.note = next;
+    } else if (field === 'categories') {
+      next = prompt('Categories (comma-separated):', rec.categories.join(', '));
+      if (next == null) return;
+      const list = uniq(next.split(',').map(s => s.trim()).filter(Boolean));
+      rec.categories = list.length ? list : ['General Web'];
+    } else return;
+    await db.put(rec);
+    state.bookmarks.set(id, rec);
+    render();
+  }
+
+  async function deleteRow(id) {
+    if (!confirm('Delete this bookmark?')) return;
+    await db.delete(id);
+    state.bookmarks.delete(id);
+    render();
+  }
+
+  // ---------- CSV / JSON ----------
+  function toCsvCell(v) {
+    const s = v == null ? '' : String(v);
+    if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
+  function download(filename, text, mime) {
+    const blob = new Blob([text], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function exportCsv() {
+    const rows = currentView();
+    if (!rows.length) return;
+    const header = ['Title', 'URL', 'Categories', 'AI Category 1', 'AI Category 2', 'AI Category 3', 'Source', 'Date Added', 'Note'];
+    const lines = [header.map(toCsvCell).join(',')];
+    const aiText = (r, n) => {
+      const hit = (r.aiCategories || [])[n];
+      return hit ? `${hit.category} (${hit.score}%)` : '';
+    };
+    for (const r of rows) {
+      lines.push([
+        r.title, r.url, r.categories.join('; '),
+        aiText(r, 0), aiText(r, 1), aiText(r, 2),
+        r.source, new Date(r.dateAdded).toISOString(), r.note
+      ].map(toCsvCell).join(','));
+    }
+    download('bm_db_export.csv', lines.join('\n'), 'text/csv;charset=utf-8');
+  }
+
+  function exportJsonBackup() {
+    const payload = {
+      schema: 'bm_db.v1',
+      exportedAt: new Date().toISOString(),
+      bookmarks: [...state.bookmarks.values()]
+    };
+    download('bm_db_backup.json', JSON.stringify(payload, null, 2), 'application/json');
+  }
+
+  async function restoreJsonBackup(file) {
+    const text = await file.text();
+    let parsed;
+    try { parsed = JSON.parse(text); }
+    catch { setStatus('Restore failed: not valid JSON.'); return; }
+    const list = Array.isArray(parsed) ? parsed
+      : Array.isArray(parsed?.bookmarks) ? parsed.bookmarks
+      : null;
+    if (!list) { setStatus('Restore failed: no bookmarks array found.'); return; }
+    const items = list
+      .filter(r => r && r.url)
+      .map(r => ({
+        url: r.url,
+        title: r.title,
+        dateAdded: typeof r.dateAdded === 'number' ? r.dateAdded : Date.now(),
+        seedCategories: Array.isArray(r.categories) ? r.categories : [],
+        origin: 'restore'
+      }));
+    await ingest(items);
+  }
+
+  // ---------- events ----------
+  function wireEvents() {
+    // Drop zone
+    els.dropzone.addEventListener('dragover', e => { e.preventDefault(); els.dropzone.classList.add('dragover'); });
+    els.dropzone.addEventListener('dragleave', () => els.dropzone.classList.remove('dragover'));
+    els.dropzone.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      els.dropzone.classList.remove('dragover');
+      const file = e.dataTransfer.files?.[0];
+      if (file && /\.html?$/i.test(file.name)) {
+        await handleDropFile(file);
+        return;
+      }
+      const urls = parseDropText(e.dataTransfer);
+      if (urls.length) {
+        state.pendingDropUrls = uniq([...state.pendingDropUrls, ...urls]);
+        els.urlInput.value = state.pendingDropUrls.join('\n');
+        setStatus(`Captured ${state.pendingDropUrls.length} URL(s) from drop. Click Process to save.`);
+      } else {
+        setStatus('No URLs detected in drop.');
+      }
+    });
+
+    // Process textarea
+    els.processBtn.addEventListener('click', async () => {
+      const lines = els.urlInput.value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const extracted = extractUrlsFromText(els.urlInput.value);
+      const all = uniq([...state.pendingDropUrls, ...lines, ...extracted])
+        .map(normalizeUrl).filter(Boolean);
+      if (!all.length) { setStatus('No valid URLs found.'); return; }
+      await ingest(all.map(u => ({ url: u, origin: 'paste' })));
+      state.pendingDropUrls = [];
+      els.urlInput.value = '';
+    });
+
+    // Import bookmarks
+    els.importBtn.addEventListener('click', () => els.bookmarksFile.click());
+    els.bookmarksFile.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      await handleDropFile(file);
+      e.target.value = '';
+    });
+    els.clearImportRangeBtn.addEventListener('click', () => {
+      els.importDateFrom.value = '';
+      els.importDateTo.value = '';
+    });
+
+    // Import dialog
+    els.folderFilter.addEventListener('input', () => renderFolderList(els.folderFilter.value));
+    els.cancelImportBtn.addEventListener('click', () => {
+      els.importDialog.close();
+      importStaging = null;
+      setStatus('Import cancelled.');
+    });
+    els.confirmImportBtn.addEventListener('click', runImport);
+
+    // Sample + clear input
+    els.sampleBtn.addEventListener('click', () => {
+      els.urlInput.value = [
+        'https://github.com/',
+        'https://en.wikipedia.org/wiki/Bookmark_(digital)',
+        'https://arxiv.org/abs/1706.03762'
+      ].join('\n');
+      setStatus('Loaded sample URLs. Click Process.');
+    });
+    els.clearInputBtn.addEventListener('click', () => {
+      els.urlInput.value = '';
+      state.pendingDropUrls = [];
+      setStatus('Input cleared.');
+    });
+
+    // Filters
+    els.searchInput.addEventListener('input', () => { state.filters.text = els.searchInput.value; render(); });
+    els.sourceFilter.addEventListener('change', () => { state.filters.source = els.sourceFilter.value; render(); });
+    els.dateFrom.addEventListener('change', () => { state.filters.dateFrom = els.dateFrom.value; render(); });
+    els.dateTo.addEventListener('change', () => { state.filters.dateTo = els.dateTo.value; render(); });
+    els.categoryFilters.addEventListener('click', (e) => {
+      const chip = e.target.closest('.filter-chip');
+      if (!chip) return;
+      const cat = chip.dataset.cat;
+      if (state.filters.categories.has(cat)) state.filters.categories.delete(cat);
+      else state.filters.categories.add(cat);
+      render();
+    });
+    els.clearFiltersBtn.addEventListener('click', () => {
+      state.filters = { text: '', source: '', categories: new Set(), dateFrom: '', dateTo: '' };
+      els.searchInput.value = ''; els.sourceFilter.value = '';
+      els.dateFrom.value = ''; els.dateTo.value = '';
+      render();
+    });
+
+    // Sort
+    els.thead.forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.sort;
+        if (state.sort.column === col) {
+          state.sort.dir = state.sort.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+          state.sort.column = col;
+          state.sort.dir = (col === 'dateAdded' || /^ai[1-3]$/.test(col)) ? 'desc' : 'asc';
+        }
+        render();
+      });
+    });
+
+    // Table row actions (event delegation)
+    els.resultsBody.addEventListener('click', (e) => {
+      const tr = e.target.closest('tr[data-id]');
+      if (!tr) return;
+      const id = tr.dataset.id;
+      const deleteBtn = e.target.closest('button[data-action="delete"]');
+      if (deleteBtn) { deleteRow(id); return; }
+      const classifyRowBtn = e.target.closest('button[data-action="classify"]');
+      if (classifyRowBtn) { classifyRow(id); return; }
+      const cell = e.target.closest('.cell-editable');
+      if (cell) { editField(id, cell.dataset.field); return; }
+    });
+
+    // Export
+    els.exportCsvBtn.addEventListener('click', exportCsv);
+
+    // Settings dialog
+    els.settingsBtn.addEventListener('click', () => {
+      els.oembedToggle.checked = !!state.settings.oembedEnabled;
+      els.aiToggle.checked = !!state.settings.aiEnabled;
+      els.aiGatewayInput.value = state.settings.aiGatewayUrl || '';
+      $('aiProviderLabel').textContent = state.settings.aiProvider;
+      $('aiModelLabel').textContent = state.settings.aiModel;
+      renderCategoryCount();
+      els.settingsDialog.showModal();
+    });
+    els.closeSettingsBtn.addEventListener('click', () => els.settingsDialog.close());
+    els.oembedToggle.addEventListener('change', () => {
+      state.settings.oembedEnabled = els.oembedToggle.checked;
+      saveSettings(state.settings);
+    });
+
+    // AI categorization settings
+    els.aiToggle.addEventListener('change', () => {
+      state.settings.aiEnabled = els.aiToggle.checked;
+      saveSettings(state.settings);
+      render(); // show/hide the Classify button
+    });
+    els.aiGatewayInput.addEventListener('change', () => {
+      state.settings.aiGatewayUrl = els.aiGatewayInput.value.trim();
+      saveSettings(state.settings);
+    });
+    els.importCategoriesBtn.addEventListener('click', () => els.categoriesFile.click());
+    els.categoriesFile.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const cats = parseCategoriesCsv(await file.text());
+        if (!cats.length) { setStatus('No categories found in that CSV.'); }
+        else {
+          state.settings.aiCategories = cats;
+          saveSettings(state.settings);
+          renderCategoryCount();
+          render();
+          setStatus(`Loaded ${cats.length} established categor${cats.length === 1 ? 'y' : 'ies'}.`);
+        }
+      } catch (err) {
+        setStatus('Could not read categories CSV: ' + err.message);
+      }
+      e.target.value = '';
+    });
+    els.clearCategoriesBtn.addEventListener('click', () => {
+      state.settings.aiCategories = [];
+      saveSettings(state.settings);
+      renderCategoryCount();
+      render();
+      setStatus('Cleared established categories.');
+    });
+    els.classifyBtn.addEventListener('click', runAiClassification);
+    els.backupBtn.addEventListener('click', exportJsonBackup);
+    els.restoreBtn.addEventListener('click', () => els.restoreFile.click());
+    els.restoreFile.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      await restoreJsonBackup(file);
+      e.target.value = '';
+    });
+    els.wipeBtn.addEventListener('click', async () => {
+      if (!confirm('Delete every bookmark in this database? This cannot be undone.')) return;
+      await db.clear();
+      state.bookmarks.clear();
+      render();
+      setStatus('Database wiped.');
+    });
+  }
+
+  // ---------- boot ----------
+  async function boot() {
+    wireEvents();
+    try {
+      const all = await db.getAll();
+      for (const r of all) state.bookmarks.set(r.id, r);
+      setStatus(`Loaded ${all.length} bookmark${all.length === 1 ? '' : 's'}.`);
+    } catch (err) {
+      console.error('boot error', err);
+      setStatus('Could not open database: ' + err.message);
+    }
+    render();
+  }
+
+  boot();
+  </script>
+</body>
+</html>
