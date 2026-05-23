@@ -125,6 +125,8 @@
     .ai-cell .ai-name { display: block; }
     .ai-cell .ai-score { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
     .ai-empty { color: #c7ccd6; }
+    .proposed-cell .ai-name { margin-bottom: 3px; }
+    .proposed-cell .ai-name:last-child { margin-bottom: 0; }
     .favicon {
       display: inline-block;
       width: 16px;
@@ -292,6 +294,7 @@
                 <th data-sort="ai1" title="Highest-confidence AI category">AI #1 <span class="arrow">↕</span></th>
                 <th data-sort="ai2" title="Second AI category">AI #2 <span class="arrow">↕</span></th>
                 <th data-sort="ai3" title="Third AI category">AI #3 <span class="arrow">↕</span></th>
+                <th title="Open-ended categories the model proposes when nothing in your list matched">Proposed categories</th>
                 <th data-sort="source">Source <span class="arrow">↕</span></th>
                 <th data-sort="dateAdded">Date Added <span class="arrow">↕</span></th>
                 <th>Note</th>
@@ -299,7 +302,7 @@
               </tr>
             </thead>
             <tbody id="resultsBody">
-              <tr><td colspan="10" class="muted">No rows yet.</td></tr>
+              <tr><td colspan="11" class="muted">No rows yet.</td></tr>
             </tbody>
           </table>
         </div>
@@ -643,10 +646,65 @@
     return ranked.slice(0, AI_TOP_N);
   }
 
+  // Open-ended fallback: when nothing in the established list fits, ask the
+  // model to propose its own categories (not constrained to the imported list).
+  function buildProposePrompt(rec) {
+    const folders = (rec.folderCategories || []).join(', ');
+    return [
+      'Suggest the 3 most fitting topic categories for this web bookmark.',
+      'You are NOT limited to any predefined list — propose concise, general category names (1-3 words each).',
+      'Return ONLY a JSON array (no prose, no code fence) of exactly 3 objects: ' +
+        '[{"category":"<name>","confidence":<0-100>}], sorted by confidence descending.',
+      '',
+      'BOOKMARK:',
+      'title: ' + (rec.title || ''),
+      'url: ' + (rec.url || ''),
+      'source: ' + (rec.source || ''),
+      'folders: ' + folders,
+      'note: ' + (rec.note || '')
+    ].join('\n');
+  }
+
+  // Like parseClassifyResponse but without an allow-list — the model is free to
+  // invent category names here, so we accept any non-empty string.
+  function parseProposeResponse(text) {
+    if (!text) return [];
+    let s = text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    const start = s.indexOf('[');
+    const end = s.lastIndexOf(']');
+    if (start === -1 || end === -1 || end < start) return [];
+    let arr;
+    try { arr = JSON.parse(s.slice(start, end + 1)); } catch { return []; }
+    if (!Array.isArray(arr)) return [];
+    const seen = new Set();
+    const out = [];
+    for (const item of arr) {
+      if (!item || typeof item.category !== 'string') continue;
+      const name = item.category.trim();
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (seen.has(key)) continue;
+      let score = Number(item.confidence);
+      if (!Number.isFinite(score)) score = 0;
+      score = Math.max(0, Math.min(100, Math.round(score)));
+      seen.add(key);
+      out.push({ category: name, score });
+    }
+    out.sort((a, b) => b.score - a.score);
+    return out.slice(0, AI_TOP_N);
+  }
+
+  // Returns { matched, proposed }: matched against the imported list, and — only
+  // when nothing matched — a second open-ended call for proposed categories.
   async function classifyBookmark(rec, categories) {
-    const prompt = buildClassifyPrompt(rec, categories);
-    const reply = await gatewayChat(prompt);
-    return parseClassifyResponse(reply, categories);
+    const reply = await gatewayChat(buildClassifyPrompt(rec, categories));
+    const matched = parseClassifyResponse(reply, categories);
+    let proposed = [];
+    if (!matched.length) {
+      const reply2 = await gatewayChat(buildProposePrompt(rec));
+      proposed = parseProposeResponse(reply2);
+    }
+    return { matched, proposed };
   }
 
   // Classify a single bookmark (per-row "AI" button). The click is the consent,
@@ -661,15 +719,18 @@
 
     setStatus(`Classifying "${rec.title}"…`);
     try {
-      const ranked = await classifyBookmark(rec, categories);
-      rec.aiCategories = ranked;
+      const { matched, proposed } = await classifyBookmark(rec, categories);
+      rec.aiCategories = matched;
+      rec.aiProposed = proposed;
       rec.aiClassifiedAt = Date.now();
       await db.put(rec);
       state.bookmarks.set(rec.id, rec);
       render();
-      setStatus(ranked.length
-        ? `Classified "${rec.title}" — top: ${ranked[0].category} (${ranked[0].score}%).`
-        : `Classified "${rec.title}" — no category matched.`);
+      let msg;
+      if (matched.length) msg = `top: ${matched[0].category} (${matched[0].score}%)`;
+      else if (proposed.length) msg = `no list match — proposed: ${proposed[0].category} (${proposed[0].score}%)`;
+      else msg = 'no category matched';
+      setStatus(`Classified "${rec.title}" — ${msg}.`);
     } catch (err) {
       console.warn('classify row error', rec.url, err);
       setStatus(`AI classification failed: ${err.message}. Gateway: ${state.settings.aiGatewayUrl}`);
@@ -699,8 +760,9 @@
       if (!rec) continue;
       setStatus(`Classifying ${i + 1} of ${view.length}…`);
       try {
-        const ranked = await classifyBookmark(rec, categories);
-        rec.aiCategories = ranked;
+        const { matched, proposed } = await classifyBookmark(rec, categories);
+        rec.aiCategories = matched;
+        rec.aiProposed = proposed;
         rec.aiClassifiedAt = Date.now();
         await db.put(rec);
         state.bookmarks.set(rec.id, rec);
@@ -929,7 +991,8 @@
       dateAdded: Number.isFinite(dateAdded) ? dateAdded : Date.now(),
       lastModified: Number.isFinite(lastModified) ? lastModified : null,
       note: '',
-      aiCategories: [],   // [{ category, score }] — populated by "Classify with AI"
+      aiCategories: [],   // [{ category, score }] — matched against the imported list
+      aiProposed: [],     // [{ category, score }] — open-ended fallback when nothing matched
       aiClassifiedAt: null,
       metadataMode
     };
@@ -1346,7 +1409,7 @@
       state.processing || view.length === 0 || !(state.settings.aiCategories || []).length;
 
     if (!view.length) {
-      els.resultsBody.innerHTML = `<tr><td colspan="10" class="muted">No rows match.</td></tr>`;
+      els.resultsBody.innerHTML = `<tr><td colspan="11" class="muted">No rows match.</td></tr>`;
       return;
     }
 
@@ -1355,6 +1418,16 @@
       if (!hit) return `<td class="ai-cell"><span class="ai-empty">—</span></td>`;
       return `<td class="ai-cell"><span class="ai-name">${escapeHtml(hit.category)}</span>` +
         `<span class="ai-score">${escapeHtml(String(hit.score))}%</span></td>`;
+    };
+
+    // Proposed categories: up to three, stacked vertically, each "Name NN%".
+    const proposedCell = (r) => {
+      const list = r.aiProposed || [];
+      if (!list.length) return `<td class="ai-cell"><span class="ai-empty">—</span></td>`;
+      return `<td class="ai-cell proposed-cell">` + list.map(p =>
+        `<span class="ai-name">${escapeHtml(p.category)} ` +
+        `<span class="ai-score">${escapeHtml(String(p.score))}%</span></span>`
+      ).join('') + `</td>`;
     };
 
     els.resultsBody.innerHTML = view.map(r => {
@@ -1367,7 +1440,7 @@
         <td class="cell-editable title-cell" data-field="title">${iconHtml}${escapeHtml(r.title)}</td>
         <td class="col-url"><a href="${escapeHtml(r.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.url)}</a></td>
         <td class="cell-editable" data-field="categories">${chips}</td>
-        ${aiCell(r, 0)}${aiCell(r, 1)}${aiCell(r, 2)}
+        ${aiCell(r, 0)}${aiCell(r, 1)}${aiCell(r, 2)}${proposedCell(r)}
         <td>${escapeHtml(r.source)}</td>
         <td>${escapeHtml(dateStr)}</td>
         <td class="cell-editable" data-field="note">${escapeHtml(r.note)}</td>
@@ -1439,16 +1512,17 @@
   function exportCsv() {
     const rows = currentView();
     if (!rows.length) return;
-    const header = ['Title', 'URL', 'Categories', 'AI Category 1', 'AI Category 2', 'AI Category 3', 'Source', 'Date Added', 'Note'];
+    const header = ['Title', 'URL', 'Categories', 'AI Category 1', 'AI Category 2', 'AI Category 3', 'Proposed Categories', 'Source', 'Date Added', 'Note'];
     const lines = [header.map(toCsvCell).join(',')];
     const aiText = (r, n) => {
       const hit = (r.aiCategories || [])[n];
       return hit ? `${hit.category} (${hit.score}%)` : '';
     };
+    const proposedText = (r) => (r.aiProposed || []).map(p => `${p.category} (${p.score}%)`).join('; ');
     for (const r of rows) {
       lines.push([
         r.title, r.url, r.categories.join('; '),
-        aiText(r, 0), aiText(r, 1), aiText(r, 2),
+        aiText(r, 0), aiText(r, 1), aiText(r, 2), proposedText(r),
         r.source, new Date(r.dateAdded).toISOString(), r.note
       ].map(toCsvCell).join(','));
     }
