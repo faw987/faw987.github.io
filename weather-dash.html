@@ -1,0 +1,1956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Weather v5.0 — Daily → Hourly drilldown</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        :root { --bg:#0b1020; --panel:#11172b; --muted:#b9c0cf; --text:#d9dde6; --accent:#6ea8fe; --err:#ff6b6b; --shadow:0 10px 24px rgba(0,0,0,.35); }
+        body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial, "Noto Sans", sans-serif; color:var(--text);
+            background: radial-gradient(1250px 800px at 20% -10%, #1a2340, #0b1020 60%); }
+        .wrap { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { display:grid; gap:8px; margin-bottom:14px; }
+        h1 { margin:0; font-size: clamp(22px, 2.8vw, 32px); }
+        .sub { color: var(--muted); }
+        .panel { background:#11172b; border:1px solid #1c2a4d; border-radius:16px; box-shadow: var(--shadow); padding:14px; }
+        .controls { display:grid; gap:10px; }
+        .row { display:grid; gap:10px; grid-template-columns: 1fr 1fr; }
+        .row4 { display:grid; gap:10px; grid-template-columns: 1fr 1fr 1fr 1fr; }
+        @media (max-width: 900px){ .row, .row4 { grid-template-columns: 1fr; } }
+        label { font-weight:600; font-size:14px; color:var(--muted); }
+        input[type="text"], input[type="number"], input[type="file"], textarea {
+            width:100%; box-sizing:border-box; padding:10px 12px; border-radius:10px;
+            border:1px solid #2a3a6a; background:#0b142c; color:var(--text); font-family:inherit;
+        }
+        textarea { resize:vertical; min-height:96px; }
+        .btn { border:1px solid #2a3a6a; color:var(--text); background:#0b142c; padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:600; }
+        .btn:hover { background:#12214a; border-color:#3b57a3; }
+        .dropzone { border:2px dashed #2a3a6a; border-radius:16px; padding:14px; text-align:center; color:var(--muted); cursor:pointer; }
+        .dropzone:hover { border-color:#3b57a3; background: rgba(64,105,215,0.06); }
+        .dropzone.dragover { background: rgba(64,105,215,0.12); border-color:#6ea8fe; color: var(--text); }
+        .btn-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        .btn-row label { margin-right:4px; }
+        .grid { display:grid; grid-template-columns: 1fr; gap:16px; margin-top:16px; }
+        .card { background:#11172b; border:1px solid #1b2647; border-radius:16px; padding:10px; box-shadow: var(--shadow); position: relative; }
+        .card h3 { margin:6px 8px 0; font-size:16px; font-weight:700; color:var(--text); }
+        .meta { color: var(--muted); font-size:12px; margin: 0 8px 6px; }
+        .bad { color: var(--err); }
+        .close-btn { position:absolute; top:8px; right:8px; background:#0b142c; border:1px solid #2a3a6a; color:#e8ecf3;
+            border-radius:10px; padding:4px 8px; cursor:pointer; font-size:12px; }
+        .close-btn:hover { background:#12214a; border-color:#3b57a3; }
+
+        table.wx { width:100%; border-collapse: collapse; color:#d3d6de; }
+        table.wx th, table.wx td { border-bottom:1px solid #25345f; padding:8px 10px; text-align:left; }
+        table.wx thead th { position: sticky; top: 0; background:#121a33; z-index:1; color:#cfd5e4; }
+        table.wx tbody tr:hover { background: rgba(64,105,215,0.08); }
+        table.wx td[style*="background"] { color:#111; font-weight:600; } /* Dark + bold text when tinted */
+        .date-cell { cursor:pointer; }
+
+        .hourly-wrap { margin-top:10px; border:1px dashed #2a3a6a; border-radius:12px; padding:8px; }
+        .hourly-title { display:flex; align-items:center; gap:8px; margin: 0 4px 6px; color:#cfd5e4; font-weight:700; }
+        .hourly-close { margin-left:auto; font-size:12px; border:1px solid #2a3a6a; background:#0b142c; color:#e8ecf3; border-radius:10px; padding:2px 8px; cursor:pointer; }
+        .hourly-close:hover { background:#12214a; border-color:#3b57a3; }
+
+        #map { height: 360px; border-radius: 14px; border:1px solid #1c2a4d; box-shadow: var(--shadow); }
+        .spark { display:inline-flex; gap:2px; padding:2px; background:#0b142c; border:1px solid #2a3a6a; border-radius:6px; }
+        .spark .d { width:10px; height:10px; border-radius:2px; cursor:pointer; }
+        .leaflet-div-icon { background: transparent; border: none; }
+        .marker-title { font-size: 11px; color:#e8ecf3; background:#0b142c; border:1px solid #2a3a6a; padding:2px 4px; border-radius:4px; margin-bottom:2px; display:inline-block; }
+        .marker-wrap { display:flex; flex-direction:column; align-items:center; filter: drop-shadow(0 1px 6px rgba(0,0,0,.45)); }
+
+        .hidden-grid { display: none !important; }
+        .color-config { display:grid; gap:12px; }
+        .color-scale { position:relative; background:#0b142c; border:1px solid #23345f; border-radius:12px; padding:10px; }
+        .color-scale-head { display:flex; justify-content:space-between; gap:10px; align-items:baseline; margin-bottom:8px; }
+        .color-scale-head strong { font-size:14px; }
+        .color-scale-head span { color:var(--muted); font-size:12px; }
+        .color-scale-bar { position:relative; height:22px; border-radius:999px; overflow:hidden; background:#162241; border:1px solid #2a3a6a; }
+        .color-scale-segment { position:absolute; top:0; bottom:0; min-width:2px; cursor:pointer; }
+        .color-scale-divider { position:absolute; top:-4px; bottom:-4px; width:14px; transform:translateX(-50%); cursor:ew-resize; z-index:2; touch-action:none; }
+        .color-scale-divider::before { content:""; position:absolute; top:0; bottom:0; left:50%; width:2px; transform:translateX(-50%); background:rgba(255,255,255,0.85); box-shadow:0 0 0 1px rgba(11,20,44,0.85); }
+        .color-scale-divider::after { content:""; position:absolute; left:50%; top:50%; width:8px; height:8px; transform:translate(-50%,-50%); border-radius:999px; background:#fff; box-shadow:0 0 0 2px #0b142c; }
+        .color-scale-axis { display:flex; justify-content:space-between; gap:8px; margin-top:6px; color:var(--muted); font-size:11px; }
+        .color-scale-legend { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+        .color-chip { display:inline-flex; align-items:center; gap:6px; padding:3px 7px; border-radius:999px; background:#111a35; border:1px solid #25345f; color:#d8dde9; font-size:11px; }
+        .color-chip-swatch { width:10px; height:10px; border-radius:999px; border:1px solid rgba(255,255,255,0.22); flex:0 0 auto; }
+        .color-palette { position:absolute; right:10px; top:calc(100% + 8px); z-index:8; width:152px; padding:10px; border-radius:12px; background:#0b142c; border:1px solid #2a3a6a; box-shadow:0 10px 24px rgba(0,0,0,.35); }
+        .color-palette-title { margin:0 0 8px; color:var(--muted); font-size:11px; }
+        .color-palette-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
+        .color-palette-swatch { width:100%; aspect-ratio:1 / 1; border:none; border-radius:8px; cursor:pointer; box-shadow:inset 0 0 0 1px rgba(255,255,255,.25); }
+        .color-palette-swatch.active { box-shadow:inset 0 0 0 2px #fff, 0 0 0 1px #0b142c; }
+        .hidden-panel { display:none !important; }
+
+        /* Hamburger menu */
+        .hamburger-btn { background:none; border:1px solid #2a3a6a; color:var(--text); font-size:22px; line-height:1;
+            padding:4px 10px; border-radius:10px; cursor:pointer; }
+        .hamburger-btn:hover { background:#12214a; border-color:#3b57a3; }
+        .header-row { display:flex; align-items:center; gap:12px; }
+        .hamburger-wrap { position:relative; }
+        .hamburger-menu { display:none; position:absolute; top:100%; left:0; margin-top:6px; z-index:20;
+            background:#11172b; border:1px solid #2a3a6a; border-radius:12px; box-shadow:var(--shadow);
+            min-width:180px; padding:6px 0; }
+        .hamburger-menu.open { display:block; }
+        .hamburger-item { display:block; width:100%; text-align:left; background:none; border:none; color:var(--text);
+            padding:10px 16px; cursor:pointer; font-size:14px; font-weight:600; font-family:inherit; }
+        .hamburger-item:hover { background:rgba(64,105,215,0.12); }
+
+        /* Modeless config panel */
+        .config-panel { display:none; position:fixed; top:60px; right:24px; z-index:50;
+            width:420px; max-width:calc(100vw - 48px); max-height:calc(100vh - 80px);
+            background:#11172b; border:1px solid #2a3a6a; border-radius:16px; box-shadow:0 12px 40px rgba(0,0,0,.55);
+            overflow-y:auto; }
+        .config-panel.open { display:block; }
+        .config-panel-header { display:flex; align-items:center; justify-content:space-between;
+            padding:14px 16px 10px; border-bottom:1px solid #1c2a4d; position:sticky; top:0; background:#11172b;
+            border-radius:16px 16px 0 0; z-index:1; }
+        .config-panel-header h2 { margin:0; font-size:16px; }
+        .config-panel-close { background:#0b142c; border:1px solid #2a3a6a; color:#e8ecf3;
+            border-radius:10px; padding:4px 10px; cursor:pointer; font-size:14px; }
+        .config-panel-close:hover { background:#12214a; border-color:#3b57a3; }
+        .config-panel-body { padding:14px 16px 18px; display:grid; gap:14px; }
+        .config-panel-body .row4 { display:grid; gap:10px; grid-template-columns:1fr 1fr; }
+        .config-panel-body .row2 { display:grid; gap:10px; grid-template-columns:1fr 1fr 1fr; }
+        .config-panel-section { font-weight:700; font-size:13px; color:var(--accent); text-transform:uppercase;
+            letter-spacing:.5px; margin-top:4px; }
+        /* Gear shortcut button */
+        .gear-btn { background:none; border:1px solid #2a3a6a; color:var(--muted); font-size:18px; line-height:1;
+            padding:4px 8px; border-radius:10px; cursor:pointer; margin-left:auto; }
+        .gear-btn:hover { background:#12214a; border-color:#3b57a3; color:var(--text); }
+        /* Calendar indicator in hourly table */
+        .cal-indicator { display:inline-block; margin-left:6px; cursor:default; position:relative; font-size:13px; vertical-align:middle; }
+        .cal-tooltip { display:none; position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%);
+            z-index:30; min-width:200px; max-width:300px; padding:10px 12px; border-radius:10px;
+            background:#1a2548; border:1px solid #3b57a3; box-shadow:0 6px 20px rgba(0,0,0,.45);
+            color:var(--text); font-size:12px; line-height:1.5; white-space:normal; pointer-events:none; }
+        .cal-tooltip::after { content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%);
+            border:6px solid transparent; border-top-color:#3b57a3; }
+        .cal-indicator:hover .cal-tooltip { display:block; }
+        .cal-event-line { margin-bottom:4px; }
+        .cal-event-line:last-child { margin-bottom:0; }
+        .cal-event-title { font-weight:700; color:var(--accent); }
+        .cal-event-time { color:var(--muted); font-size:11px; }
+        .cal-status { font-size:12px; color:var(--muted); margin-top:4px; }
+        .cal-status.ok { color:lightgreen; }
+        .cal-status.err { color:var(--err); }
+        /* Make config panel draggable */
+        .config-panel-header { cursor:move; }
+
+        /* Presentation radio group */
+        .radio-group { display:flex; gap:18px; align-items:center; }
+        .radio-group label { display:flex; align-items:center; gap:6px; font-weight:600; color:var(--text); cursor:pointer; }
+        .radio-group input[type="radio"] { accent-color: var(--accent); width:auto; }
+
+        /* Giant (V5.0) aggregate table */
+        .giant-wrap { overflow-x:auto; border-radius:14px; }
+        table.wx.giant { min-width:100%; }
+        table.wx.giant th.dt-cell, table.wx.giant td.dt-cell {
+            position:sticky; left:0; background:#121a33; z-index:1; white-space:nowrap; font-weight:600; color:#cfd5e4;
+        }
+        table.wx.giant thead th.dt-cell { z-index:3; vertical-align:bottom; }
+        /* Half-inch place columns with 45°-angled headers */
+        table.wx.giant td.agg-cell {
+            width:0.5in; min-width:0.5in; max-width:0.5in;
+            cursor:pointer; text-align:center; padding:6px 2px;
+        }
+        table.wx.giant td.agg-cell:hover { outline:2px solid var(--accent); outline-offset:-2px; }
+        table.wx.giant thead th.place-col {
+            width:0.5in; min-width:0.5in; max-width:0.5in;
+            height:118px; padding:0; vertical-align:bottom;
+            background:#121a33; z-index:2;
+        }
+        table.wx.giant thead th.place-col .rot {
+            width:0.5in;
+            transform-origin:bottom left;
+            transform:translateX(calc(0.25in + 1px)) rotate(-45deg);
+        }
+        table.wx.giant thead th.place-col .rot span {
+            display:inline-block; white-space:nowrap;
+            padding:0 8px 3px 0; color:#cfd5e4; font-weight:700;
+            border-bottom:1px solid #3b57a3;
+        }
+
+        /* Hour-detail popup (V5.0) */
+        .hd-overlay { position:fixed; inset:0; z-index:120; background:rgba(4,8,20,0.62);
+            display:flex; align-items:center; justify-content:center; padding:20px; }
+        .hd-modal { width:340px; max-width:calc(100vw - 40px); max-height:calc(100vh - 80px); overflow-y:auto;
+            background:#11172b; border:1px solid #2a3a6a; border-radius:16px; box-shadow:0 12px 40px rgba(0,0,0,.6); }
+        .hd-header { display:flex; align-items:center; justify-content:space-between; gap:10px;
+            padding:14px 16px 8px; border-bottom:1px solid #1c2a4d; }
+        .hd-header strong { font-size:15px; }
+        .hd-close { background:#0b142c; border:1px solid #2a3a6a; color:#e8ecf3; border-radius:10px;
+            padding:4px 10px; cursor:pointer; font-size:14px; }
+        .hd-close:hover { background:#12214a; border-color:#3b57a3; }
+        .hd-sub { padding:8px 16px 0; color:var(--muted); font-size:13px; }
+        .hd-body { padding:12px 16px 16px; }
+        .hd-body table.wx th, .hd-body table.wx td { padding:6px 10px; }
+        .hd-wx-btn { margin-top:14px; width:100%; }
+    </style>
+</head>
+
+<body>
+
+<!-- Modeless configuration panel (top-level, outside .wrap) -->
+<div id="configPanel" class="config-panel">
+    <div class="config-panel-header" id="configPanelHeader">
+        <h2>Configuration</h2>
+        <button id="configPanelClose" class="config-panel-close" type="button">Close</button>
+    </div>
+    <div class="config-panel-body">
+        <div class="config-panel-section">Presentation</div>
+        <div class="radio-group">
+            <label><input type="radio" name="presentation" value="legacy" /> Legacy</label>
+            <label><input type="radio" name="presentation" value="new" checked /> New</label>
+        </div>
+        <div class="sub"><strong>Legacy</strong>: one card per location with a daily table you can drill into hourly. <strong>New</strong>: a single grid — one row per hour of each day, one column per location, each cell colored by its aggregate severity (click a cell for details).</div>
+        <div class="config-panel-section">Location defaults</div>
+        <div class="row4">
+            <div>
+                <label for="prefState">State/Province</label>
+                <input id="prefState" type="text" value="New Jersey" />
+            </div>
+            <div>
+                <label for="prefCountry">Country</label>
+                <input id="prefCountry" type="text" value="United States" />
+            </div>
+        </div>
+        <div class="config-panel-section">Time window</div>
+        <div class="row2">
+            <div>
+                <label for="startHour">Start hour</label>
+                <input id="startHour" type="number" min="0" max="23" step="1" value="8" />
+            </div>
+            <div>
+                <label for="endHour">End hour</label>
+                <input id="endHour" type="number" min="0" max="23" step="1" value="17" />
+            </div>
+            <div>
+                <label for="numDays"># Days</label>
+                <input id="numDays" type="number" min="1" max="14" step="1" value="7" />
+            </div>
+        </div>
+        <div class="config-panel-section">Calendar integration</div>
+        <div class="sub">Paste an Apple Calendar (iCal) subscription URL to show events alongside hourly weather. You can also drop <code>.ics</code> files onto the drop zone.</div>
+        <div>
+            <label for="calendarUrl">Apple Calendar URL</label>
+            <input id="calendarUrl" type="text" placeholder="webcal://p00-caldav.icloud.com/published/2/..." />
+        </div>
+        <div class="btn-row">
+            <button id="calendarLoadBtn" class="btn" type="button">Load URL</button>
+            <button id="calendarFileBtn" class="btn" type="button">Load .ics File</button>
+            <input id="calendarFileInput" type="file" accept=".ics,text/calendar" style="display:none" />
+            <span id="calendarStatus" class="cal-status"></span>
+        </div>
+
+        <div class="config-panel-section">Color scales</div>
+        <div class="sub">Built-in color directives are shown here. Add <code>color &lt;tag&gt;=...</code> lines in pasted or dropped config files to override a tag.</div>
+        <div id="colorConfigWrap">
+            <div id="colorConfig" class="color-config" aria-live="polite"></div>
+        </div>
+    </div>
+</div>
+
+<div class="wrap">
+    <header>
+        <div class="header-row">
+            <div class="hamburger-wrap">
+                <button id="hamburgerBtn" class="hamburger-btn" type="button" title="Menu" aria-label="Menu">&#9776;</button>
+                <div id="hamburgerMenu" class="hamburger-menu">
+                    <button id="menuConfigure" class="hamburger-item" type="button">Configure&hellip;</button>
+                </div>
+            </div>
+            <h1>Weather v5.0</h1>
+            <button id="configGearBtn" class="gear-btn" type="button" title="Open Configuration" aria-label="Open Configuration">&#9881;</button>
+        </div>
+        <p class="sub">Click a day to append an hourly table. Click an hour to open weather.com for that place/hour.</p>
+    </header>
+
+    <section class="panel controls">
+        <div class="btn-row">
+            <label><input id="showDecimals" type="checkbox" checked /> Decimals</label>
+            <label><input id="cityOnly" type="checkbox" checked /> City-only labels</label>
+            <label><input id="onlyIcons" type="checkbox" /> Icons only</label>
+            <button id="run" class="btn" type="button">Generate</button>
+            <button id="clearBtn" class="btn" type="button">Clear</button>
+            <button id="exportBtn" class="btn" type="button">Export</button>
+        </div>
+
+        <div id="drop" class="dropzone" tabindex="0" aria-label="Drop or click to load directive files">
+            <input id="file" type="file" accept=".txt,.csv,.ics,text/plain,text/calendar" multiple style="display:none" />
+            <strong>Drop file(s) here or click to browse</strong>
+            <div class="sub">Files may contain <code>place</code>, <code>color</code>, <code>hours</code>, <code>days</code>, <code>state</code>, <code>country</code>, <code>decimals</code>, <code>cityonly</code>, <code>onlyicons</code>, <code>colorscales</code>, <code>presentation</code>, and <code>add</code> directives. Lines starting with <code>#</code> are comments.</div>
+        </div>
+
+        <div>
+            <label for="paste">Directives</label>
+            <textarea id="paste" placeholder="place Piscataway, NJ
+place 40.728,-73.995,Greenwich Village
+hours 8 17
+days 7
+color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
+        </div>
+    </section>
+
+    <section style="margin:16px 0;">
+        <div id="map"></div>
+    </section>
+
+    <section class="grid" id="grid" aria-live="polite" aria-busy="false"></section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" defer></script>
+
+<script type="module">
+    function ready(fn){
+        if (document.readyState === "complete" || document.readyState === "interactive") setTimeout(fn, 0);
+        else document.addEventListener("DOMContentLoaded", fn);
+    }
+
+    ready(() => {
+        if (!window.L || typeof L.map !== "function") {
+            const msg = "Leaflet failed to load. Check network/extension blockers.";
+            console.error(msg);
+            alert(msg);
+            return;
+        }
+
+        // -------- Endpoints
+        const GEOCODE = "https://geocoding-api.open-meteo.com/v1/search";
+        const FORECAST = "https://api.open-meteo.com/v1/forecast";
+
+        // -------- WMO → text
+        const WMO = new Map(Object.entries({
+            0:"Clear",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",
+            45:"Fog",48:"Rime fog",
+            51:"Drizzle light",53:"Drizzle mod",55:"Drizzle heavy",
+            61:"Rain light",63:"Rain mod",65:"Rain heavy",
+            71:"Snow light",73:"Snow mod",75:"Snow heavy",
+            80:"Rain showers",81:"Rain shw mod",82:"Rain shw heavy",
+            95:"Thunderstorm",96:"Tstorm hail",99:"Tstorm heavy hail"
+        }));
+
+        // -------- DOM/helper
+        function el(tag, attrs={}, children=[]){
+            const e = document.createElement(tag);
+            for (const [k,v] of Object.entries(attrs)) {
+                if (k === "class") e.className = v;
+                else if (k === "text") e.textContent = v;
+                else e.setAttribute(k, v);
+            }
+            for (const c of (Array.isArray(children)?children:[children])) if (c) e.append(c);
+            return e;
+        }
+        function makeId(){
+            if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") return globalThis.crypto.randomUUID();
+            return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        }
+        function parseBoolish(value){
+            const s = (value || "").trim().toLowerCase();
+            if (["1","true","yes","on","show","shown"].includes(s)) return true;
+            if (["0","false","no","off","hide","hidden"].includes(s)) return false;
+            return null;
+        }
+        function parseLocalISODate(iso) { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m-1, d); }
+        function ymd(d){ return d.toISOString().slice(0,10); }
+        function addDays(iso, k){ const [y,m,d] = iso.split("-").map(Number); const dt=new Date(y,m-1,d); dt.setDate(dt.getDate()+k); return ymd(dt); }
+
+        // -------- Parse a place token (coords or comma form)
+        function parsePlaceLine(raw){
+            const s = raw.trim();
+            const mc = s.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*,\s*([+-]?\d+(?:\.\d+)?)\s*(?:,(.*))?$/);
+            if (mc) {
+                const lat = Number(mc[1]), lon = Number(mc[2]);
+                if (Number.isFinite(lat) && Number.isFinite(lon) && lat>=-90 && lat<=90 && lon>=-180 && lon<=180) {
+                    const desc = (mc[3]||"").trim();
+                    return { type:"coords", lat, lon, label: desc || (lat.toFixed(3)+","+lon.toFixed(3)) };
+                }
+            }
+            const partsRaw = s.split(",").map(t=>t.trim());
+            if (partsRaw.length >= 1 && partsRaw.length <= 3) {
+                const [pCity, pState, pCountry] = partsRaw;
+                return { type:"place", raw:s, city: pCity || "", state: pState || "", country: pCountry || "" };
+            }
+            return { type:"place", raw:s, city:s };
+        }
+
+        // -------- Norm helpers
+        const COUNTRY_ALIASES = new Map([
+            ["us","United States"], ["usa","United States"], ["u.s.","United States"], ["u.s.a.","United States"],
+            ["united states of america","United States"],
+            ["uk","United Kingdom"], ["u.k.","United Kingdom"],
+            ["uae","United Arab Emirates"]
+        ]);
+        const US_STATES = new Map(Object.entries({
+            "AL":"Alabama","AK":"Alaska","AZ":"Arizona","AR":"Arkansas","CA":"California","CO":"Colorado","CT":"Connecticut",
+            "DE":"Delaware","FL":"Florida","GA":"Georgia","HI":"Hawaii","ID":"Idaho","IL":"Illinois","IN":"Indiana","IA":"Iowa",
+            "KS":"Kansas","KY":"Kentucky","LA":"Louisiana","ME":"Maine","MD":"Maryland","MA":"Massachusetts","MI":"Michigan",
+            "MN":"Minnesota","MS":"Mississippi","MO":"Missouri","MT":"Montana","NE":"Nebraska","NV":"Nevada","NH":"New Hampshire",
+            "NJ":"New Jersey","NM":"New Mexico","NY":"New York","NC":"North Carolina","ND":"North Dakota","OH":"Ohio",
+            "OK":"Oklahoma","OR":"Oregon","PA":"Pennsylvania","RI":"Rhode Island","SC":"South Carolina","SD":"South Dakota",
+            "TN":"Tennessee","TX":"Texas","UT":"Utah","VT":"Vermont","VA":"Virginia","WA":"Washington","WV":"West Virginia",
+            "WI":"Wisconsin","WY":"Wyoming","DC":"District of Columbia"
+        }));
+        function normCountry(input){
+            if (!input) return input;
+            const key = input.trim().toLowerCase();
+            return COUNTRY_ALIASES.get(key) || (input.length <= 3 ? input.toUpperCase() : input);
+        }
+        function normUSState(input){
+            if (!input) return input;
+            const s = input.trim();
+            if (s.length <= 3) return US_STATES.get(s.toUpperCase()) || input;
+            return s.replace(/\b\w+/g, t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+        }
+        //
+        function chooseBestResult(results, prefs){
+            const wantCountry = (prefs.country || "").trim();
+            const wantAdmin1  = (prefs.admin1  || "").trim();
+            const wantAdmin1LC = wantAdmin1 ? wantAdmin1.toLowerCase() : null;
+
+            function score(r){
+                let s = 0;
+                if (wantCountry && r.country === prefs.country) s += 2;
+                if (wantAdmin1 && r.admin1 && r.admin1.toLowerCase().includes(wantAdmin1LC)) s += 1;
+                return { s, pop: r.population || 0 };
+            }
+
+            return results
+                .map(r => ({ r, ...score(r) }))
+                .sort((a,b) => (b.s - a.s) || (b.pop - a.pop))[0].r;
+        }
+        function cityFromLabel(label){ const i = label.indexOf(","); return i >= 0 ? label.slice(0, i) : label; }
+
+        // -------- Color rules
+        const COLOR_SCALE_ORDER = [
+            "High (°F)",
+            "Low (°F)",
+            "Temp (°F)",
+            "Precip (in)",
+            "UV",
+            "Wind (mph)",
+            "Gust (mph)",
+            "RH (%)"
+        ];
+        const DEFAULT_COLOR_DIRECTIVES = [
+            "color High (°F)=-99#50.999:blue,51#65.999:lightgreen,66#85.999:green,85#110:red",
+            "color Low (°F)=-99#40.999:red,41#65.999:pink,66#85:green",
+            "color Temp (°F)=-99#40.999:red,41#65.999:yellow,66#85:green",
+            "color Precip (in)=0.00#0.0999:green,0.10#0.1999:yellow,0.20#10.0:red",
+            "color UV=0#2.999:lightgreen,3#5.999:green,6#7.999:gold,8#11:red",
+            "color Wind (mph)=0#15.999:lightgreen,16#25.999:yellow,26#200:red",
+            "color Gust (mph)=0#15.999:lightgreen,16#25.999:yellow,26#200:red",
+            "color RH (%)=0#60.999:lightgreen,61#75.999:green,76#100:yellow"
+        ];
+        const COLOR_PALETTE = [
+            "blue", "deepskyblue", "slateblue", "plum",
+            "pink", "lightgreen", "green", "forestgreen",
+            "yellow", "khaki", "gold", "goldenrod",
+            "orange", "darkorange", "tomato", "red"
+        ];
+        function normalizeColorToken(c){
+            if (!c) return c;
+            if (c.startsWith("#") || /\b(?:rgb|hsl)a?\s*\(/i.test(c)) return c;
+            return c.replace(/\s+/g, "");
+        }
+        function normKey(s){ return (s||"").replace(/[^a-z0-9]+/gi, "").toLowerCase(); }
+        function parseRuleSpecs(specs){
+            const entries = [];
+            for (const chunk of (specs || "").split(",")) {
+                const part = chunk.trim(); if (!part) continue;
+                const m = part.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*#\s*([+-]?\d+(?:\.\d+)?)\s*:\s*([A-Za-z0-9#(),.\s-]+)\s*$/);
+                if (m) {
+                    const lo = Number(m[1]), hi = Number(m[2]); const color = normalizeColorToken(m[3].trim());
+                    if (Number.isFinite(lo) && Number.isFinite(hi)) { entries.push({ type:"range", lo, hi, color }); continue; }
+                }
+                const m2 = part.match(/^(.*?):\s*([A-Za-z0-9#(),.\s-]+)$/);
+                if (m2) {
+                    const txt = m2[1].trim().toLowerCase(); const color = normalizeColorToken(m2[2].trim());
+                    if (txt) entries.push({ type:"string", text: txt, color });
+                }
+            }
+            return entries;
+        }
+        function parseColorDirective(raw){
+            const line = (raw || "").trim();
+            if (!line) return null;
+            const eq = line.indexOf("=");
+            if (eq <= 0) return null;
+            const header = line.slice(0, eq).trim();
+            const specs = line.slice(eq + 1).trim();
+            const key = normKey(header);
+            const entries = parseRuleSpecs(specs);
+            if (!key || !entries.length) return null;
+            return { header, key, specs, entries };
+        }
+        function cloneRuleEntry(entry){
+            return entry.type === "range"
+                ? { type:"range", lo: entry.lo, hi: entry.hi, color: entry.color }
+                : { type:"string", text: entry.text, color: entry.color };
+        }
+        function cloneColorConfig(config){
+            const next = new Map();
+            for (const [key, value] of config.entries()) {
+                next.set(key, {
+                    header: value.header,
+                    key: value.key,
+                    specs: value.specs,
+                    entries: value.entries.map(cloneRuleEntry)
+                });
+            }
+            return next;
+        }
+        function createDefaultColorConfig(){
+            const config = new Map();
+            for (const line of DEFAULT_COLOR_DIRECTIVES) {
+                const parsed = parseColorDirective(line.replace(/^\s*color\s+/i, ""));
+                if (parsed) config.set(parsed.key, parsed);
+            }
+            return config;
+        }
+        function applyColorDirectiveOverrides(baseConfig, rawDirectives){
+            const next = cloneColorConfig(baseConfig);
+            for (const raw of rawDirectives || []) {
+                const parsed = parseColorDirective(raw);
+                if (parsed) next.set(parsed.key, parsed);
+            }
+            return next;
+        }
+        function buildRulesFromConfig(colorConfig){
+            const rules = new Map();
+            for (const [key, item] of colorConfig.entries()) {
+                rules.set(key, item.entries.map(cloneRuleEntry));
+            }
+            return rules;
+        }
+        function colorDirectiveString(rule){
+            const specs = rule.entries.map(entry => entry.type === "range"
+                ? `${formatScaleNumber(entry.lo)}#${formatScaleNumber(entry.hi)}:${entry.color}`
+                : `${entry.text}:${entry.color}`
+            ).join(",");
+            return `color ${rule.header}=${specs}`;
+        }
+        function specsFromEntries(entries){
+            return entries.map(entry => entry.type === "range"
+                ? `${formatScaleNumber(entry.lo)}#${formatScaleNumber(entry.hi)}:${entry.color}`
+                : `${entry.text}:${entry.color}`
+            ).join(",");
+        }
+        function orderedColorDirectiveStrings(colorConfig){
+            const lines = [];
+            const seen = new Set();
+            for (const header of COLOR_SCALE_ORDER) {
+                const key = normKey(header);
+                const item = colorConfig.get(key);
+                if (!item) continue;
+                seen.add(key);
+                lines.push(colorDirectiveString(item));
+            }
+            for (const [key, item] of colorConfig.entries()) {
+                if (seen.has(key)) continue;
+                lines.push(colorDirectiveString(item));
+            }
+            return lines;
+        }
+        function formatScaleNumber(n){
+            if (!Number.isFinite(n)) return "–";
+            if (Number.isInteger(n)) return String(n);
+            return n.toFixed(Math.abs(n) < 1 ? 3 : 1).replace(/\.?0+$/, "");
+        }
+        function adjustNumericRuleBoundary(rule, boundaryIndex, nextBoundary){
+            const clone = {
+                header: rule.header,
+                key: rule.key,
+                specs: rule.specs,
+                entries: rule.entries.map(cloneRuleEntry)
+            };
+            const numericIndices = [];
+            for (let i = 0; i < clone.entries.length; i++) {
+                if (clone.entries[i].type === "range") numericIndices.push(i);
+            }
+            const leftIdx = numericIndices[boundaryIndex];
+            const rightIdx = numericIndices[boundaryIndex + 1];
+            if (leftIdx == null || rightIdx == null) return clone;
+            const left = clone.entries[leftIdx];
+            const right = clone.entries[rightIdx];
+            const prevLo = left.lo;
+            const nextHi = right.hi;
+            const clamped = Math.max(prevLo, Math.min(nextHi, nextBoundary));
+            left.hi = clamped;
+            right.lo = clamped;
+            clone.specs = specsFromEntries(clone.entries);
+            return clone;
+        }
+        function updateRuleEntryColor(rule, entryIndex, nextColor){
+            const clone = {
+                header: rule.header,
+                key: rule.key,
+                specs: rule.specs,
+                entries: rule.entries.map(cloneRuleEntry)
+            };
+            if (!clone.entries[entryIndex]) return clone;
+            clone.entries[entryIndex].color = nextColor;
+            clone.specs = specsFromEntries(clone.entries);
+            return clone;
+        }
+        function replaceColorRule(colorConfig, nextRule){
+            const next = cloneColorConfig(colorConfig);
+            next.set(nextRule.key, nextRule);
+            return next;
+        }
+        function buildColorScale(rule, colorConfig, paletteState, onPaletteOpen, onPaletteClose, onRuleChange, onRuleCommit){
+            const numericEntries = rule.entries
+                .map((entry, index) => ({ ...entry, _idx:index }))
+                .filter(entry => entry.type === "range")
+                .slice()
+                .sort((a, b) => (a.lo - b.lo) || (a.hi - b.hi));
+            const card = el("section", { class:"color-scale" });
+            if (!numericEntries.length) {
+                card.append(
+                    el("div", { class:"color-scale-head" }, [
+                        el("strong", { text: rule.header }),
+                        el("span", { text:"No numeric bands" })
+                    ])
+                );
+                return card;
+            }
+
+            const min = Math.min(...numericEntries.map(entry => entry.lo));
+            const max = Math.max(...numericEntries.map(entry => entry.hi));
+            const span = max - min || 1;
+            const bar = el("div", { class:"color-scale-bar" });
+            for (const entry of numericEntries) {
+                const left = ((entry.lo - min) / span) * 100;
+                const width = Math.max(((entry.hi - entry.lo) / span) * 100, 0.75);
+                const segment = el("div", {
+                    class:"color-scale-segment",
+                    title:`${formatScaleNumber(entry.lo)} to ${formatScaleNumber(entry.hi)}: ${entry.color}. Click to change color.`,
+                    style:`left:${left}%;width:${width}%;background:${entry.color};`
+                });
+                segment.addEventListener("click", (evt) => {
+                    evt.stopPropagation();
+                    onPaletteOpen(rule.key, entry._idx);
+                });
+                bar.append(segment);
+            }
+            for (let i = 0; i < numericEntries.length - 1; i++) {
+                const dividerValue = numericEntries[i].hi;
+                const left = ((dividerValue - min) / span) * 100;
+                const divider = el("div", {
+                    class:"color-scale-divider",
+                    title:`Drag to adjust boundary between band ${i + 1} and ${i + 2}`,
+                    style:`left:${left}%;`
+                });
+                divider.addEventListener("pointerdown", (evt) => {
+                    evt.preventDefault();
+                    divider.setPointerCapture?.(evt.pointerId);
+                    const rect = bar.getBoundingClientRect();
+                    const move = (pointerEvt) => {
+                        const ratio = rect.width ? (pointerEvt.clientX - rect.left) / rect.width : 0;
+                        const rawValue = min + Math.max(0, Math.min(1, ratio)) * span;
+                        const nextRule = adjustNumericRuleBoundary(rule, i, Number(rawValue.toFixed(3)));
+                        onRuleChange(replaceColorRule(colorConfig, nextRule));
+                    };
+                    move(evt);
+                    const stop = () => {
+                        window.removeEventListener("pointermove", move);
+                        window.removeEventListener("pointerup", stop);
+                        window.removeEventListener("pointercancel", stop);
+                        if (typeof onRuleCommit === "function") onRuleCommit();
+                    };
+                    window.addEventListener("pointermove", move);
+                    window.addEventListener("pointerup", stop);
+                    window.addEventListener("pointercancel", stop);
+                });
+                bar.append(divider);
+            }
+
+            const legend = el("div", { class:"color-scale-legend" });
+            for (const entry of numericEntries) {
+                const chip = el("span", { class:"color-chip", title:`${formatScaleNumber(entry.lo)} to ${formatScaleNumber(entry.hi)}` }, [
+                    el("span", { class:"color-chip-swatch", style:`background:${entry.color};` }),
+                    el("span", { text:`${formatScaleNumber(entry.lo)}-${formatScaleNumber(entry.hi)}` })
+                ]);
+                legend.append(chip);
+            }
+
+            const isPaletteOpen = paletteState && paletteState.ruleKey === rule.key && paletteState.entryIndex != null;
+            let palette = null;
+            if (isPaletteOpen) {
+                palette = el("div", { class:"color-palette" });
+                palette.append(el("p", { class:"color-palette-title", text:"Choose a band color" }));
+                const grid = el("div", { class:"color-palette-grid" });
+                for (const color of COLOR_PALETTE) {
+                    const swatch = el("button", {
+                        class:`color-palette-swatch${normColorName(rule.entries[paletteState.entryIndex]?.color) === normColorName(color) ? " active" : ""}`,
+                        type:"button",
+                        title: color,
+                        style:`background:${color};`
+                    });
+                    swatch.addEventListener("click", (evt) => {
+                        evt.stopPropagation();
+                        const nextRule = updateRuleEntryColor(rule, paletteState.entryIndex, color);
+                        onRuleChange(replaceColorRule(colorConfig, nextRule));
+                        onPaletteClose();
+                        if (typeof onRuleCommit === "function") onRuleCommit();
+                    });
+                    grid.append(swatch);
+                }
+                palette.append(grid);
+            }
+
+            card.append(
+                el("div", { class:"color-scale-head" }, [
+                    el("strong", { text: rule.header }),
+                    el("span", { text:`${numericEntries.length} bands` })
+                ]),
+                bar,
+                el("div", { class:"color-scale-axis" }, [
+                    el("span", { text: formatScaleNumber(min) }),
+                    el("span", { text: formatScaleNumber(max) })
+                ]),
+                legend,
+                palette
+            );
+            return card;
+        }
+        function renderColorConfig(colorConfig, target, paletteState, onPaletteOpen, onPaletteClose, onRuleChange, onRuleCommit){
+            if (!target) return;
+            target.innerHTML = "";
+            const rendered = new Set();
+            for (const header of COLOR_SCALE_ORDER) {
+                const key = normKey(header);
+                const item = colorConfig.get(key);
+                if (!item) continue;
+                rendered.add(key);
+                target.append(buildColorScale(item, colorConfig, paletteState, onPaletteOpen, onPaletteClose, onRuleChange, onRuleCommit));
+            }
+            for (const [key, item] of colorConfig.entries()) {
+                if (rendered.has(key) || key === normKey("Conditions")) continue;
+                target.append(buildColorScale(item, colorConfig, paletteState, onPaletteOpen, onPaletteClose, onRuleChange, onRuleCommit));
+            }
+        }
+        const REDS    = new Set(["red","tomato","salmon","crimson","firebrick","indianred"]);
+        const ORANGES = new Set(["orange","darkorange","gold","goldenrod"]);
+        const YELLOWS = new Set(["yellow","khaki","lightyellow"]);
+        const GREENS  = new Set(["green","lightgreen","lime","limegreen","palegreen","forestgreen"]);
+        function normColorName(c){ return c ? c.trim().toLowerCase().replace(/\s+/g,"") : null; }
+        function severityOfColor(c){
+            const n = normColorName(c);
+            if (!n) return -1;
+            if (REDS.has(n))    return 3;
+            if (ORANGES.has(n)) return 2;
+            if (YELLOWS.has(n)) return 1;
+            if (GREENS.has(n))  return 0;
+            return -1;
+        }
+        function colorForSeverity(s){ return s===3?"red":s===2?"orange":s===1?"yellow":s===0?"lightgreen":null; }
+        function colorFor(rules, header, value){
+            if (!rules) return null;
+            const key = normKey(header);
+            const arr = rules.get(key);
+            if (!arr) return null;
+            for (const r of arr) {
+                if (r.type === "range") { if (Number.isFinite(value) && value >= r.lo && value <= r.hi) return r.color; }
+                else if (r.type === "string") { if (typeof value === "string" && value.toLowerCase() === r.text) return r.color; }
+            }
+            return null;
+        }
+
+        // -------- ICS calendar parsing
+        function parseICSDateTime(dtStr) {
+            // Handles: 20260418T140000Z, 20260418T140000, VALUE=DATE:20260418
+            const s = dtStr.replace(/^.*:/,""); // strip TZID= or VALUE= prefix parts
+            const m = s.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2}))?(.*)$/);
+            if (!m) return null;
+            const [, yr, mo, dy, hh, mm, ss, rest] = m;
+            if (!hh) return { date: `${yr}-${mo}-${dy}`, allDay: true, ts: new Date(Number(yr), Number(mo)-1, Number(dy)).getTime() };
+            const isUTC = rest && rest.includes("Z");
+            const dt = isUTC
+                ? new Date(Date.UTC(Number(yr), Number(mo)-1, Number(dy), Number(hh), Number(mm), Number(ss||0)))
+                : new Date(Number(yr), Number(mo)-1, Number(dy), Number(hh), Number(mm), Number(ss||0));
+            return { date: `${yr}-${mo}-${dy}`, allDay: false, ts: dt.getTime(), hour: dt.getHours(), dt };
+        }
+        function unfoldICS(text) {
+            return text.replace(/\r\n /g, "").replace(/\r\n\t/g, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+        }
+        function parseICS(text) {
+            const unfolded = unfoldICS(text);
+            const events = [];
+            const blocks = unfolded.split("BEGIN:VEVENT");
+            for (let i = 1; i < blocks.length; i++) {
+                const block = blocks[i].split("END:VEVENT")[0];
+                const lines = block.split("\n");
+                const ev = {};
+                for (const line of lines) {
+                    const sep = line.indexOf(":");
+                    if (sep < 0) continue;
+                    const key = line.slice(0, sep).split(";")[0].trim().toUpperCase();
+                    const val = line.slice(sep + 1).trim();
+                    if (key === "DTSTART") ev.dtstart = parseICSDateTime(line.slice(line.indexOf(":")+1).trim());
+                    else if (key === "DTEND") ev.dtend = parseICSDateTime(line.slice(line.indexOf(":")+1).trim());
+                    else if (key === "SUMMARY") ev.summary = val;
+                    else if (key === "LOCATION") ev.location = val;
+                    else if (key === "DESCRIPTION") ev.description = val;
+                }
+                if (ev.dtstart) events.push(ev);
+            }
+            return events;
+        }
+        function getEventsForDayAndHour(events, dayISO, hour) {
+            const matches = [];
+            for (const ev of events) {
+                if (!ev.dtstart) continue;
+                const startDate = ev.dtstart.date;
+                const endDate = ev.dtend ? ev.dtend.date : startDate;
+                if (ev.dtstart.allDay) {
+                    if (dayISO >= startDate && dayISO <= endDate) matches.push(ev);
+                    continue;
+                }
+                const startTs = ev.dtstart.ts;
+                const endTs = ev.dtend ? ev.dtend.ts : startTs + 3600000;
+                const hourStart = new Date(dayISO.split("-").map(Number).reduce((_, v, i) =>
+                    i === 0 ? new Date(v, 0, 1) : (i === 1 ? (_.setMonth(v-1), _) : (_.setDate(v), _)), null)).getTime();
+                // Build hour start/end from dayISO + hour
+                const [y, m, d] = dayISO.split("-").map(Number);
+                const slotStart = new Date(y, m-1, d, hour, 0, 0).getTime();
+                const slotEnd = slotStart + 3600000;
+                if (startTs < slotEnd && endTs > slotStart) matches.push(ev);
+            }
+            return matches;
+        }
+        function formatEventTime(ev) {
+            if (!ev.dtstart || ev.dtstart.allDay) return "All day";
+            const fmt2 = (d) => {
+                const h = d.getHours(), m = d.getMinutes();
+                return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+            };
+            const start = fmt2(ev.dtstart.dt || new Date(ev.dtstart.ts));
+            if (!ev.dtend) return start;
+            const end = fmt2(ev.dtend.dt || new Date(ev.dtend.ts));
+            return `${start}–${end}`;
+        }
+
+        let calendarEvents = [];
+        const CORS_PROXY = "https://corsproxy.io/?";
+
+        async function fetchCalendar(rawUrl) {
+            if (!rawUrl || !rawUrl.trim()) return [];
+            let url = rawUrl.trim();
+            // webcal:// is just https:// for iCal
+            if (url.startsWith("webcal://")) url = url.replace("webcal://", "https://");
+            // Try direct fetch first, fall back to CORS proxy
+            for (const attempt of [url, CORS_PROXY + encodeURIComponent(url)]) {
+                try {
+                    const r = await fetch(attempt, { signal: AbortSignal.timeout(10000) });
+                    if (!r.ok) continue;
+                    const text = await r.text();
+                    if (!text.includes("BEGIN:VCALENDAR")) continue;
+                    return parseICS(text);
+                } catch (e) {
+                    continue;
+                }
+            }
+            throw new Error("Could not fetch calendar. Check the URL or try dropping an .ics file.");
+        }
+        function parseICSFromFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const events = parseICS(reader.result);
+                        resolve(events);
+                    } catch (e) { reject(e); }
+                };
+                reader.onerror = () => reject(reader.error);
+                reader.readAsText(file);
+            });
+        }
+
+        // -------- Geocoding & reverse (CORS-safe reverse via Nominatim)
+        async function geocode(place, globalPrefs){
+            let city = (place.city || "").trim();
+            let state = (place.state || "").trim();
+            let country = normCountry(place.country || "");
+            const prefAdmin1 = (globalPrefs.admin1 || "").trim();
+            const prefCountry = normCountry(globalPrefs.country || "");
+            const effectiveCountry = country || prefCountry || "";
+            const effectiveAdmin1 =
+                (effectiveCountry === "United States" ? normUSState(state) : (state || "")) || prefAdmin1;
+            const effectivePrefs = { admin1: effectiveAdmin1, country: effectiveCountry };
+            const searchName = city || place.raw || "";
+            const params = new URLSearchParams({ name: searchName, count:"5", language:"en" });
+            const r = await fetch(GEOCODE + "?" + params.toString());
+            if (!r.ok) throw new Error("Geocoding failed " + r.status);
+            const data = await r.json();
+            const results = data.results || [];
+            const displayName = [city, state, country].filter(Boolean).join(", ") || searchName;
+            if (!results.length) throw new Error('No match for "' + displayName + '"');
+            const best = (effectivePrefs.country || effectivePrefs.admin1)
+                ? chooseBestResult(results, effectivePrefs)
+                : results.sort((a,b)=>(b.population||0)-(a.population||0))[0];
+            const label = [best.name, best.admin1, best.country].filter(Boolean).join(", ");
+            return { lat: best.latitude, lon: best.longitude, label };
+        }
+        async function reverseGeocode(lat, lon) {
+            const params = new URLSearchParams({
+                format: "jsonv2",
+                lat: String(lat),
+                lon: String(lon),
+                zoom: "12",
+                addressdetails: "1"
+            });
+            const ctrl = new AbortController();
+            const t = setTimeout(() => ctrl.abort(), 6000);
+            try {
+                const r = await fetch("https://nominatim.openstreetmap.org/reverse?" + params.toString(), {
+                    signal: ctrl.signal,
+                    headers: { "Accept":"application/json" }
+                });
+                if (!r.ok) throw new Error("Nominatim status " + r.status);
+                const j = await r.json();
+                const a = j.address || {};
+                const label = [
+                    j.name || a.city || a.town || a.village || a.hamlet || a.suburb || a.neighbourhood,
+                    a.state,
+                    a.country
+                ].filter(Boolean).join(", ") || `${lat.toFixed(3)},${lon.toFixed(3)}`;
+                return { name: label };
+            } catch (e) {
+                console.warn("Reverse geocode failed, using coords:", e);
+                return { name: `${lat.toFixed(3)},${lon.toFixed(3)}` };
+            } finally {
+                clearTimeout(t);
+            }
+        }
+
+        // -------- Forecast (hourly range)
+        async function fetchHourlyRange(lat, lon, startISO, endISO){
+            const params = new URLSearchParams({
+                latitude:String(lat), longitude:String(lon),
+                timezone:"auto", temperature_unit:"fahrenheit", precipitation_unit:"inch", wind_speed_unit:"mph",
+                start_date: startISO, end_date: endISO,
+                hourly: [
+                    "temperature_2m","precipitation","uv_index","wind_speed_10m",
+                    "wind_gusts_10m","relative_humidity_2m","weather_code"
+                ].join(",")
+            });
+            const r = await fetch(FORECAST + "?" + params.toString());
+            if(!r.ok){
+                let txt = ""; try { txt = await r.text(); } catch(e){}
+                throw new Error("Hourly failed " + r.status + ": " + txt);
+            }
+            const data = await r.json();
+            if (data.error) throw new Error(data.reason || "API error");
+            return data.hourly;
+        }
+
+        const fmt = { num(n, places){ return Number.isFinite(n) ? n.toFixed(places) : "–"; } };
+
+        // -------- Summarize hourly → daily (for configured ride window) + daily severity colors
+        function summarizeHourly(hourly, numDays, startHour, endHour, rules){
+            const startISO = hourly.time[0].slice(0,10);
+            const days = []; for (let k=0;k<numDays;k++) days.push(addDays(startISO, k));
+            const perDay = new Map(days.map(d => [d, []]));
+            for (let i=0; i<hourly.time.length; i++){
+                const tStr = hourly.time[i];
+                const day = tStr.slice(0,10);
+                const hour = Number(tStr.slice(11,13));
+                if (perDay.has(day) && hour >= startHour && hour <= endHour){
+                    perDay.get(day).push({
+                        temp: hourly.temperature_2m?.[i],
+                        precip: hourly.precipitation?.[i],
+                        uv: hourly.uv_index?.[i],
+                        wind: hourly.wind_speed_10m?.[i],
+                        gust: hourly.wind_gusts_10m?.[i],
+                        rh: hourly.relative_humidity_2m?.[i],
+                        code: hourly.weather_code?.[i],
+                        time: tStr
+                    });
+                }
+            }
+            const time = [], hi=[], lo=[], precipSum=[], uvMax=[], gustMax=[], condLabel=[], date_colors=[];
+            for (const day of days){
+                const arr = perDay.get(day) || [];
+                time.push(day);
+                if (!arr.length){ hi.push(null); lo.push(null); precipSum.push(null); uvMax.push(null); gustMax.push(null); condLabel.push("—"); date_colors.push(null); continue; }
+                const temps = arr.map(x=>x.temp).filter(Number.isFinite);
+                const precs = arr.map(x=>x.precip).filter(Number.isFinite);
+                const uvs   = arr.map(x=>x.uv).filter(Number.isFinite);
+                const gusts = arr.map(x=>x.gust).filter(Number.isFinite);
+                const codes = arr.map(x=>x.code);
+                const maxT = temps.length? Math.max(...temps) : null;
+                const minT = temps.length? Math.min(...temps) : null;
+                const sumP = precs.length? precs.reduce((a,b)=>a+b,0) : 0;
+                const maxUV= uvs.length? Math.max(...uvs) : null;
+                const maxG = gusts.length? Math.max(...gusts) : null;
+                hi.push(maxT); lo.push(minT); precipSum.push(sumP); uvMax.push(maxUV); gustMax.push(maxG);
+                let worstCond = "—", worstSeverity=-1, worstColor=null;
+                for (const c of codes){
+                    const name = (c==null)? "—" : (WMO.get(String(c)) || String(c));
+                    const clr = colorFor(rules, "Conditions", name);
+                    const sev = severityOfColor(clr);
+                    if (sev > worstSeverity){ worstSeverity = sev; worstColor=clr; worstCond=name; }
+                }
+                condLabel.push(worstCond);
+                const sColors = [
+                    colorFor(rules, "High (°F)", maxT) || colorFor(rules, "Temp (°F)", maxT),
+                    colorFor(rules, "Low (°F)",  minT) || colorFor(rules, "Temp (°F)", minT),
+                    colorFor(rules, "Precip (in)", sumP),
+                    colorFor(rules, "UV", maxUV),
+                    colorFor(rules, "Gust (mph)", maxG),
+                    worstColor
+                ];
+                const severities = sColors.map(severityOfColor);
+                let rowS = -1;
+                if (severities.some(s => s === 3)) rowS = 3;
+                else if (severities.some(s => s === 2)) rowS = 2;
+                else if (severities.some(s => s === 1)) rowS = 1;
+                else if (severities.every(s => s <= 0) && severities.some(s => s === 0)) rowS = 0;
+                date_colors.push(colorForSeverity(rowS));
+            }
+            return {
+                time, temperature_2m_max: hi, temperature_2m_min: lo,
+                precipitation_sum: precipSum, uv_index_max: uvMax, wind_gusts_10m_max: gustMax,
+                conditions_label: condLabel, date_colors
+            };
+        }
+
+        // -------- Build DAILY table; on click of date → build HOURLY table
+        function buildDailyTableFromSynth(synthDaily, rules, showDecimals, onDaySelect){
+            const tbl = el("table", { class:"wx" });
+            const headers = ["Date","High (°F)","Low (°F)","Precip (in)","UV","Gust (mph)","Conditions"];
+            const thead = el("thead");
+            thead.append(el("tr", {}, headers.map(h => el("th", { text: h }))));
+            const tbody = el("tbody");
+            const n = synthDaily.time.length;
+            for (let i=0;i<n;i++){
+                const row = el("tr");
+                const dt  = parseLocalISODate(synthDaily.time[i]);
+                const dateStr = dt.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" });
+                const hi = synthDaily.temperature_2m_max?.[i];
+                const lo = synthDaily.temperature_2m_min?.[i];
+                const p  = synthDaily.precipitation_sum?.[i];
+                const uv = synthDaily.uv_index_max?.[i];
+                const g  = synthDaily.wind_gusts_10m_max?.[i];
+                const cond = synthDaily.conditions_label?.[i] ?? "—";
+                const cDate = el("td", { text: dateStr, class:"date-cell", tabindex:"0", title:"Click for hourly details" });
+                const cHi   = el("td", { text: showDecimals ? fmt.num(hi,1) : fmt.num(hi,0) });
+                const cLo   = el("td", { text: showDecimals ? fmt.num(lo,1) : fmt.num(lo,0) });
+                const cP    = el("td", { text: fmt.num(p,2) });
+                const cUV   = el("td", { text: showDecimals ? fmt.num(uv,1) : fmt.num(uv,0) });
+                const cG    = el("td", { text: showDecimals ? fmt.num(g,1)  : fmt.num(g,0) });
+                const cCond = el("td", { text: cond });
+                const hiColor   = colorFor(rules, "High (°F)", hi) || colorFor(rules, "Temp (°F)", hi); if (hiColor) cHi.style.backgroundColor = hiColor;
+                const loColor   = colorFor(rules, "Low (°F)",  lo) || colorFor(rules, "Temp (°F)", lo); if (loColor) cLo.style.backgroundColor = loColor;
+                const pColor    = colorFor(rules, "Precip (in)", p);    if (pColor)  cP.style.backgroundColor  = pColor;
+                const uvColor   = colorFor(rules, "UV", uv);            if (uvColor) cUV.style.backgroundColor = uvColor;
+                const gColor    = colorFor(rules, "Gust (mph)", g);     if (gColor)  cG.style.backgroundColor  = gColor;
+                const condColor = colorFor(rules, "Conditions", cond);  if (condColor) cCond.style.backgroundColor = condColor;
+                const dateColor = synthDaily.date_colors?.[i] || null;
+                if (dateColor) cDate.style.backgroundColor = dateColor;
+                if (typeof onDaySelect === "function") {
+                    const handler = (evt) => { evt.preventDefault(); onDaySelect(i, synthDaily.time[i]); };
+                    cDate.addEventListener("click", handler);
+                    cDate.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") handler(e); });
+                }
+                row.append(cDate, cHi, cLo, cP, cUV, cG, cCond);
+                tbody.append(row);
+            }
+            tbl.append(thead, tbody);
+            return tbl;
+        }
+
+        // -------- Build HOURLY table for a given day from cached hourly data
+        function buildHourlyTable(hourly, dayISO, rules, showDecimals, placeLabel, lat, lon, events){
+            // Collect the 24 hours for dayISO (or fewer if API window smaller)
+            const rows = [];
+            for (let i=0; i<hourly.time.length; i++){
+                const tStr = hourly.time[i];
+                if (tStr.slice(0,10) !== dayISO) continue;
+                rows.push({
+                    time: tStr,
+                    temp: hourly.temperature_2m?.[i],
+                    precip: hourly.precipitation?.[i],
+                    uv: hourly.uv_index?.[i],
+                    wind: hourly.wind_speed_10m?.[i],
+                    gust: hourly.wind_gusts_10m?.[i],
+                    rh: hourly.relative_humidity_2m?.[i],
+                    code: hourly.weather_code?.[i]
+                });
+            }
+
+            const wrap = el("div", { class:"hourly-wrap" });
+            const title = el("div", { class:"hourly-title" }, [
+                el("span", { text: `Hourly — ${placeLabel} — ${parseLocalISODate(dayISO).toLocaleDateString()}` }),
+                el("button", { class:"hourly-close", type:"button", text:"Close" })
+            ]);
+            wrap.append(title);
+
+            const tbl = el("table", { class:"wx" });
+            const headers = ["Time","Temp (°F)","Precip (in)","UV","Wind (mph)","Gust (mph)","RH (%)","Conditions"];
+            const thead = el("thead");
+            thead.append(el("tr", {}, headers.map(h => el("th", { text: h }))));
+            const tbody = el("tbody");
+
+            for (const r of rows){
+                const dt = new Date(r.time); // local time thanks to timezone=auto from API
+                const hh = String(dt.getHours()).padStart(2,"0");
+                const timeCell = el("td", { text: hh + ":00", style:"cursor:pointer", title:"Open weather.com for this hour" });
+                const cT  = el("td", { text: showDecimals ? fmt.num(r.temp,1)  : fmt.num(r.temp,0) });
+                const cP  = el("td", { text: fmt.num(r.precip,2) });
+                const cUV = el("td", { text: showDecimals ? fmt.num(r.uv,1)   : fmt.num(r.uv,0) });
+                const cW  = el("td", { text: showDecimals ? fmt.num(r.wind,1) : fmt.num(r.wind,0) });
+                const cG  = el("td", { text: showDecimals ? fmt.num(r.gust,1) : fmt.num(r.gust,0) });
+                const cRH = el("td", { text: showDecimals ? fmt.num(r.rh,1)   : fmt.num(r.rh,0) });
+                const condName = (r.code==null) ? "—" : (WMO.get(String(r.code)) || String(r.code));
+                const cCond = el("td", { text: condName });
+
+                // Apply color rules
+                const tColor  = colorFor(rules, "Temp (°F)", r.temp);    if (tColor)  cT.style.backgroundColor  = tColor;
+                const pColor  = colorFor(rules, "Precip (in)", r.precip);if (pColor)  cP.style.backgroundColor  = pColor;
+                const uvColor = colorFor(rules, "UV", r.uv);             if (uvColor) cUV.style.backgroundColor = uvColor;
+                const wColor  = colorFor(rules, "Wind (mph)", r.wind);   if (wColor)  cW.style.backgroundColor  = wColor;
+                const gColor  = colorFor(rules, "Gust (mph)", r.gust);   if (gColor)  cG.style.backgroundColor  = gColor;
+                const rhColor = colorFor(rules, "RH (%)", r.rh);         if (rhColor) cRH.style.backgroundColor = rhColor;
+                const cColor  = colorFor(rules, "Conditions", condName); if (cColor)  cCond.style.backgroundColor= cColor;
+
+                // Click → weather.com (best-effort deep link)
+                timeCell.addEventListener("click", () => {
+                    const q = new URLSearchParams({
+                        date: dayISO,
+                        hour: hh
+                    });
+                    const url = `https://weather.com/weather/hourbyhour/l/${lat.toFixed(3)},${lon.toFixed(3)}?${q.toString()}`;
+                    window.open(url, "_blank", "noopener");
+                });
+
+                // Calendar events for this hour
+                if (events && events.length) {
+                    const hourNum = Number(hh);
+                    const hourEvents = getEventsForDayAndHour(events, dayISO, hourNum);
+                    if (hourEvents.length) {
+                        const indicator = el("span", { class:"cal-indicator", text:"\uD83D\uDCC5" }); // 📅
+                        const tooltip = el("div", { class:"cal-tooltip" });
+                        for (const ev of hourEvents) {
+                            const evLine = el("div", { class:"cal-event-line" });
+                            evLine.append(
+                                el("span", { class:"cal-event-title", text: ev.summary || "Event" }),
+                                el("br"),
+                                el("span", { class:"cal-event-time", text: formatEventTime(ev) })
+                            );
+                            if (ev.location) {
+                                evLine.append(el("br"), el("span", { class:"cal-event-time", text: ev.location }));
+                            }
+                            tooltip.append(evLine);
+                        }
+                        indicator.append(tooltip);
+                        timeCell.append(indicator);
+                    }
+                }
+
+                const tr = el("tr");
+                tr.append(timeCell, cT, cP, cUV, cW, cG, cRH, cCond);
+                tbody.append(tr);
+            }
+
+            tbl.append(thead, tbody);
+            wrap.append(tbl);
+
+            // Close hourly block
+            title.querySelector(".hourly-close").addEventListener("click", () => wrap.remove());
+
+            return wrap;
+        }
+
+        // -------- V5.0 "New" presentation: one giant hour×place aggregate grid
+        function ordinalDay(n){
+            const v = n % 100;
+            const suffix = (v >= 11 && v <= 13) ? "th" : (["th","st","nd","rd"][n % 10] || "th");
+            return n + suffix;
+        }
+        // iso like "2026-05-25T01:00" → "Monday, May 25th, 01:00"
+        function formatDateTimeLabel(iso){
+            const datePart = iso.slice(0,10);
+            const timePart = iso.slice(11,16) || "00:00";
+            const d = parseLocalISODate(datePart);
+            const weekday = d.toLocaleDateString(undefined, { weekday:"long" });
+            const month   = d.toLocaleDateString(undefined, { month:"long" });
+            return `${weekday}, ${month} ${ordinalDay(d.getDate())}, ${timePart}`;
+        }
+        // Pull one hour's metrics for a place at a given time string.
+        function hourRecordAt(hourly, idx){
+            if (idx == null || idx < 0) return null;
+            const code = hourly.weather_code?.[idx];
+            return {
+                temp:   hourly.temperature_2m?.[idx],
+                precip: hourly.precipitation?.[idx],
+                uv:     hourly.uv_index?.[idx],
+                wind:   hourly.wind_speed_10m?.[idx],
+                gust:   hourly.wind_gusts_10m?.[idx],
+                rh:     hourly.relative_humidity_2m?.[idx],
+                code,
+                cond:   (code == null) ? "—" : (WMO.get(String(code)) || String(code))
+            };
+        }
+        // Combine an hour's sub-forecasts into one severity color — same scheme
+        // used for daily date_colors in summarizeHourly().
+        function hourlyAggregateColor(rules, rec){
+            if (!rec) return null;
+            const sColors = [
+                colorFor(rules, "Temp (°F)", rec.temp) || colorFor(rules, "High (°F)", rec.temp),
+                colorFor(rules, "Precip (in)", rec.precip),
+                colorFor(rules, "UV", rec.uv),
+                colorFor(rules, "Wind (mph)", rec.wind),
+                colorFor(rules, "Gust (mph)", rec.gust),
+                colorFor(rules, "RH (%)", rec.rh),
+                colorFor(rules, "Conditions", rec.cond)
+            ];
+            const severities = sColors.map(severityOfColor);
+            let rowS = -1;
+            if (severities.some(s => s === 3)) rowS = 3;
+            else if (severities.some(s => s === 2)) rowS = 2;
+            else if (severities.some(s => s === 1)) rowS = 1;
+            else if (severities.some(s => s === 0)) rowS = 0;
+            return colorForSeverity(rowS);
+        }
+        // Modal popup with the individual metrics for one place/hour.
+        function showHourDetailPopup(coords, timeISO, rec, rules, showDecimals){
+            const existing = document.getElementById("hourDetailOverlay");
+            if (existing) existing.remove();
+            const overlay = el("div", { id:"hourDetailOverlay", class:"hd-overlay" });
+            const modal = el("div", { class:"hd-modal" });
+            const closeBtn = el("button", { class:"hd-close", type:"button", text:"✕", title:"Close" });
+            const header = el("div", { class:"hd-header" }, [ el("strong", { text: coords.label }), closeBtn ]);
+            const sub = el("div", { class:"hd-sub", text: formatDateTimeLabel(timeISO) });
+            const body = el("div", { class:"hd-body" });
+
+            const rowsDef = [
+                ["Temp (°F)",   showDecimals ? fmt.num(rec.temp,1) : fmt.num(rec.temp,0), colorFor(rules, "Temp (°F)", rec.temp)],
+                ["Precip (in)", fmt.num(rec.precip,2),                                    colorFor(rules, "Precip (in)", rec.precip)],
+                ["UV",          showDecimals ? fmt.num(rec.uv,1) : fmt.num(rec.uv,0),     colorFor(rules, "UV", rec.uv)],
+                ["Wind (mph)",  showDecimals ? fmt.num(rec.wind,1) : fmt.num(rec.wind,0), colorFor(rules, "Wind (mph)", rec.wind)],
+                ["Gust (mph)",  showDecimals ? fmt.num(rec.gust,1) : fmt.num(rec.gust,0), colorFor(rules, "Gust (mph)", rec.gust)],
+                ["RH (%)",      showDecimals ? fmt.num(rec.rh,1) : fmt.num(rec.rh,0),     colorFor(rules, "RH (%)", rec.rh)],
+                ["Conditions",  rec.cond,                                                 colorFor(rules, "Conditions", rec.cond)]
+            ];
+            const tbl = el("table", { class:"wx" });
+            const tbody = el("tbody");
+            for (const [metric, value, color] of rowsDef){
+                const valCell = el("td", { text: value });
+                if (color) valCell.style.backgroundColor = color;
+                tbody.append(el("tr", {}, [ el("td", { text: metric }), valCell ]));
+            }
+            tbl.append(tbody);
+            body.append(tbl);
+
+            const wxBtn = el("button", { class:"btn hd-wx-btn", type:"button", text:"Open weather.com for this time and place" });
+            wxBtn.addEventListener("click", () => {
+                const dayISO = timeISO.slice(0,10);
+                const hh = timeISO.slice(11,13);
+                const q = new URLSearchParams({ date: dayISO, hour: hh });
+                const url = `https://weather.com/weather/hourbyhour/l/${coords.lat.toFixed(3)},${coords.lon.toFixed(3)}?${q.toString()}`;
+                window.open(url, "_blank", "noopener");
+            });
+            body.append(wxBtn);
+
+            modal.append(header, sub, body);
+            overlay.append(modal);
+
+            const close = () => {
+                overlay.remove();
+                document.removeEventListener("keydown", onKey);
+            };
+            const onKey = (e) => { if (e.key === "Escape") close(); };
+            closeBtn.addEventListener("click", close);
+            overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+            document.addEventListener("keydown", onKey);
+            document.body.append(overlay);
+        }
+        // Build the full grid: rows = every hour of every configured day, columns = places.
+        async function buildGiantTableView(places, rules, showDecimals, startHour, endHour, numDays){
+            if (!places.length) return;
+            const startISO = ymd(new Date());
+            const endISO   = addDays(startISO, numDays - 1);
+
+            const status = el("p", { class:"meta", text:"Fetching forecasts for all locations…" });
+            grid.append(status);
+
+            const cols = [];
+            for (const ps of places){
+                try {
+                    const hourly = await fetchHourlyRange(ps.coords.lat, ps.coords.lon, startISO, endISO);
+                    const idxByTime = new Map();
+                    (hourly.time || []).forEach((t, i) => idxByTime.set(t, i));
+                    cols.push({ coords: ps.coords, hourly, idxByTime });
+                    const synth = summarizeHourly(hourly, numDays, startHour, endHour, rules);
+                    addMarker(ps.coords.lat, ps.coords.lon, ps.coords.label, (synth.date_colors || []).map(c => c || "#2a3a6a"));
+                } catch(err){
+                    cols.push({ coords: ps.coords, hourly: null, error: String(err && err.message ? err.message : err) });
+                }
+            }
+            status.remove();
+
+            const ref = cols.find(c => c.hourly && c.hourly.time && c.hourly.time.length);
+            const card = el("section", { class:"card", role:"region" });
+            const close = el("button", { class:"close-btn", type:"button", text:"Close" });
+            close.addEventListener("click", () => card.remove());
+            card.append(el("h3", { text:"All locations — hourly aggregate" }), close);
+            if (!ref){
+                card.append(el("p", { class:"meta bad", text:"No forecast data available for the configured locations." }));
+                grid.prepend(card);
+                return;
+            }
+            card.append(el("p", { class:"meta", text:`${formatDateTimeLabel(ref.hourly.time[0])} → ${ref.hourly.time.length} hourly slots · click any cell for details` }));
+
+            const showCityOnly = !!document.getElementById("cityOnly").checked;
+            const wrap = el("div", { class:"giant-wrap" });
+            const tbl = el("table", { class:"wx giant" });
+            const thead = el("thead");
+            const headRow = el("tr");
+            headRow.append(el("th", { text:"Date / Time", class:"dt-cell" }));
+            for (const c of cols){
+                const lbl = showCityOnly ? cityFromLabel(c.coords.label) : c.coords.label;
+                const th = el("th", { class:"place-col", title: c.coords.label }, [
+                    el("div", { class:"rot" }, el("span", { text: c.error ? `${lbl} (error)` : lbl }))
+                ]);
+                headRow.append(th);
+            }
+            thead.append(headRow);
+            const tbody = el("tbody");
+
+            for (const t of ref.hourly.time){
+                const tr = el("tr");
+                tr.append(el("td", { text: formatDateTimeLabel(t), class:"dt-cell" }));
+                for (const c of cols){
+                    if (!c.hourly){ tr.append(el("td", { text:"—" })); continue; }
+                    const rec = hourRecordAt(c.hourly, c.idxByTime.get(t));
+                    const cell = el("td", { class:"agg-cell", title:"Click for details" });
+                    if (rec){
+                        const color = hourlyAggregateColor(rules, rec);
+                        if (color) cell.style.backgroundColor = color;
+                        cell.addEventListener("click", () => {
+                            showHourDetailPopup(c.coords, t, rec, rules, showDecimals);
+                        });
+                    } else {
+                        cell.textContent = "—";
+                    }
+                    tr.append(cell);
+                }
+                tbody.append(tr);
+            }
+            tbl.append(thead, tbody);
+            wrap.append(tbl);
+            card.append(wrap);
+            grid.prepend(card);
+        }
+
+        // -------- Map
+        const map = L.map('map', { scrollWheelZoom: true });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        map.setView([39.5, -98.35], 4);
+        const featureGroup = L.featureGroup().addTo(map);
+
+        const markers = [];
+        function makeSparkIcon(label, dayColors){
+            const squares = dayColors.map(c => {
+                const b = c ? `background:${c};` : `background:#2a3a6a; opacity:.7;`;
+                return `<span class="d" style="${b}" title="Daily severity"></span>`;
+            }).join("");
+            const html = `
+          <div class="marker-wrap">
+            <span class="marker-title">${label}</span>
+            <div class="spark">${squares}</div>
+          </div>`;
+            return L.divIcon({ html, className: '', iconSize: null, iconAnchor: [30, 22] });
+        }
+        function addMarker(lat, lon, fullLabel, dayColors){
+            const showCityOnly = !!document.getElementById("cityOnly").checked;
+            const displayLabel = showCityOnly ? cityFromLabel(fullLabel) : fullLabel;
+            const m = L.marker([lat, lon], { icon: makeSparkIcon(displayLabel, dayColors) }).addTo(featureGroup);
+            m.bindPopup(`<strong>${fullLabel}</strong><br>${lat.toFixed(3)}, ${lon.toFixed(3)}`);
+            markers.push(m);
+            try { map.fitBounds(featureGroup.getBounds().pad(0.2)); } catch(e){}
+            return m;
+        }
+
+        // -------- Card (per place) — now caches hourly; day click builds hourly block
+        async function buildCard(target, coords, rules, showDecimals, startHour, endHour, numDays, placeState){
+            const card = el("section", { class:"card", role:"region" });
+            const title = el("h3", { text: coords.label });
+            const close = el("button", { class:"close-btn", type:"button", text:"Close" });
+            const metaP = el("p", { class:"meta", text:"Fetching..." });
+            close.addEventListener("click", () => { // remove marker & card
+                const idx = markers.findIndex(mm => mm.getLatLng().lat.toFixed(3) == coords.lat.toFixed(3) && mm.getLatLng().lng.toFixed(3) == coords.lon.toFixed(3));
+                if (idx >= 0) { featureGroup.removeLayer(markers[idx]); markers.splice(idx,1); }
+                if (placeState) activePlaceEntries.delete(placeState.id);
+                card.remove();
+            });
+            card.append(title, close, metaP);
+            target.prepend(card);
+
+            try {
+                const startISO = ymd(new Date());
+                const endISO   = addDays(startISO, numDays - 1);
+                const hourly   = await fetchHourlyRange(coords.lat, coords.lon, startISO, endISO); // cache in closure
+                const synth    = summarizeHourly(hourly, numDays, startHour, endHour, rules);
+
+                metaP.textContent = `Hours ${String(startHour).padStart(2,"0")}:00–${String(endHour).padStart(2,"0")}; Max UV ${Math.max(...(synth.uv_index_max||[0])) || 0}`;
+
+                // Daily table with click handler → build hourly block below it
+                const dailyTable = buildDailyTableFromSynth(synth, rules, showDecimals, (dayIdx, dayISO) => {
+                    const hourlyBlock = buildHourlyTable(hourly, dayISO, rules, showDecimals, coords.label, coords.lat, coords.lon, calendarEvents);
+                    card.append(hourlyBlock);
+                    hourlyBlock.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                });
+                card.append(dailyTable);
+
+                addMarker(coords.lat, coords.lon, coords.label, (synth.date_colors || []).map(c=>c||"#2a3a6a"));
+            } catch(err){
+                metaP.textContent = String(err && err.message ? err.message : err);
+                metaP.classList.add("bad");
+            }
+        }
+
+        // -------- Directive loader (same as v3.0)
+        class FileSet {
+            constructor(){ this.map = new Map(); }
+            addFile(file){ this.map.set(file.name, file); }
+            has(name){ return this.map.has(name); }
+            async getText(name){
+                const f = this.map.get(name);
+                if (f) return await f.text();
+                const res = await fetch(name);
+                if (!res.ok) throw new Error(`Could not fetch included file ${name} (${res.status})`);
+                return await res.text();
+            }
+        }
+
+        async function parseDirectives(rootText, fileSet){
+            const visited = new Set();
+            const acc = {
+                places: [],
+                colors: [],
+                hours: null,
+                days: null,
+                state: null,
+                country: null,
+                decimals: null,
+                cityOnly: null,
+                onlyIcons: null,
+                colorScales: null,
+                calendar: null,
+                presentation: null
+            };
+            async function parseOne(text){
+                const lines = (text||"").replace(/\r\n?/g,"\n").split("\n");
+                for (let raw of lines){
+                    const line = raw.trim();
+                    if (!line || line.startsWith("#") || line.startsWith("//")) continue;
+                    const m = line.match(/^\s*([a-zA-Z]+)\s+(.*)$/);
+                    if (!m) continue;
+                    const kw = m[1].toLowerCase();
+                    const rest = m[2].trim();
+                    if (kw === "place") {
+                        const p = parsePlaceLine(rest);
+                        if (p) acc.places.push(p);
+                    } else if (kw === "color") {
+                        acc.colors.push(rest);
+                    } else if (kw === "hours") {
+                        const parts = rest.split(/[,\s]+/).filter(Boolean);
+                        if (parts.length >= 2) {
+                            const a = Number(parts[0]), b = Number(parts[1]);
+                            if (Number.isFinite(a) && Number.isFinite(b)) acc.hours = { start: a, end: b };
+                        }
+                    } else if (kw === "days") {
+                        const n = Number(rest);
+                        if (Number.isInteger(n) && n > 0) acc.days = n;
+                    } else if (kw === "state") {
+                        acc.state = rest;
+                    } else if (kw === "country") {
+                        acc.country = rest;
+                    } else if (kw === "decimals") {
+                        const v = parseBoolish(rest);
+                        if (v !== null) acc.decimals = v;
+                    } else if (kw === "cityonly") {
+                        const v = parseBoolish(rest);
+                        if (v !== null) acc.cityOnly = v;
+                    } else if (kw === "onlyicons") {
+                        const v = parseBoolish(rest);
+                        if (v !== null) acc.onlyIcons = v;
+                    } else if (kw === "colorscales") {
+                        const v = parseBoolish(rest);
+                        if (v !== null) acc.colorScales = v;
+                    } else if (kw === "calendar") {
+                        acc.calendar = rest;
+                    } else if (kw === "presentation") {
+                        const v = rest.trim().toLowerCase();
+                        if (v === "new" || v === "legacy") acc.presentation = v;
+                    } else if (kw === "add") {
+                        const fname = rest.replace(/^['"]|['"]$/g,"");
+                        if (!fname) continue;
+                        if (visited.has(fname)) continue;
+                        visited.add(fname);
+                        try {
+                            const t = await fileSet.getText(fname);
+                            await parseOne(t);
+                        } catch (e) {
+                            console.warn("add include failed:", e);
+                        }
+                    }
+                }
+            }
+            await parseOne(rootText);
+            return acc;
+        }
+
+        // -------- Map, UI & runner
+        const mapObj = {
+            map,
+            featureGroup,
+            markers
+        };
+
+        const activePlaceEntries = new Map();
+        let activeColorConfig = createDefaultColorConfig();
+        let colorsVisible = true;
+        let paletteState = null;
+        let presentationMode = "new"; // "legacy" | "new"
+
+        const dz = document.getElementById("drop");
+        const fileInput = document.getElementById("file");
+        const pasteArea = document.getElementById("paste");
+        const runBtn = document.getElementById("run");
+        const exportBtn = document.getElementById("exportBtn");
+        const grid = document.getElementById("grid");
+        const stateBox = document.getElementById("prefState");
+        const countryBox = document.getElementById("prefCountry");
+        const colorConfigEl = document.getElementById("colorConfig");
+        const colorConfigWrap = document.getElementById("colorConfigWrap");
+        const decimalsBox = document.getElementById("showDecimals");
+        const cityOnlyBox = document.getElementById("cityOnly");
+        const onlyIconsBox = document.getElementById("onlyIcons");
+        const startHourBox = document.getElementById("startHour");
+        const endHourBox = document.getElementById("endHour");
+        const numDaysBox = document.getElementById("numDays");
+        const clearBtn = document.getElementById("clearBtn");
+        const hamburgerBtn = document.getElementById("hamburgerBtn");
+        const hamburgerMenu = document.getElementById("hamburgerMenu");
+        const menuConfigure = document.getElementById("menuConfigure");
+        const configPanel = document.getElementById("configPanel");
+        const configPanelClose = document.getElementById("configPanelClose");
+        const configPanelHeader = document.getElementById("configPanelHeader");
+        const configGearBtn = document.getElementById("configGearBtn");
+        const calendarUrlBox = document.getElementById("calendarUrl");
+        const calendarLoadBtn = document.getElementById("calendarLoadBtn");
+        const calendarFileBtn = document.getElementById("calendarFileBtn");
+        const calendarFileInput = document.getElementById("calendarFileInput");
+        const calendarStatus = document.getElementById("calendarStatus");
+        const presentationRadios = Array.from(document.querySelectorAll('input[name="presentation"]'));
+
+        function refreshColorConfigView(){
+            renderColorConfig(
+                activeColorConfig,
+                colorConfigEl,
+                paletteState,
+                (ruleKey, entryIndex) => {
+                    paletteState = { ruleKey, entryIndex };
+                    refreshColorConfigView();
+                },
+                () => {
+                    paletteState = null;
+                    refreshColorConfigView();
+                },
+                (nextConfig) => {
+                    activeColorConfig = nextConfig;
+                    refreshColorConfigView();
+                },
+                () => { void rebuildActiveCards(); }
+            );
+        }
+        function syncColorVisibility(){
+            if (colorConfigWrap) colorConfigWrap.classList.toggle("hidden-panel", !colorsVisible);
+        }
+        function placeDirectiveFromToken(it){
+            if (!it) return null;
+            if (it.type === "coords") return `place ${it.lat},${it.lon}${it.label ? `,${it.label}` : ""}`;
+            return `place ${it.raw || [it.city, it.state, it.country].filter(Boolean).join(", ")}`;
+        }
+        function appendDirectiveLine(line){
+            if (!pasteArea || !line) return;
+            const prev = pasteArea.value.trim();
+            pasteArea.value = prev ? `${prev}\n${line}` : line;
+        }
+        function exportCurrentConfig(){
+            const lines = [];
+            lines.push(`state ${stateBox.value || ""}`);
+            lines.push(`country ${countryBox.value || ""}`);
+            lines.push(`hours ${Math.max(0, Math.min(23, Number(startHourBox.value)||8))} ${Math.max(0, Math.min(23, Number(endHourBox.value)||17))}`);
+            lines.push(`days ${Math.max(1, Math.min(14, Number(numDaysBox.value)||7))}`);
+            lines.push(`decimals ${decimalsBox.checked ? "on" : "off"}`);
+            lines.push(`cityonly ${cityOnlyBox.checked ? "on" : "off"}`);
+            lines.push(`onlyicons ${onlyIconsBox.checked ? "on" : "off"}`);
+            lines.push(`colorscales ${colorsVisible ? "show" : "hide"}`);
+            lines.push(`presentation ${presentationMode}`);
+            const calUrl = calendarUrlBox ? calendarUrlBox.value.trim() : "";
+            if (calUrl) lines.push(`calendar ${calUrl}`);
+            for (const entry of activePlaceEntries.values()) lines.push(entry.directive);
+            lines.push(...orderedColorDirectiveStrings(activeColorConfig));
+            const blob = new Blob([lines.join("\n") + "\n"], { type:"text/plain;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = el("a", { href:url, download:"weather-v5.0-config.txt" });
+            document.body.append(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 0);
+        }
+        // Calendar load
+        if (calendarLoadBtn) {
+            calendarLoadBtn.addEventListener("click", async () => {
+                const url = calendarUrlBox ? calendarUrlBox.value : "";
+                if (!url.trim()) { calendarStatus.textContent = "Enter a calendar URL first."; calendarStatus.className = "cal-status err"; return; }
+                calendarStatus.textContent = "Loading..."; calendarStatus.className = "cal-status";
+                try {
+                    calendarEvents = await fetchCalendar(url);
+                    calendarStatus.textContent = `Loaded ${calendarEvents.length} event${calendarEvents.length===1?"":"s"}.`;
+                    calendarStatus.className = "cal-status ok";
+                } catch (e) {
+                    calendarStatus.textContent = String(e.message || e);
+                    calendarStatus.className = "cal-status err";
+                }
+            });
+        }
+        if (calendarFileBtn && calendarFileInput) {
+            calendarFileBtn.addEventListener("click", () => calendarFileInput.click());
+            calendarFileInput.addEventListener("change", async () => {
+                const file = calendarFileInput.files[0];
+                if (!file) return;
+                calendarStatus.textContent = "Loading..."; calendarStatus.className = "cal-status";
+                try {
+                    const events = await parseICSFromFile(file);
+                    calendarEvents = events;
+                    calendarStatus.textContent = `Loaded ${calendarEvents.length} event${calendarEvents.length===1?"":"s"} from ${file.name}.`;
+                    calendarStatus.className = "cal-status ok";
+                } catch (e) {
+                    calendarStatus.textContent = `Error: ${e.message||e}`;
+                    calendarStatus.className = "cal-status err";
+                }
+                calendarFileInput.value = "";
+            });
+        }
+
+        refreshColorConfigView();
+        syncColorVisibility();
+        document.addEventListener("click", (evt) => {
+            if (!paletteState) return;
+            if (evt.target instanceof Element && evt.target.closest(".color-palette")) return;
+            paletteState = null;
+            refreshColorConfigView();
+        });
+
+        function clearAll(){
+            grid.innerHTML = "";
+            featureGroup.clearLayers();
+            markers.length = 0;
+            activePlaceEntries.clear();
+        }
+        function clearVisuals(){
+            grid.innerHTML = "";
+            featureGroup.clearLayers();
+            markers.length = 0;
+        }
+        function rebuildIfPlacesExist(){
+            if (activePlaceEntries.size) void rebuildActiveCards();
+        }
+        async function rebuildActiveCards(){
+            const rules = buildRulesFromConfig(activeColorConfig);
+            const showDecimals = !!decimalsBox.checked;
+            const startHour = Math.max(0, Math.min(23, Number(startHourBox.value)||8));
+            const endHour   = Math.max(0, Math.min(23, Number(endHourBox.value)||17));
+            const numDays   = Math.max(1, Math.min(14, Number(numDaysBox.value)||7));
+            const places = Array.from(activePlaceEntries.values());
+            clearVisuals();
+            if (presentationMode === "new") {
+                await buildGiantTableView(places, rules, showDecimals, startHour, endHour, numDays);
+            } else {
+                for (const placeState of places) {
+                    await buildCard(grid, placeState.coords, rules, showDecimals, startHour, endHour, numDays, placeState);
+                }
+            }
+            if (onlyIconsBox.checked) grid.classList.add("hidden-grid"); else grid.classList.remove("hidden-grid");
+        }
+
+        async function processDirectives(rootText, fileSet){
+            const parsed = await parseDirectives(rootText, fileSet);
+            if (typeof parsed.state === "string") {
+                stateBox.value = parsed.state;
+            }
+            if (typeof parsed.country === "string") {
+                countryBox.value = parsed.country;
+            }
+            if (parsed.hours){
+                startHourBox.value = String(parsed.hours.start);
+                endHourBox.value   = String(parsed.hours.end);
+            }
+            if (Number.isInteger(parsed.days)) {
+                numDaysBox.value = String(parsed.days);
+            }
+            if (typeof parsed.decimals === "boolean") {
+                decimalsBox.checked = parsed.decimals;
+            }
+            if (typeof parsed.cityOnly === "boolean") {
+                cityOnlyBox.checked = parsed.cityOnly;
+            }
+            if (typeof parsed.onlyIcons === "boolean") {
+                onlyIconsBox.checked = parsed.onlyIcons;
+            }
+            if (typeof parsed.colorScales === "boolean") {
+                colorsVisible = parsed.colorScales;
+                syncColorVisibility();
+            }
+            if (parsed.presentation === "new" || parsed.presentation === "legacy") {
+                presentationMode = parsed.presentation;
+                for (const radio of presentationRadios) radio.checked = (radio.value === presentationMode);
+            }
+            if (parsed.colors.length){
+                activeColorConfig = applyColorDirectiveOverrides(activeColorConfig, parsed.colors);
+                refreshColorConfigView();
+            }
+            if (parsed.calendar) {
+                if (calendarUrlBox) calendarUrlBox.value = parsed.calendar;
+                try {
+                    calendarEvents = await fetchCalendar(parsed.calendar);
+                    if (calendarStatus) { calendarStatus.textContent = `Loaded ${calendarEvents.length} event${calendarEvents.length===1?"":"s"}.`; calendarStatus.className = "cal-status ok"; }
+                } catch(e) {
+                    if (calendarStatus) { calendarStatus.textContent = String(e.message||e); calendarStatus.className = "cal-status err"; }
+                }
+            }
+
+            const prefs = { admin1:(stateBox.value||"").trim(), country: (countryBox.value||"").trim() };
+            const rules = buildRulesFromConfig(activeColorConfig);
+            const showDecimals = !!decimalsBox.checked;
+            const startHour = Math.max(0, Math.min(23, Number(startHourBox.value)||8));
+            const endHour   = Math.max(0, Math.min(23, Number(endHourBox.value)||17));
+            const numDays   = Math.max(1, Math.min(14, Number(numDaysBox.value)||7));
+
+            const errorCards = [];
+            const newPlaceStates = [];
+            for (const it of parsed.places) {
+                let coords;
+                const directive = placeDirectiveFromToken(it);
+                try {
+                    if (it.type === "coords") coords = { lat: it.lat, lon: it.lon, label: it.label };
+                    else coords = await geocode(it, prefs);
+                } catch(err) {
+                    const label = it.raw || it.city || "Unknown";
+                    const card = el("section", { class:"card", role:"region" });
+                    const title = el("h3", { text: label });
+                    const closeBtn = el("button", { class:"close-btn", type:"button", text:"Close" });
+                    closeBtn.addEventListener("click", () => card.remove());
+                    const msg = el("p", { class:"meta bad", text: String(err && err.message ? err.message : err) });
+                    card.append(title, closeBtn, msg);
+                    errorCards.push(card);
+                    continue;
+                }
+                const placeState = { id: makeId(), directive, coords };
+                activePlaceEntries.set(placeState.id, placeState);
+                newPlaceStates.push(placeState);
+            }
+
+            if (presentationMode === "new") {
+                // The grid shows a single combined table, so rebuild it for all active places.
+                clearVisuals();
+                await buildGiantTableView(Array.from(activePlaceEntries.values()), rules, showDecimals, startHour, endHour, numDays);
+            } else {
+                for (const placeState of newPlaceStates) {
+                    await buildCard(grid, placeState.coords, rules, showDecimals, startHour, endHour, numDays, placeState);
+                }
+            }
+            for (const card of errorCards) grid.prepend(card);
+
+            document.getElementById("cityOnly").dispatchEvent(new Event("change"));
+            if (onlyIconsBox.checked) grid.classList.add("hidden-grid"); else grid.classList.remove("hidden-grid");
+        }
+
+        function fileListToSet(fileList){
+            const fs = new FileSet();
+            if (!fileList) return fs;
+            for (const f of fileList) fs.addFile(f);
+            return fs;
+        }
+
+        async function processFiles(files){
+            if (!files || !files.length) return;
+            const fs = fileListToSet(files);
+            const directiveTexts = [];
+            for (const f of files) {
+                if (f.name.toLowerCase().endsWith(".ics")) {
+                    try {
+                        const events = await parseICSFromFile(f);
+                        calendarEvents = calendarEvents.concat(events);
+                        if (calendarStatus) { calendarStatus.textContent = `Loaded ${calendarEvents.length} event${calendarEvents.length===1?"":"s"} from file.`; calendarStatus.className = "cal-status ok"; }
+                    } catch(e) {
+                        if (calendarStatus) { calendarStatus.textContent = `ICS parse error: ${e.message||e}`; calendarStatus.className = "cal-status err"; }
+                    }
+                } else {
+                    directiveTexts.push(await f.text());
+                }
+            }
+            if (directiveTexts.length) {
+                const combined = directiveTexts.join("\n");
+                if (pasteArea) {
+                    const prev = pasteArea.value.trim();
+                    pasteArea.value = prev ? prev + "\n" + combined : combined;
+                }
+                await processDirectives(combined, fs);
+            }
+        }
+
+        if (dz) {
+            dz.addEventListener("dragover", (e)=>{ e.preventDefault(); dz.classList.add("dragover"); });
+            dz.addEventListener("dragleave", ()=> dz.classList.remove("dragover"));
+            dz.addEventListener("drop", async (e)=>{
+                e.preventDefault(); dz.classList.remove("dragover");
+                await processFiles(e.dataTransfer.files);
+            });
+            dz.addEventListener("click", (e)=>{
+                if (e.target === fileInput) return;
+                fileInput.click();
+            });
+        }
+
+        if (fileInput) {
+            fileInput.addEventListener("change", async ()=>{
+                await processFiles(fileInput.files);
+                fileInput.value = "";
+            });
+        }
+
+        if (runBtn) {
+            runBtn.addEventListener("click", async ()=>{
+                const text = (pasteArea && pasteArea.value ? pasteArea.value : "").trim();
+                if(!text){ alert("Enter directives or drop a file."); return; }
+                await processDirectives(text, new FileSet());
+            });
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener("click", clearAll);
+        }
+        if (exportBtn) {
+            exportBtn.addEventListener("click", exportCurrentConfig);
+        }
+        // Hamburger menu
+        if (hamburgerBtn) {
+            hamburgerBtn.addEventListener("click", (evt) => {
+                evt.stopPropagation();
+                hamburgerMenu.classList.toggle("open");
+            });
+        }
+        document.addEventListener("click", (evt) => {
+            if (hamburgerMenu && !hamburgerMenu.contains(evt.target) && evt.target !== hamburgerBtn) {
+                hamburgerMenu.classList.remove("open");
+            }
+        });
+        if (menuConfigure) {
+            menuConfigure.addEventListener("click", () => {
+                hamburgerMenu.classList.remove("open");
+                configPanel.classList.add("open");
+            });
+        }
+        if (configPanelClose) {
+            configPanelClose.addEventListener("click", () => {
+                configPanel.classList.remove("open");
+            });
+        }
+        if (configGearBtn) {
+            configGearBtn.addEventListener("click", () => {
+                configPanel.classList.toggle("open");
+            });
+        }
+        // Drag support for modeless config panel
+        if (configPanelHeader && configPanel) {
+            let dragOffX = 0, dragOffY = 0;
+            configPanelHeader.addEventListener("pointerdown", (evt) => {
+                if (evt.target === configPanelClose) return;
+                evt.preventDefault();
+                const rect = configPanel.getBoundingClientRect();
+                dragOffX = evt.clientX - rect.left;
+                dragOffY = evt.clientY - rect.top;
+                configPanel.style.transition = "none";
+                const move = (e) => {
+                    const x = Math.max(0, Math.min(window.innerWidth - 60, e.clientX - dragOffX));
+                    const y = Math.max(0, Math.min(window.innerHeight - 40, e.clientY - dragOffY));
+                    configPanel.style.left = x + "px";
+                    configPanel.style.top = y + "px";
+                    configPanel.style.right = "auto";
+                };
+                const stop = () => {
+                    window.removeEventListener("pointermove", move);
+                    window.removeEventListener("pointerup", stop);
+                    configPanel.style.transition = "";
+                };
+                window.addEventListener("pointermove", move);
+                window.addEventListener("pointerup", stop);
+            });
+        }
+
+        // Map click → add a new place
+        map.on('click', async (e) => {
+            const lat = e.latlng.lat, lon = e.latlng.lng;
+            const rules = buildRulesFromConfig(activeColorConfig);
+            const showDecimals = !!decimalsBox.checked;
+            const startHour = Math.max(0, Math.min(23, Number(startHourBox.value)||8));
+            const endHour   = Math.max(0, Math.min(23, Number(endHourBox.value)||17));
+            const numDays   = Math.max(1, Math.min(14, Number(numDaysBox.value)||7));
+            const { name }  = await reverseGeocode(lat, lon);
+            const placeState = {
+                id: makeId(),
+                directive: `place ${lat.toFixed(4)},${lon.toFixed(4)},${name}`,
+                coords: { lat, lon, label: name }
+            };
+            activePlaceEntries.set(placeState.id, placeState);
+            appendDirectiveLine(placeState.directive);
+            if (presentationMode === "new") {
+                clearVisuals();
+                await buildGiantTableView(Array.from(activePlaceEntries.values()), rules, showDecimals, startHour, endHour, numDays);
+            } else {
+                await buildCard(grid, { lat, lon, label: name }, rules, showDecimals, startHour, endHour, numDays, placeState);
+            }
+        });
+
+        // Label mode
+        document.getElementById("cityOnly").addEventListener("change", () => {
+            for (const m of markers) {
+                const p = m.getPopup();
+                const full = p && p.getContent() ? p.getContent().match(/<strong>(.*?)<\/strong>/)?.[1] : null;
+                if (!full) continue;
+                const showCityOnly = !!document.getElementById("cityOnly").checked;
+                const label = showCityOnly ? cityFromLabel(full) : full;
+                const squares = m._icon?.querySelectorAll('.spark .d') || [];
+                const dayColors = Array.from(squares).map(s => s.style.background || "#2a3a6a");
+                m.setIcon(makeSparkIcon(label, dayColors));
+            }
+        });
+        document.getElementById("onlyIcons").addEventListener("change", ()=>{
+            if (document.getElementById("onlyIcons").checked) grid.classList.add("hidden-grid");
+            else grid.classList.remove("hidden-grid");
+        });
+        decimalsBox.addEventListener("change", rebuildIfPlacesExist);
+        startHourBox.addEventListener("change", rebuildIfPlacesExist);
+        endHourBox.addEventListener("change", rebuildIfPlacesExist);
+        numDaysBox.addEventListener("change", rebuildIfPlacesExist);
+        for (const radio of presentationRadios) {
+            radio.addEventListener("change", () => {
+                if (!radio.checked) return;
+                presentationMode = radio.value === "new" ? "new" : "legacy";
+                rebuildIfPlacesExist();
+            });
+        }
+    });
+</script>
+</body>
+</html>
