@@ -616,9 +616,21 @@
   <span class="bar"></span><span class="bar"></span><span class="bar"></span>
 </button>
 <div id="settings-panel">
-  <button class="settings-save-btn demo-btn" id="load-demo-btn" style="width: 100%; margin: 0 0 6px;">Load Demo Data</button>
-  <p class="hint" style="margin: 0 0 14px;">Fetches a sample prompt library and a test PDF from GitHub.</p>
+  <h3 style="margin-top: 0;">Demo Data</h3>
+  <div class="demo-select-row" style="display: flex; gap: 12px; align-items: center; margin: 0 0 6px;">
+    <div style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text);">
+      <label style="display: flex; gap: 6px; align-items: center; cursor: pointer;">
+        <input type="radio" name="demoSet" value="demo-1" checked> demo-1
+      </label>
+      <label style="display: flex; gap: 6px; align-items: center; cursor: pointer;">
+        <input type="radio" name="demoSet" value="demo-2"> demo-2
+      </label>
+    </div>
+    <button class="settings-save-btn demo-btn" id="load-demo-btn" style="flex: 1;">Load Demo Data</button>
+  </div>
+  <p class="hint" style="margin: 0 0 14px;">Loads a bundled demo project (.zip) from GitHub. demo-2 is not published yet.</p>
 
+  <hr class="section-divider">
   <h3>Project</h3>
   <p class="hint" style="margin: 0 0 8px;">
     Save or open a complete analysis: PDFs, notes, LLM responses, aggregations, and the prompt library.
@@ -689,7 +701,7 @@
 <header>
   <h1>Forensic Workbench Dashboard</h1>
   <span class="badge">FWB</span>
-  <span class="badge version">V0.8</span>
+  <span class="badge version">V0.9</span>
 </header>
 
 <main>
@@ -802,6 +814,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
 <script>
 (() => {
   const PDFJS_VERSION = '3.11.174';
@@ -812,11 +825,15 @@
   // Kept in memory only; pre-populate + persist comes in a later iteration.
   const DEFAULT_LLM_ENDPOINT =
     'https://llm-gateway-730560815836.us-central1.run.app/chat';
-  // Source of the Load Demo Data button. Update this path if the demo files
-  // are hosted elsewhere on GitHub Pages.
+  // Source of the Load Demo Data button and the in-app docs. Update this path
+  // if the demo files are hosted elsewhere on GitHub Pages.
+  // Demo sets are zipped FWB project files (.zip containing one fwb-project
+  // .json) hosted on GH Pages. GH Pages serves them with CORS (ACAO:*), which
+  // is why they are NOT fetched from GitHub release assets (those send no CORS
+  // header and would be blocked by the browser). Each entry here is a zip
+  // basename served at DEMO_BASE_URL + name + '.zip'. Hardcoded for now.
   const DEMO_BASE_URL = 'https://faw987.github.io/';
-  const DEMO_LIBRARY_FILE = 'fwb-prompt-library.json';
-  const DEMO_PDF_FILE = 'forensic_test_00.pdf';
+  const DEMO_SETS = ['demo-1', 'demo-2'];
   // Note: `model` is owned by the viewer (radio buttons). Main keeps endpoint,
   // provider, and the debug flag, and pushes those to the viewer.
   const llmSettings = {
@@ -1239,7 +1256,7 @@
       const project = {
         kind: 'fwb-project',
         version: 1,
-        appVersion: '0.8',
+        appVersion: '0.9',
         exportedAt: new Date().toISOString(),
         mode,
         nextId,
@@ -1424,38 +1441,39 @@
   const loadDemoBtn = document.getElementById('load-demo-btn');
   loadDemoBtn.addEventListener('click', loadDemoData);
 
+  function getSelectedDemoSet() {
+    const checked = document.querySelector('input[name="demoSet"]:checked');
+    return checked && DEMO_SETS.includes(checked.value) ? checked.value : DEMO_SETS[0];
+  }
+
+  // Fetch a demo zip from GH Pages, unzip it (fflate), and hand the contained
+  // fwb-project JSON to the standard project loader. Referenced projects will
+  // prompt the user to re-attach their PDFs, exactly like Open Project.
   async function loadDemoData() {
-    if (loadDemoBtn.disabled) return;
+    if (loadDemoBtn.disabled || busy) return;
+    const demoSet = getSelectedDemoSet();
     loadDemoBtn.disabled = true;
-    loadDemoBtn.textContent = 'Loading demo data…';
-    setStatus('Fetching demo data from GitHub…');
+    loadDemoBtn.textContent = 'Loading ' + demoSet + '…';
+    setStatus('Fetching ' + demoSet + ' from GitHub…');
     try {
-      const libUrl = DEMO_BASE_URL + DEMO_LIBRARY_FILE;
-      const pdfUrl = DEMO_BASE_URL + DEMO_PDF_FILE;
-      const [libResp, pdfResp] = await Promise.all([fetch(libUrl), fetch(pdfUrl)]);
-      if (!libResp.ok) throw new Error('Library fetch failed (' + libResp.status + ') ' + libUrl);
-      if (!pdfResp.ok) throw new Error('PDF fetch failed (' + pdfResp.status + ') ' + pdfUrl);
+      if (typeof fflate === 'undefined') {
+        throw new Error('Unzip library (fflate) failed to load.');
+      }
+      const url = DEMO_BASE_URL + demoSet + '.zip';
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('Fetch failed (' + resp.status + ') ' + url);
 
-      const data = await libResp.json();
-      const raw = Array.isArray(data)
-        ? data
-        : (data && Array.isArray(data.prompts) ? data.prompts : null);
-      if (!raw) throw new Error('Library JSON has unexpected shape.');
-      promptLibrary = raw
-        .filter(p => p && typeof p.name === 'string' && typeof p.text === 'string')
-        .map(normalizePrompt);
-      onLibraryChanged();
+      const buf = await resp.arrayBuffer();
+      const entries = fflate.unzipSync(new Uint8Array(buf));
+      const names = Object.keys(entries);
+      const jsonName = names.find(n => n.toLowerCase().endsWith('.json')) || names[0];
+      if (!jsonName) throw new Error('Zip archive is empty.');
 
-      const pdfBlob = await pdfResp.blob();
-      const pdfFile = new File([pdfBlob], DEMO_PDF_FILE, { type: 'application/pdf' });
-      await addFiles([pdfFile]);
-
-      setSettingsOpen(false);
-      setStatus('Demo data loaded: ' + promptLibrary.length + ' prompt'
-        + (promptLibrary.length === 1 ? '' : 's') + ' and ' + DEMO_PDF_FILE + '.');
+      const jsonFile = new File([entries[jsonName]], jsonName, { type: 'application/json' });
+      await openProjectFromFile(jsonFile);
     } catch (err) {
       console.error('Demo data load failed', err);
-      setStatus('Demo load failed: ' + (err && err.message ? err.message : err));
+      setStatus(demoSet + ' load failed: ' + (err && err.message ? err.message : err));
     } finally {
       loadDemoBtn.disabled = false;
       loadDemoBtn.textContent = 'Load Demo Data';

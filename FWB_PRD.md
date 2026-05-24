@@ -8,7 +8,7 @@ Provide a fast, browser-only tool that lets a reviewer triage every page of one 
 - PDFs never leave the browser; only a chosen page image plus the user's prompt is sent over the network.
 - LLM access is mediated by an external gateway, so provider API keys are never embedded in the client.
 
-## Current scope (V0.8)
+## Current scope (V0.9)
 
 ### Loading and rendering
 - Drop or pick one or more PDFs.
@@ -60,7 +60,7 @@ Provide a fast, browser-only tool that lets a reviewer triage every page of one 
 - Open path is atomic-ish: PDF re-attach (referenced mode) happens before any state is wiped, so a cancelled open leaves the in-progress session untouched. After attach, FWB clears state, restores files (preserving original `fileId`s), restores the prompt library, optionally rebuilds the Page Summary table, repopulates per-cell text from the saved pages, then restores aggregations and re-renders.
 
 ### Hamburger menu (☰)
-- **Load Demo Data** — fetches sample library and test PDF from GitHub.
+- **Demo Data** — pick a demo set (demo-1 / demo-2, hardcoded) and Load Demo Data fetches the matching zipped FWB project from GH Pages, unzips it (fflate), and opens it via the standard project loader. Hosted on GH Pages rather than GitHub release assets because release downloads send no CORS header.
 - **Project** — Save Project / Open Project with a *bundled / referenced* radio for the save mode.
 - **AI Gateway Settings** — configurable `/chat` endpoint with a hosted Cloud Run default.
 - **Prompt Library** — Edit (separate window), Import (JSON), Export (JSON).
@@ -104,7 +104,7 @@ Provide a fast, browser-only tool that lets a reviewer triage every page of one 
     aggregations: [{ id, name, notes, pageRefs, promptResults }],
     selectedAggregationId }
   ```
-- Demo files and the user guide are hosted at `https://faw987.github.io/` (`fwb-prompt-library.json`, `forensic_test_00.pdf`, `FWB_user_doc.md`).
+- Demo bundles and the user guide are hosted at `https://faw987.github.io/` (`demo-1.zip`, `demo-2.zip`, `FWB_user_doc.md`, `FWB_PRD.md`). GH Pages serves with CORS (`Access-Control-Allow-Origin: *`); GitHub release assets do not, so demo zips must be served from Pages, not Releases.
 
 ## File layout
 - `fwb.html` — the application.
@@ -121,3 +121,4 @@ Provide a fast, browser-only tool that lets a reviewer triage every page of one 
 - **V0.6** — Project file Save / Open under the hamburger panel, with *bundled* (PDFs embedded as base64) and *referenced* (filename + SHA-256, re-attach on open) modes. Round-trips PDFs, prompt library, page-summary notes / LLM responses / per-prompt result cells, aggregations (including agg-detail Apply results), and the selected aggregation.
 - **V0.7** — Per-prompt provider/model selection in the library editor; bundled project save / load; in-app Product Requirements access.
 - **V0.8** — (1) Fourth prompt flag (`returnsImage`): image-returning prompts. Apply drives the ai_proxy image-generation tool (`image_generation` request object, OpenAI only) and reads the normalized `images[]` response; the result cell shows a clickable thumbnail with a full-size lightbox. Images persist through project Save / Open and propagate to the agg-detail table via the shared result slot. (2) Recursive aggregations: an aggregation may contain other aggregations (`childAggIds`); the AGG tables, Apply, and Save-as-PDF use the flattened expansion, and a new **Parent** column shows the containing-aggregation path.
+- **V0.9** — Demo Data sets: the hamburger menu offers a selectable list of demo bundles (demo-1 / demo-2, hardcoded). Load Demo Data fetches the chosen `<name>.zip` from GH Pages, unzips it in-browser (fflate), and opens the contained FWB project through the standard project loader (referenced projects still prompt to re-attach PDFs). Replaces the prior library + PDF demo fetch.

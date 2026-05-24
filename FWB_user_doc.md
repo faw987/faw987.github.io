@@ -4,7 +4,7 @@ FWB is a single-page browser app for forensic review of PDF documents. PDFs are 
 
 ## Quick start
 
-The fastest path is the green **Load Demo Data** button at the top of the hamburger menu (☰, top-right). It fetches a sample prompt library and a test PDF from GitHub so you can try the full workflow without supplying anything.
+The fastest path is the **Demo Data** section at the top of the hamburger menu (☰, top-right). Pick a demo set (**demo-1** or **demo-2**) and click the green **Load Demo Data** button. It downloads a ready-made demo project from GitHub and opens it, so you can explore the full workflow — prompt library, summary table, and aggregations — without supplying anything.
 
 ## Concepts
 
@@ -118,8 +118,8 @@ Each detail row has a **✕** button to remove that page from the aggregation. R
 
 The hamburger icon in the top-right opens the configuration panel. When the panel is open, the icon morphs into a blue **✕** and briefly pulses to draw the eye — click it again to close. Hovering the icon while open shows "Close menu" as its tooltip. The panel also closes automatically after you save the gateway endpoint, load demo data, or open the user guide.
 
-### Load Demo Data
-Pulls a sample prompt library (`fwb-prompt-library.json`) and a test PDF (`forensic_test_00.pdf`) from GitHub and loads them into the dashboard. Useful for first-time use or for sharing a working demo.
+### Demo Data
+Select a demo set (**demo-1** or **demo-2**) and click **Load Demo Data**. FWB downloads the matching demo project bundle (a `.zip`) from GitHub, unzips it, and opens the project — restoring its prompt library, summary table, and aggregations. Useful for first-time use or for sharing a working demo. If a demo project was saved in *referenced* mode, FWB will ask you to re-attach its source PDF(s), just like opening any referenced project. (demo-2 is reserved and not published yet.)
 
 ### Project (Save / Open)
 
