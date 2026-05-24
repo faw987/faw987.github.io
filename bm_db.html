@@ -191,7 +191,7 @@
     }
     .folder-item:last-child { border-bottom: none; }
     .folder-item:hover { background: #f8fafc; }
-    .folder-item input[type="radio"] { margin: 0; }
+    .folder-item input { margin: 0; }
     .folder-item .count { color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
     .folder-item .path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .row-actions { white-space: nowrap; }
@@ -1235,7 +1235,9 @@
     else if (fromStr) rangeNote = ` Date filter: from ${fromStr}.`;
     else if (toStr) rangeNote = ` Date filter: through ${toStr}.`;
     $('importSummary').textContent =
-      `Parsed ${importStaging.totalCount} bookmarks across ${importStaging.folderOptions.length} folders. Pick a subtree to ingest.${rangeNote}`;
+      `Parsed ${importStaging.totalCount} bookmarks across ${importStaging.folderOptions.length} folders. Pick one or more subtrees to ingest (or Everything).${rangeNote}`;
+    // Empty set means "Everything"; otherwise the keys of the selected subtrees.
+    importStaging.selected = new Set();
     $('folderFilter').value = '';
     renderFolderList('');
     els.importDialog.showModal();
@@ -1248,40 +1250,59 @@
       return o.path.join('/').toLowerCase().includes(q);
     });
     const list = $('folderList');
+    const selected = importStaging.selected;
+    const everything = selected.size === 0;
     const head = `
       <label class="folder-item">
-        <input type="radio" name="folder-scope" value="" checked>
+        <input type="checkbox" name="folder-scope" value=""${everything ? ' checked' : ''}>
         <span class="path"><strong>Everything</strong></span>
         <span class="count">${importStaging.totalCount}</span>
       </label>`;
     const rows = items.map(o => `
       <label class="folder-item">
-        <input type="radio" name="folder-scope" value="${escapeHtml(o.key)}">
+        <input type="checkbox" name="folder-scope" value="${escapeHtml(o.key)}"${selected.has(o.key) ? ' checked' : ''}>
         <span class="path">${escapeHtml(o.path.join(' / '))}</span>
         <span class="count">${o.count}</span>
       </label>`).join('');
     list.innerHTML = head + (rows || '<div class="folder-item muted">No matching folders under this filter.</div>');
   }
 
-  function getSelectedScopeKey() {
-    const checked = document.querySelector('input[name="folder-scope"]:checked');
-    return checked ? checked.value : '';
+  // Maintain the selected-scope set as the user toggles checkboxes. Checking
+  // "Everything" (value "") clears any specific selections; checking a specific
+  // folder leaves Everything implied-off (selected.size > 0).
+  function onScopeToggle(input) {
+    const selected = importStaging.selected;
+    if (input.value === '') {
+      selected.clear();
+    } else if (input.checked) {
+      selected.add(input.value);
+    } else {
+      selected.delete(input.value);
+    }
+    renderFolderList(els.folderFilter.value);
+  }
+
+  // Empty array means "Everything".
+  function getSelectedScopePaths() {
+    if (!importStaging || importStaging.selected.size === 0) return [];
+    return [...importStaging.selected].map(k => k.split('\n'));
   }
 
   async function runImport() {
     if (!importStaging) return;
-    const scopeKey = getSelectedScopeKey();
-    const scopePath = scopeKey ? scopeKey.split('\n') : [];
+    const scopePaths = getSelectedScopePaths();
+
+    const matchesPrefix = (fp, scopePath) => {
+      if (fp.length < scopePath.length) return false;
+      for (let i = 0; i < scopePath.length; i += 1) {
+        if (fp[i] !== scopePath[i]) return false;
+      }
+      return true;
+    };
 
     const inScope = (folderPaths) => {
-      if (!scopePath.length) return true;
-      return folderPaths.some(fp => {
-        if (fp.length < scopePath.length) return false;
-        for (let i = 0; i < scopePath.length; i += 1) {
-          if (fp[i] !== scopePath[i]) return false;
-        }
-        return true;
-      });
+      if (!scopePaths.length) return true; // Everything
+      return folderPaths.some(fp => scopePaths.some(sp => matchesPrefix(fp, sp)));
     };
 
     let fromStr = els.importDateFrom.value;
@@ -1312,13 +1333,21 @@
       return;
     }
 
+    // For a folder path, strip the longest selected scope prefix that matches it
+    // so the remaining names are the meaningful per-bookmark sub-folders.
+    const stripScope = (fp) => {
+      let best = null;
+      for (const sp of scopePaths) {
+        if (matchesPrefix(fp, sp) && (!best || sp.length > best.length)) best = sp;
+      }
+      return best ? fp.slice(best.length) : fp;
+    };
+
     // Collapse multiple folder paths per bookmark into a single seed list.
-    // If a scope was selected, strip the scope prefix so the remaining
-    // categories are the meaningful per-bookmark sub-folders.
     const items = filtered.map(b => {
       const seeds = new Set();
       for (const fp of b.folderPaths) {
-        const rest = scopePath.length ? fp.slice(scopePath.length) : fp;
+        const rest = scopePaths.length ? stripScope(fp) : fp;
         for (const name of rest) if (name) seeds.add(name);
       }
       return {
@@ -1333,7 +1362,9 @@
       };
     });
 
-    const scopeLabel = scopePath.length ? scopePath.join(' / ') : 'everything';
+    const scopeLabel = !scopePaths.length ? 'everything'
+      : scopePaths.length === 1 ? scopePaths[0].join(' / ')
+      : `${scopePaths.length} folders`;
     let dateLabel = '';
     if (fromStr && toStr) dateLabel = fromStr === toStr ? `, on ${fromStr}` : `, ${fromStr} → ${toStr}`;
     else if (fromStr) dateLabel = `, from ${fromStr}`;
@@ -1682,6 +1713,10 @@
 
     // Import dialog
     els.folderFilter.addEventListener('input', () => renderFolderList(els.folderFilter.value));
+    els.folderList.addEventListener('change', (e) => {
+      const input = e.target.closest('input[name="folder-scope"]');
+      if (input) onScopeToggle(input);
+    });
     els.cancelImportBtn.addEventListener('click', () => {
       els.importDialog.close();
       importStaging = null;
