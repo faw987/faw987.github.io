@@ -10,7 +10,7 @@
     Both AI and oEmbed calls remain off by default and gated behind a toggle.
   -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: https:; connect-src https: http://localhost:8080; form-action 'none'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'" />
-  <title>bm_db</title>
+  <title>Super Bookmark Manager</title>
   <style>
     :root {
       --bg: #f6f8fb;
@@ -36,6 +36,17 @@
     .wrap { max-width: 1280px; margin: 0 auto; padding: 24px; }
     header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     h1 { margin: 0; font-size: 24px; }
+    .version-badge {
+      display: inline-block;
+      vertical-align: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border-radius: 999px;
+      padding: 2px 8px;
+      margin-left: 6px;
+    }
     .sub { color: var(--muted); font-size: 13px; }
     .grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
     .card {
@@ -127,6 +138,14 @@
     .ai-empty { color: #c7ccd6; }
     .proposed-cell .ai-name { margin-bottom: 3px; }
     .proposed-cell .ai-name:last-child { margin-bottom: 0; }
+    /* Proposed categories are clickable: a click adds the category to the
+       established list (see addProposedCategory). */
+    .proposed-add {
+      cursor: pointer;
+      color: var(--accent);
+      border-bottom: 1px dashed var(--accent);
+    }
+    .proposed-add:hover { background: var(--accent-soft); }
     .favicon {
       display: inline-block;
       width: 16px;
@@ -141,14 +160,15 @@
       border: 1px solid #e5e7eb;
     }
     .title-cell { line-height: 1.4; }
-    /* Cap the two widest columns and let their text wrap (taller rows) instead
-       of forcing horizontal scroll. ~4in title, ~4.5in URL. */
+    /* Pin Title and URL to a fixed 3in so they never resize as other columns
+       fill in. min/max/width all equal forces the width even in auto layout;
+       text wraps (taller rows) instead of stretching the column. */
     th[data-sort="title"], td.title-cell {
-      width: 4in; max-width: 4in;
+      width: 3in; min-width: 3in; max-width: 3in;
       white-space: normal; overflow-wrap: anywhere; word-break: break-word;
     }
     th[data-sort="url"], td.col-url {
-      width: 4.5in; max-width: 4.5in;
+      width: 3in; min-width: 3in; max-width: 3in;
       white-space: normal; overflow-wrap: anywhere; word-break: break-word;
     }
     td.col-url a { overflow-wrap: anywhere; word-break: break-word; }
@@ -210,7 +230,7 @@
   <div class="wrap">
     <header>
       <div>
-        <h1>bm_db</h1>
+        <h1>Super Bookmark Manager <span class="version-badge">v0.2</span></h1>
         <div class="sub">Local bookmark database. Data stays in this browser (IndexedDB).</div>
       </div>
       <div class="row tight">
@@ -291,10 +311,9 @@
                 <th data-sort="title">Title <span class="arrow">↕</span></th>
                 <th data-sort="url">URL <span class="arrow">↕</span></th>
                 <th data-sort="categories">Categories <span class="arrow">↕</span></th>
-                <th data-sort="ai1" title="Highest-confidence AI category">AI #1 <span class="arrow">↕</span></th>
-                <th data-sort="ai2" title="Second AI category">AI #2 <span class="arrow">↕</span></th>
-                <th data-sort="ai3" title="Third AI category">AI #3 <span class="arrow">↕</span></th>
-                <th title="Open-ended categories the model proposes when nothing in your list matched">Proposed categories</th>
+                <th data-sort="ai1" title="The main category for this bookmark — the top-ranked established category">Category <span class="arrow">↕</span></th>
+                <th title="Top established categories scored by relevance to this page">Top matches</th>
+                <th title="Open-ended categories the model proposes. Click one to add it to your established categories.">Proposed categories</th>
                 <th data-sort="source">Source <span class="arrow">↕</span></th>
                 <th data-sort="dateAdded">Date Added <span class="arrow">↕</span></th>
                 <th>Note</th>
@@ -302,7 +321,7 @@
               </tr>
             </thead>
             <tbody id="resultsBody">
-              <tr><td colspan="11" class="muted">No rows yet.</td></tr>
+              <tr><td colspan="10" class="muted">No rows yet.</td></tr>
             </tbody>
           </table>
         </div>
@@ -347,11 +366,12 @@
     <div class="setting-row">
       <div>
         <label>Established categories</label>
-        <div class="hint">Import a CSV (one category per row; first column is used) that defines the categories the model scores against. <span id="aiCatCount" class="muted">No categories loaded.</span></div>
+        <div class="hint">Import a CSV (one category per row; first column is used) that defines the categories the model scores against. Clicking a <em>proposed</em> category in the table also adds to this list. Export to save the list you've built up and re-import it next session. <span id="aiCatCount" class="muted">No categories loaded.</span></div>
       </div>
       <div>
         <input id="categoriesFile" type="file" accept=".csv,text/csv" class="hidden" />
         <button id="importCategoriesBtn" class="secondary">Import CSV…</button>
+        <button id="exportCategoriesBtn" class="secondary">Export CSV…</button>
         <button id="clearCategoriesBtn" class="ghost">Clear</button>
       </div>
     </div>
@@ -410,7 +430,11 @@
   };
   // Keep prompts comfortably under the gateway's MAX_INPUT_CHARS (~8000).
   const AI_MAX_CATEGORIES = 200;
-  const AI_TOP_N = 3;
+  // How many established categories to rank in the "Top matches" column. The
+  // top-ranked one becomes the bookmark's "Category" (AI #1).
+  const AI_TOP_N = 5;
+  // How many open-ended categories the model proposes (always generated).
+  const AI_PROPOSE_N = 3;
   const AI_REQUEST_TIMEOUT_MS = 30000;
 
   // ---------- tiny helpers ----------
@@ -651,9 +675,9 @@
   function buildProposePrompt(rec) {
     const folders = (rec.folderCategories || []).join(', ');
     return [
-      'Suggest the 3 most fitting topic categories for this web bookmark.',
+      'Suggest the ' + AI_PROPOSE_N + ' most fitting topic categories for this web bookmark.',
       'You are NOT limited to any predefined list — propose concise, general category names (1-3 words each).',
-      'Return ONLY a JSON array (no prose, no code fence) of exactly 3 objects: ' +
+      'Return ONLY a JSON array (no prose, no code fence) of exactly ' + AI_PROPOSE_N + ' objects: ' +
         '[{"category":"<name>","confidence":<0-100>}], sorted by confidence descending.',
       '',
       'BOOKMARK:',
@@ -691,19 +715,20 @@
       out.push({ category: name, score });
     }
     out.sort((a, b) => b.score - a.score);
-    return out.slice(0, AI_TOP_N);
+    return out.slice(0, AI_PROPOSE_N);
   }
 
-  // Returns { matched, proposed }: matched against the imported list, and — only
-  // when nothing matched — a second open-ended call for proposed categories.
+  // Returns { matched, proposed }. Proposed (open-ended) categories are ALWAYS
+  // generated — that's the spine of the build-your-own-categories workflow.
+  // Matched scoring against the established list only runs when one is loaded.
   async function classifyBookmark(rec, categories) {
-    const reply = await gatewayChat(buildClassifyPrompt(rec, categories));
-    const matched = parseClassifyResponse(reply, categories);
-    let proposed = [];
-    if (!matched.length) {
-      const reply2 = await gatewayChat(buildProposePrompt(rec));
-      proposed = parseProposeResponse(reply2);
+    let matched = [];
+    if (categories.length) {
+      const reply = await gatewayChat(buildClassifyPrompt(rec, categories));
+      matched = parseClassifyResponse(reply, categories);
     }
+    const reply2 = await gatewayChat(buildProposePrompt(rec));
+    const proposed = parseProposeResponse(reply2);
     return { matched, proposed };
   }
 
@@ -714,8 +739,8 @@
     const rec = state.bookmarks.get(id);
     if (!rec) return;
     if (!state.settings.aiEnabled) { setStatus('AI categorization is off — enable it in Settings.'); return; }
+    // No established categories is fine — we'll still generate proposed ones.
     const categories = (state.settings.aiCategories || []).slice(0, AI_MAX_CATEGORIES);
-    if (!categories.length) { setStatus('Import a categories CSV in Settings first.'); return; }
 
     setStatus(`Classifying "${rec.title}"…`);
     try {
@@ -742,8 +767,8 @@
   async function runAiClassification() {
     if (state.processing) return;
     if (!state.settings.aiEnabled) { setStatus('AI categorization is off — enable it in Settings.'); return; }
+    // No established categories is fine — we'll still generate proposed ones.
     const categories = (state.settings.aiCategories || []).slice(0, AI_MAX_CATEGORIES);
-    if (!categories.length) { setStatus('Import a categories CSV in Settings first.'); return; }
 
     const view = currentView();
     if (!view.length) { setStatus('No rows in the current view to classify.'); return; }
@@ -941,6 +966,7 @@
     aiGatewayInput: $('aiGatewayInput'),
     aiCatCount: $('aiCatCount'),
     importCategoriesBtn: $('importCategoriesBtn'),
+    exportCategoriesBtn: $('exportCategoriesBtn'),
     categoriesFile: $('categoriesFile'),
     clearCategoriesBtn: $('clearCategoriesBtn'),
     backupBtn: $('backupBtn'),
@@ -1342,11 +1368,10 @@
   function applySort(list) {
     const { column, dir } = state.sort;
     const factor = dir === 'asc' ? 1 : -1;
-    // For AI columns, sort by the confidence score of the nth ranked category.
-    const aiRank = /^ai([1-3])$/.exec(column);
-    if (aiRank) {
-      const n = Number(aiRank[1]) - 1;
-      const scoreOf = (r) => (r.aiCategories && r.aiCategories[n]) ? r.aiCategories[n].score : -1;
+    // "Category" (ai1) sorts by the confidence of the top-ranked established
+    // category — high-confidence picks float to the top.
+    if (column === 'ai1') {
+      const scoreOf = (r) => (r.aiCategories && r.aiCategories[0]) ? r.aiCategories[0].score : -1;
       return [...list].sort((a, b) => (scoreOf(a) - scoreOf(b)) * factor);
     }
     return [...list].sort((a, b) => {
@@ -1405,27 +1430,43 @@
     els.countLabel.textContent = `${view.length} of ${state.bookmarks.size} rows`;
     els.exportCsvBtn.disabled = view.length === 0;
     els.classifyBtn.classList.toggle('hidden', !state.settings.aiEnabled);
-    els.classifyBtn.disabled =
-      state.processing || view.length === 0 || !(state.settings.aiCategories || []).length;
+    // No category list required — classification always produces proposed
+    // categories, which is how the user builds the list in the first place.
+    els.classifyBtn.disabled = state.processing || view.length === 0;
 
     if (!view.length) {
-      els.resultsBody.innerHTML = `<tr><td colspan="11" class="muted">No rows match.</td></tr>`;
+      els.resultsBody.innerHTML = `<tr><td colspan="10" class="muted">No rows match.</td></tr>`;
       return;
     }
 
-    const aiCell = (r, n) => {
-      const hit = (r.aiCategories || [])[n];
-      if (!hit) return `<td class="ai-cell"><span class="ai-empty">—</span></td>`;
-      return `<td class="ai-cell"><span class="ai-name">${escapeHtml(hit.category)}</span>` +
-        `<span class="ai-score">${escapeHtml(String(hit.score))}%</span></td>`;
+    // "Category" (AI #1): the single chosen category — the top-ranked match.
+    const categoryCell = (r) => {
+      const top = (r.aiCategories || [])[0];
+      if (!top) return `<td class="ai-cell"><span class="ai-empty">—</span></td>`;
+      return `<td class="ai-cell"><span class="ai-name">${escapeHtml(top.category)}</span>` +
+        `<span class="ai-score">${escapeHtml(String(top.score))}%</span></td>`;
     };
 
-    // Proposed categories: up to three, stacked vertically, each "Name NN%".
+    // "Top matches" (AI #2): up to AI_TOP_N established categories with scores,
+    // stacked vertically, each "Name NN%".
+    const topMatchesCell = (r) => {
+      const list = r.aiCategories || [];
+      if (!list.length) return `<td class="ai-cell"><span class="ai-empty">—</span></td>`;
+      return `<td class="ai-cell proposed-cell">` + list.map(p =>
+        `<span class="ai-name">${escapeHtml(p.category)} ` +
+        `<span class="ai-score">${escapeHtml(String(p.score))}%</span></span>`
+      ).join('') + `</td>`;
+    };
+
+    // Proposed categories: clickable — a click adds the name to the established
+    // list so it can score in future classifications.
     const proposedCell = (r) => {
       const list = r.aiProposed || [];
       if (!list.length) return `<td class="ai-cell"><span class="ai-empty">—</span></td>`;
       return `<td class="ai-cell proposed-cell">` + list.map(p =>
-        `<span class="ai-name">${escapeHtml(p.category)} ` +
+        `<span class="ai-name proposed-add" data-action="add-category" data-cat="${escapeHtml(p.category)}" ` +
+        `title="Add &quot;${escapeHtml(p.category)}&quot; to your established categories">` +
+        `${escapeHtml(p.category)} ` +
         `<span class="ai-score">${escapeHtml(String(p.score))}%</span></span>`
       ).join('') + `</td>`;
     };
@@ -1440,7 +1481,7 @@
         <td class="cell-editable title-cell" data-field="title">${iconHtml}${escapeHtml(r.title)}</td>
         <td class="col-url"><a href="${escapeHtml(r.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.url)}</a></td>
         <td class="cell-editable" data-field="categories">${chips}</td>
-        ${aiCell(r, 0)}${aiCell(r, 1)}${aiCell(r, 2)}${proposedCell(r)}
+        ${categoryCell(r)}${topMatchesCell(r)}${proposedCell(r)}
         <td>${escapeHtml(r.source)}</td>
         <td>${escapeHtml(dateStr)}</td>
         <td class="cell-editable" data-field="note">${escapeHtml(r.note)}</td>
@@ -1484,6 +1525,29 @@
     render();
   }
 
+  // Clicking a proposed category promotes it into the established-categories
+  // list. From then on it's eligible to score in the Category / Top matches
+  // columns. The user exports the list to carry it into the next session.
+  function addProposedCategory(cat) {
+    const name = (cat || '').trim();
+    if (!name) return;
+    const list = state.settings.aiCategories || [];
+    if (list.some(c => c.toLowerCase() === name.toLowerCase())) {
+      setStatus(`"${name}" is already in your established categories.`);
+      return;
+    }
+    if (list.length >= AI_MAX_CATEGORIES) {
+      setStatus(`Category list is full (${AI_MAX_CATEGORIES} max). Remove some before adding more.`);
+      return;
+    }
+    list.push(name);
+    state.settings.aiCategories = list;
+    saveSettings(state.settings);
+    renderCategoryCount();
+    render();
+    setStatus(`Added "${name}" to established categories (${list.length} total). Re-classify to score against it.`);
+  }
+
   async function deleteRow(id) {
     if (!confirm('Delete this bookmark?')) return;
     await db.delete(id);
@@ -1512,21 +1576,30 @@
   function exportCsv() {
     const rows = currentView();
     if (!rows.length) return;
-    const header = ['Title', 'URL', 'Categories', 'AI Category 1', 'AI Category 2', 'AI Category 3', 'Proposed Categories', 'Source', 'Date Added', 'Note'];
+    const header = ['Title', 'URL', 'Categories', 'Category', 'Top Matches', 'Proposed Categories', 'Source', 'Date Added', 'Note'];
     const lines = [header.map(toCsvCell).join(',')];
-    const aiText = (r, n) => {
-      const hit = (r.aiCategories || [])[n];
-      return hit ? `${hit.category} (${hit.score}%)` : '';
+    const scored = (list) => (list || []).map(p => `${p.category} (${p.score}%)`).join('; ');
+    const categoryText = (r) => {
+      const top = (r.aiCategories || [])[0];
+      return top ? `${top.category} (${top.score}%)` : '';
     };
-    const proposedText = (r) => (r.aiProposed || []).map(p => `${p.category} (${p.score}%)`).join('; ');
     for (const r of rows) {
       lines.push([
         r.title, r.url, r.categories.join('; '),
-        aiText(r, 0), aiText(r, 1), aiText(r, 2), proposedText(r),
+        categoryText(r), scored(r.aiCategories), scored(r.aiProposed),
         r.source, new Date(r.dateAdded).toISOString(), r.note
       ].map(toCsvCell).join(','));
     }
     download('bm_db_export.csv', lines.join('\n'), 'text/csv;charset=utf-8');
+  }
+
+  // Export the established-categories list as a one-column CSV (no header, so it
+  // round-trips cleanly back through parseCategoriesCsv on re-import).
+  function exportCategoriesCsv() {
+    const cats = state.settings.aiCategories || [];
+    if (!cats.length) { setStatus('No established categories to export.'); return; }
+    download('bm_db_categories.csv', cats.map(toCsvCell).join('\n') + '\n', 'text/csv;charset=utf-8');
+    setStatus(`Exported ${cats.length} categor${cats.length === 1 ? 'y' : 'ies'}.`);
   }
 
   function exportJsonBackup() {
@@ -1659,7 +1732,7 @@
           state.sort.dir = state.sort.dir === 'asc' ? 'desc' : 'asc';
         } else {
           state.sort.column = col;
-          state.sort.dir = (col === 'dateAdded' || /^ai[1-3]$/.test(col)) ? 'desc' : 'asc';
+          state.sort.dir = (col === 'dateAdded' || col === 'ai1') ? 'desc' : 'asc';
         }
         render();
       });
@@ -1674,6 +1747,8 @@
       if (deleteBtn) { deleteRow(id); return; }
       const classifyRowBtn = e.target.closest('button[data-action="classify"]');
       if (classifyRowBtn) { classifyRow(id); return; }
+      const addCatEl = e.target.closest('[data-action="add-category"]');
+      if (addCatEl) { addProposedCategory(addCatEl.dataset.cat); return; }
       const cell = e.target.closest('.cell-editable');
       if (cell) { editField(id, cell.dataset.field); return; }
     });
@@ -1726,6 +1801,7 @@
       }
       e.target.value = '';
     });
+    els.exportCategoriesBtn.addEventListener('click', exportCategoriesCsv);
     els.clearCategoriesBtn.addEventListener('click', () => {
       state.settings.aiCategories = [];
       saveSettings(state.settings);
