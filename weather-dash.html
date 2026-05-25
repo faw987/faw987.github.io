@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Weather v5.0 — Daily → Hourly drilldown</title>
+    <title>Weather v5.1 — Daily → Hourly drilldown</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -145,10 +145,17 @@
 
         /* Giant (V5.0) aggregate table */
         .giant-wrap { overflow-x:auto; border-radius:14px; }
-        table.wx.giant { min-width:100%; }
+        /* width:auto so location columns pack tight against the date column and
+           grow to the right; the wrap scrolls when they exceed the card width. */
+        table.wx.giant { width:auto; }
         table.wx.giant th.dt-cell, table.wx.giant td.dt-cell {
             position:sticky; left:0; background:#121a33; z-index:1; white-space:nowrap; font-weight:600; color:#cfd5e4;
         }
+        /* Vertical separators between locations; a heavier rule splits the
+           date/time column from the first location. */
+        table.wx.giant th.place-col, table.wx.giant td.agg-cell { border-left:1px solid #25345f; }
+        table.wx.giant td.dt-cell + td.agg-cell,
+        table.wx.giant thead th.dt-cell + th.place-col { border-left:2px solid #3b57a3; }
         table.wx.giant thead th.dt-cell { z-index:3; vertical-align:bottom; }
         /* Half-inch place columns with 45°-angled headers */
         table.wx.giant td.agg-cell {
@@ -261,7 +268,7 @@
                     <button id="menuConfigure" class="hamburger-item" type="button">Configure&hellip;</button>
                 </div>
             </div>
-            <h1>Weather v5.0</h1>
+            <h1>Weather v5.1</h1>
             <button id="configGearBtn" class="gear-btn" type="button" title="Open Configuration" aria-label="Open Configuration">&#9881;</button>
         </div>
         <p class="sub">Click a day to append an hourly table. Click an hour to open weather.com for that place/hour.</p>
@@ -1601,7 +1608,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             lines.push(...orderedColorDirectiveStrings(activeColorConfig));
             const blob = new Blob([lines.join("\n") + "\n"], { type:"text/plain;charset=utf-8" });
             const url = URL.createObjectURL(blob);
-            const a = el("a", { href:url, download:"weather-v5.0-config.txt" });
+            const a = el("a", { href:url, download:"weather-v5.1-config.txt" });
             document.body.append(a);
             a.click();
             a.remove();
@@ -1950,6 +1957,26 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                 rebuildIfPlacesExist();
             });
         }
+
+        // -------- Startup: load the default configuration from the repo.
+        // weather-dash-default.txt lives alongside this file. When the app is
+        // served (https), the relative fetch resolves same-origin. When opened
+        // locally (file://), that fetch is blocked, so we fall back to the
+        // GitHub Pages copy, which is served with CORS (ACAO:*).
+        async function loadDefaultConfig(){
+            const sources = ["weather-dash-default.txt", "https://faw987.github.io/weather-dash-default.txt"];
+            let text = null;
+            for (const url of sources){
+                try {
+                    const r = await fetch(url, { signal: AbortSignal.timeout(10000) });
+                    if (r.ok) { text = await r.text(); break; }
+                } catch(e){ /* try the next source */ }
+            }
+            if (!text || !text.trim()) return;
+            if (pasteArea && !pasteArea.value.trim()) pasteArea.value = text.trim();
+            await processDirectives(text, new FileSet());
+        }
+        void loadDefaultConfig();
     });
 </script>
 </body>

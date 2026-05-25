@@ -1,0 +1,20 @@
+state New Jersey
+country United States
+hours 8 17
+days 7
+decimals on
+cityonly on
+onlyicons off
+colorscales show
+place Piscataway, NJ
+place High Bridge, NJ
+place Atlantic Highlands, NJ
+place Poughkeepsie, NY
+color High (°F)=-99#65.2:deepskyblue,65.2#81.4:forestgreen,81.4#97.9:red,97.9#110:plum
+color Low (°F)=-99#18:red,18#66:lightgreen,66#85:green
+color Temp (°F)=-99#41:red,41#58.5:lightgreen,58.5#85:green
+color Precip (in)=0#0.1:green,0.1#0.2:yellow,0.2#10:red
+color UV=0#3:lightgreen,3#7.7:green,7.7#8.9:gold,8.9#11:red
+color Wind (mph)=0#16:lightgreen,16#26:yellow,26#200:red
+color Gust (mph)=0#20:lightgreen,20#35.4:yellow,35.4#200:red
+color RH (%)=0#61:lightgreen,61#76:green,76#100:yellow
