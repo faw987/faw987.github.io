@@ -1188,7 +1188,11 @@
         const n = normalizeUrl(a.getAttribute('href'));
         if (!n) continue;
         const title = (a.textContent || '').trim();
-        if (title && !normalizeUrl(title)) map.set(urlDedupKey(n), title);
+        // Skip anchor text that is itself a URL (address-bar drags), but keep
+        // ordinary titles — including single words like "Documentation", which
+        // normalizeUrl would wrongly treat as a hostname.
+        const isUrlish = /^(https?:\/\/|www\.)/i.test(title) || title === n;
+        if (title && !isUrlish) map.set(urlDedupKey(n), title);
       }
     } catch { /* malformed fragment — fall back to titleFromUrl downstream */ }
     return map;
