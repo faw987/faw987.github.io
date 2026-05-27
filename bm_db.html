@@ -254,6 +254,12 @@
           <button id="clearImportRangeBtn" class="ghost" type="button" title="Clear import date range">Clear</button>
         </div>
 
+        <div style="height:14px"></div>
+        <div id="quickDropzone" class="dropzone">
+          <strong>Drop one or more links here to add them straight to the table</strong>
+          <div class="muted" style="margin-top:6px;">Quick capture — drag a link from your address bar, a page, or a bookmark instead of filing it. No real add-dates or favicons; saved immediately (no Process step).</div>
+        </div>
+
         <div style="height:18px"></div>
         <details>
           <summary class="muted" style="cursor:pointer;">Or paste URLs (ad-hoc, no icons or real add-dates)</summary>
@@ -933,6 +939,7 @@
 
   const els = {
     dropzone: $('dropzone'),
+    quickDropzone: $('quickDropzone'),
     urlInput: $('urlInput'),
     processBtn: $('processBtn'),
     importBtn: $('importBtn'),
@@ -1684,6 +1691,25 @@
       } else {
         setStatus('No URLs detected in drop.');
       }
+    });
+
+    // Quick drop zone — unlike the staging dropzone above, dropped links are
+    // ingested into the table immediately (no Process step). A misdropped
+    // bookmarks.html file still routes to the normal import flow.
+    els.quickDropzone.addEventListener('dragover', e => { e.preventDefault(); els.quickDropzone.classList.add('dragover'); });
+    els.quickDropzone.addEventListener('dragleave', () => els.quickDropzone.classList.remove('dragover'));
+    els.quickDropzone.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      els.quickDropzone.classList.remove('dragover');
+      const file = e.dataTransfer.files?.[0];
+      if (file && /\.html?$/i.test(file.name)) {
+        await handleDropFile(file);
+        return;
+      }
+      const urls = parseDropText(e.dataTransfer);
+      if (!urls.length) { setStatus('No URLs detected in drop.'); return; }
+      setStatus(`Adding ${urls.length} dropped link${urls.length === 1 ? '' : 's'}…`);
+      await ingest(urls.map(u => ({ url: u, origin: 'drop' })));
     });
 
     // Process textarea
