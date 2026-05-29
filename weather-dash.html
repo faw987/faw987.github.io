@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Weather v5.1 — Daily → Hourly drilldown</title>
+    <title>Weather v5.1.2 — Daily → Hourly drilldown</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -157,27 +157,32 @@
         table.wx.giant td.dt-cell + td.agg-cell,
         table.wx.giant thead th.dt-cell + th.place-col { border-left:2px solid #3b57a3; }
         table.wx.giant thead th.dt-cell { z-index:3; vertical-align:bottom; }
-        /* Half-inch place columns with 45°-angled headers */
+        /* Half-inch place columns with vertical (bottom-to-top) headers */
         table.wx.giant td.agg-cell {
             width:0.5in; min-width:0.5in; max-width:0.5in;
             cursor:pointer; text-align:center; padding:6px 2px;
+            position:relative; /* anchor for the v5.1.1 driver letter */
         }
         table.wx.giant td.agg-cell:hover { outline:2px solid var(--accent); outline-offset:-2px; }
-        table.wx.giant thead th.place-col {
+        /* v5.1.1 (experimental): letter in a cell's lower-left naming the metric that drove its color */
+        table.wx.giant td.agg-cell .driver {
+            position:absolute; left:2px; bottom:0; font-size:9px; line-height:1;
+            font-weight:700; opacity:.7; pointer-events:none; color:#0b0f14;
+        }
+        /* v5.1.2: names read vertically, bottom-to-top (was a 45° angle). Selectors apply
+           to both the <thead> and the repeated headers we insert at each day boundary. */
+        table.wx.giant th.place-col {
             width:0.5in; min-width:0.5in; max-width:0.5in;
-            height:118px; padding:0; vertical-align:bottom;
+            padding:6px 0; vertical-align:bottom; text-align:center;
             background:#121a33; z-index:2;
         }
-        table.wx.giant thead th.place-col .rot {
-            width:0.5in;
-            transform-origin:bottom left;
-            transform:translateX(calc(0.25in + 1px)) rotate(-45deg);
-        }
-        table.wx.giant thead th.place-col .rot span {
+        table.wx.giant th.place-col .rot span {
+            writing-mode:vertical-rl; transform:rotate(180deg);
             display:inline-block; white-space:nowrap;
-            padding:0 8px 3px 0; color:#cfd5e4; font-weight:700;
-            border-bottom:1px solid #3b57a3;
+            color:#cfd5e4; font-weight:700;
         }
+        /* repeated day-boundary header rows: a thin rule sets them apart from data */
+        table.wx.giant tbody tr.place-hdr th { border-top:2px solid #3b57a3; }
 
         /* Hour-detail popup (V5.0) */
         .hd-overlay { position:fixed; inset:0; z-index:120; background:rgba(4,8,20,0.62);
@@ -212,6 +217,12 @@
             <label><input type="radio" name="presentation" value="new" checked /> New</label>
         </div>
         <div class="sub"><strong>Legacy</strong>: one card per location with a daily table you can drill into hourly. <strong>New</strong>: a single grid — one row per hour of each day, one column per location, each cell colored by its aggregate severity (click a cell for details).</div>
+        <div class="config-panel-section">Aggregate cell color <span style="text-transform:none;color:#8aa;font-weight:400;">(experimental)</span></div>
+        <div class="radio-group">
+            <label><input type="radio" name="aggcolor" value="actual" checked /> Match worst metric</label>
+            <label><input type="radio" name="aggcolor" value="canonical" /> Fixed tier color</label>
+        </div>
+        <div class="sub">When several metrics combine into one cell, the worst (highest-severity) one wins. <strong>Match worst metric</strong>: paint the cell that metric's exact color (e.g. dark vs light green). <strong>Fixed tier color</strong>: use one canonical color per severity tier (lightgreen / yellow / orange / red).</div>
         <div class="config-panel-section">Location defaults</div>
         <div class="row4">
             <div>
@@ -268,7 +279,7 @@
                     <button id="menuConfigure" class="hamburger-item" type="button">Configure&hellip;</button>
                 </div>
             </div>
-            <h1>Weather v5.1</h1>
+            <h1>Weather v5.1.2</h1>
             <button id="configGearBtn" class="gear-btn" type="button" title="Open Configuration" aria-label="Open Configuration">&#9881;</button>
         </div>
         <p class="sub">Click a day to append an hourly table. Click an hour to open weather.com for that place/hour.</p>
@@ -753,6 +764,24 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             return -1;
         }
         function colorForSeverity(s){ return s===3?"red":s===2?"orange":s===1?"yellow":s===0?"lightgreen":null; }
+        // Aggregate-cell color mode (experimental, user-selectable in config):
+        //   "actual"    = show the actual color of the worst-tier metric, preserving the exact
+        //                 shade defined in the rules (dark green vs light green, gold vs orange). [Choice 1]
+        //   "canonical" = collapse to one fixed color per severity tier — the original behavior. [Choice 2]
+        let aggColorMode = "actual";
+        // Reduce a list of per-metric color names (priority order; some may be null) to the
+        // aggregate cell color under the active mode. Returns the color, the winning severity
+        // tier, and which color won (first metric reaching the highest tier).
+        function aggregateCellColor(colorList){
+            let rowS = -1, worstColor = null;
+            for (const c of colorList){
+                const s = severityOfColor(c);
+                if (s > rowS){ rowS = s; worstColor = c; }
+            }
+            if (rowS < 0) return { color: null, rowS, worstColor: null };
+            const color = (aggColorMode === "actual" && worstColor) ? worstColor : colorForSeverity(rowS);
+            return { color, rowS, worstColor };
+        }
         function colorFor(rules, header, value){
             if (!rules) return null;
             const key = normKey(header);
@@ -1009,13 +1038,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                     colorFor(rules, "Gust (mph)", maxG),
                     worstColor
                 ];
-                const severities = sColors.map(severityOfColor);
-                let rowS = -1;
-                if (severities.some(s => s === 3)) rowS = 3;
-                else if (severities.some(s => s === 2)) rowS = 2;
-                else if (severities.some(s => s === 1)) rowS = 1;
-                else if (severities.every(s => s <= 0) && severities.some(s => s === 0)) rowS = 0;
-                date_colors.push(colorForSeverity(rowS));
+                date_colors.push(aggregateCellColor(sColors).color);
             }
             return {
                 time, temperature_2m_max: hi, temperature_2m_min: lo,
@@ -1203,25 +1226,38 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         }
         // Combine an hour's sub-forecasts into one severity color — same scheme
         // used for daily date_colors in summarizeHourly().
-        function hourlyAggregateColor(rules, rec){
-            if (!rec) return null;
-            const sColors = [
-                colorFor(rules, "Temp (°F)", rec.temp) || colorFor(rules, "High (°F)", rec.temp),
-                colorFor(rules, "Precip (in)", rec.precip),
-                colorFor(rules, "UV", rec.uv),
-                colorFor(rules, "Wind (mph)", rec.wind),
-                colorFor(rules, "Gust (mph)", rec.gust),
-                colorFor(rules, "RH (%)", rec.rh),
-                colorFor(rules, "Conditions", rec.cond)
+        // v5.1.1 (experimental): show a small letter in a cell's lower-left naming the metric
+        // that drove its (non-green) severity. Flip this off to disable the whole feature.
+        const SHOW_CELL_DRIVER_LETTERS = true;
+        // Returns { color, letter } for one hour: the worst severity color (unchanged from before)
+        // plus the letter of the metric responsible (null when green, or when only Conditions
+        // is to blame). Letters: H high, L low, T temp, P precip, U UV, W wind, G gust, R RH.
+        function hourlyAggregateInfo(rules, rec){
+            if (!rec) return { color:null, letter:null };
+            // 'Temp' rules win; fall back to 'High' for hourly temp — the letter reflects which matched.
+            let tColor = colorFor(rules, "Temp (°F)", rec.temp);
+            let tLetter = "T";
+            if (!tColor){ tColor = colorFor(rules, "High (°F)", rec.temp); tLetter = "H"; }
+            const metrics = [
+                { color: tColor,                                     letter: tLetter },
+                { color: colorFor(rules, "Precip (in)", rec.precip), letter: "P" },
+                { color: colorFor(rules, "UV", rec.uv),              letter: "U" },
+                { color: colorFor(rules, "Wind (mph)", rec.wind),    letter: "W" },
+                { color: colorFor(rules, "Gust (mph)", rec.gust),    letter: "G" },
+                { color: colorFor(rules, "RH (%)", rec.rh),          letter: "R" },
+                { color: colorFor(rules, "Conditions", rec.cond),    letter: null },
             ];
-            const severities = sColors.map(severityOfColor);
-            let rowS = -1;
-            if (severities.some(s => s === 3)) rowS = 3;
-            else if (severities.some(s => s === 2)) rowS = 2;
-            else if (severities.some(s => s === 1)) rowS = 1;
-            else if (severities.some(s => s === 0)) rowS = 0;
-            return colorForSeverity(rowS);
+            const agg = aggregateCellColor(metrics.map(m => m.color));
+            const rowS = agg.rowS;
+            // Only label non-green cells (severity 1+); pick the first metric at the worst tier with a letter.
+            let letter = null;
+            if (rowS >= 1){
+                const driver = metrics.find(m => m.letter && severityOfColor(m.color) === rowS);
+                letter = driver ? driver.letter : null;
+            }
+            return { color: agg.color, letter };
         }
+        function hourlyAggregateColor(rules, rec){ return hourlyAggregateInfo(rules, rec).color; }
         // Modal popup with the individual metrics for one place/hour.
         function showHourDetailPopup(coords, timeISO, rec, rules, showDecimals){
             const existing = document.getElementById("hourDetailOverlay");
@@ -1314,20 +1350,26 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             const showCityOnly = !!document.getElementById("cityOnly").checked;
             const wrap = el("div", { class:"giant-wrap" });
             const tbl = el("table", { class:"wx giant" });
+            // Build a place-name header row; reused for the table head and repeated after each
+            // day boundary so columns stay identifiable while scrolling through the hours.
+            const makeHeaderRow = (cls) => {
+                const hr = el("tr", cls ? { class: cls } : {});
+                hr.append(el("th", { text:"Date / Time", class:"dt-cell" }));
+                for (const c of cols){
+                    const lbl = showCityOnly ? cityFromLabel(c.coords.label) : c.coords.label;
+                    hr.append(el("th", { class:"place-col", title: c.coords.label }, [
+                        el("div", { class:"rot" }, el("span", { text: c.error ? `${lbl} (error)` : lbl }))
+                    ]));
+                }
+                return hr;
+            };
             const thead = el("thead");
-            const headRow = el("tr");
-            headRow.append(el("th", { text:"Date / Time", class:"dt-cell" }));
-            for (const c of cols){
-                const lbl = showCityOnly ? cityFromLabel(c.coords.label) : c.coords.label;
-                const th = el("th", { class:"place-col", title: c.coords.label }, [
-                    el("div", { class:"rot" }, el("span", { text: c.error ? `${lbl} (error)` : lbl }))
-                ]);
-                headRow.append(th);
-            }
-            thead.append(headRow);
+            thead.append(makeHeaderRow());
             const tbody = el("tbody");
 
-            for (const t of ref.hourly.time){
+            const times = ref.hourly.time;
+            for (let ti = 0; ti < times.length; ti++){
+                const t = times[ti];
                 const tr = el("tr");
                 tr.append(el("td", { text: formatDateTimeLabel(t), class:"dt-cell" }));
                 for (const c of cols){
@@ -1335,8 +1377,11 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                     const rec = hourRecordAt(c.hourly, c.idxByTime.get(t));
                     const cell = el("td", { class:"agg-cell", title:"Click for details" });
                     if (rec){
-                        const color = hourlyAggregateColor(rules, rec);
-                        if (color) cell.style.backgroundColor = color;
+                        const info = hourlyAggregateInfo(rules, rec);
+                        if (info.color) cell.style.backgroundColor = info.color;
+                        if (SHOW_CELL_DRIVER_LETTERS && info.letter){
+                            cell.append(el("span", { class:"driver", text: info.letter }));
+                        }
                         cell.addEventListener("click", () => {
                             showHourDetailPopup(c.coords, t, rec, rules, showDecimals);
                         });
@@ -1346,6 +1391,11 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                     tr.append(cell);
                 }
                 tbody.append(tr);
+                // After the last hour of a day, repeat the place headers before the next day begins.
+                const next = times[ti + 1];
+                if (next && next.slice(0,10) !== t.slice(0,10)){
+                    tbody.append(makeHeaderRow("place-hdr"));
+                }
             }
             tbl.append(thead, tbody);
             wrap.append(tbl);
@@ -1450,7 +1500,8 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                 onlyIcons: null,
                 colorScales: null,
                 calendar: null,
-                presentation: null
+                presentation: null,
+                aggColorMode: null
             };
             async function parseOne(text){
                 const lines = (text||"").replace(/\r\n?/g,"\n").split("\n");
@@ -1496,6 +1547,9 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                     } else if (kw === "presentation") {
                         const v = rest.trim().toLowerCase();
                         if (v === "new" || v === "legacy") acc.presentation = v;
+                    } else if (kw === "aggcolor") {
+                        const v = rest.trim().toLowerCase();
+                        if (v === "actual" || v === "canonical") acc.aggColorMode = v;
                     } else if (kw === "add") {
                         const fname = rest.replace(/^['"]|['"]$/g,"");
                         if (!fname) continue;
@@ -1557,6 +1611,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         const calendarFileInput = document.getElementById("calendarFileInput");
         const calendarStatus = document.getElementById("calendarStatus");
         const presentationRadios = Array.from(document.querySelectorAll('input[name="presentation"]'));
+        const aggColorRadios = Array.from(document.querySelectorAll('input[name="aggcolor"]'));
 
         function refreshColorConfigView(){
             renderColorConfig(
@@ -1602,6 +1657,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             lines.push(`onlyicons ${onlyIconsBox.checked ? "on" : "off"}`);
             lines.push(`colorscales ${colorsVisible ? "show" : "hide"}`);
             lines.push(`presentation ${presentationMode}`);
+            lines.push(`aggcolor ${aggColorMode}`);
             const calUrl = calendarUrlBox ? calendarUrlBox.value.trim() : "";
             if (calUrl) lines.push(`calendar ${calUrl}`);
             for (const entry of activePlaceEntries.values()) lines.push(entry.directive);
@@ -1721,6 +1777,10 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             if (parsed.presentation === "new" || parsed.presentation === "legacy") {
                 presentationMode = parsed.presentation;
                 for (const radio of presentationRadios) radio.checked = (radio.value === presentationMode);
+            }
+            if (parsed.aggColorMode === "actual" || parsed.aggColorMode === "canonical") {
+                aggColorMode = parsed.aggColorMode;
+                for (const radio of aggColorRadios) radio.checked = (radio.value === aggColorMode);
             }
             if (parsed.colors.length){
                 activeColorConfig = applyColorDirectiveOverrides(activeColorConfig, parsed.colors);
@@ -1954,6 +2014,14 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             radio.addEventListener("change", () => {
                 if (!radio.checked) return;
                 presentationMode = radio.value === "new" ? "new" : "legacy";
+                rebuildIfPlacesExist();
+            });
+        }
+        // Aggregate cell-color mode (experimental): re-color in place on change.
+        for (const radio of aggColorRadios) {
+            radio.addEventListener("change", () => {
+                if (!radio.checked) return;
+                aggColorMode = radio.value === "canonical" ? "canonical" : "actual";
                 rebuildIfPlacesExist();
             });
         }
