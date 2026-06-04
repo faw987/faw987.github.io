@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Weather v5.1.2 — Daily → Hourly drilldown</title>
+    <title>Weather v5.1.3 — Daily → Hourly drilldown</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -115,10 +115,6 @@
         .config-panel-body .row2 { display:grid; gap:10px; grid-template-columns:1fr 1fr 1fr; }
         .config-panel-section { font-weight:700; font-size:13px; color:var(--accent); text-transform:uppercase;
             letter-spacing:.5px; margin-top:4px; }
-        /* Gear shortcut button */
-        .gear-btn { background:none; border:1px solid #2a3a6a; color:var(--muted); font-size:18px; line-height:1;
-            padding:4px 8px; border-radius:10px; cursor:pointer; margin-left:auto; }
-        .gear-btn:hover { background:#12214a; border-color:#3b57a3; color:var(--text); }
         /* Calendar indicator in hourly table */
         .cal-indicator { display:inline-block; margin-left:6px; cursor:default; position:relative; font-size:13px; vertical-align:middle; }
         .cal-tooltip { display:none; position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%);
@@ -211,6 +207,20 @@
         <button id="configPanelClose" class="config-panel-close" type="button">Close</button>
     </div>
     <div class="config-panel-body">
+        <div class="config-panel-section">Weather service provider</div>
+        <div class="radio-group">
+            <label><input type="radio" name="provider" value="openmeteo" checked /> Open-Meteo</label>
+            <label><input type="radio" name="provider" value="nws" /> National Weather Service</label>
+        </div>
+        <div class="sub"><strong>Open-Meteo</strong>: global coverage, supplies every metric. <strong>National Weather Service</strong>: US locations only; it does not report UV index, wind gusts, or precipitation amount, so choose how to handle those below.</div>
+        <div id="nwsFillWrap">
+            <div class="config-panel-section">NWS missing metrics</div>
+            <div class="radio-group">
+                <label><input type="radio" name="nwsfill" value="blank" checked /> Leave blank</label>
+                <label><input type="radio" name="nwsfill" value="estimate" /> Best-effort estimate</label>
+            </div>
+            <div class="sub"><strong>Leave blank</strong>: show UV, gusts, and precip amount as &ldquo;–&rdquo; when NWS omits them. <strong>Best-effort estimate</strong>: estimate gusts from wind speed and a rough precip amount from the chance of precipitation. (UV has no NWS source and stays blank either way; conditions always come from the NWS forecast text.)</div>
+        </div>
         <div class="config-panel-section">Presentation</div>
         <div class="radio-group">
             <label><input type="radio" name="presentation" value="legacy" /> Legacy</label>
@@ -279,8 +289,7 @@
                     <button id="menuConfigure" class="hamburger-item" type="button">Configure&hellip;</button>
                 </div>
             </div>
-            <h1>Weather v5.1.2</h1>
-            <button id="configGearBtn" class="gear-btn" type="button" title="Open Configuration" aria-label="Open Configuration">&#9881;</button>
+            <h1>Weather v5.1.3</h1>
         </div>
         <p class="sub">Click a day to append an hourly table. Click an hour to open weather.com for that place/hour.</p>
     </header>
@@ -298,7 +307,7 @@
         <div id="drop" class="dropzone" tabindex="0" aria-label="Drop or click to load directive files">
             <input id="file" type="file" accept=".txt,.csv,.ics,text/plain,text/calendar" multiple style="display:none" />
             <strong>Drop file(s) here or click to browse</strong>
-            <div class="sub">Files may contain <code>place</code>, <code>color</code>, <code>hours</code>, <code>days</code>, <code>state</code>, <code>country</code>, <code>decimals</code>, <code>cityonly</code>, <code>onlyicons</code>, <code>colorscales</code>, <code>presentation</code>, and <code>add</code> directives. Lines starting with <code>#</code> are comments.</div>
+            <div class="sub">Files may contain <code>place</code>, <code>color</code>, <code>hours</code>, <code>days</code>, <code>state</code>, <code>country</code>, <code>decimals</code>, <code>cityonly</code>, <code>onlyicons</code>, <code>colorscales</code>, <code>presentation</code>, <code>provider</code>, <code>nwsfill</code>, and <code>add</code> directives. Lines starting with <code>#</code> are comments.</div>
         </div>
 
         <div>
@@ -962,7 +971,16 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         }
 
         // -------- Forecast (hourly range)
+        // Provider-aware hourly fetch. Both providers return the same parallel-array
+        // shape (time, temperature_2m, precipitation, uv_index, wind_speed_10m,
+        // wind_gusts_10m, relative_humidity_2m, weather_code) so the rest of the app
+        // (summarizeHourly, table builders, color engine) is provider-agnostic.
         async function fetchHourlyRange(lat, lon, startISO, endISO){
+            if (weatherProvider === "nws") return fetchHourlyRangeNWS(lat, lon, startISO, endISO, nwsFillMode);
+            return fetchHourlyRangeOpenMeteo(lat, lon, startISO, endISO);
+        }
+
+        async function fetchHourlyRangeOpenMeteo(lat, lon, startISO, endISO){
             const params = new URLSearchParams({
                 latitude:String(lat), longitude:String(lon),
                 timezone:"auto", temperature_unit:"fahrenheit", precipitation_unit:"inch", wind_speed_unit:"mph",
@@ -980,6 +998,75 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             const data = await r.json();
             if (data.error) throw new Error(data.reason || "API error");
             return data.hourly;
+        }
+
+        // National Weather Service (api.weather.gov). US-only, two-step: resolve the
+        // grid point, then fetch its hourly forecast. NWS omits several metrics we
+        // show; fillMode controls whether we leave them blank or estimate them.
+        function parseWindMph(s){
+            const m = String(s == null ? "" : s).match(/(\d+(?:\.\d+)?)/);
+            return m ? Number(m[1]) : null;
+        }
+        function shortForecastToWMO(text){
+            const t = String(text || "").toLowerCase();
+            if (!t) return null;
+            if (/(thunder|t-?storm)/.test(t)) return /hail/.test(t) ? 96 : 95;
+            if (/freezing|sleet|ice/.test(t)) return 66;
+            if (/snow|flurr|blizzard|wintry/.test(t)) return /heavy/.test(t) ? 75 : (/light/.test(t) ? 71 : 73);
+            if (/drizzle/.test(t)) return 51;
+            if (/shower/.test(t)) return /heavy/.test(t) ? 82 : (/light/.test(t) ? 80 : 81);
+            if (/rain|showers/.test(t)) return /heavy/.test(t) ? 65 : (/light/.test(t) ? 61 : 63);
+            if (/fog|haze|mist/.test(t)) return 45;
+            if (/overcast/.test(t)) return 3;
+            if (/mostly cloudy|broken clouds/.test(t)) return 3;
+            if (/partly (cloudy|sunny)|scattered clouds/.test(t)) return 2;
+            if (/mostly (sunny|clear)|mainly/.test(t)) return 1;
+            if (/sunny|clear|fair/.test(t)) return 0;
+            if (/cloud/.test(t)) return 2;
+            return null;
+        }
+        async function fetchHourlyRangeNWS(lat, lon, startISO, endISO, fillMode){
+            const headers = { "Accept": "application/geo+json" };
+            const pts = await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`, { headers });
+            if (pts.status === 404) throw new Error("National Weather Service covers US locations only — this point is outside its coverage.");
+            if (!pts.ok) throw new Error("NWS point lookup failed " + pts.status);
+            const ptsData = await pts.json();
+            const hourlyUrl = ptsData && ptsData.properties && ptsData.properties.forecastHourly;
+            if (!hourlyUrl) throw new Error("NWS returned no hourly forecast for this point.");
+            const r = await fetch(hourlyUrl, { headers });
+            if (!r.ok){
+                let txt = ""; try { txt = await r.text(); } catch(e){}
+                throw new Error("NWS hourly failed " + r.status + ": " + txt);
+            }
+            const data = await r.json();
+            const periods = (data && data.properties && data.properties.periods) || [];
+            const estimate = fillMode === "estimate";
+            const out = { time:[], temperature_2m:[], precipitation:[], uv_index:[],
+                wind_speed_10m:[], wind_gusts_10m:[], relative_humidity_2m:[], weather_code:[] };
+            for (const p of periods){
+                // Normalize "2026-06-04T08:00:00-04:00" → "2026-06-04T08:00" (Open-Meteo shape).
+                const t = String(p.startTime || "").slice(0,16);
+                if (!t) continue;
+                const day = t.slice(0,10);
+                if (day < startISO || day > endISO) continue;
+                const ws = parseWindMph(p.windSpeed);
+                const gustActual = parseWindMph(p.windGust);
+                const pop = (p.probabilityOfPrecipitation && Number.isFinite(p.probabilityOfPrecipitation.value)) ? p.probabilityOfPrecipitation.value : null;
+                out.time.push(t);
+                out.temperature_2m.push(Number.isFinite(p.temperature) ? p.temperature : null);
+                out.relative_humidity_2m.push((p.relativeHumidity && Number.isFinite(p.relativeHumidity.value)) ? p.relativeHumidity.value : null);
+                out.wind_speed_10m.push(ws);
+                // Conditions are NWS-provided text, so always translate (not a "guess").
+                out.weather_code.push(shortForecastToWMO(p.shortForecast));
+                // Gusts: use NWS value if present; otherwise estimate from wind speed when asked, else blank.
+                out.wind_gusts_10m.push(Number.isFinite(gustActual) ? gustActual
+                    : (estimate && Number.isFinite(ws) ? Math.round(ws * 1.4) : null));
+                // Precip amount: NWS gives no amount. Estimate a rough hourly proxy from chance, else blank.
+                out.precipitation.push(estimate && pop != null ? +(pop / 100 * 0.1).toFixed(3) : null);
+                // UV index: no NWS source — always blank.
+                out.uv_index.push(null);
+            }
+            return out;
         }
 
         const fmt = { num(n, places){ return Number.isFinite(n) ? n.toFixed(places) : "–"; } };
@@ -1501,7 +1588,9 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                 colorScales: null,
                 calendar: null,
                 presentation: null,
-                aggColorMode: null
+                aggColorMode: null,
+                provider: null,
+                nwsFill: null
             };
             async function parseOne(text){
                 const lines = (text||"").replace(/\r\n?/g,"\n").split("\n");
@@ -1550,6 +1639,13 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                     } else if (kw === "aggcolor") {
                         const v = rest.trim().toLowerCase();
                         if (v === "actual" || v === "canonical") acc.aggColorMode = v;
+                    } else if (kw === "provider") {
+                        const v = rest.trim().toLowerCase();
+                        if (v === "openmeteo" || v === "open-meteo" || v === "meteo") acc.provider = "openmeteo";
+                        else if (v === "nws" || v === "weather.gov" || v === "nationalweatherservice") acc.provider = "nws";
+                    } else if (kw === "nwsfill") {
+                        const v = rest.trim().toLowerCase();
+                        if (v === "blank" || v === "estimate") acc.nwsFill = v;
                     } else if (kw === "add") {
                         const fname = rest.replace(/^['"]|['"]$/g,"");
                         if (!fname) continue;
@@ -1580,6 +1676,8 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         let colorsVisible = true;
         let paletteState = null;
         let presentationMode = "new"; // "legacy" | "new"
+        let weatherProvider = "openmeteo"; // "openmeteo" | "nws"
+        let nwsFillMode = "blank"; // "blank" | "estimate" — how to handle metrics NWS omits
 
         const dz = document.getElementById("drop");
         const fileInput = document.getElementById("file");
@@ -1604,7 +1702,6 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         const configPanel = document.getElementById("configPanel");
         const configPanelClose = document.getElementById("configPanelClose");
         const configPanelHeader = document.getElementById("configPanelHeader");
-        const configGearBtn = document.getElementById("configGearBtn");
         const calendarUrlBox = document.getElementById("calendarUrl");
         const calendarLoadBtn = document.getElementById("calendarLoadBtn");
         const calendarFileBtn = document.getElementById("calendarFileBtn");
@@ -1612,6 +1709,12 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         const calendarStatus = document.getElementById("calendarStatus");
         const presentationRadios = Array.from(document.querySelectorAll('input[name="presentation"]'));
         const aggColorRadios = Array.from(document.querySelectorAll('input[name="aggcolor"]'));
+        const providerRadios = Array.from(document.querySelectorAll('input[name="provider"]'));
+        const nwsFillRadios = Array.from(document.querySelectorAll('input[name="nwsfill"]'));
+        const nwsFillWrap = document.getElementById("nwsFillWrap");
+        function syncProviderVisibility(){
+            if (nwsFillWrap) nwsFillWrap.classList.toggle("hidden-panel", weatherProvider !== "nws");
+        }
 
         function refreshColorConfigView(){
             renderColorConfig(
@@ -1658,6 +1761,8 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             lines.push(`colorscales ${colorsVisible ? "show" : "hide"}`);
             lines.push(`presentation ${presentationMode}`);
             lines.push(`aggcolor ${aggColorMode}`);
+            lines.push(`provider ${weatherProvider}`);
+            lines.push(`nwsfill ${nwsFillMode}`);
             const calUrl = calendarUrlBox ? calendarUrlBox.value.trim() : "";
             if (calUrl) lines.push(`calendar ${calUrl}`);
             for (const entry of activePlaceEntries.values()) lines.push(entry.directive);
@@ -1781,6 +1886,15 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             if (parsed.aggColorMode === "actual" || parsed.aggColorMode === "canonical") {
                 aggColorMode = parsed.aggColorMode;
                 for (const radio of aggColorRadios) radio.checked = (radio.value === aggColorMode);
+            }
+            if (parsed.provider === "openmeteo" || parsed.provider === "nws") {
+                weatherProvider = parsed.provider;
+                for (const radio of providerRadios) radio.checked = (radio.value === weatherProvider);
+                syncProviderVisibility();
+            }
+            if (parsed.nwsFill === "blank" || parsed.nwsFill === "estimate") {
+                nwsFillMode = parsed.nwsFill;
+                for (const radio of nwsFillRadios) radio.checked = (radio.value === nwsFillMode);
             }
             if (parsed.colors.length){
                 activeColorConfig = applyColorDirectiveOverrides(activeColorConfig, parsed.colors);
@@ -1933,11 +2047,6 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                 configPanel.classList.remove("open");
             });
         }
-        if (configGearBtn) {
-            configGearBtn.addEventListener("click", () => {
-                configPanel.classList.toggle("open");
-            });
-        }
         // Drag support for modeless config panel
         if (configPanelHeader && configPanel) {
             let dragOffX = 0, dragOffY = 0;
@@ -2025,6 +2134,24 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                 rebuildIfPlacesExist();
             });
         }
+        // Weather service provider: switching re-fetches all active places.
+        for (const radio of providerRadios) {
+            radio.addEventListener("change", () => {
+                if (!radio.checked) return;
+                weatherProvider = radio.value === "nws" ? "nws" : "openmeteo";
+                syncProviderVisibility();
+                rebuildIfPlacesExist();
+            });
+        }
+        // NWS missing-metric handling: only matters when NWS is the active provider.
+        for (const radio of nwsFillRadios) {
+            radio.addEventListener("change", () => {
+                if (!radio.checked) return;
+                nwsFillMode = radio.value === "estimate" ? "estimate" : "blank";
+                if (weatherProvider === "nws") rebuildIfPlacesExist();
+            });
+        }
+        syncProviderVisibility();
 
         // -------- Startup: load the default configuration from the repo.
         // weather-dash-default.txt lives alongside this file. When the app is
