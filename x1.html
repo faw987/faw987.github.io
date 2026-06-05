@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>In-Memory Merge</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        max-width: 880px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      h1 { font-size: 1.4rem; }
+      .sets { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+      fieldset { border: 1px solid #8884; border-radius: 8px; }
+      legend { font-weight: 600; }
+      textarea { width: 100%; height: 6rem; box-sizing: border-box; font-family: ui-monospace, monospace; }
+      .constraints { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 0.5rem; align-items: center; margin-top: 0.5rem; }
+      .constraints input { width: 100%; box-sizing: border-box; }
+      .controls { display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: center; margin: 1rem 0; }
+      .controls label { display: inline-flex; gap: 0.3rem; align-items: center; }
+      button { font-size: 1rem; padding: 0.5rem 1.25rem; border-radius: 8px; cursor: pointer; }
+      #output {
+        font-family: ui-monospace, monospace; white-space: pre-wrap; word-break: break-word;
+        background: #8881; padding: 0.75rem; border-radius: 8px; min-height: 1.5rem;
+      }
+      #output.error { background: #d33a; color: #fff; }
+      #warnings { color: #b80; white-space: pre-wrap; margin-top: 0.5rem; }
+      small { opacity: 0.7; }
+
+      /* Hamburger menu */
+      .topbar { display: flex; align-items: center; gap: 0.75rem; }
+      .topbar h1 { margin: 0; flex: 1; }
+      .menu { position: relative; }
+      #menu-toggle {
+        font-size: 1.4rem; line-height: 1; padding: 0.3rem 0.6rem; border-radius: 8px;
+        border: 1px solid #8886; background: #8881; cursor: pointer;
+      }
+      #menu-list {
+        position: absolute; right: 0; top: calc(100% + 0.35rem); z-index: 10;
+        min-width: 12rem; background: Canvas; border: 1px solid #8886; border-radius: 10px;
+        box-shadow: 0 8px 24px #0003; padding: 0.35rem; display: none;
+      }
+      #menu-list.open { display: block; }
+      #menu-list button {
+        display: block; width: 100%; text-align: left; background: none; border: none;
+        padding: 0.55rem 0.7rem; border-radius: 7px; cursor: pointer; font: inherit; color: inherit;
+      }
+      #menu-list button:hover { background: #8882; }
+
+      /* Document modal */
+      #doc-dialog { width: min(900px, 92vw); height: 85vh; padding: 0; border: 1px solid #8886; border-radius: 12px; }
+      #doc-dialog::backdrop { background: #0007; }
+      .doc-head { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.9rem; border-bottom: 1px solid #8884; }
+      .doc-head strong { flex: 1; }
+      #doc-close { font-size: 1.1rem; line-height: 1; border: 1px solid #8886; background: #8881; border-radius: 7px; padding: 0.25rem 0.6rem; cursor: pointer; }
+      #doc-frame { width: 100%; height: calc(85vh - 3rem); border: 0; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <h1>In-Memory Merge of Two Data Sets</h1>
+      <div class="menu">
+        <button id="menu-toggle" aria-label="Open menu" aria-haspopup="true" aria-expanded="false">☰</button>
+        <div id="menu-list" role="menu">
+          <button id="open-prd" role="menuitem" type="button">📄 PRD</button>
+          <button id="open-guide" role="menuitem" type="button">📘 User Guide</button>
+        </div>
+      </div>
+    </div>
+    <p><small>Enter values separated by commas, spaces, or newlines. The output is always ascending under the chosen order.</small></p>
+
+    <div class="sets">
+      <fieldset>
+        <legend>Set A</legend>
+        <textarea id="set-a">1, 2, 3, 4, 5</textarea>
+        <div class="constraints">
+          <label for="a-min">min</label><input id="a-min" placeholder="(none)" />
+          <label for="a-max">max</label><input id="a-max" placeholder="(none)" />
+          <label for="a-limit">limit</label><input id="a-limit" placeholder="(none)" />
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Set B</legend>
+        <textarea id="set-b">5, 4, 3, 2, 1</textarea>
+        <div class="constraints">
+          <label for="b-min">min</label><input id="b-min" placeholder="(none)" />
+          <label for="b-max">max</label><input id="b-max" placeholder="(none)" />
+          <label for="b-limit">limit</label><input id="b-limit" placeholder="(none)" />
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="controls">
+      <label><input type="radio" name="mode" value="numeric" checked /> Numeric</label>
+      <label><input type="radio" name="mode" value="character" /> Character</label>
+      <label><input type="checkbox" id="sort-inputs" checked /> Sort inputs before merge</label>
+      <button id="run">Merge</button>
+    </div>
+
+    <h2 style="font-size: 1rem">Output</h2>
+    <div id="output"></div>
+    <div id="warnings"></div>
+
+    <dialog id="doc-dialog">
+      <div class="doc-head">
+        <strong id="doc-title">Document</strong>
+        <button id="doc-close" aria-label="Close" type="button">✕</button>
+      </div>
+      <iframe id="doc-frame" title="Document viewer"></iframe>
+    </dialog>
+
+    <script>window.__DOCS__={"prd":"<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n    <title>PRD — In-Memory Merge</title>\n    <style>\n      :root { color-scheme: light dark; }\n      body { font: 15px/1.6 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 820px; margin: 2rem auto; padding: 0 1.25rem 4rem; }\n      h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }\n      h2 { font-size: 1.2rem; margin-top: 2rem; border-bottom: 1px solid #8884; padding-bottom: 0.25rem; }\n      h3 { font-size: 1rem; margin-top: 1.25rem; }\n      code { font-family: ui-monospace, monospace; background: #8881; padding: 0.1em 0.35em; border-radius: 4px; }\n      table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }\n      th, td { border: 1px solid #8884; padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }\n      th { background: #8881; }\n      .meta { opacity: 0.75; font-size: 0.9rem; }\n      ul { padding-left: 1.25rem; }\n      .tag { display: inline-block; font-size: 0.75rem; padding: 0.05rem 0.45rem; border-radius: 999px; border: 1px solid #8886; }\n    </style>\n  </head>\n  <body>\n    <h1>Product Requirements Document</h1>\n    <p class=\"meta\">Product: <strong>In-Memory Merge of Two Data Sets</strong> &nbsp;•&nbsp; Version 0.1 &nbsp;•&nbsp; Status: Draft &nbsp;•&nbsp; Last updated: 2026-06-05</p>\n\n    <h2>1. Summary</h2>\n    <p>A small, dependency-free browser tool that merges two data sets into a single, ascending-ordered result, entirely in memory. The user controls the comparison order (numeric or character), whether each set should be sorted before merging, and optional constraints that restrict the data drawn from each set.</p>\n\n    <h2>2. Background &amp; Motivation</h2>\n    <p>Merging two ordered sequences is a fundamental operation. The goal is a clear, correct, well-tested reference implementation with a usable UI that demonstrates the classic two-pointer merge, while letting the user shape the inputs (filtering, capping, sorting) without leaving the page. The implementation is in TypeScript for type-safety and is structured so the merge core is pure and reusable independent of the DOM.</p>\n\n    <h2>3. Goals</h2>\n    <ul>\n      <li>Merge two data sets into one ascending-ordered output, in memory.</li>\n      <li>Support two comparison orders: <strong>numeric</strong> (by magnitude) and <strong>character</strong> (lexicographic).</li>\n      <li>Let the user choose to <strong>sort inputs first</strong>, or to declare them already sorted.</li>\n      <li>Allow per-set <strong>constraints</strong> (range filter and count cap) to restrict the contributing data.</li>\n      <li>Preserve duplicates; never silently drop data outside the stated constraints.</li>\n      <li>Be correct and provably so via an automated test suite.</li>\n    </ul>\n\n    <h3>Non-Goals (v0.1)</h3>\n    <ul>\n      <li>Descending output order.</li>\n      <li>Locale-aware / case-insensitive character collation.</li>\n      <li>De-duplication of merged results.</li>\n      <li>Persisting data, file upload/download, or merging more than two sets.</li>\n      <li>Streaming / out-of-core data larger than available memory.</li>\n    </ul>\n\n    <h2>4. Users</h2>\n    <ul>\n      <li><strong>Primary:</strong> a developer or analyst who needs to combine two ordered lists and inspect the result interactively.</li>\n      <li><strong>Secondary:</strong> a reader using the code as a reference implementation of a constrained merge.</li>\n    </ul>\n\n    <h2>5. Functional Requirements</h2>\n    <table>\n      <tr><th>ID</th><th>Requirement</th><th>Priority</th></tr>\n      <tr><td>FR-1</td><td>Accept two data sets as free text; tokens separated by commas, spaces, tabs, or newlines. Empty tokens are ignored.</td><td>Must</td></tr>\n      <tr><td>FR-2</td><td>Provide a mode selector: <code>numeric</code> or <code>character</code>.</td><td>Must</td></tr>\n      <tr><td>FR-3</td><td>In numeric mode, reject any token that is not a finite number, with an error naming the offending token.</td><td>Must</td></tr>\n      <tr><td>FR-4</td><td>Provide a \"sort inputs before merge\" toggle. When off, inputs are assumed pre-sorted ascending.</td><td>Must</td></tr>\n      <tr><td>FR-5</td><td>When inputs are declared pre-sorted but are not, sort defensively and surface a warning (output remains correct).</td><td>Must</td></tr>\n      <tr><td>FR-6</td><td>Provide per-set constraints: <code>min</code> (inclusive lower bound), <code>max</code> (inclusive upper bound), and <code>limit</code> (max count kept).</td><td>Must</td></tr>\n      <tr><td>FR-7</td><td>Produce a single merged output in ascending order under the active comparator, preserving duplicates.</td><td>Must</td></tr>\n      <tr><td>FR-8</td><td>The merge of two sorted sequences runs in linear time, O(n + m).</td><td>Must</td></tr>\n      <tr><td>FR-9</td><td>Surface warnings and errors visibly and distinctly from normal output.</td><td>Should</td></tr>\n      <tr><td>FR-10</td><td>Provide in-app access to this PRD and the User Guide via a menu.</td><td>Should</td></tr>\n    </table>\n\n    <h2>6. Detailed Behavior &amp; Business Rules</h2>\n    <h3>6.1 Constraints</h3>\n    <ul>\n      <li><strong>min / max</strong> are <em>inclusive</em> bounds, evaluated with the active comparator. In numeric mode they are numbers; in character mode they are strings compared lexicographically. Either may be omitted.</li>\n      <li><strong>limit</strong> caps the count <em>after</em> the min/max filter. Per v0.1 it keeps the first N values <em>in input order</em> — i.e. \"take the first N records,\" not \"take the N smallest.\" (See Open Questions OQ-1.)</li>\n      <li>Order of application per set: <code>min</code> → <code>max</code> → <code>limit</code> → (optional) sort → merge.</li>\n    </ul>\n    <h3>6.2 Merge</h3>\n    <ul>\n      <li>Classic two-pointer merge of two sorted sequences. Stable: on ties, the value from Set A is emitted first.</li>\n      <li>Duplicates are preserved; no de-duplication occurs.</li>\n      <li>Output length equals the combined length of the two (post-constraint) sets.</li>\n    </ul>\n    <h3>6.3 Sorting</h3>\n    <ul>\n      <li>\"Sort inputs\" on: each set is sorted ascending before merging.</li>\n      <li>\"Sort inputs\" off: inputs are assumed sorted; the tool verifies and, if a set is out of order, sorts it and emits a warning.</li>\n    </ul>\n\n    <h2>7. Non-Functional Requirements</h2>\n    <ul>\n      <li><strong>In-memory only</strong> — no network calls or storage for the merge itself.</li>\n      <li><strong>Zero runtime dependencies</strong>; TypeScript compiled to ES modules, run directly in the browser.</li>\n      <li><strong>Type-safety:</strong> strict TypeScript (<code>strict</code>, <code>noUncheckedIndexedAccess</code>).</li>\n      <li><strong>Testability:</strong> the merge core is pure (no DOM) and covered by unit and randomized property tests.</li>\n      <li><strong>Performance:</strong> merge is O(n + m); sorting (when enabled) is O(n log n).</li>\n    </ul>\n\n    <h2>8. Architecture</h2>\n    <ul>\n      <li><code>src/merge.ts</code> — pure core: <code>parse</code>, <code>comparator</code>, <code>isSorted</code>, <code>applyConstraints</code>, <code>mergeSorted</code>, <code>merge</code>.</li>\n      <li><code>src/main.ts</code> — DOM wiring; reads the form, calls the core, renders output/warnings, drives the menu.</li>\n      <li><code>src/merge.test.ts</code> — unit + randomized property tests, run via the Node test runner.</li>\n      <li><code>index.html</code> — the application UI; <code>docs/</code> — this PRD and the User Guide.</li>\n    </ul>\n\n    <h2>9. Acceptance Criteria</h2>\n    <table>\n      <tr><th>Scenario</th><th>Input</th><th>Settings</th><th>Expected output</th></tr>\n      <tr><td>Already ascending</td><td>A = <code>1 2 3 4 5</code></td><td>numeric, sort off</td><td><code>1 2 3 4 5</code></td></tr>\n      <tr><td>Descending, sorted</td><td>A = <code>5 4 3 2 1</code></td><td>numeric, sort on</td><td><code>1 2 3 4 5</code></td></tr>\n      <tr><td>Descending, declared sorted</td><td>A = <code>5 4 3 2 1</code></td><td>numeric, sort off</td><td><code>1 2 3 4 5</code> + warning</td></tr>\n      <tr><td>Two-set merge</td><td>A = <code>1 3 5 7</code>, B = <code>2 4 6 8</code></td><td>numeric</td><td><code>1 2 3 4 5 6 7 8</code></td></tr>\n      <tr><td>Range + cap</td><td>A = <code>1..5</code>, B = <code>6..10</code></td><td>A min=3, B max=7</td><td><code>3 4 5 6 7</code></td></tr>\n    </table>\n\n    <h2>10. Open Questions</h2>\n    <ul>\n      <li><span class=\"tag\">OQ-1</span> Should <code>limit</code> mean \"first N as entered\" (current) or \"N smallest after sorting\"? Could become a toggle.</li>\n      <li><span class=\"tag\">OQ-2</span> Add an optional descending output order?</li>\n      <li><span class=\"tag\">OQ-3</span> Offer locale-aware / case-insensitive character collation?</li>\n      <li><span class=\"tag\">OQ-4</span> Offer optional de-duplication of the merged result?</li>\n    </ul>\n  </body>\n</html>\n","guide":"<!doctype html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"utf-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n    <title>User Guide — In-Memory Merge</title>\n    <style>\n      :root { color-scheme: light dark; }\n      body { font: 15px/1.6 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 820px; margin: 2rem auto; padding: 0 1.25rem 4rem; }\n      h1 { font-size: 1.6rem; }\n      h2 { font-size: 1.2rem; margin-top: 2rem; border-bottom: 1px solid #8884; padding-bottom: 0.25rem; }\n      h3 { font-size: 1rem; margin-top: 1.25rem; }\n      code { font-family: ui-monospace, monospace; background: #8881; padding: 0.1em 0.35em; border-radius: 4px; }\n      pre { background: #8881; padding: 0.75rem; border-radius: 8px; overflow-x: auto; }\n      table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }\n      th, td { border: 1px solid #8884; padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }\n      th { background: #8881; }\n      .meta { opacity: 0.75; font-size: 0.9rem; }\n      .tip { border-left: 3px solid #5a9; padding: 0.5rem 0.9rem; background: #5a92; border-radius: 0 8px 8px 0; margin: 0.75rem 0; }\n      ul { padding-left: 1.25rem; }\n    </style>\n  </head>\n  <body>\n    <h1>User Guide</h1>\n    <p class=\"meta\">In-Memory Merge of Two Data Sets &nbsp;•&nbsp; Version 0.1</p>\n\n    <h2>What this tool does</h2>\n    <p>It combines two lists of values (\"Set A\" and \"Set B\") into a single list, sorted in ascending order. You choose whether the values are compared as <strong>numbers</strong> or as <strong>characters</strong> (text), whether they should be sorted first, and you can optionally <strong>restrict</strong> which values from each set take part.</p>\n\n    <h2>Getting started</h2>\n    <ol>\n      <li>Start the local server: <code>npm run serve</code></li>\n      <li>Open <code>http://localhost:8080/</code> in your browser.</li>\n      <li>The page loads with an example already filled in and merged.</li>\n    </ol>\n\n    <h2>The screen, part by part</h2>\n    <ul>\n      <li><strong>Set A / Set B</strong> — the two text boxes where you type your values.</li>\n      <li><strong>min / max / limit</strong> — optional constraints under each set (explained below).</li>\n      <li><strong>Numeric / Character</strong> — how values are compared.</li>\n      <li><strong>Sort inputs before merge</strong> — whether to sort each set first.</li>\n      <li><strong>Merge</strong> button — runs the merge.</li>\n      <li><strong>Output</strong> — the merged, ascending result.</li>\n      <li><strong>Warnings</strong> — notices, e.g. data you said was sorted but wasn't.</li>\n    </ul>\n\n    <h2>Entering data</h2>\n    <p>Type values separated by commas, spaces, tabs, or new lines — any mix works. Blank space is ignored. For example, all of these are read as the same five values:</p>\n    <pre>1, 2, 3, 4, 5\n1 2 3 4 5\n1,2,3\n4 5</pre>\n\n    <h2>Numeric vs. Character mode</h2>\n    <table>\n      <tr><th>Mode</th><th>How values compare</th><th>Example order</th></tr>\n      <tr><td><strong>Numeric</strong></td><td>By number value. Every token must be a valid number.</td><td><code>2 &lt; 10 &lt; 100</code></td></tr>\n      <tr><td><strong>Character</strong></td><td>As text, character by character (Unicode code point).</td><td><code>\"10\" &lt; \"2\"</code>, and <code>\"Z\" &lt; \"a\"</code></td></tr>\n    </table>\n    <div class=\"tip\">In <strong>numeric</strong> mode, if you type something that isn't a number (e.g. <code>banana</code>), the tool shows an error naming the bad value instead of merging. In <strong>character</strong> mode, anything goes — it's all treated as text.</div>\n\n    <h2>Sorting</h2>\n    <ul>\n      <li><strong>Checked (default):</strong> each set is sorted ascending before merging. Use this when you're not sure your data is in order.</li>\n      <li><strong>Unchecked:</strong> the tool assumes each set is already sorted ascending. If it finds a set that isn't, it sorts it anyway and shows a warning — your result stays correct.</li>\n    </ul>\n\n    <h2>Constraints: min, max, and limit</h2>\n    <p>Each set has three optional constraints. Leave a box blank to skip it. They apply to that set <em>before</em> the merge.</p>\n    <table>\n      <tr><th>Constraint</th><th>Meaning</th><th>Works with</th></tr>\n      <tr><td><strong>min</strong></td><td>Keep only values <strong>greater than or equal to</strong> this. (Inclusive lower bound.)</td><td>Numbers &amp; characters</td></tr>\n      <tr><td><strong>max</strong></td><td>Keep only values <strong>less than or equal to</strong> this. (Inclusive upper bound.)</td><td>Numbers &amp; characters</td></tr>\n      <tr><td><strong>limit</strong></td><td>After min/max, keep at most this many values — the <strong>first N as you entered them</strong>.</td><td>A count (number)</td></tr>\n    </table>\n\n    <h3>Examples — numbers</h3>\n    <table>\n      <tr><th>Set A</th><th>Constraints</th><th>Kept from A</th></tr>\n      <tr><td><code>1 2 3 4 5 6</code></td><td>min = 2</td><td><code>2 3 4 5 6</code></td></tr>\n      <tr><td><code>1 2 3 4 5 6</code></td><td>max = 4</td><td><code>1 2 3 4</code></td></tr>\n      <tr><td><code>1 2 3 4 5 6</code></td><td>min = 2, max = 5</td><td><code>2 3 4 5</code></td></tr>\n      <tr><td><code>1 2 3 4 5 6</code></td><td>min = 2, max = 5, limit = 2</td><td><code>2 3</code></td></tr>\n    </table>\n\n    <h3>Examples — characters</h3>\n    <p>In character mode, <code>min</code> and <code>max</code> are text too, compared alphabetically:</p>\n    <table>\n      <tr><th>Set A</th><th>Constraints</th><th>Kept from A</th></tr>\n      <tr><td><code>apple banana cherry kiwi zebra</code></td><td>min = c</td><td><code>cherry kiwi zebra</code></td></tr>\n      <tr><td><code>apple banana cherry kiwi zebra</code></td><td>min = c, max = m</td><td><code>cherry kiwi</code></td></tr>\n    </table>\n    <div class=\"tip\">Heads-up on <strong>limit</strong>: it keeps the first N values <em>in the order you typed them</em>, then sorting happens. So with <code>5 1 9 2 7</code> and <code>limit = 3</code>, it keeps <code>5 1 9</code> (the first three) and the result shows <code>1 5 9</code> — not the three smallest values.</div>\n\n    <h2>A full worked example</h2>\n    <p>Set A = <code>1 2 3 4 5</code> with <strong>min = 3</strong>; Set B = <code>6 7 8 9 10</code> with <strong>max = 7</strong>; Numeric mode.</p>\n    <ul>\n      <li>From A, min=3 keeps <code>3 4 5</code>.</li>\n      <li>From B, max=7 keeps <code>6 7</code>.</li>\n      <li>Merged ascending: <strong><code>3 4 5 6 7</code></strong>.</li>\n    </ul>\n\n    <h2>Reading the result</h2>\n    <ul>\n      <li><strong>Output</strong> shows the merged values, comma-separated, always ascending.</li>\n      <li><strong>Duplicates are kept.</strong> If both sets contain <code>2</code>, both appear in the output.</li>\n      <li>A red output box means an <strong>error</strong> (e.g. a non-number in numeric mode); fix the input and merge again.</li>\n      <li>Amber <strong>warnings</strong> are non-fatal notices; the result is still correct.</li>\n    </ul>\n\n    <h2>Tips &amp; troubleshooting</h2>\n    <ul>\n      <li><strong>\"…is not a valid number\":</strong> you're in numeric mode with non-numeric text. Switch to character mode or fix the value.</li>\n      <li><strong>Unexpected text ordering</strong> (e.g. <code>\"10\"</code> before <code>\"2\"</code>): that's character mode comparing text, not size. Switch to numeric.</li>\n      <li><strong>Fewer results than expected:</strong> check the min/max/limit boxes — a constraint may be filtering values out.</li>\n      <li><strong>Page is blank / buttons do nothing:</strong> make sure you opened it via <code>http://localhost:8080/</code> (the server), not by double-clicking the file.</li>\n    </ul>\n  </body>\n</html>\n"};</script>
+    <script>
+"use strict";
+(() => {
+  // src/merge.ts
+  function comparator(mode) {
+    if (mode === "numeric") {
+      return (a, b) => a - b;
+    }
+    return (a, b) => {
+      const sa = String(a);
+      const sb = String(b);
+      return sa < sb ? -1 : sa > sb ? 1 : 0;
+    };
+  }
+  function parse(raw, mode) {
+    const tokens = raw.split(/[\s,]+/).map((t) => t.trim()).filter((t) => t.length > 0);
+    if (mode === "character") return tokens;
+    return tokens.map((t) => {
+      const n = Number(t);
+      if (!Number.isFinite(n)) {
+        throw new Error(`"${t}" is not a valid number`);
+      }
+      return n;
+    });
+  }
+  function isSorted(values, mode) {
+    const cmp = comparator(mode);
+    for (let i = 1; i < values.length; i++) {
+      if (cmp(values[i - 1], values[i]) > 0) return false;
+    }
+    return true;
+  }
+  function applyConstraints(values, constraints, mode) {
+    if (!constraints) return values.slice();
+    const cmp = comparator(mode);
+    let out = values.slice();
+    if (constraints.min !== void 0) {
+      const min = constraints.min;
+      out = out.filter((v) => cmp(v, min) >= 0);
+    }
+    if (constraints.max !== void 0) {
+      const max = constraints.max;
+      out = out.filter((v) => cmp(v, max) <= 0);
+    }
+    if (constraints.limit !== void 0 && constraints.limit >= 0) {
+      out = out.slice(0, constraints.limit);
+    }
+    return out;
+  }
+  function mergeSorted(a, b, mode) {
+    const cmp = comparator(mode);
+    const out = [];
+    let i = 0;
+    let j = 0;
+    while (i < a.length && j < b.length) {
+      if (cmp(a[i], b[j]) <= 0) {
+        out.push(a[i++]);
+      } else {
+        out.push(b[j++]);
+      }
+    }
+    while (i < a.length) out.push(a[i++]);
+    while (j < b.length) out.push(b[j++]);
+    return out;
+  }
+  function merge(rawA, rawB, options) {
+    const { mode } = options;
+    const cmp = comparator(mode);
+    const warnings = [];
+    let a = applyConstraints(rawA, options.constraintsA, mode);
+    let b = applyConstraints(rawB, options.constraintsB, mode);
+    if (options.sortInputs) {
+      a.sort(cmp);
+      b.sort(cmp);
+    } else {
+      if (!isSorted(a, mode)) {
+        warnings.push("Set A was declared pre-sorted but is not in ascending order; sorting it defensively.");
+        a.sort(cmp);
+      }
+      if (!isSorted(b, mode)) {
+        warnings.push("Set B was declared pre-sorted but is not in ascending order; sorting it defensively.");
+        b.sort(cmp);
+      }
+    }
+    return { output: mergeSorted(a, b, mode), warnings };
+  }
+
+  // src/main.ts
+  function $(id) {
+    const el = document.getElementById(id);
+    if (!el) throw new Error(`missing element #${id}`);
+    return el;
+  }
+  function readConstraints(prefix, mode) {
+    const minRaw = $(`${prefix}-min`).value.trim();
+    const maxRaw = $(`${prefix}-max`).value.trim();
+    const limitRaw = $(`${prefix}-limit`).value.trim();
+    const coerce = (s) => mode === "numeric" ? Number(s) : s;
+    const c = {};
+    if (minRaw) c.min = coerce(minRaw);
+    if (maxRaw) c.max = coerce(maxRaw);
+    if (limitRaw) c.limit = Number(limitRaw);
+    return c;
+  }
+  function run() {
+    const mode = document.querySelector('input[name="mode"]:checked')?.value ?? "numeric";
+    const sortInputs = $("sort-inputs").checked;
+    const out = $("output");
+    const warn = $("warnings");
+    warn.textContent = "";
+    out.classList.remove("error");
+    try {
+      const a = parse($("set-a").value, mode);
+      const b = parse($("set-b").value, mode);
+      const result = merge(a, b, {
+        mode,
+        sortInputs,
+        constraintsA: readConstraints("a", mode),
+        constraintsB: readConstraints("b", mode)
+      });
+      out.textContent = result.output.join(mode === "numeric" ? ", " : ", ");
+      if (result.warnings.length) {
+        warn.textContent = "⚠ " + result.warnings.join("\n⚠ ");
+      }
+    } catch (err) {
+      out.classList.add("error");
+      out.textContent = String(err instanceof Error ? err.message : err);
+    }
+  }
+  $("run").addEventListener("click", run);
+  var menuToggle = $("menu-toggle");
+  var menuList = $("menu-list");
+  var dialog = $("doc-dialog");
+  var docFrame = $("doc-frame");
+  var docTitle = $("doc-title");
+  function setMenuOpen(open) {
+    menuList.classList.toggle("open", open);
+    menuToggle.setAttribute("aria-expanded", String(open));
+  }
+  menuToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setMenuOpen(!menuList.classList.contains("open"));
+  });
+  document.addEventListener("click", () => setMenuOpen(false));
+  menuList.addEventListener("click", (e) => e.stopPropagation());
+  var INLINE_DOCS = window.__DOCS__;
+  function openDoc(key, src, title) {
+    docTitle.textContent = title;
+    const inline = INLINE_DOCS?.[key];
+    if (inline !== void 0) {
+      docFrame.removeAttribute("src");
+      docFrame.srcdoc = inline;
+    } else {
+      docFrame.removeAttribute("srcdoc");
+      docFrame.src = src;
+    }
+    dialog.showModal();
+    setMenuOpen(false);
+  }
+  $("open-prd").addEventListener("click", () => openDoc("prd", "docs/prd.html", "Product Requirements Document"));
+  $("open-guide").addEventListener("click", () => openDoc("guide", "docs/user-guide.html", "User Guide"));
+  $("doc-close").addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => {
+    docFrame.removeAttribute("src");
+    docFrame.removeAttribute("srcdoc");
+  });
+  run();
+})();
+
+    </script>
+  </body>
+</html>
