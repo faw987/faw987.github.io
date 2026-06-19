@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Weather v5.1.3 — Daily → Hourly drilldown</title>
+    <title>Weather v5.1.4 — Daily → Hourly drilldown</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -44,6 +44,15 @@
 
         table.wx { width:100%; border-collapse: collapse; color:#d3d6de; }
         table.wx th, table.wx td { border-bottom:1px solid #25345f; padding:8px 10px; text-align:left; }
+        /* v5.1.4: legacy hourly Temp cell — number on top, position bar below.
+           The bar lives over both tinted (light) and untinted (dark) cells, so it uses a
+           translucent track and an accent tick that read on either. */
+        table.wx td.temp-cell .temp-val { display:block; }
+        table.wx td.temp-cell .tbar {
+            display:block; width:100%; min-width:48px; height:6px; margin-top:4px;
+        }
+        table.wx td.temp-cell .tbar::before { background:rgba(120,130,160,0.55); }
+        table.wx td.temp-cell .tbar .tick { background:var(--accent); box-shadow:0 0 0 1px rgba(0,0,0,0.35); }
         table.wx thead th { position: sticky; top: 0; background:#121a33; z-index:1; color:#cfd5e4; }
         table.wx tbody tr:hover { background: rgba(64,105,215,0.08); }
         table.wx td[style*="background"] { color:#111; font-weight:600; } /* Dark + bold text when tinted */
@@ -164,6 +173,26 @@
         table.wx.giant td.agg-cell .driver {
             position:absolute; left:2px; bottom:0; font-size:9px; line-height:1;
             font-weight:700; opacity:.7; pointer-events:none; color:#0b0f14;
+        }
+        /* v5.1.4: a cell's top row — a 2-digit °F reading followed by a horizontal
+           position bar with a tick at this hour's temperature, so relative temps are
+           scannable down a column. Dark ink + light halo keeps it legible on any zone color. */
+        table.wx.giant td.agg-cell .cell-top {
+            display:flex; align-items:center; gap:3px;
+            font-size:10px; line-height:1; font-weight:700; color:#0b0f14;
+            text-shadow:0 0 2px rgba(255,255,255,0.55); pointer-events:none;
+        }
+        table.wx.giant td.agg-cell .cell-temp { flex:0 0 auto; min-width:15px; text-align:right; }
+        .tbar {
+            position:relative; flex:1 1 auto; height:7px; min-width:12px;
+        }
+        .tbar::before { /* full-range track from TEMP_BAR_MIN to TEMP_BAR_MAX */
+            content:""; position:absolute; left:0; right:0; top:50%;
+            height:1px; transform:translateY(-50%); background:rgba(11,15,20,0.40);
+        }
+        .tbar .tick { /* vertical mark at this temperature's position along the track */
+            position:absolute; top:0; bottom:0; width:2px;
+            transform:translateX(-50%); background:#0b0f14; border-radius:1px;
         }
         /* v5.1.2: names read vertically, bottom-to-top (was a 45° angle). Selectors apply
            to both the <thead> and the repeated headers we insert at each day boundary. */
@@ -289,7 +318,7 @@
                     <button id="menuConfigure" class="hamburger-item" type="button">Configure&hellip;</button>
                 </div>
             </div>
-            <h1>Weather v5.1.3</h1>
+            <h1>Weather v5.1.4</h1>
         </div>
         <p class="sub">Click a day to append an hourly table. Click an hour to open weather.com for that place/hour.</p>
     </header>
@@ -1215,7 +1244,10 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                 const dt = new Date(r.time); // local time thanks to timezone=auto from API
                 const hh = String(dt.getHours()).padStart(2,"0");
                 const timeCell = el("td", { text: hh + ":00", style:"cursor:pointer", title:"Open weather.com for this hour" });
-                const cT  = el("td", { text: showDecimals ? fmt.num(r.temp,1)  : fmt.num(r.temp,0) });
+                const cT  = el("td", { class:"temp-cell" }, [
+                    el("span", { class:"temp-val", text: showDecimals ? fmt.num(r.temp,1) : fmt.num(r.temp,0) }),
+                    Number.isFinite(r.temp) ? tempBarEl(r.temp) : null
+                ]);
                 const cP  = el("td", { text: fmt.num(r.precip,2) });
                 const cUV = el("td", { text: showDecimals ? fmt.num(r.uv,1)   : fmt.num(r.uv,0) });
                 const cW  = el("td", { text: showDecimals ? fmt.num(r.wind,1) : fmt.num(r.wind,0) });
@@ -1281,6 +1313,29 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             return wrap;
         }
 
+        // -------- V5.1.4: temperature position bar
+        // A fixed °F scale with a tick at `tempF`, rendered as a thin line.
+        // Putting one in every cell's top row makes relative temperatures scannable
+        // straight down a column without reading the digits.
+        // TODO: expose TEMP_BAR_MIN/MAX as a config directive.
+        const TEMP_BAR_MIN = 50, TEMP_BAR_MAX = 100;
+        function tempBarEl(tempF){
+            const pct = Math.max(0, Math.min(100,
+                (tempF - TEMP_BAR_MIN) / (TEMP_BAR_MAX - TEMP_BAR_MIN) * 100));
+            const bar = el("span", { class:"tbar",
+                title:`${Math.round(tempF)}°F on a ${TEMP_BAR_MIN}…${TEMP_BAR_MAX}°F scale` });
+            bar.append(el("span", { class:"tick", style:`left:${pct.toFixed(1)}%` }));
+            return bar;
+        }
+        // The always-present top row of a "new"-mode grid cell: the temperature in
+        // whole °F, a gap, then the position bar.
+        function cellTopRow(tempF){
+            return el("div", { class:"cell-top" }, [
+                el("span", { class:"cell-temp", text: String(Math.round(tempF)) }),
+                tempBarEl(tempF)
+            ]);
+        }
+
         // -------- V5.0 "New" presentation: one giant hour×place aggregate grid
         function ordinalDay(n){
             const v = n % 100;
@@ -1316,33 +1371,37 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         // v5.1.1 (experimental): show a small letter in a cell's lower-left naming the metric
         // that drove its (non-green) severity. Flip this off to disable the whole feature.
         const SHOW_CELL_DRIVER_LETTERS = true;
-        // Returns { color, letter } for one hour: the worst severity color (unchanged from before)
-        // plus the letter of the metric responsible (null when green, or when only Conditions
-        // is to blame). Letters: H high, L low, T temp, P precip, U UV, W wind, G gust, R RH.
+        // Returns { color, letter, value } for one hour: the worst severity color (unchanged
+        // from before), the letter of the metric responsible (null when green, or when only
+        // Conditions is to blame), and that metric's reading as a short string (e.g. gust mph,
+        // UV index) so the cell can show what tripped it. Letters: H high, L low, T temp,
+        // P precip, U UV, W wind, G gust, R RH.
         function hourlyAggregateInfo(rules, rec){
-            if (!rec) return { color:null, letter:null };
+            if (!rec) return { color:null, letter:null, value:null };
+            // whole numbers for most metrics; precip needs 2 decimals to be meaningful
+            const v0 = (n) => Number.isFinite(n) ? String(Math.round(n)) : null;
             // 'Temp' rules win; fall back to 'High' for hourly temp — the letter reflects which matched.
             let tColor = colorFor(rules, "Temp (°F)", rec.temp);
             let tLetter = "T";
             if (!tColor){ tColor = colorFor(rules, "High (°F)", rec.temp); tLetter = "H"; }
             const metrics = [
-                { color: tColor,                                     letter: tLetter },
-                { color: colorFor(rules, "Precip (in)", rec.precip), letter: "P" },
-                { color: colorFor(rules, "UV", rec.uv),              letter: "U" },
-                { color: colorFor(rules, "Wind (mph)", rec.wind),    letter: "W" },
-                { color: colorFor(rules, "Gust (mph)", rec.gust),    letter: "G" },
-                { color: colorFor(rules, "RH (%)", rec.rh),          letter: "R" },
-                { color: colorFor(rules, "Conditions", rec.cond),    letter: null },
+                { color: tColor,                                     letter: tLetter, value: v0(rec.temp) },
+                { color: colorFor(rules, "Precip (in)", rec.precip), letter: "P", value: Number.isFinite(rec.precip) ? rec.precip.toFixed(2) : null },
+                { color: colorFor(rules, "UV", rec.uv),              letter: "U", value: v0(rec.uv) },
+                { color: colorFor(rules, "Wind (mph)", rec.wind),    letter: "W", value: v0(rec.wind) },
+                { color: colorFor(rules, "Gust (mph)", rec.gust),    letter: "G", value: v0(rec.gust) },
+                { color: colorFor(rules, "RH (%)", rec.rh),          letter: "R", value: v0(rec.rh) },
+                { color: colorFor(rules, "Conditions", rec.cond),    letter: null, value: null },
             ];
             const agg = aggregateCellColor(metrics.map(m => m.color));
             const rowS = agg.rowS;
             // Only label non-green cells (severity 1+); pick the first metric at the worst tier with a letter.
-            let letter = null;
+            let letter = null, value = null;
             if (rowS >= 1){
                 const driver = metrics.find(m => m.letter && severityOfColor(m.color) === rowS);
-                letter = driver ? driver.letter : null;
+                if (driver){ letter = driver.letter; value = driver.value; }
             }
-            return { color: agg.color, letter };
+            return { color: agg.color, letter, value };
         }
         function hourlyAggregateColor(rules, rec){ return hourlyAggregateInfo(rules, rec).color; }
         // Modal popup with the individual metrics for one place/hour.
@@ -1466,8 +1525,10 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                     if (rec){
                         const info = hourlyAggregateInfo(rules, rec);
                         if (info.color) cell.style.backgroundColor = info.color;
+                        if (Number.isFinite(rec.temp)) cell.append(cellTopRow(rec.temp));
                         if (SHOW_CELL_DRIVER_LETTERS && info.letter){
-                            cell.append(el("span", { class:"driver", text: info.letter }));
+                            const driverTxt = info.value != null ? `${info.letter} ${info.value}` : info.letter;
+                            cell.append(el("span", { class:"driver", text: driverTxt }));
                         }
                         cell.addEventListener("click", () => {
                             showHourDetailPopup(c.coords, t, rec, rules, showDecimals);
