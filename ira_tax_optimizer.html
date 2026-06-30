@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IRA Withdrawal Tax Optimizer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fafaf8;color:#111;padding:16px 20px}
+  h1{font-size:18px;font-weight:600;margin-bottom:3px}
+  .sub{font-size:12px;color:#888;margin-bottom:10px}
+
+  /* ── Inputs panel ── */
+  .inputs-panel{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:10px 14px;border:1px solid #c8d8e8;border-radius:8px;background:#f0f6ff;margin-bottom:10px}
+  .ig{display:flex;flex-direction:column;gap:3px}
+  .ig label{font-size:11px;font-weight:600;color:#445}
+  .ig input{font-size:13px;padding:5px 9px;border:1px solid #b0c4d8;border-radius:5px;background:#fff;color:#111;width:140px;outline:none}
+  .ig input:focus{border-color:#2a78d6;box-shadow:0 0 0 2px #2a78d620}
+  .ig .hint{font-size:10px;color:#99a}
+  #recalcBtn{padding:7px 16px;font-size:12px;font-weight:600;border:none;border-radius:6px;background:#2a78d6;color:#fff;cursor:pointer;align-self:flex-end;margin-bottom:1px}
+  #recalcBtn:hover{background:#1a60c0}
+
+  /* ── RMD output box ── */
+  .rmd-box{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;padding:10px 16px;border:2px solid #e8a000;border-radius:8px;background:#fffbf0;margin-bottom:10px}
+  .rmd-col{display:flex;flex-direction:column;gap:3px}
+  .rmd-col .rmd-lbl{font-size:11px;font-weight:600;color:#7a5500;text-transform:uppercase;letter-spacing:.04em}
+  .rmd-col .rmd-val{font-size:20px;font-weight:700;color:#b06000}
+  .rmd-col .rmd-sub{font-size:11px;color:#a07030}
+  .rmd-divider{width:1px;background:#e8c870;margin:0 4px}
+  .rmd-note{font-size:11px;color:#9a7030;align-self:center;line-height:1.5;max-width:420px}
+  .rmd-warn{font-size:11px;font-weight:600;color:#c04000;margin-top:3px}
+  .rmd-na{font-size:13px;font-weight:500;color:#a08040;font-style:italic}
+
+  /* ── Control rows ── */
+  .row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;align-items:center}
+  .lbl{font-size:11px;font-weight:600;color:#666;min-width:42px}
+  .btn{font-size:11px;padding:4px 11px;border-radius:5px;border:1px solid #ccc;background:#f0f0ee;cursor:pointer;color:#333}
+  .btn:hover{background:#e0e0de}
+  .btn.ag{border-color:#00a05a;background:#e6f7ef;color:#005c33}
+  .btn.ab{border-color:#2a78d6;background:#eaf2fd;color:#1a4e8f}
+  .btn.ar{border-color:#c0392b;background:#fdf0ef;color:#7b1a10}
+  .btn.ao{border-color:#e34948;background:#fdf0ef;color:#8a1f1f}
+  .ftog{display:flex;align-items:center;gap:7px;padding:5px 11px;border:1px solid #ccc;border-radius:6px;background:#f5f5f3;font-size:11px;user-select:none}
+  .ftog label{cursor:pointer;font-weight:500;color:#333}
+  .ftog input{width:15px;height:15px;cursor:pointer;accent-color:#2a78d6}
+
+  /* ── Legend ── */
+  #lgd{display:flex;flex-wrap:wrap;gap:5px;padding:8px 10px;border:1px solid #ddd;border-radius:8px;background:#f5f5f3;margin-bottom:10px;max-height:130px;overflow-y:auto}
+  .lb{font-size:10.5px;padding:3px 9px;border-radius:4px;cursor:pointer;display:flex;align-items:center;gap:5px;border:1.5px solid transparent;user-select:none}
+  .lb:hover{filter:brightness(.95)}
+  .stag{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#aaa;margin:4px 0 2px;padding-left:2px;width:100%}
+
+  /* ── Chart ── */
+  .chart-wrap{position:relative;width:100%;height:430px;cursor:crosshair;background:#fff;border-radius:10px;border:1px solid #e0e0de;padding:10px}
+  #tip{position:absolute;top:16px;background:#fff;border:1px solid #ccc;border-radius:10px;padding:12px 16px;pointer-events:none;display:none;box-shadow:0 4px 22px rgba(0,0,0,.15);z-index:20;white-space:nowrap}
+  #tipH{font-weight:700;padding-bottom:5px;margin-bottom:2px;border-bottom:1px solid #eee;color:#111}
+  #tipRMD{margin-bottom:4px}
+  #tipS{color:#bbb;margin-bottom:5px}
+  .trow{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:2.5px 0}
+  .trl{display:flex;align-items:center;gap:5px;color:#444}
+  .tdot{border-radius:50%;flex-shrink:0;display:inline-block}
+  .trr{font-weight:700;white-space:nowrap;text-align:right}
+  .foot{font-size:10px;color:#aaa;margin-top:8px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<h1>IRA Withdrawal Marginal Keep Rate — State Tax Comparison</h1>
+<div class="sub">Federal + state combined marginal keep rate. Enter your parameters and click Recalculate.</div>
+
+<!-- ── Parameter inputs ── -->
+<div class="inputs-panel">
+  <div class="ig">
+    <label>Age</label>
+    <input type="number" id="inAge" value="73" min="60" max="115" step="1">
+    <span class="hint">Used for std. deduction &amp; RMD</span>
+  </div>
+  <div class="ig">
+    <label>Social Security (monthly $)</label>
+    <input type="number" id="inSS" value="4500" min="0" max="20000" step="100">
+    <span class="hint">Your monthly SS benefit</span>
+  </div>
+  <div class="ig">
+    <label>IRA / 401(k) balance ($)</label>
+    <input type="number" id="inBal" value="500000" min="0" max="100000000" step="10000">
+    <span class="hint">Dec 31 prior-year balance</span>
+  </div>
+  <div class="ig">
+    <label>Chart max withdrawal ($)</label>
+    <input type="number" id="inMax" value="280000" min="50000" max="2000000" step="10000">
+    <span class="hint">Right edge of chart</span>
+  </div>
+  <button id="recalcBtn" onclick="recalc()">Recalculate ▶</button>
+</div>
+
+<!-- ── RMD output ── -->
+<div class="rmd-box" id="rmdBox">
+  <div class="rmd-col">
+    <span class="rmd-lbl">RMD Start Age</span>
+    <span class="rmd-val" id="rmdStartAge">—</span>
+    <span class="rmd-sub" id="rmdStartNote"></span>
+  </div>
+  <div class="rmd-divider"></div>
+  <div class="rmd-col">
+    <span class="rmd-lbl">IRS Life Expectancy Divisor</span>
+    <span class="rmd-val" id="rmdDivisor">—</span>
+    <span class="rmd-sub" id="rmdDivisorNote">at your age</span>
+  </div>
+  <div class="rmd-divider"></div>
+  <div class="rmd-col">
+    <span class="rmd-lbl">Required Minimum Distribution</span>
+    <span class="rmd-val" id="rmdAmt">—</span>
+    <span class="rmd-sub" id="rmdFormula"></span>
+    <span class="rmd-warn" id="rmdWarn"></span>
+  </div>
+  <div class="rmd-divider"></div>
+  <div class="rmd-note" id="rmdNote"></div>
+</div>
+
+<!-- ── Show/hide controls ── -->
+<div class="row">
+  <span class="lbl">Show:</span>
+  <button class="btn" onclick="sg('all')">All States</button>
+  <button class="btn" onclick="sg('none')">Clear All</button>
+  <button class="btn ag" onclick="sg('best')">⭐ Best (no/exempt tax)</button>
+  <button class="btn ab" onclick="sg('yours')">📍 Your States</button>
+  <button class="btn" onclick="sg('mid')">🔶 Mid-range</button>
+  <button class="btn ar" onclick="sg('worst')">⚠️ Worst</button>
+  <div class="ftog" style="margin-left:8px">
+    <input type="checkbox" id="bigFont" onchange="setFS(this.checked)">
+    <label for="bigFont">Large tooltip text</label>
+  </div>
+</div>
+
+<!-- ── Zoom controls ── -->
+<div class="row">
+  <span class="lbl">Zoom:</span>
+  <button class="btn" onclick="zt(0,160000)">$0–$160K</button>
+  <button class="btn" onclick="zt(100000,200000)">$100K–$200K</button>
+  <button class="btn ao" onclick="zt(128000,172000)">NJ cliff zone</button>
+  <button class="btn" onclick="zt(180000,280000)">$180K–$280K</button>
+  <button class="btn" onclick="ztF()">Full view</button>
+</div>
+
+<div id="lgd"></div>
+
+<div class="chart-wrap">
+  <canvas id="mc"></canvas>
+  <div id="tip">
+    <div id="tipH"></div>
+    <div id="tipRMD"></div>
+    <div id="tipS">Best → worst keep rate (visible states only)</div>
+    <div id="tipR"></div>
+  </div>
+</div>
+
+<div class="foot">
+  <strong>What this shows:</strong> The <em>marginal</em> keep rate — for each extra dollar withdrawn at this level, how many cents you keep after combined federal + state tax.<br>
+  <strong>Controls:</strong> Scroll to zoom · Drag to pan · Double-click to reset · Click legend items or group buttons to toggle states<br>
+  <strong>Gray dashed</strong> = 60¢ kept = 40% ceiling &nbsp;|&nbsp; <strong>Red dashed</strong> = NJ $150K pension exclusion cliff &nbsp;|&nbsp; <strong>Amber dashed</strong> = your RMD level<br>
+  Estimates only — consult a tax professional before making withdrawal decisions.
+</div>
+
+<script>
+// ── IRS Uniform Lifetime Table (Pub 590-B Table III, effective 2022+) ─
+const ULT = {
+  72:27.4,73:26.5,74:25.5,75:24.6,76:23.7,77:22.9,78:22.0,79:21.1,80:20.2,
+  81:19.4,82:18.5,83:17.7,84:16.8,85:16.0,86:15.2,87:14.4,88:13.7,89:12.9,
+  90:12.2,91:11.5,92:10.8,93:10.1,94:9.5,95:8.9,96:8.4,97:7.8,98:7.3,
+  99:6.8,100:6.4,101:6.0,102:5.6,103:5.2,104:4.9,105:4.6,106:4.3,107:4.1,
+  108:3.9,109:3.7,110:3.5,111:3.4,112:3.3,113:3.1,114:3.0,115:2.9,
+  116:2.8,117:2.7,118:2.5,119:2.3,120:2.0
+};
+
+// ── Live parameters ──────────────────────────────────────────────────
+let P = { age:73, ssMonthly:4500, balance:500000, chartMax:280000 };
+
+function annualSS(){ return P.ssMonthly*12; }
+function stdDed()  { return 16100 + (P.age>=65 ? 2050 : 0); }
+function rmdAge()  {
+  // SECURE 2.0: born 1951-1959 → 73; born 1960+ → 75
+  // Since age is entered (not birth year), approximate:
+  // If age < 73 → not yet required (unless born 1960+ and age < 75)
+  // We'll show RMD age 73 as default (most users here are 73+)
+  // For born 1960+: current year 2026 - age = birth year
+  const birthYear = 2026 - P.age;
+  return birthYear >= 1960 ? 75 : 73;
+}
+
+// ── RMD calculation ──────────────────────────────────────────────────
+function calcRMD(){
+  const age = P.age;
+  const ra  = rmdAge();
+  const box = document.getElementById('rmdBox');
+
+  document.getElementById('rmdStartAge').textContent = ra;
+  const birthYear = 2026 - age;
+  document.getElementById('rmdStartNote').textContent =
+    `(born ${birthYear}: SECURE 2.0)`;
+
+  if(age < ra){
+    document.getElementById('rmdDivisor').textContent = 'N/A';
+    document.getElementById('rmdDivisorNote').textContent = '';
+    document.getElementById('rmdAmt').textContent = 'Not yet required';
+    document.getElementById('rmdAmt').style.fontSize = '14px';
+    document.getElementById('rmdFormula').textContent = `RMDs begin at age ${ra}`;
+    document.getElementById('rmdWarn').textContent = '';
+    document.getElementById('rmdNote').innerHTML =
+      `You are age ${age}. Required Minimum Distributions do not begin until age ${ra} for someone born in ${birthYear}. No mandatory withdrawal applies yet.`;
+    box.style.borderColor = '#aaccee';
+    box.style.background  = '#f0f6ff';
+    window._rmdAmt = 0;
+    return;
+  }
+
+  // Age is at or past RMD start
+  const lookupAge = Math.min(age, 120);
+  const divisor   = ULT[lookupAge] || 2.0;
+  const rmd       = P.balance > 0 ? Math.round(P.balance / divisor) : 0;
+  window._rmdAmt  = rmd;
+
+  document.getElementById('rmdDivisor').textContent = divisor.toFixed(1);
+  document.getElementById('rmdDivisorNote').textContent = `IRS Uniform Lifetime Table, age ${age}`;
+  document.getElementById('rmdAmt').textContent = '$' + rmd.toLocaleString();
+  document.getElementById('rmdAmt').style.fontSize = '20px';
+  document.getElementById('rmdFormula').textContent =
+    `$${P.balance.toLocaleString()} ÷ ${divisor} = $${rmd.toLocaleString()}`;
+
+  const pct = ((1/divisor)*100).toFixed(2);
+  document.getElementById('rmdNote').innerHTML =
+    `<strong>You must withdraw at least $${rmd.toLocaleString()} this year</strong> from your IRA/401(k).<br>
+     That is <strong>${pct}%</strong> of your ${P.balance.toLocaleString()} balance.<br>
+     Penalty for shortfall: <strong>25%</strong> of the amount not withdrawn (10% if corrected within 2 years).<br>
+     The amber dashed line on the chart marks this RMD level.`;
+
+  if(rmd > P.chartMax * 0.9){
+    document.getElementById('rmdWarn').textContent =
+      '⚠ RMD exceeds chart range — consider increasing "Chart max withdrawal"';
+  } else {
+    document.getElementById('rmdWarn').textContent = '';
+  }
+
+  box.style.borderColor = '#e8a000';
+  box.style.background  = '#fffbf0';
+}
+
+// ── Font size toggle ─────────────────────────────────────────────────
+const FSM = {tip:13,tipH:14.5,tipS:10.5,row:13,dot:10,w:370};
+const FLG = {tip:19,tipH:21,  tipS:15,  row:19,dot:14,w:530};
+let CUR = FSM;
+function setFS(big){ CUR = big ? FLG : FSM; }
+
+// ── Federal tax math ─────────────────────────────────────────────────
+function fTax(t){if(t<=0)return 0;const b=[[11925,.1],[36550,.12],[54875,.22],[93950,.24],[243700,.32],[171600,.35],[1e9,.37]];let x=0,r=t;for(const[w,rt]of b){if(r<=0)break;const c=Math.min(r,w);x+=c*rt;r-=c;}return x;}
+function fBase(ira){const ss=annualSS(),p=ira+ss*.5,s=p>34000?ss*.85:p>25000?ss*.5:0;return Math.max(0,ira+s-stdDed());}
+function netV(ira,sf){return annualSS()+ira-fTax(fBase(ira))-sf(ira);}
+function bT(amt,br){if(amt<=0)return 0;let x=0,r=amt;for(const[w,rt]of br){if(r<=0)break;const c=Math.min(r,w);x+=c*rt;r-=c;}return x;}
+const z=_=>0;
+
+// ── State definitions ────────────────────────────────────────────────
+const SD=[
+  {id:'notax', nm:'FL · TX · NV · WY · TN · NH · AK · SD · WA  (no income tax)', grp:'best', col:'#00b36b', w:2, dash:[6,3], fn:z},
+  {id:'exempt',nm:'IL · IA · MS  (all retirement income exempt)',                   grp:'best', col:'#33cc88', w:2, dash:[6,3], fn:z},
+  {id:'PA', nm:'Pennsylvania  (IRA exempt age 59½+)',       grp:'yours', col:'#7c5cbf', w:2.5, dash:[], fn:z},
+  {id:'OH', nm:'Ohio  (2.75% flat above $26K)',              grp:'yours', col:'#2a78d6', w:2.5, dash:[], fn:ira=>Math.max(0,Math.max(0,ira-26050)*.0275-250)},
+  {id:'NJ', nm:'New Jersey',                                 grp:'yours', col:'#1baf7a', w:2.5, dash:[],
+   fn:ira=>{let ex=ira<=100000?Math.min(ira,100000):ira<=125000?ira*.375:ira<=150000?ira*.25:0;return bT(Math.max(0,ira-ex-1000),[[20000,.014],[15000,.0175],[5000,.035],[35000,.05525],[425000,.0637],[500000,.0897],[1e9,.1075]]);}},
+  {id:'NY', nm:'New York State',                             grp:'yours', col:'#d4900a', w:2.5, dash:[],
+   fn:ira=>bT(Math.max(0,ira-28000),[[17150,.04],[8450,.045],[1100,.0525],[163150,.055],[215400,.06],[1077550,.0685],[1e9,.0965]])},
+  {id:'NYC',nm:'New York City  (state + city tax)',          grp:'yours', col:'#b84800', w:2.5, dash:[],
+   fn:ira=>{const nt=Math.max(0,ira-28000);return bT(nt,[[17150,.04],[8450,.045],[1100,.0525],[163150,.055],[50400,.06],[862150,.0685],[1e9,.0965]])+bT(nt,[[12000,.03078],[10000,.03762],[3400,.03819],[1e9,.03876]]);}},
+  {id:'AZ', nm:'Arizona  (2.5% flat)',                       grp:'mid', col:'#8e7cc3', w:1.5, dash:[], fn:ira=>Math.max(0,ira-14600)*.025},
+  {id:'CO', nm:'Colorado  (4.4% flat)',                      grp:'mid', col:'#5b8ec7', w:1.5, dash:[], fn:ira=>{const ss=annualSS(),p=ira+ss*.5,sst=p>34000?ss*.85:p>25000?ss*.5:0;return Math.max(0,ira+sst-38600)*.044;}},
+  {id:'IN', nm:'Indiana  (3.05% flat)',                      grp:'mid', col:'#9ab0c0', w:1.5, dash:[], fn:ira=>Math.max(0,ira-2000)*.0305},
+  {id:'KY', nm:'Kentucky  (4% flat, $31K exempt)',           grp:'mid', col:'#7090aa', w:1.5, dash:[], fn:ira=>Math.max(0,ira-31110)*.04},
+  {id:'MI', nm:'Michigan  (exempt up to $67.6K)',            grp:'mid', col:'#4a80b8', w:1.5, dash:[], fn:ira=>Math.max(0,ira-67610)*.0425},
+  {id:'NC', nm:'N. Carolina  (4.49% flat)',                  grp:'mid', col:'#aabbc8', w:1.5, dash:[], fn:ira=>Math.max(0,ira-14600)*.0449},
+  {id:'MA', nm:'Massachusetts  (5%)',                        grp:'mid', col:'#c07030', w:1.5, dash:[], fn:ira=>Math.max(0,ira-14600)*.05},
+  {id:'VA', nm:'Virginia  (up to 5.75%)',                    grp:'mid', col:'#80a0b0', w:1.5, dash:[], fn:ira=>bT(Math.max(0,ira-12800),[[3000,.02],[2000,.03],[12000,.05],[1e9,.0575]])},
+  {id:'SC', nm:'S. Carolina  (up to 6.4%)',                  grp:'mid', col:'#90a8b8', w:1.5, dash:[], fn:ira=>bT(Math.max(0,ira-29000),[[3460,.03],[1e9,.064]])},
+  {id:'WI', nm:'Wisconsin  (up to 7.65%)',                   grp:'mid', col:'#6080a0', w:1.5, dash:[], fn:ira=>bT(Math.max(0,ira-11800),[[14320,.035],[10670,.044],[215320,.053],[1e9,.0765]])},
+  {id:'MD', nm:'Maryland  (up to 5.25% + ~3.2% local)',      grp:'mid', col:'#508098', w:1.5, dash:[], fn:ira=>{const t=Math.max(0,ira-34300);return bT(t,[[1000,.02],[2000,.03],[3000,.04],[150000,.0475],[100000,.05],[1e9,.0525]])+t*.032;}},
+  {id:'MN', nm:'Minnesota  (up to 9.85%, taxes SS)',          grp:'worst', col:'#c0392b', w:2, dash:[],
+   fn:ira=>{const ss=annualSS(),p=ira+ss*.5,sst=p>34000?ss*.85:p>25000?ss*.5:0;return bT(Math.max(0,ira+sst-10700),[[31690,.0535],[73000,.068],[147180,.0785],[1e9,.0985]]);}},
+  {id:'OR', nm:'Oregon  (up to 9.9%)',                        grp:'worst', col:'#e67e22', w:2, dash:[],
+   fn:ira=>{const t=Math.max(0,ira-2420);const tax=bT(t,[[4050,.0475],[6450,.0675],[125000,.0875],[1e9,.099]]);return Math.max(0,tax-Math.min(7500,Math.max(0,7500-Math.max(0,(ira-22500)*.20))));}},
+  {id:'CA', nm:'California  (up to 13.3%)',                   grp:'worst', col:'#7b241c', w:2, dash:[],
+   fn:ira=>bT(Math.max(0,ira-5202),[[10756,.01],[15486,.02],[24651,.04],[34369,.06],[48596,.08],[61214,.093],[312686,.103],[375221,.113],[625370,.123],[1e9,.133]])},
+];
+
+// ── Build data ───────────────────────────────────────────────────────
+const STEP=2000; let pts=[];
+function buildPts(){ pts=[]; for(let w=STEP;w<=P.chartMax;w+=STEP)pts.push(w); }
+function marg(fn){ return pts.map(w=>({x:w,y:parseFloat(((netV(w,fn)-netV(w-STEP,fn))/STEP*100).toFixed(2))})); }
+
+const DFLT=new Set(['PA','OH','NJ','NY','NYC']);
+let DSS;
+function buildDS(){
+  buildPts();
+  DSS=SD.map((s,i)=>({
+    label:s.nm,sid:s.id,grp:s.grp,
+    data:marg(s.fn),
+    borderColor:s.col,borderWidth:s.w,
+    borderDash:s.dash,pointRadius:0,tension:.35,fill:false,
+    hidden:DSS?DSS[i].hidden:!DFLT.has(s.id),
+  }));
+}
+
+// ── Chart plugins ────────────────────────────────────────────────────
+const clP={id:'cl',afterDraw(c){
+  const{ctx,scales:{x,y}}=c;
+  if(x.min>150000||x.max<150000)return;
+  const xp=x.getPixelForValue(150000);
+  ctx.save();ctx.setLineDash([5,4]);ctx.strokeStyle='#e34948';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(xp,y.top+24);ctx.lineTo(xp,y.bottom);ctx.stroke();
+  ctx.fillStyle='#e34948';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+  ctx.fillText('NJ cliff',xp,y.top+12);ctx.fillText('$150K',xp,y.top+22);
+  ctx.restore();
+}};
+const ceP={id:'ce',afterDraw(c){
+  const{ctx,scales:{x,y}}=c;
+  if(y.min>60||y.max<60)return;
+  const yp=y.getPixelForValue(60);
+  ctx.save();ctx.setLineDash([8,5]);ctx.strokeStyle='rgba(130,130,130,.45)';ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.moveTo(x.left,yp);ctx.lineTo(x.right,yp);ctx.stroke();
+  ctx.fillStyle='rgba(100,100,100,.6)';ctx.font='10px sans-serif';ctx.textAlign='left';
+  ctx.fillText('60¢ kept = 40% combined tax ceiling',x.left+6,yp-4);
+  ctx.restore();
+}};
+const rmdP={id:'rmd',afterDraw(c){
+  const rmd=window._rmdAmt||0; if(!rmd)return;
+  const{ctx,scales:{x,y}}=c;
+  if(rmd<x.min||rmd>x.max)return;
+  const xp=x.getPixelForValue(rmd);
+  ctx.save();ctx.setLineDash([6,4]);ctx.strokeStyle='#c07800';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(xp,y.top+2);ctx.lineTo(xp,y.bottom);ctx.stroke();
+  ctx.fillStyle='#c07800';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+  ctx.fillText('RMD',xp,y.top-2);
+  ctx.restore();
+}};
+
+// ── Render chart ─────────────────────────────────────────────────────
+buildDS(); calcRMD();
+const cvs=document.getElementById('mc');
+const MC=new Chart(cvs,{
+  type:'line',plugins:[clP,ceP,rmdP,ChartZoom],
+  data:{datasets:DSS},
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:false},tooltip:{enabled:false},
+      zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'},pan:{enabled:true,mode:'x'}}},
+    scales:{
+      x:{type:'linear',min:0,max:P.chartMax,
+         ticks:{color:'#888',font:{size:11},callback:v=>'$'+(v/1000).toFixed(0)+'K',maxTicksLimit:10},
+         grid:{display:false},border:{color:'#ccc'}},
+      y:{min:-50,max:100,
+         ticks:{color:'#888',font:{size:11},callback:v=>v+'¢'},
+         grid:{color:'rgba(0,0,0,.05)'},border:{display:false},
+         title:{display:true,text:'Cents kept per $1 withdrawn',color:'#888',font:{size:12}}}
+    }
+  }
+});
+
+// ── Recalculate ───────────────────────────────────────────────────────
+function recalc(){
+  P={
+    age:     Math.max(60,Math.min(115,parseInt(document.getElementById('inAge').value)||73)),
+    ssMonthly: Math.max(0,parseFloat(document.getElementById('inSS').value)||4500),
+    balance:   Math.max(0,parseFloat(document.getElementById('inBal').value)||500000),
+    chartMax:  Math.max(50000,parseFloat(document.getElementById('inMax').value)||280000),
+  };
+  calcRMD();
+  buildDS();
+  MC.data.datasets=DSS;
+  MC.options.scales.x.max=P.chartMax;
+  MC.resetZoom();
+  MC.update();
+  DSS.forEach((ds,i)=>{
+    const b=document.getElementById('lb_'+SD[i].id);
+    if(b){b.style.opacity=ds.hidden?.42:1;b.style.background=ds.hidden?'transparent':SD[i].col+'2a';}
+  });
+}
+
+// ── Legend ────────────────────────────────────────────────────────────
+const lgdEl=document.getElementById('lgd');
+const GL={best:'⭐ Best States',yours:'📍 Your States',mid:'🔶 Mid-Range',worst:'⚠️ Highest Tax'};
+['best','yours','mid','worst'].forEach(grp=>{
+  const tag=document.createElement('div'); tag.className='stag'; tag.textContent=GL[grp]; lgdEl.appendChild(tag);
+  SD.forEach((s,i)=>{
+    if(s.grp!==grp)return;
+    const ds=DSS[i],vis=!ds.hidden;
+    const btn=document.createElement('div');
+    btn.className='lb'; btn.id='lb_'+s.id;
+    btn.style.cssText=`border-color:${s.col};background:${vis?s.col+'2a':'transparent'};opacity:${vis?1:.42}`;
+    const sw=document.createElement('span');
+    if(s.dash&&s.dash.length) sw.style.cssText=`display:inline-block;width:18px;height:0;border-top:2.5px dashed ${s.col};flex-shrink:0`;
+    else sw.style.cssText=`display:inline-block;width:9px;height:9px;border-radius:50%;background:${s.col};flex-shrink:0`;
+    const lbl=document.createElement('span'); lbl.textContent=s.nm; lbl.style.color='#333';
+    btn.appendChild(sw); btn.appendChild(lbl);
+    btn.onclick=()=>{ ds.hidden=!ds.hidden; btn.style.opacity=ds.hidden?.42:1; btn.style.background=ds.hidden?'transparent':s.col+'2a'; MC.update(); };
+    lgdEl.appendChild(btn);
+  });
+});
+
+function sg(grp){
+  DSS.forEach((ds,i)=>{
+    const s=SD[i]; ds.hidden=grp==='all'?false:grp==='none'?true:s.grp!==grp;
+    const b=document.getElementById('lb_'+s.id);
+    if(b){b.style.opacity=ds.hidden?.42:1;b.style.background=ds.hidden?'transparent':s.col+'2a';}
+  }); MC.update();
+}
+
+// ── Tooltip ───────────────────────────────────────────────────────────
+const tipEl=document.getElementById('tip'),tipH=document.getElementById('tipH'),
+      tipRMD=document.getElementById('tipRMD'),tipS=document.getElementById('tipS'),tipR=document.getElementById('tipR');
+function nr(d,xv){let b=d[0],bd=1e9;for(const p of d){const dd=Math.abs(p.x-xv);if(dd<bd){bd=dd;b=p;}}return b;}
+
+cvs.addEventListener('mousemove',e=>{
+  const rc=cvs.getBoundingClientRect(),mx=e.clientX-rc.left;
+  const xv=MC.scales.x.getValueForPixel(mx);
+  if(xv<0||xv>P.chartMax){tipEl.style.display='none';return;}
+
+  const rows=[];
+  DSS.forEach((ds,i)=>{if(!ds.hidden){const p=nr(ds.data,xv);rows.push({s:SD[i],y:p.y});}});
+  if(!rows.length){tipEl.style.display='none';return;}
+  rows.sort((a,b)=>b.y-a.y);
+
+  const f=CUR;
+  tipEl.style.fontSize=f.tip+'px';
+  tipH.style.fontSize=f.tipH+'px';
+  tipS.style.fontSize=f.tipS+'px';
+
+  const w=Math.round(xv/1000)*1000;
+  tipH.textContent='IRA withdrawal: $'+w.toLocaleString();
+
+  // RMD comparison line
+  const rmd=window._rmdAmt||0;
+  if(rmd>0){
+    const diff=w-rmd;
+    const aboveBelow=diff>=0
+      ? `<span style="color:#1a7a50;font-weight:600">$${diff.toLocaleString()} above RMD ✓</span>`
+      : `<span style="color:#c04000;font-weight:600">$${Math.abs(diff).toLocaleString()} BELOW RMD ⚠</span>`;
+    tipRMD.style.fontSize=f.tipS+'px';
+    tipRMD.innerHTML=`RMD: <strong>$${rmd.toLocaleString()}</strong> &nbsp;→&nbsp; ${aboveBelow}`;
+    tipRMD.style.marginBottom='5px';
+  } else {
+    tipRMD.innerHTML='';
+  }
+
+  tipS.textContent=`Best → worst · SS $${P.ssMonthly.toLocaleString()}/mo · Age ${P.age}`;
+
+  tipR.innerHTML=rows.map(({s,y})=>{
+    const col=y<0?'#e34948':y<60?'#c07800':'#1a7a50';
+    const sign=y<0?'−':'';
+    return`<div class="trow" style="font-size:${f.row}px">
+      <span class="trl"><span class="tdot" style="width:${f.dot}px;height:${f.dot}px;background:${s.col}"></span>${s.nm}</span>
+      <span class="trr" style="color:${col}">${sign}${Math.abs(y).toFixed(1)}¢&nbsp;<span style="font-weight:400;color:#aaa;font-size:${f.tipS}px">(${(100-y).toFixed(1)}% tax)</span></span>
+    </div>`;
+  }).join('');
+
+  const tw=f.w;
+  let left=mx+16; if(left+tw+4>rc.width)left=mx-tw-10; if(left<0)left=4;
+  tipEl.style.width=tw+'px'; tipEl.style.left=left+'px'; tipEl.style.display='block';
+});
+cvs.addEventListener('mouseleave',()=>{tipEl.style.display='none';});
+cvs.addEventListener('dblclick',()=>MC.resetZoom());
+function zt(a,b){MC.zoomScale('x',{min:a,max:b},'default');}
+function ztF(){MC.zoomScale('x',{min:0,max:P.chartMax},'default');}
+document.querySelectorAll('.inputs-panel input').forEach(i=>{i.addEventListener('keydown',e=>{if(e.key==='Enter')recalc();});});
+</script>
+</body>
+</html>
