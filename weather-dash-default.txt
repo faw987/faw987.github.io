@@ -10,9 +10,11 @@ presentation new
 place Piscataway, NJ
 place High Bridge, NJ
 place Atlantic Highlands, NJ
+place New York, NY, United States
 place Poughkeepsie, NY
 place Medina, Ohio, United States
 place Cleveland, Ohio, United States
+place Kent, Ohio, United States
 color High (°F)=-99#65.2:deepskyblue,65.2#81.4:forestgreen,81.4#97.9:red,97.9#110:plum
 color Low (°F)=-99#18:red,18#66:lightgreen,66#85:green
 color Temp (°F)=-99#41:red,41#58.5:lightgreen,58.5#85:green

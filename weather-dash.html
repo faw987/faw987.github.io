@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Weather v5.1.4 — Daily → Hourly drilldown</title>
+    <title>Weather v5.1.5 — Daily → Hourly drilldown</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -318,7 +318,7 @@
                     <button id="menuConfigure" class="hamburger-item" type="button">Configure&hellip;</button>
                 </div>
             </div>
-            <h1>Weather v5.1.4</h1>
+            <h1>Weather v5.1.5</h1>
         </div>
         <p class="sub">Click a day to append an hourly table. Click an hour to open weather.com for that place/hour.</p>
     </header>
@@ -1138,23 +1138,24 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                 const maxUV= uvs.length? Math.max(...uvs) : null;
                 const maxG = gusts.length? Math.max(...gusts) : null;
                 hi.push(maxT); lo.push(minT); precipSum.push(sumP); uvMax.push(maxUV); gustMax.push(maxG);
-                let worstCond = "—", worstSeverity=-1, worstColor=null;
+                let worstCond = "—", worstSeverity=-1;
                 for (const c of codes){
                     const name = (c==null)? "—" : (WMO.get(String(c)) || String(c));
                     const clr = colorFor(rules, "Conditions", name);
                     const sev = severityOfColor(clr);
-                    if (sev > worstSeverity){ worstSeverity = sev; worstColor=clr; worstCond=name; }
+                    if (sev > worstSeverity){ worstSeverity = sev; worstCond=name; }
                 }
                 condLabel.push(worstCond);
-                const sColors = [
-                    colorFor(rules, "High (°F)", maxT) || colorFor(rules, "Temp (°F)", maxT),
-                    colorFor(rules, "Low (°F)",  minT) || colorFor(rules, "Temp (°F)", minT),
-                    colorFor(rules, "Precip (in)", sumP),
-                    colorFor(rules, "UV", maxUV),
-                    colorFor(rules, "Gust (mph)", maxG),
-                    worstColor
-                ];
-                date_colors.push(aggregateCellColor(sColors).color);
+                // v5.1.5: day color = worst per-hour aggregate within the window, scored by
+                // the same hourlyAggregateColor() that colors the grid cells, so map squares
+                // and table cells can't disagree (daily-extreme scoring omitted Wind/RH and
+                // judged the precip *sum*, which no single hour experiences).
+                const hourColors = arr.map(x => hourlyAggregateColor(rules, {
+                    temp: x.temp, precip: x.precip, uv: x.uv, wind: x.wind,
+                    gust: x.gust, rh: x.rh,
+                    cond: (x.code == null) ? "—" : (WMO.get(String(x.code)) || String(x.code))
+                }));
+                date_colors.push(aggregateCellColor(hourColors).color);
             }
             return {
                 time, temperature_2m_max: hi, temperature_2m_min: lo,
