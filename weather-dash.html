@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Weather v5.1.5 — Daily → Hourly drilldown</title>
+    <title>Weather v5.1.6 — Daily → Hourly drilldown</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -66,6 +66,11 @@
         #map { height: 360px; border-radius: 14px; border:1px solid #1c2a4d; box-shadow: var(--shadow); }
         .spark { display:inline-flex; gap:2px; padding:2px; background:#0b142c; border:1px solid #2a3a6a; border-radius:6px; }
         .spark .d { width:10px; height:10px; border-radius:2px; cursor:pointer; }
+        /* v5.1.6: clicking a marker day square jumps to that day below; flash the target */
+        .jump-flash { outline:2px solid #e8ecf3; outline-offset:-2px; }
+        /* v5.1.6: Small/Medium/Large cell-size radios scale the detail tables below the map */
+        #grid.size-small  { zoom: 0.34; }
+        #grid.size-medium { zoom: 0.67; }
         .leaflet-div-icon { background: transparent; border: none; }
         .marker-title { font-size: 11px; color:#e8ecf3; background:#0b142c; border:1px solid #2a3a6a; padding:2px 4px; border-radius:4px; margin-bottom:2px; display:inline-block; }
         .marker-wrap { display:flex; flex-direction:column; align-items:center; filter: drop-shadow(0 1px 6px rgba(0,0,0,.45)); }
@@ -318,7 +323,7 @@
                     <button id="menuConfigure" class="hamburger-item" type="button">Configure&hellip;</button>
                 </div>
             </div>
-            <h1>Weather v5.1.5</h1>
+            <h1>Weather v5.1.6</h1>
         </div>
         <p class="sub">Click a day to append an hourly table. Click an hour to open weather.com for that place/hour.</p>
     </header>
@@ -328,6 +333,9 @@
             <label><input id="showDecimals" type="checkbox" checked /> Decimals</label>
             <label><input id="cityOnly" type="checkbox" checked /> City-only labels</label>
             <label><input id="onlyIcons" type="checkbox" /> Icons only</label>
+            <label title="Cell size in the tables below"><input type="radio" name="cellsize" value="small" /> Small</label>
+            <label title="Cell size in the tables below"><input type="radio" name="cellsize" value="medium" checked /> Medium</label>
+            <label title="Cell size in the tables below"><input type="radio" name="cellsize" value="large" /> Large</label>
             <button id="run" class="btn" type="button">Generate</button>
             <button id="clearBtn" class="btn" type="button">Clear</button>
             <button id="exportBtn" class="btn" type="button">Export</button>
@@ -1475,7 +1483,16 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                     (hourly.time || []).forEach((t, i) => idxByTime.set(t, i));
                     cols.push({ coords: ps.coords, hourly, idxByTime });
                     const synth = summarizeHourly(hourly, numDays, startHour, endHour, rules);
-                    addMarker(ps.coords.lat, ps.coords.lon, ps.coords.label, (synth.date_colors || []).map(c => c || "#2a3a6a"));
+                    const colIndex = cols.length - 1;
+                    addMarker(ps.coords.lat, ps.coords.lon, ps.coords.label, (synth.date_colors || []).map(c => c || "#2a3a6a"), synth.time, (dayIdx, dayISO) => {
+                        const giant = document.querySelector("table.wx.giant");
+                        if (!giant || !dayISO) return;
+                        const dayRows = Array.from(giant.querySelectorAll(`tbody tr[data-date="${dayISO}"]`));
+                        if (!dayRows.length) return;
+                        // "auto" not "smooth": smooth scrollIntoView is unreliable under the #grid CSS zoom
+                        dayRows[0].scrollIntoView({ block:"start" });
+                        flashJumpTarget(dayRows.map(r => r.children[colIndex + 1]).filter(Boolean));
+                    });
                 } catch(err){
                     cols.push({ coords: ps.coords, hourly: null, error: String(err && err.message ? err.message : err) });
                 }
@@ -1518,6 +1535,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             for (let ti = 0; ti < times.length; ti++){
                 const t = times[ti];
                 const tr = el("tr");
+                tr.dataset.date = t.slice(0,10);
                 tr.append(el("td", { text: formatDateTimeLabel(t), class:"dt-cell" }));
                 for (const c of cols){
                     if (!c.hourly){ tr.append(el("td", { text:"—" })); continue; }
@@ -1561,10 +1579,16 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         const featureGroup = L.featureGroup().addTo(map);
 
         const markers = [];
-        function makeSparkIcon(label, dayColors){
-            const squares = dayColors.map(c => {
+        // v5.1.6: each day square is titled with its date and clickable to jump to that
+        // day's detail below (grid rows in new mode, daily-table row in legacy mode).
+        function formatDayShort(iso){
+            return iso ? parseLocalISODate(iso).toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" }) : "";
+        }
+        function makeSparkIcon(label, dayColors, dayDates){
+            const squares = dayColors.map((c, i) => {
                 const b = c ? `background:${c};` : `background:#2a3a6a; opacity:.7;`;
-                return `<span class="d" style="${b}" title="Daily severity"></span>`;
+                const title = formatDayShort(dayDates?.[i]) || "Daily severity";
+                return `<span class="d" data-day="${i}" style="${b}" title="${title}"></span>`;
             }).join("");
             const html = `
           <div class="marker-wrap">
@@ -1573,10 +1597,28 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
           </div>`;
             return L.divIcon({ html, className: '', iconSize: null, iconAnchor: [30, 22] });
         }
-        function addMarker(lat, lon, fullLabel, dayColors){
+        // stopPropagation keeps a square click from also toggling the marker popup
+        function wireSparkClicks(m){
+            const spark = m._spark;
+            if (!spark || typeof spark.onDayClick !== "function" || !m._icon) return;
+            for (const sq of m._icon.querySelectorAll(".spark .d")){
+                sq.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const i = Number(sq.dataset.day);
+                    spark.onDayClick(i, spark.dayDates?.[i] || null);
+                });
+            }
+        }
+        function flashJumpTarget(els){
+            for (const e of els) e.classList.add("jump-flash");
+            setTimeout(() => { for (const e of els) e.classList.remove("jump-flash"); }, 1600);
+        }
+        function addMarker(lat, lon, fullLabel, dayColors, dayDates, onDayClick){
             const showCityOnly = !!document.getElementById("cityOnly").checked;
             const displayLabel = showCityOnly ? cityFromLabel(fullLabel) : fullLabel;
-            const m = L.marker([lat, lon], { icon: makeSparkIcon(displayLabel, dayColors) }).addTo(featureGroup);
+            const m = L.marker([lat, lon], { icon: makeSparkIcon(displayLabel, dayColors, dayDates) }).addTo(featureGroup);
+            m._spark = { fullLabel, dayColors, dayDates, onDayClick };
+            wireSparkClicks(m);
             m.bindPopup(`<strong>${fullLabel}</strong><br>${lat.toFixed(3)}, ${lon.toFixed(3)}`);
             markers.push(m);
             try { map.fitBounds(featureGroup.getBounds().pad(0.2)); } catch(e){}
@@ -1614,7 +1656,11 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                 });
                 card.append(dailyTable);
 
-                addMarker(coords.lat, coords.lon, coords.label, (synth.date_colors || []).map(c=>c||"#2a3a6a"));
+                addMarker(coords.lat, coords.lon, coords.label, (synth.date_colors || []).map(c=>c||"#2a3a6a"), synth.time, (dayIdx) => {
+                    const row = dailyTable.querySelectorAll("tbody tr")[dayIdx];
+                    (row || card).scrollIntoView({ block:"center" });
+                    if (row) flashJumpTarget([row, ...row.children]);
+                });
             } catch(err){
                 metaP.textContent = String(err && err.message ? err.message : err);
                 metaP.classList.add("bad");
@@ -2162,21 +2208,27 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
 
         // Label mode
         document.getElementById("cityOnly").addEventListener("change", () => {
+            const showCityOnly = !!document.getElementById("cityOnly").checked;
             for (const m of markers) {
-                const p = m.getPopup();
-                const full = p && p.getContent() ? p.getContent().match(/<strong>(.*?)<\/strong>/)?.[1] : null;
-                if (!full) continue;
-                const showCityOnly = !!document.getElementById("cityOnly").checked;
-                const label = showCityOnly ? cityFromLabel(full) : full;
-                const squares = m._icon?.querySelectorAll('.spark .d') || [];
-                const dayColors = Array.from(squares).map(s => s.style.background || "#2a3a6a");
-                m.setIcon(makeSparkIcon(label, dayColors));
+                if (!m._spark) continue;
+                const label = showCityOnly ? cityFromLabel(m._spark.fullLabel) : m._spark.fullLabel;
+                m.setIcon(makeSparkIcon(label, m._spark.dayColors, m._spark.dayDates));
+                wireSparkClicks(m); // setIcon replaces the DOM, so re-attach square handlers
             }
         });
         document.getElementById("onlyIcons").addEventListener("change", ()=>{
             if (document.getElementById("onlyIcons").checked) grid.classList.add("hidden-grid");
             else grid.classList.remove("hidden-grid");
         });
+        // v5.1.6: Small/Medium/Large cell size for the detail tables (CSS zoom on #grid).
+        const cellSizeRadios = Array.from(document.querySelectorAll('input[name="cellsize"]'));
+        function applyCellSize(){
+            const v = cellSizeRadios.find(r => r.checked)?.value || "medium";
+            grid.classList.remove("size-small","size-medium","size-large");
+            grid.classList.add("size-" + v);
+        }
+        for (const radio of cellSizeRadios) radio.addEventListener("change", applyCellSize);
+        applyCellSize();
         decimalsBox.addEventListener("change", rebuildIfPlacesExist);
         startHourBox.addEventListener("change", rebuildIfPlacesExist);
         endHourBox.addEventListener("change", rebuildIfPlacesExist);
