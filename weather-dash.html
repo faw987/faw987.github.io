@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Weather v5.1.6 — Daily → Hourly drilldown</title>
+    <title>Weather v5.2.0 — Daily → Hourly drilldown</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -28,6 +28,13 @@
         textarea { resize:vertical; min-height:96px; }
         .btn { border:1px solid #2a3a6a; color:var(--text); background:#0b142c; padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:600; }
         .btn:hover { background:#12214a; border-color:#3b57a3; }
+        .btn-sm { padding:4px 10px; font-size:12px; border-radius:8px; }
+        /* v5.2: location selector chips */
+        #locationPicker { display:inline-flex; flex-wrap:wrap; gap:6px; }
+        .loc-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px;
+            background:#0b142c; border:1px solid #2a3a6a; font-size:12px; font-weight:600; color:var(--text); cursor:pointer; }
+        .loc-chip:hover { border-color:#3b57a3; }
+        .loc-chip input[type="checkbox"] { accent-color: var(--accent); margin:0; }
         .dropzone { border:2px dashed #2a3a6a; border-radius:16px; padding:14px; text-align:center; color:var(--muted); cursor:pointer; }
         .dropzone:hover { border-color:#3b57a3; background: rgba(64,105,215,0.06); }
         .dropzone.dragover { background: rgba(64,105,215,0.12); border-color:#6ea8fe; color: var(--text); }
@@ -323,7 +330,7 @@
                     <button id="menuConfigure" class="hamburger-item" type="button">Configure&hellip;</button>
                 </div>
             </div>
-            <h1>Weather v5.1.6</h1>
+            <h1>Weather v5.2</h1>
         </div>
         <p class="sub">Click a day to append an hourly table. Click an hour to open weather.com for that place/hour.</p>
     </header>
@@ -339,12 +346,24 @@
             <button id="run" class="btn" type="button">Generate</button>
             <button id="clearBtn" class="btn" type="button">Clear</button>
             <button id="exportBtn" class="btn" type="button">Export</button>
+            <button id="openMapWin" class="btn" type="button" title="Open the map in its own window">Map &#x29C9;</button>
+            <button id="openTableWin" class="btn" type="button" title="Open the forecast tables in their own window">Tables &#x29C9;</button>
+        </div>
+
+        <!-- v5.2: choose which known locations render in the map and tables -->
+        <div id="locationPickerWrap" style="display:none">
+            <label>Locations</label>
+            <div class="btn-row" style="margin-top:6px">
+                <button id="locAll" class="btn btn-sm" type="button">All</button>
+                <button id="locNone" class="btn btn-sm" type="button">None</button>
+                <span id="locationPicker"></span>
+            </div>
         </div>
 
         <div id="drop" class="dropzone" tabindex="0" aria-label="Drop or click to load directive files">
             <input id="file" type="file" accept=".txt,.csv,.ics,text/plain,text/calendar" multiple style="display:none" />
             <strong>Drop file(s) here or click to browse</strong>
-            <div class="sub">Files may contain <code>place</code>, <code>color</code>, <code>hours</code>, <code>days</code>, <code>state</code>, <code>country</code>, <code>decimals</code>, <code>cityonly</code>, <code>onlyicons</code>, <code>colorscales</code>, <code>presentation</code>, <code>provider</code>, <code>nwsfill</code>, and <code>add</code> directives. Lines starting with <code>#</code> are comments.</div>
+            <div class="sub">Files may contain <code>place</code>, <code>color</code>, <code>hours</code>, <code>days</code>, <code>state</code>, <code>country</code>, <code>decimals</code>, <code>cityonly</code>, <code>onlyicons</code>, <code>colorscales</code>, <code>presentation</code>, <code>provider</code>, <code>nwsfill</code>, <code>mapview</code>, and <code>add</code> directives. Lines starting with <code>#</code> are comments.</div>
         </div>
 
         <div>
@@ -357,7 +376,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         </div>
     </section>
 
-    <section style="margin:16px 0;">
+    <section id="mapSection" style="margin:16px 0;">
         <div id="map"></div>
     </section>
 
@@ -1415,7 +1434,8 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         function hourlyAggregateColor(rules, rec){ return hourlyAggregateInfo(rules, rec).color; }
         // Modal popup with the individual metrics for one place/hour.
         function showHourDetailPopup(coords, timeISO, rec, rules, showDecimals){
-            const existing = document.getElementById("hourDetailOverlay");
+            const doc = grid.ownerDocument; // v5.2: the tables may live in the pop-out window
+            const existing = doc.getElementById("hourDetailOverlay");
             if (existing) existing.remove();
             const overlay = el("div", { id:"hourDetailOverlay", class:"hd-overlay" });
             const modal = el("div", { class:"hd-modal" });
@@ -1458,13 +1478,13 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
 
             const close = () => {
                 overlay.remove();
-                document.removeEventListener("keydown", onKey);
+                doc.removeEventListener("keydown", onKey);
             };
             const onKey = (e) => { if (e.key === "Escape") close(); };
             closeBtn.addEventListener("click", close);
             overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
-            document.addEventListener("keydown", onKey);
-            document.body.append(overlay);
+            doc.addEventListener("keydown", onKey);
+            doc.body.append(overlay);
         }
         // Build the full grid: rows = every hour of every configured day, columns = places.
         async function buildGiantTableView(places, rules, showDecimals, startHour, endHour, numDays){
@@ -1485,7 +1505,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                     const synth = summarizeHourly(hourly, numDays, startHour, endHour, rules);
                     const colIndex = cols.length - 1;
                     addMarker(ps.coords.lat, ps.coords.lon, ps.coords.label, (synth.date_colors || []).map(c => c || "#2a3a6a"), synth.time, (dayIdx, dayISO) => {
-                        const giant = document.querySelector("table.wx.giant");
+                        const giant = grid.querySelector("table.wx.giant");
                         if (!giant || !dayISO) return;
                         const dayRows = Array.from(giant.querySelectorAll(`tbody tr[data-date="${dayISO}"]`));
                         if (!dayRows.length) return;
@@ -1571,14 +1591,30 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         }
 
         // -------- Map
-        const map = L.map('map', { scrollWheelZoom: true });
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
-        map.setView([39.5, -98.35], 4);
-        const featureGroup = L.featureGroup().addTo(map);
-
+        // v5.2: the map can live inline on the dashboard or in its own pop-out
+        // window. Each window loads its own Leaflet (drag handlers bind to the
+        // owning document), so all Leaflet calls go through LX — the instance
+        // belonging to wherever the map currently lives. Marker specs are cached
+        // in markerSpecs so the map can be rebuilt in a new window at any time.
+        const DEFAULT_MAP_VIEW = { lat: 39.5, lon: -98.35, zoom: 4 };
+        let configuredMapView = null; // from the `mapview lat,lon[,zoom]` directive
+        let LX = window.L;
+        let map = null;
+        let featureGroup = null;
         const markers = [];
+        const markerSpecs = [];
+        function createMap(Lref, container){
+            LX = Lref;
+            map = LX.map(container, { scrollWheelZoom: true });
+            LX.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+            const v = configuredMapView || DEFAULT_MAP_VIEW;
+            map.setView([v.lat, v.lon], v.zoom);
+            featureGroup = LX.featureGroup().addTo(map);
+            map.on('click', onMapClick);
+            redrawMarkers();
+        }
         // v5.1.6: each day square is titled with its date and clickable to jump to that
         // day's detail below (grid rows in new mode, daily-table row in legacy mode).
         function formatDayShort(iso){
@@ -1595,7 +1631,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             <span class="marker-title">${label}</span>
             <div class="spark">${squares}</div>
           </div>`;
-            return L.divIcon({ html, className: '', iconSize: null, iconAnchor: [30, 22] });
+            return LX.divIcon({ html, className: '', iconSize: null, iconAnchor: [30, 22] });
         }
         // stopPropagation keeps a square click from also toggling the marker popup
         function wireSparkClicks(m){
@@ -1614,16 +1650,28 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             setTimeout(() => { for (const e of els) e.classList.remove("jump-flash"); }, 1600);
         }
         function addMarker(lat, lon, fullLabel, dayColors, dayDates, onDayClick){
+            const spec = { lat, lon, fullLabel, dayColors, dayDates, onDayClick };
+            markerSpecs.push(spec);
+            return drawMarker(spec);
+        }
+        function drawMarker(spec){
             const showCityOnly = !!document.getElementById("cityOnly").checked;
-            const displayLabel = showCityOnly ? cityFromLabel(fullLabel) : fullLabel;
-            const m = L.marker([lat, lon], { icon: makeSparkIcon(displayLabel, dayColors, dayDates) }).addTo(featureGroup);
-            m._spark = { fullLabel, dayColors, dayDates, onDayClick };
+            const displayLabel = showCityOnly ? cityFromLabel(spec.fullLabel) : spec.fullLabel;
+            const m = LX.marker([spec.lat, spec.lon], { icon: makeSparkIcon(displayLabel, spec.dayColors, spec.dayDates) }).addTo(featureGroup);
+            m._spark = { fullLabel: spec.fullLabel, dayColors: spec.dayColors, dayDates: spec.dayDates, onDayClick: spec.onDayClick };
             wireSparkClicks(m);
-            m.bindPopup(`<strong>${fullLabel}</strong><br>${lat.toFixed(3)}, ${lon.toFixed(3)}`);
+            m.bindPopup(`<strong>${spec.fullLabel}</strong><br>${spec.lat.toFixed(3)}, ${spec.lon.toFixed(3)}`);
             markers.push(m);
-            try { map.fitBounds(featureGroup.getBounds().pad(0.2)); } catch(e){}
+            // A configured mapview pins the initial position — don't auto-fit over it.
+            if (!configuredMapView) { try { map.fitBounds(featureGroup.getBounds().pad(0.2)); } catch(e){} }
             return m;
         }
+        function redrawMarkers(){
+            featureGroup.clearLayers();
+            markers.length = 0;
+            for (const spec of markerSpecs) drawMarker(spec);
+        }
+        createMap(window.L, document.getElementById('map'));
 
         // -------- Card (per place) — now caches hourly; day click builds hourly block
         async function buildCard(target, coords, rules, showDecimals, startHour, endHour, numDays, placeState){
@@ -1634,7 +1682,9 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             close.addEventListener("click", () => { // remove marker & card
                 const idx = markers.findIndex(mm => mm.getLatLng().lat.toFixed(3) == coords.lat.toFixed(3) && mm.getLatLng().lng.toFixed(3) == coords.lon.toFixed(3));
                 if (idx >= 0) { featureGroup.removeLayer(markers[idx]); markers.splice(idx,1); }
-                if (placeState) activePlaceEntries.delete(placeState.id);
+                const sIdx = markerSpecs.findIndex(s => s.lat.toFixed(3) == coords.lat.toFixed(3) && s.lon.toFixed(3) == coords.lon.toFixed(3));
+                if (sIdx >= 0) markerSpecs.splice(sIdx, 1);
+                if (placeState) { activePlaceEntries.delete(placeState.id); renderLocationPicker(); }
                 card.remove();
             });
             card.append(title, close, metaP);
@@ -1698,7 +1748,8 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                 presentation: null,
                 aggColorMode: null,
                 provider: null,
-                nwsFill: null
+                nwsFill: null,
+                mapView: null
             };
             async function parseOne(text){
                 const lines = (text||"").replace(/\r\n?/g,"\n").split("\n");
@@ -1754,6 +1805,15 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                     } else if (kw === "nwsfill") {
                         const v = rest.trim().toLowerCase();
                         if (v === "blank" || v === "estimate") acc.nwsFill = v;
+                    } else if (kw === "mapview") {
+                        // v5.2: `mapview <lat>,<lon>[,<zoom>]` — initial map position; zoom defaults to 8
+                        const parts = rest.split(/[,\s]+/).filter(Boolean).map(Number);
+                        if (parts.length >= 2 && parts.slice(0, 3).every(Number.isFinite)) {
+                            const [lat, lon, zoom] = parts;
+                            if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                                acc.mapView = { lat, lon, zoom: Number.isFinite(zoom) ? Math.max(1, Math.min(19, Math.round(zoom))) : 8 };
+                            }
+                        }
                     } else if (kw === "add") {
                         const fname = rest.replace(/^['"]|['"]$/g,"");
                         if (!fname) continue;
@@ -1773,12 +1833,6 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         }
 
         // -------- Map, UI & runner
-        const mapObj = {
-            map,
-            featureGroup,
-            markers
-        };
-
         const activePlaceEntries = new Map();
         let activeColorConfig = createDefaultColorConfig();
         let colorsVisible = true;
@@ -1792,7 +1846,8 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         const pasteArea = document.getElementById("paste");
         const runBtn = document.getElementById("run");
         const exportBtn = document.getElementById("exportBtn");
-        const grid = document.getElementById("grid");
+        const inlineGrid = document.getElementById("grid");
+        let grid = inlineGrid; // v5.2: render target — inline section or the pop-out table window
         const stateBox = document.getElementById("prefState");
         const countryBox = document.getElementById("prefCountry");
         const colorConfigEl = document.getElementById("colorConfig");
@@ -1871,13 +1926,14 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             lines.push(`aggcolor ${aggColorMode}`);
             lines.push(`provider ${weatherProvider}`);
             lines.push(`nwsfill ${nwsFillMode}`);
+            if (configuredMapView) lines.push(`mapview ${configuredMapView.lat},${configuredMapView.lon},${configuredMapView.zoom}`);
             const calUrl = calendarUrlBox ? calendarUrlBox.value.trim() : "";
             if (calUrl) lines.push(`calendar ${calUrl}`);
             for (const entry of activePlaceEntries.values()) lines.push(entry.directive);
             lines.push(...orderedColorDirectiveStrings(activeColorConfig));
             const blob = new Blob([lines.join("\n") + "\n"], { type:"text/plain;charset=utf-8" });
             const url = URL.createObjectURL(blob);
-            const a = el("a", { href:url, download:"weather-v5.1-config.txt" });
+            const a = el("a", { href:url, download:"weather-v5.2-config.txt" });
             document.body.append(a);
             a.click();
             a.remove();
@@ -1931,12 +1987,15 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             grid.innerHTML = "";
             featureGroup.clearLayers();
             markers.length = 0;
+            markerSpecs.length = 0;
             activePlaceEntries.clear();
+            renderLocationPicker();
         }
         function clearVisuals(){
             grid.innerHTML = "";
             featureGroup.clearLayers();
             markers.length = 0;
+            markerSpecs.length = 0;
         }
         function rebuildIfPlacesExist(){
             if (activePlaceEntries.size) void rebuildActiveCards();
@@ -1947,7 +2006,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             const startHour = Math.max(0, Math.min(23, Number(startHourBox.value)||8));
             const endHour   = Math.max(0, Math.min(23, Number(endHourBox.value)||17));
             const numDays   = Math.max(1, Math.min(14, Number(numDaysBox.value)||7));
-            const places = Array.from(activePlaceEntries.values());
+            const places = enabledPlaces();
             clearVisuals();
             if (presentationMode === "new") {
                 await buildGiantTableView(places, rules, showDecimals, startHour, endHour, numDays);
@@ -1956,7 +2015,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                     await buildCard(grid, placeState.coords, rules, showDecimals, startHour, endHour, numDays, placeState);
                 }
             }
-            if (onlyIconsBox.checked) grid.classList.add("hidden-grid"); else grid.classList.remove("hidden-grid");
+            syncOnlyIcons();
         }
 
         async function processDirectives(rootText, fileSet){
@@ -2004,6 +2063,10 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                 nwsFillMode = parsed.nwsFill;
                 for (const radio of nwsFillRadios) radio.checked = (radio.value === nwsFillMode);
             }
+            if (parsed.mapView) {
+                configuredMapView = parsed.mapView;
+                if (map) map.setView([configuredMapView.lat, configuredMapView.lon], configuredMapView.zoom);
+            }
             if (parsed.colors.length){
                 activeColorConfig = applyColorDirectiveOverrides(activeColorConfig, parsed.colors);
                 refreshColorConfigView();
@@ -2044,15 +2107,16 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                     errorCards.push(card);
                     continue;
                 }
-                const placeState = { id: makeId(), directive, coords };
+                const placeState = { id: makeId(), directive, coords, enabled: true };
                 activePlaceEntries.set(placeState.id, placeState);
                 newPlaceStates.push(placeState);
             }
+            renderLocationPicker();
 
             if (presentationMode === "new") {
                 // The grid shows a single combined table, so rebuild it for all active places.
                 clearVisuals();
-                await buildGiantTableView(Array.from(activePlaceEntries.values()), rules, showDecimals, startHour, endHour, numDays);
+                await buildGiantTableView(enabledPlaces(), rules, showDecimals, startHour, endHour, numDays);
             } else {
                 for (const placeState of newPlaceStates) {
                     await buildCard(grid, placeState.coords, rules, showDecimals, startHour, endHour, numDays, placeState);
@@ -2061,7 +2125,7 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             for (const card of errorCards) grid.prepend(card);
 
             document.getElementById("cityOnly").dispatchEvent(new Event("change"));
-            if (onlyIconsBox.checked) grid.classList.add("hidden-grid"); else grid.classList.remove("hidden-grid");
+            syncOnlyIcons();
         }
 
         function fileListToSet(fileList){
@@ -2132,6 +2196,153 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
         if (exportBtn) {
             exportBtn.addEventListener("click", exportCurrentConfig);
         }
+
+        // -------- v5.2: location selector — pick which known places render
+        const locationPickerWrap = document.getElementById("locationPickerWrap");
+        const locationPicker = document.getElementById("locationPicker");
+        const locAllBtn = document.getElementById("locAll");
+        const locNoneBtn = document.getElementById("locNone");
+        function enabledPlaces(){
+            return Array.from(activePlaceEntries.values()).filter(p => p.enabled !== false);
+        }
+        function renderLocationPicker(){
+            if (!locationPicker) return;
+            locationPicker.innerHTML = "";
+            const entries = Array.from(activePlaceEntries.values());
+            if (locationPickerWrap) locationPickerWrap.style.display = entries.length ? "" : "none";
+            for (const p of entries){
+                const cb = el("input", { type:"checkbox" });
+                cb.checked = p.enabled !== false;
+                cb.addEventListener("change", () => {
+                    p.enabled = cb.checked;
+                    void rebuildActiveCards();
+                });
+                locationPicker.append(el("label", { class:"loc-chip", title: p.coords.label }, [
+                    cb, el("span", { text: cityFromLabel(p.coords.label) })
+                ]));
+            }
+        }
+        function setAllPlacesEnabled(on){
+            for (const p of activePlaceEntries.values()) p.enabled = on;
+            renderLocationPicker();
+            void rebuildActiveCards();
+        }
+        if (locAllBtn) locAllBtn.addEventListener("click", () => setAllPlacesEnabled(true));
+        if (locNoneBtn) locNoneBtn.addEventListener("click", () => setAllPlacesEnabled(false));
+
+        // -------- v5.2: pop-out map & table windows
+        // Each pop-out is an about:blank window we write a skeleton into (parent
+        // styles copied). The dashboard keeps all state and logic; the pop-outs
+        // are pure render targets. Closing one moves its content back inline.
+        const mapSection = document.getElementById("mapSection");
+        const openMapWinBtn = document.getElementById("openMapWin");
+        const openTableWinBtn = document.getElementById("openTableWin");
+        let mapWin = null, tableWin = null;
+        function writePopupDoc(win, opts){
+            const baseStyle = document.querySelector("style") ? document.querySelector("style").textContent : "";
+            win.document.open();
+            win.document.write(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>${opts.title}</title>${opts.headExtra || ""}<style>${baseStyle}</style><style>${opts.styleExtra || ""}</style></head><body>${opts.bodyHtml}</body></html>`);
+            win.document.close();
+        }
+        // Chrome commits the popup's initial about:blank navigation asynchronously,
+        // which can clobber a document written synchronously after window.open.
+        // Write, verify it stuck (title check), and rewrite until it does; only
+        // then hand the window to the caller.
+        function ensurePopup(win, opts, onReady){
+            writePopupDoc(win, opts);
+            let tries = 0;
+            const iv = setInterval(() => {
+                if (win.closed) { clearInterval(iv); return; }
+                let ok = false;
+                try { ok = win.document.title === opts.title; } catch(e){}
+                if (ok) { clearInterval(iv); onReady(); return; }
+                if (++tries > 50) { clearInterval(iv); console.error("Pop-out window failed to initialize."); return; }
+                try { writePopupDoc(win, opts); } catch(e){}
+            }, 100);
+        }
+        function moveMapTo(win){
+            if (map) { map.remove(); map = null; }
+            if (win === window) {
+                mapSection.classList.remove("hidden-panel");
+                createMap(window.L, document.getElementById("map"));
+            } else {
+                mapSection.classList.add("hidden-panel");
+                createMap(win.L, win.document.getElementById("map"));
+                win.addEventListener("resize", () => { if (map) map.invalidateSize(); });
+                const watch = setInterval(() => {
+                    if (!win.closed) return;
+                    clearInterval(watch);
+                    mapWin = null;
+                    moveMapTo(window);
+                }, 400);
+            }
+        }
+        function openMapWindow(){
+            if (mapWin && !mapWin.closed) { mapWin.focus(); return; }
+            mapWin = window.open("", "wxMapWin", "width=900,height=640");
+            if (!mapWin) { alert("Popup blocked — allow popups for this page to open the map window."); return; }
+            ensurePopup(mapWin, {
+                title: "Weather v5.2 — Map",
+                headExtra: '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" /><script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"><\/script>',
+                styleExtra: 'html,body{height:100%;} body{margin:0;padding:10px;box-sizing:border-box;} #map{height:100%;}',
+                bodyHtml: '<div id="map"></div>'
+            }, () => {
+                // The pop-out needs its own Leaflet (drag handlers bind per-document); wait for it.
+                const t0 = Date.now();
+                const waitL = setInterval(() => {
+                    if (mapWin.closed) { clearInterval(waitL); mapWin = null; return; }
+                    if (mapWin.L && typeof mapWin.L.map === "function") {
+                        clearInterval(waitL);
+                        moveMapTo(mapWin);
+                    } else if (Date.now() - t0 > 15000) {
+                        clearInterval(waitL);
+                        alert("The map window could not load Leaflet — check the network.");
+                    }
+                }, 100);
+            });
+        }
+        function restoreTableInline(){
+            if (grid !== inlineGrid) {
+                try { while (grid.firstChild) inlineGrid.append(grid.firstChild); }
+                catch (e) { /* pop-out document already torn down — rebuild below */ }
+                grid = inlineGrid;
+            }
+            inlineGrid.classList.remove("hidden-panel");
+            tableWin = null;
+            applyCellSize();
+            syncOnlyIcons();
+            if (!inlineGrid.childElementCount) rebuildIfPlacesExist();
+        }
+        function openTableWindow(){
+            if (tableWin && !tableWin.closed) { tableWin.focus(); return; }
+            tableWin = window.open("", "wxTableWin", "width=1150,height=800");
+            if (!tableWin) { alert("Popup blocked — allow popups for this page to open the table window."); return; }
+            ensurePopup(tableWin, {
+                title: "Weather v5.2 — Tables",
+                styleExtra: 'body{margin:0;padding:14px;} #grid{margin-top:0;}',
+                bodyHtml: '<section id="grid" class="grid"></section>'
+            }, () => {
+                const dest = tableWin.document.getElementById("grid");
+                while (grid.firstChild) dest.append(grid.firstChild); // cross-document adoption keeps listeners
+                inlineGrid.classList.add("hidden-panel");
+                grid = dest;
+                applyCellSize();
+                syncOnlyIcons();
+                const watch = setInterval(() => {
+                    if (tableWin && !tableWin.closed) return;
+                    clearInterval(watch);
+                    restoreTableInline();
+                }, 400);
+            });
+        }
+        if (openMapWinBtn) openMapWinBtn.addEventListener("click", openMapWindow);
+        if (openTableWinBtn) openTableWinBtn.addEventListener("click", openTableWindow);
+        // Closing/reloading the dashboard orphans the pop-outs; take them down with it.
+        window.addEventListener("pagehide", () => {
+            try { if (mapWin && !mapWin.closed) mapWin.close(); } catch(e){}
+            try { if (tableWin && !tableWin.closed) tableWin.close(); } catch(e){}
+        });
+
         // Hamburger menu
         if (hamburgerBtn) {
             hamburgerBtn.addEventListener("click", (evt) => {
@@ -2182,8 +2393,9 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             });
         }
 
-        // Map click → add a new place
-        map.on('click', async (e) => {
+        // Map click → add a new place. Named function: createMap() re-attaches it
+        // whenever the map is rebuilt (inline or in the pop-out window).
+        async function onMapClick(e){
             const lat = e.latlng.lat, lon = e.latlng.lng;
             const rules = buildRulesFromConfig(activeColorConfig);
             const showDecimals = !!decimalsBox.checked;
@@ -2194,17 +2406,19 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
             const placeState = {
                 id: makeId(),
                 directive: `place ${lat.toFixed(4)},${lon.toFixed(4)},${name}`,
-                coords: { lat, lon, label: name }
+                coords: { lat, lon, label: name },
+                enabled: true
             };
             activePlaceEntries.set(placeState.id, placeState);
             appendDirectiveLine(placeState.directive);
+            renderLocationPicker();
             if (presentationMode === "new") {
                 clearVisuals();
-                await buildGiantTableView(Array.from(activePlaceEntries.values()), rules, showDecimals, startHour, endHour, numDays);
+                await buildGiantTableView(enabledPlaces(), rules, showDecimals, startHour, endHour, numDays);
             } else {
                 await buildCard(grid, { lat, lon, label: name }, rules, showDecimals, startHour, endHour, numDays, placeState);
             }
-        });
+        }
 
         // Label mode
         document.getElementById("cityOnly").addEventListener("change", () => {
@@ -2216,10 +2430,11 @@ color High (°F)=50#70:lightgreen,70.001#85:green,85.001#110:red"></textarea>
                 wireSparkClicks(m); // setIcon replaces the DOM, so re-attach square handlers
             }
         });
-        document.getElementById("onlyIcons").addEventListener("change", ()=>{
-            if (document.getElementById("onlyIcons").checked) grid.classList.add("hidden-grid");
+        function syncOnlyIcons(){
+            if (onlyIconsBox.checked) grid.classList.add("hidden-grid");
             else grid.classList.remove("hidden-grid");
-        });
+        }
+        document.getElementById("onlyIcons").addEventListener("change", syncOnlyIcons);
         // v5.1.6: Small/Medium/Large cell size for the detail tables (CSS zoom on #grid).
         const cellSizeRadios = Array.from(document.querySelectorAll('input[name="cellsize"]'));
         function applyCellSize(){
