@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code Session Viewer</title>
+<style>
+  :root {
+    --bg: #1a1b1e;
+    --panel: #232428;
+    --panel-2: #2b2c31;
+    --border: #3a3b40;
+    --text: #e6e6e6;
+    --muted: #9aa0a6;
+    --accent: #d97757;
+    --user: #4a9eff;
+    --asst: #c98bdb;
+    --tool: #5fb37a;
+    --think: #8a8f98;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  header {
+    padding: 16px 22px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 22px; }
+
+  #drop {
+    border: 2px dashed var(--border); border-radius: 10px;
+    padding: 38px 20px; text-align: center; color: var(--muted);
+    cursor: pointer; transition: .15s; background: var(--panel);
+  }
+  #drop:hover, #drop.hot { border-color: var(--accent); color: var(--text); background: var(--panel-2); }
+  #drop b { color: var(--text); }
+  #drop .file { color: var(--accent); margin-top: 8px; font-size: 13px; }
+  #drop .dirline { margin-top: 12px; font-size: 12.5px; }
+  .linklike {
+    background: none; border: none; padding: 0; font: inherit;
+    color: var(--accent); text-decoration: underline; cursor: pointer;
+  }
+  .linklike:hover { filter: brightness(1.12); }
+
+  .controls {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    margin: 18px 0; padding: 14px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 10px;
+  }
+  .controls.hidden { display: none; }
+  label.fld { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
+  select, input[type=text], button {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 8px 11px; font-size: 13px; font-family: inherit;
+  }
+  input[type=text] { min-width: 240px; }
+  button {
+    cursor: pointer; background: var(--accent); color: #1a1b1e;
+    border: none; font-weight: 600;
+  }
+  button:hover { filter: brightness(1.08); }
+  button.ghost { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); font-weight: 500; }
+  .grow { flex: 1; }
+  .stats { color: var(--muted); font-size: 12px; margin: 4px 2px 14px; }
+
+  .entry {
+    border: 1px solid var(--border); border-radius: 9px;
+    margin-bottom: 12px; overflow: hidden; background: var(--panel);
+    display: flex; align-items: stretch;
+  }
+  .entry .emain { flex: 1; min-width: 0; }
+
+  /* per-entry navigation rail (right edge of every box) */
+  .erail-col {
+    flex: 0 0 auto; display: flex; flex-direction: column; gap: 5px;
+    padding: 8px; background: var(--panel-2);
+    border-left: 1px solid var(--border);
+  }
+  .erail {
+    background: var(--panel); color: var(--muted);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 3px 7px; font-size: 11px; font-weight: 600;
+    line-height: 1.2; cursor: pointer; white-space: nowrap;
+    font-family: -apple-system, sans-serif; min-width: 34px;
+  }
+  .erail:hover { border-color: var(--accent); color: var(--accent); }
+  .entry .head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 13px; background: var(--panel-2); font-size: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .entry .who { font-weight: 600; letter-spacing: .02em; }
+  .entry .ts { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .entry .body {
+    padding: 12px 14px; white-space: pre-wrap; word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px; line-height: 1.6;
+  }
+  .role-user   { border-left: 3px solid var(--user); }
+  .role-user   .who { color: var(--user); }
+  .role-asst   { border-left: 3px solid var(--asst); }
+  .role-asst   .who { color: var(--asst); }
+  .role-tool   { border-left: 3px solid var(--tool); }
+  .role-tool   .who { color: var(--tool); }
+  .role-think  { border-left: 3px solid var(--think); }
+  .role-think  .who { color: var(--think); }
+  .role-think  .body { color: var(--muted); font-style: italic; }
+  .role-cmd    { border-left: 3px solid var(--accent); }
+  .role-cmd    .who { color: var(--accent); }
+
+  .sess {
+    border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 9px; margin: 18px 0 12px; padding: 11px 14px;
+    background: var(--panel-2);
+  }
+  .sess:first-child { margin-top: 0; }
+  .sess .title { font-weight: 600; color: var(--text); font-size: 13px; }
+  .sess .title.none { color: var(--muted); font-style: italic; font-weight: 500; }
+  .sess .meta2 {
+    color: var(--muted); font-size: 11.5px; margin-top: 4px;
+    font-variant-numeric: tabular-nums; word-break: break-word;
+  }
+  hr.divider { height: 1px; background: var(--border); margin: 26px 0 18px; border: 0; }
+
+  .meta { color: var(--muted); font-size: 11.5px; }
+  mark { background: #5a4500; color: #ffe9a8; border-radius: 2px; padding: 0 1px; }
+  .empty { color: var(--muted); text-align: center; padding: 40px; }
+  .err { color: #ff8a7a; font-size: 12px; margin-top: 8px; }
+  details summary { cursor: pointer; color: var(--muted); }
+  label.fld input[type=number] {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 8px 9px; font-size: 13px; font-family: inherit; width: 74px;
+  }
+
+  /* truncated entry body + expand control */
+  .bodywrap { display: flex; align-items: stretch; }
+  .bodywrap .body { flex: 1; min-width: 0; }
+  .clip .more {
+    display: block; margin-top: 8px; color: var(--muted);
+    font-style: italic; font-family: -apple-system, sans-serif;
+  }
+  .expand {
+    flex: 0 0 auto; align-self: flex-start; margin: 8px 8px 0 0;
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 4px 9px; font-size: 12px; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+  }
+  .expand:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* bottom navigation bar */
+  .botbar {
+    display: flex; gap: 10px; justify-content: center;
+    margin: 26px 0 12px; padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+  .botbar.hidden { display: none; }
+
+  /* full-content modal */
+  #modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,.66);
+    display: none; align-items: center; justify-content: center;
+    padding: 36px; z-index: 50;
+  }
+  #modal.open { display: flex; }
+  .modal-box {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 11px; width: min(1000px, 100%); max-height: 100%;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .modal-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 15px; background: var(--panel-2);
+    border-bottom: 1px solid var(--border); font-size: 12px;
+  }
+  .modal-head .ttl { font-weight: 600; flex: 1; }
+  .modal-head button {
+    padding: 6px 11px; font-size: 12px; border-radius: 7px;
+  }
+  #modalImgBtn { background: var(--accent); color: #1a1b1e; border: none; font-weight: 600; cursor: pointer; }
+  #modalFmtBtn { background: var(--panel); color: var(--text); border: 1px solid var(--border); cursor: pointer; font-weight: 500; }
+  #modalFmtBtn:hover { border-color: var(--accent); color: var(--accent); }
+  #modalClose { background: var(--panel); color: var(--text); border: 1px solid var(--border); cursor: pointer; }
+  .modal-body {
+    margin: 0; padding: 15px 17px; overflow: auto;
+    white-space: pre-wrap; word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px; line-height: 1.6;
+  }
+  .modal-body img { max-width: 100%; height: auto; display: block; border-radius: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Claude Code Session Viewer</h1>
+  <span class="sub">Reads a <code>~/.claude/projects/.../&lt;session&gt;.jsonl</code> file. Everything runs locally in your browser.</span>
+</header>
+
+<div class="wrap">
+  <div id="drop">
+    <b>Click to choose</b> one or more session <code>.jsonl</code> files, or drag &amp; drop them here
+    <div class="file" id="fileName"></div>
+    <div class="dirline">
+      — or <button class="linklike" id="pickDir">choose the whole project directory</button>,
+      so Reload picks up newly created session files
+    </div>
+    <input type="file" id="fileInput" accept=".jsonl,.json,.txt" multiple hidden>
+  </div>
+  <div class="err" id="err"></div>
+
+  <div class="controls hidden" id="controls">
+    <label class="fld">View
+      <select id="filter">
+        <option value="prompts">My prompts only</option>
+        <option value="convo">Conversation (me + Claude)</option>
+        <option value="all">Everything (incl. tools &amp; thinking)</option>
+      </select>
+    </label>
+    <label class="fld grow">Find
+      <input type="text" id="find" placeholder="filter &amp; highlight text…">
+    </label>
+    <label class="fld">Collapse over
+      <input type="number" id="maxlines" min="1" step="5" value="30" title="Boxes longer than this many lines are clipped, with an expand control">
+    </label>
+    <label class="fld">&nbsp;
+      <button id="render">Render</button>
+    </label>
+    <label class="fld">&nbsp;
+      <button class="ghost" id="copy">Copy as text</button>
+    </label>
+  </div>
+
+  <div class="stats" id="stats"></div>
+  <div id="out"></div>
+
+  <div class="botbar hidden" id="botbar">
+    <button class="ghost" id="toTop">↑ Back to top</button>
+    <button class="ghost" id="reload">⟳ Reload files &amp; jump to latest</button>
+  </div>
+</div>
+
+<div id="modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span class="ttl" id="modalTitle">Full content</span>
+      <button id="modalImgBtn" style="display:none">Render image data as image</button>
+      <button id="modalFmtBtn" style="display:none">Reformat newlines</button>
+      <button id="modalClose">Close ✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+let SEGMENTS = [];   // [{ name, recs, meta }] — one per loaded file, in process order
+let SOURCE = "";     // combined source label
+let LAST_FILES = []; // File objects from the last load, so we can re-read them
+let ENTRY_TEXTS = []; // full text of clipped entries, indexed by the expand button
+let DIR_HANDLE = null; // FileSystemDirectoryHandle when a directory was picked
+let DIR_NAME = "";   // its display name
+
+const $ = id => document.getElementById(id);
+const drop = $("drop"), fileInput = $("fileInput");
+
+// ---- file intake -----------------------------------------------------------
+drop.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", e => {
+  if (e.target.files.length) { DIR_HANDLE = null; loadFiles(e.target.files); }
+});
+["dragenter","dragover"].forEach(ev =>
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("hot"); }));
+["dragleave","drop"].forEach(ev =>
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("hot"); }));
+drop.addEventListener("drop", e => {
+  if (e.dataTransfer.files.length) { DIR_HANDLE = null; loadFiles(e.dataTransfer.files); }
+});
+
+// Pick a whole project directory. We keep the directory handle so Reload can
+// re-scan it and surface session files that were created after the first load
+// (the common "Claude started a new session and I missed it" case). Requires
+// the File System Access API (Chromium); we say so plainly if it's absent.
+$("pickDir").addEventListener("click", async e => {
+  e.stopPropagation();              // don't also trigger the file chooser
+  if (!window.showDirectoryPicker) {
+    $("err").textContent = "Choosing a directory needs the File System Access " +
+      "API (Chrome or Edge). In other browsers, select the .jsonl files directly.";
+    return;
+  }
+  try { DIR_HANDLE = await window.showDirectoryPicker(); }
+  catch (err) {
+    if (err && err.name === "AbortError") return;   // user cancelled
+    $("err").textContent = "Couldn't open the directory picker" +
+      (location.protocol === "file:"
+        ? " — some browsers block it on file:// pages. Try serving the file " +
+          "over http://localhost, or select the .jsonl files directly."
+        : ": " + ((err && err.message) || "unknown error")) + ".";
+    return;
+  }
+  await loadDirectory(false);
+});
+
+// Enumerate the picked directory and load every session file in it. Called
+// both on first pick and on every Reload, so new files appear automatically.
+async function loadDirectory(jumpBottom) {
+  if (!DIR_HANDLE) return;
+  $("err").textContent = "";
+  try {
+    if (DIR_HANDLE.queryPermission) {
+      let p = await DIR_HANDLE.queryPermission({ mode: "read" });
+      if (p !== "granted") p = await DIR_HANDLE.requestPermission({ mode: "read" });
+      if (p !== "granted") { $("err").textContent = "Permission to read that directory was denied."; return; }
+    }
+    const files = [];
+    for await (const [name, handle] of DIR_HANDLE.entries()) {
+      if (handle.kind !== "file") continue;
+      if (!/\.(jsonl|json|txt)$/i.test(name)) continue;
+      files.push(await handle.getFile());
+    }
+    if (!files.length) {
+      $("err").textContent = "No .jsonl/.json/.txt files found in that directory.";
+      return;
+    }
+    DIR_NAME = DIR_HANDLE.name;
+    await loadFiles(files, jumpBottom, true);
+  } catch (e) {
+    $("err").textContent = (e && e.message) || "Could not read that directory.";
+  }
+}
+
+function readFileText(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error("Could not read " + file.name + "."));
+    r.readAsText(file);
+  });
+}
+
+function parseJsonl(text) {
+  const recs = [];
+  let bad = 0;
+  for (const line of text.split("\n")) {
+    const s = line.trim();
+    if (!s) continue;
+    try { recs.push(JSON.parse(s)); } catch (_) { bad++; }
+  }
+  return { recs, bad };
+}
+
+// Sort key for a file: the timestamp of its first record (scanning to the
+// first record that carries one, since lead summary lines often have none).
+function firstStamp(recs) {
+  for (const o of recs) {
+    if (o && o.timestamp) return o.timestamp;
+  }
+  return "";
+}
+
+// Pull the session header info out of a file's records. Every field is
+// optional — older/newer Claude Code versions vary, so we just omit what
+// isn't there rather than showing blanks.
+function sessionMeta(recs) {
+  let title = "", cwd = "", branch = "", version = "", start = "", end = "";
+  for (const o of recs) {
+    if (!o || typeof o !== "object") continue;
+    if (!title && o.type === "summary" && o.summary) title = String(o.summary);
+    if (!cwd && o.cwd) cwd = String(o.cwd);
+    if (!branch && o.gitBranch) branch = String(o.gitBranch);
+    if (!version && o.version) version = String(o.version);
+    if (o.timestamp) { if (!start) start = o.timestamp; end = o.timestamp; }
+  }
+  return { title, cwd, branch, version, start, end };
+}
+
+async function loadFiles(fileList, jumpBottom, fromDir) {
+  const files = [...fileList];
+  if (!files.length) return;
+  LAST_FILES = files;
+  $("err").textContent = "";
+  try {
+    const parsed = [];
+    for (const f of files) {
+      const { recs, bad } = parseJsonl(await readFileText(f));
+      parsed.push({ name: f.name, recs, bad });
+    }
+
+    // With multiple files, process them in the order their sessions began:
+    // earliest first-record timestamp first (filename as a stable tiebreaker).
+    if (parsed.length > 1) {
+      parsed.sort((a, b) => {
+        const ta = firstStamp(a.recs), tb = firstStamp(b.recs);
+        if (ta && tb && ta !== tb) return ta < tb ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+    }
+
+    let bad = 0, totalRecs = 0;
+    SEGMENTS = parsed.map(p => {
+      bad += p.bad; totalRecs += p.recs.length;
+      return { name: p.name, recs: p.recs, meta: sessionMeta(p.recs) };
+    });
+
+    if (!totalRecs) {
+      $("err").textContent = "No JSON lines found in " +
+        (files.length > 1 ? "these files." : "this file.");
+      return;
+    }
+
+    SOURCE = fromDir
+      ? `📁 ${DIR_NAME} — ${files.length} file${files.length === 1 ? "" : "s"}`
+      : files.length === 1
+        ? files[0].name
+        : `${parsed.map(p => p.name).join(" → ")} (${files.length} files)`;
+    $("fileName").textContent = SOURCE;
+    if (bad) $("err").textContent = bad + " line(s) could not be parsed and were skipped.";
+    $("controls").classList.remove("hidden");
+    render();
+    $("botbar").classList.remove("hidden");
+    if (jumpBottom) {
+      requestAnimationFrame(() =>
+        window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }));
+    }
+  } catch (e) {
+    $("err").textContent = (e && e.message) || "Could not read that file.";
+  }
+}
+
+// ---- helpers ---------------------------------------------------------------
+function esc(s) {
+  return String(s).replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
+}
+
+function localTime(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  if (isNaN(d)) return ts;
+  return d.toLocaleString(undefined, {
+    year: "numeric", month: "short", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit"
+  });
+}
+
+// Patterns that mark a "user" line as machine-injected, not something I typed.
+const INJECTED = /^<(local-command-caveat|bash-stdout|bash-stderr|local-command-stdout|system-reminder|command-message|command-args)\b/;
+
+// Turn one raw JSONL object into zero or more display rows.
+function toRows(o) {
+  const type = o.type;
+  const ts = o.timestamp || "";
+  const rows = [];
+  if (type !== "user" && type !== "assistant") return rows;
+  const msg = o.message || {};
+  const content = msg.content;
+
+  if (type === "user") {
+    if (typeof content === "string") {
+      const text = content.trim();
+      const cmd = text.match(/^<command-name>([\s\S]*?)<\/command-name>/);
+      if (cmd) { rows.push({ kind:"cmd", who:"Command", ts, text: cmd[1].trim() }); return rows; }
+      const bash = text.match(/^<bash-input>([\s\S]*?)<\/bash-input>/);
+      if (bash) { rows.push({ kind:"cmd", who:"You ran (!)", ts, text: bash[1] }); return rows; }
+      if (INJECTED.test(text)) return rows;             // skip injected noise
+      if (text) rows.push({ kind:"user", who:"You", ts, text });
+    } else if (Array.isArray(content)) {
+      for (const b of content) {
+        if (!b || typeof b !== "object") continue;
+        if (b.type === "text" && b.text && !INJECTED.test(b.text.trim()))
+          rows.push({ kind:"user", who:"You", ts, text: b.text });
+        else if (b.type === "tool_result") {
+          let c = b.content;
+          if (Array.isArray(c)) c = c.map(x => x && x.text ? x.text : JSON.stringify(x)).join("\n");
+          rows.push({ kind:"tool", who: b.is_error ? "Tool result (error)" : "Tool result",
+                      ts, text: typeof c === "string" ? c : JSON.stringify(c, null, 2) });
+        }
+      }
+    }
+  } else { // assistant
+    if (typeof content === "string") {
+      if (content.trim()) rows.push({ kind:"asst", who:"Claude", ts, text: content });
+    } else if (Array.isArray(content)) {
+      for (const b of content) {
+        if (!b || typeof b !== "object") continue;
+        if (b.type === "text" && b.text && b.text.trim())
+          rows.push({ kind:"asst", who:"Claude", ts, text: b.text });
+        else if (b.type === "thinking" && b.thinking && b.thinking.trim())
+          rows.push({ kind:"think", who:"Claude (thinking)", ts, text: b.thinking });
+        else if (b.type === "tool_use") {
+          const inp = b.input ? JSON.stringify(b.input, null, 2) : "";
+          rows.push({ kind:"tool", who:"Tool call · " + (b.name || "?"), ts, text: inp });
+        }
+      }
+    }
+  }
+  return rows;
+}
+
+const KIND_BY_FILTER = {
+  prompts: new Set(["user","cmd"]),
+  convo:   new Set(["user","cmd","asst"]),
+  all:     new Set(["user","cmd","asst","think","tool"]),
+};
+
+function render() {
+  const filter = $("filter").value;
+  const allow = KIND_BY_FILTER[filter];
+  const q = $("find").value.trim();
+  const out = $("out");
+  const maxLines = Math.max(1, parseInt($("maxlines").value, 10) || 30);
+  ENTRY_TEXTS = [];
+
+  let qre = null;
+  if (q) qre = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+
+  const matches = s => { if (!qre) return true; qre.lastIndex = 0; return qre.test(s); };
+  const hl = s => {
+    const e = esc(s);
+    if (!qre) return e;
+    return e.replace(new RegExp(qre.source, "gi"), m => "<mark>" + m + "</mark>");
+  };
+
+  const html = [];
+  let total = 0, shown = 0;
+  const multi = SEGMENTS.length > 1;
+
+  for (const seg of SEGMENTS) {
+    let rows = [];
+    for (const o of seg.recs) rows.push(...toRows(o));
+    rows = rows.filter(r => allow.has(r.kind));
+    if (qre) rows = rows.filter(r => matches(r.text) || matches(r.who));
+    if (!rows.length) continue;
+
+    if (shown > 0 && multi) html.push('<hr class="divider">');
+    shown++;
+    total += rows.length;
+
+    const m = seg.meta;
+    const bits = [];
+    if (m.cwd)     bits.push(esc(m.cwd));
+    if (m.branch)  bits.push("branch " + esc(m.branch));
+    if (m.version) bits.push("v" + esc(m.version));
+    if (m.start) {
+      bits.push(esc(localTime(m.start)) +
+        (m.end && m.end !== m.start ? " → " + esc(localTime(m.end)) : ""));
+    }
+    bits.push(rows.length + " entr" + (rows.length === 1 ? "y" : "ies"));
+
+    html.push(
+      `<div class="sess">
+        <div class="title${m.title ? "" : " none"}">${esc(m.title || seg.name)}</div>
+        <div class="meta2">${bits.join(" · ")}</div>
+      </div>`);
+
+    html.push(rows.map(r => {
+      // Clip on whichever comes first: too many lines, or too many
+      // characters. The char cap matters for tool results (e.g. images)
+      // that arrive as one enormous single line with no newlines.
+      const lines = r.text.split("\n");
+      const charCap = maxLines * 200;
+      const over = lines.length > maxLines || r.text.length > charCap;
+      let bodyHtml, expandBtn = "";
+      if (over) {
+        let preview = lines.slice(0, maxLines).join("\n");
+        if (preview.length > charCap) preview = preview.slice(0, charCap);
+        const idx = ENTRY_TEXTS.push(r.text) - 1;
+        const hiddenLines = lines.length - preview.split("\n").length;
+        const hiddenChars = r.text.length - preview.length;
+        const note = hiddenLines > 0
+          ? `${hiddenLines} more line${hiddenLines === 1 ? "" : "s"} hidden`
+          : `${hiddenChars.toLocaleString()} more characters hidden`;
+        bodyHtml = `<div class="body clip">${hl(preview)}` +
+          `<span class="more">… ${note}</span></div>`;
+        expandBtn = `<button class="expand" data-idx="${idx}" title="Show full content in a pop-up">⤢ Full</button>`;
+      } else {
+        bodyHtml = `<div class="body">${hl(r.text)}</div>`;
+      }
+      return `
+      <div class="entry role-${r.kind}">
+        <div class="emain">
+          <div class="head">
+            <span class="who">${esc(r.who)}</span>
+            <span class="ts">${esc(localTime(r.ts))}</span>
+          </div>
+          <div class="bodywrap">${bodyHtml}${expandBtn}</div>
+        </div>
+        <div class="erail-col">
+          <button class="erail" data-act="top"    title="Jump to top">⤒</button>
+          <button class="erail" data-act="back"   title="Back 5 entries">↑5</button>
+          <button class="erail" data-act="fwd"    title="Forward 5 entries">↓5</button>
+          <button class="erail" data-act="reload" title="Reload &amp; jump to latest">⟳</button>
+        </div>
+      </div>`;
+    }).join(""));
+  }
+
+  $("stats").textContent =
+    `${total} entr${total===1?"y":"ies"} · ${SOURCE}` +
+    ` · times shown in your local zone (${Intl.DateTimeFormat().resolvedOptions().timeZone})`;
+
+  out.innerHTML = total
+    ? html.join("")
+    : '<div class="empty">Nothing matches this view/filter.</div>';
+}
+
+// ---- controls --------------------------------------------------------------
+$("render").addEventListener("click", render);
+$("filter").addEventListener("change", render);
+$("find").addEventListener("keydown", e => { if (e.key === "Enter") render(); });
+$("maxlines").addEventListener("change", render);
+
+// ---- bottom navigation -----------------------------------------------------
+$("toTop").addEventListener("click", () =>
+  window.scrollTo({ top: 0, behavior: "smooth" }));
+
+// Reload from the original source — re-scanning the directory if one was
+// picked (so brand-new session files show up), else re-reading the files.
+async function reloadAll() {
+  if (!DIR_HANDLE && !LAST_FILES.length) return;
+  const b = $("reload"), label = b.textContent;
+  b.textContent = "⟳ Reloading…";
+  try {
+    if (DIR_HANDLE) await loadDirectory(true);
+    else await loadFiles(LAST_FILES, true);
+  } finally { b.textContent = label; }
+}
+$("reload").addEventListener("click", reloadAll);
+
+// ---- full-content modal ----------------------------------------------------
+// Pull the first base64 image (Claude tool image blocks) out of arbitrary text.
+function detectImage(text) {
+  const mt = text.match(/"media_type"\s*:\s*"(image\/[A-Za-z0-9.+-]+)"/);
+  const dt = text.match(/"data"\s*:\s*"([A-Za-z0-9+/=\s\\n]{32,})"/);
+  if (mt && dt) return { mediaType: mt[1], data: dt[1].replace(/\s|\\n/g, "") };
+  return null;
+}
+
+// Turn literal escape sequences in the source text (the \n, \r\n, \t pairs
+// that survive when a JSON string is shown verbatim) into the whitespace
+// they stand for. Long tool results and pasted logs read much more naturally
+// after this — but it's destructive for content that genuinely contains a
+// backslash-n pair, so it's opt-in per modal open.
+function reformatEscapes(text) {
+  return text
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\\t/g, "\t")
+    .replace(/\\r/g, "\n");
+}
+
+function openModal(text) {
+  const body = $("modalBody"), imgBtn = $("modalImgBtn"), fmtBtn = $("modalFmtBtn");
+  body.textContent = text;
+
+  const img = detectImage(text);
+  if (img) {
+    imgBtn.style.display = "";
+    imgBtn.onclick = () => {
+      const el = document.createElement("img");
+      el.src = `data:${img.mediaType};base64,${img.data}`;
+      el.alt = "decoded image data";
+      body.textContent = "";
+      body.appendChild(el);
+      imgBtn.style.display = "none";
+    };
+  } else {
+    imgBtn.style.display = "none";
+    imgBtn.onclick = null;
+  }
+
+  // Only offer reformatting when there's something to reformat — otherwise
+  // the button is dead weight. Toggle between reformatted and raw on click
+  // so the user can compare or recover the original if reformat went wrong.
+  if (/\\[nrt]/.test(text)) {
+    fmtBtn.style.display = "";
+    fmtBtn.textContent = "Reformat newlines";
+    let formatted = false;
+    fmtBtn.onclick = () => {
+      formatted = !formatted;
+      body.textContent = formatted ? reformatEscapes(text) : text;
+      fmtBtn.textContent = formatted ? "Show raw" : "Reformat newlines";
+    };
+  } else {
+    fmtBtn.style.display = "none";
+    fmtBtn.onclick = null;
+  }
+
+  $("modal").classList.add("open");
+}
+
+function closeModal() { $("modal").classList.remove("open"); }
+
+// Expand buttons are recreated on every render, so delegate from #out.
+$("out").addEventListener("click", e => {
+  const btn = e.target.closest(".expand");
+  if (btn) { openModal(ENTRY_TEXTS[+btn.dataset.idx]); return; }
+  const rail = e.target.closest(".erail");
+  if (rail) handleRail(rail);
+});
+
+// Per-entry rail: jump to top, hop 5 entries back/forward, or reload.
+function handleRail(btn) {
+  const act = btn.dataset.act;
+  if (act === "top")    { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+  if (act === "reload") { reloadAll(); return; }
+  const entries = [...document.querySelectorAll("#out .entry")];
+  const i = entries.indexOf(btn.closest(".entry"));
+  if (i < 0) return;
+  const t = Math.max(0, Math.min(entries.length - 1, i + (act === "back" ? -5 : 5)));
+  entries[t].scrollIntoView({ behavior: "smooth", block: "start" });
+}
+$("modalClose").addEventListener("click", closeModal);
+$("modal").addEventListener("click", e => { if (e.target === $("modal")) closeModal(); });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && $("modal").classList.contains("open")) closeModal();
+});
+
+$("copy").addEventListener("click", () => {
+  const txt = [...document.querySelectorAll(".entry")].map(el => {
+    const exp = el.querySelector(".expand");
+    const body = exp ? ENTRY_TEXTS[+exp.dataset.idx] : el.querySelector(".body").textContent;
+    return `### ${el.querySelector(".who").textContent}  —  ${el.querySelector(".ts").textContent}\n` + body;
+  }).join("\n\n");
+  navigator.clipboard.writeText(txt).then(
+    () => { const b = $("copy"); b.textContent = "Copied!"; setTimeout(() => b.textContent = "Copy as text", 1400); }
+  );
+});
+</script>
+</body>
+</html>
