@@ -143,8 +143,11 @@
     color: var(--pending-fg);
   }
   .entry.status-ok .entry-badge { background: var(--ok-bg); color: var(--ok-fg); border-color: var(--ok-border); }
-  .entry.status-not-found .entry-badge { background: var(--notfound-bg); color: var(--notfound-fg); border-color: var(--notfound-border); }
-  .entry.status-error .entry-badge,
+  .entry.status-not-found .entry-badge,
+  .entry.status-cors-blocked .entry-badge { background: var(--notfound-bg); color: var(--notfound-fg); border-color: var(--notfound-border); }
+  .entry.status-http-error .entry-badge,
+  .entry.status-unreachable .entry-badge,
+  .entry.status-timeout .entry-badge,
   .entry.status-invalid .entry-badge { background: var(--error-bg); color: var(--error-fg); border-color: var(--error-border); }
   .entry-url {
     display: block;
@@ -166,9 +169,12 @@
     overflow-y: auto;
     color: var(--text);
   }
-  .entry.status-error .entry-body,
+  .entry.status-http-error .entry-body,
   .entry.status-invalid .entry-body,
-  .entry.status-not-found .entry-body {
+  .entry.status-not-found .entry-body,
+  .entry.status-cors-blocked .entry-body,
+  .entry.status-unreachable .entry-body,
+  .entry.status-timeout .entry-body {
     color: var(--muted);
     font-style: italic;
   }
@@ -183,9 +189,10 @@
     <code>/llms.txt</code> file at that site's root — per the
     <a href="https://llmstxt.org/" target="_blank" rel="noopener noreferrer">llms.txt standard</a>
     — and shows whatever it finds. Everything runs locally in your browser: there's no
-    server component, which also means some sites will fail with a CORS error even when
-    their <code>llms.txt</code> exists, since the browser needs the site's permission to
-    read it cross-origin. Open the failing link directly in a new tab in that case.
+    server component, which also means some sites will refuse the read even when their
+    <code>llms.txt</code> exists, since the browser needs the site's permission to fetch it
+    cross-origin — that shows up here as "Blocked by CORS," distinct from a site that's
+    genuinely unreachable. Open the link directly in a new tab in that case.
   </p>
 
   <section id="form-view">
@@ -210,7 +217,15 @@
 <script src="https://cdn.jsdelivr.net/npm/typescript@5.6.3/lib/typescript.js"></script>
 
 <script type="text/typescript" id="app-source">
-type FetchStatus = "pending" | "ok" | "not-found" | "error" | "invalid";
+type FetchStatus =
+  | "pending"
+  | "ok"
+  | "not-found"
+  | "http-error"
+  | "cors-blocked"
+  | "unreachable"
+  | "timeout"
+  | "invalid";
 
 interface LlmsTxtResult {
   input: string;
@@ -285,6 +300,28 @@ function parseUrlList(raw: string): { input: string; targetUrl: string | null }[
   return parsed;
 }
 
+async function probeReachable(targetUrl: string): Promise<boolean> {
+  // A no-cors fetch resolves (opaquely) as soon as any HTTP response comes
+  // back, even a blocked/challenge one — it only throws on a real DNS or
+  // network failure. That lets us tell "blocked by CORS" apart from
+  // "this domain isn't reachable at all" without needing a server.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6000);
+  try {
+    await fetch(targetUrl, {
+      mode: "no-cors",
+      signal: controller.signal,
+      redirect: "follow",
+      cache: "no-store",
+    });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function fetchLlmsTxt(
   targetUrl: string
 ): Promise<Pick<LlmsTxtResult, "status" | "httpStatus" | "content" | "errorMessage">> {
@@ -297,8 +334,10 @@ async function fetchLlmsTxt(
       return { status: "not-found", httpStatus: res.status, content: null, errorMessage: null };
     }
     if (!res.ok) {
+      // We could read this response at all, so CORS was allowed — it's a
+      // genuine HTTP-level error from the site, not a cross-origin block.
       return {
-        status: "error",
+        status: "http-error",
         httpStatus: res.status,
         content: null,
         errorMessage: `HTTP ${res.status} ${res.statusText}`,
@@ -309,13 +348,15 @@ async function fetchLlmsTxt(
   } catch (err) {
     clearTimeout(timeout);
     const aborted = err instanceof DOMException && err.name === "AbortError";
+    if (aborted) {
+      return { status: "timeout", httpStatus: null, content: null, errorMessage: null };
+    }
+    const reachable = await probeReachable(targetUrl);
     return {
-      status: "error",
+      status: reachable ? "cors-blocked" : "unreachable",
       httpStatus: null,
       content: null,
-      errorMessage: aborted
-        ? "Timed out after 12s."
-        : "Fetch failed — likely blocked by CORS, or the site is unreachable.",
+      errorMessage: null,
     };
   }
 }
@@ -328,10 +369,16 @@ function statusLabel(r: LlmsTxtResult): string {
       return `Found (HTTP ${r.httpStatus ?? 200})`;
     case "not-found":
       return "Not found (404)";
+    case "http-error":
+      return r.errorMessage ?? "HTTP error";
+    case "cors-blocked":
+      return "Blocked by CORS";
+    case "unreachable":
+      return "Unreachable";
+    case "timeout":
+      return "Timed out";
     case "invalid":
       return "Invalid URL";
-    case "error":
-      return r.errorMessage ?? "Error";
   }
 }
 
@@ -376,8 +423,14 @@ function fillEntryElement(entry: HTMLDivElement, r: LlmsTxtResult): void {
     body.textContent = `Could not parse "${r.input}" as a URL.`;
   } else if (r.status === "not-found") {
     body.textContent = `No llms.txt at ${r.targetUrl}`;
-  } else if (r.status === "error") {
-    body.textContent = r.errorMessage ?? "Unknown error";
+  } else if (r.status === "http-error") {
+    body.textContent = `${r.targetUrl} responded with ${r.errorMessage ?? "an HTTP error"}.`;
+  } else if (r.status === "cors-blocked") {
+    body.textContent = `The site responded, but its security policy (CORS) blocks this page from reading the response. Open the link above directly to view it.`;
+  } else if (r.status === "unreachable") {
+    body.textContent = `Could not reach ${r.targetUrl} at all — check the domain, or the site may be down.`;
+  } else if (r.status === "timeout") {
+    body.textContent = `Timed out after 12s waiting for a response.`;
   } else {
     body.textContent = "";
   }
