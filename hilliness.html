@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hilliness Explorer</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+:root{
+  --bg:#f7f7f5;
+  --panel:#ffffff;
+  --text:#1f2430;
+  --muted:#6b7280;
+  --accent:#2b6cb0;
+  --accent-dark:#1e4e7d;
+  --border:#e1e4e8;
+  --error:#b3261e;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#14161a;
+    --panel:#1d2026;
+    --text:#e7e9ee;
+    --muted:#9aa1ac;
+    --accent:#5b9bd5;
+    --accent-dark:#7fb3e0;
+    --border:#2b2f37;
+    --error:#ff8a80;
+  }
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  padding:24px 16px 48px;
+}
+.wrap{max-width:960px;margin:0 auto;}
+h1{font-size:1.5rem;margin:0 0 4px;}
+.subtitle{color:var(--muted);margin:0 0 24px;font-size:0.95rem;}
+.panel{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:20px;
+  margin-bottom:20px;
+}
+label{display:block;font-size:0.8rem;color:var(--muted);margin-bottom:4px;}
+input[type=text], input[type=number], select{
+  width:100%;
+  padding:8px 10px;
+  border:1px solid var(--border);
+  border-radius:6px;
+  background:var(--bg);
+  color:var(--text);
+  font-size:0.9rem;
+}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+.row > div{flex:1;min-width:120px;}
+.search-row{display:flex;gap:8px;margin-bottom:16px;}
+.search-row input{flex:1;}
+button{
+  padding:9px 16px;
+  border:none;
+  border-radius:6px;
+  background:var(--accent);
+  color:#fff;
+  font-size:0.9rem;
+  cursor:pointer;
+}
+button:hover{background:var(--accent-dark);}
+button:disabled{opacity:0.6;cursor:default;}
+button.secondary{background:transparent;border:1px solid var(--accent);color:var(--accent);margin-top:4px;}
+button.active{background:var(--accent-dark);color:#fff;}
+#map{height:380px;width:100%;border-radius:8px;margin-top:12px;border:1px solid var(--border);}
+#legend{font-size:0.78rem;color:var(--muted);margin-top:6px;min-height:16px;}
+.controls-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;}
+.controls-row > div{flex:1;min-width:160px;}
+.controls-row button{white-space:nowrap;height:38px;}
+#resultBox{min-height:20px;}
+.metric-value{font-size:2.4rem;font-weight:600;color:var(--accent);}
+.metric-label{color:var(--muted);font-size:0.85rem;margin-top:2px;}
+.metric-class{display:inline-block;margin-top:6px;padding:3px 10px;border-radius:999px;background:var(--accent);color:#fff;font-size:0.8rem;}
+.stats-table{margin-top:14px;font-size:0.85rem;border-collapse:collapse;width:100%;}
+.stats-table td{padding:4px 0;border-bottom:1px solid var(--border);}
+.stats-table td:last-child{text-align:right;color:var(--muted);}
+.error{color:var(--error);font-size:0.9rem;}
+#log{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:0.78rem;
+  white-space:pre-wrap;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:10px;
+  max-height:140px;
+  overflow-y:auto;
+  color:var(--muted);
+  margin-top:14px;
+}
+footer{color:var(--muted);font-size:0.78rem;line-height:1.6;margin-top:24px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Hilliness Explorer</h1>
+  <p class="subtitle">Measure regional terrain ruggedness from a place name or a hand-drawn bounding box.</p>
+
+  <div class="panel">
+    <label for="placeName">Search by place name</label>
+    <div class="search-row">
+      <input type="text" id="placeName" placeholder="e.g. Cleveland, Ohio">
+      <button id="geocodeBtn">Find</button>
+    </div>
+
+    <label>Bounding box (decimal degrees)</label>
+    <div class="row">
+      <div><label for="north">North</label><input type="number" id="north" step="any"></div>
+      <div><label for="south">South</label><input type="number" id="south" step="any"></div>
+      <div><label for="west">West</label><input type="number" id="west" step="any"></div>
+      <div><label for="east">East</label><input type="number" id="east" step="any"></div>
+    </div>
+    <button id="drawBtn" class="secondary">Draw bounding box on map</button>
+
+    <div id="map"></div>
+    <div id="legend"></div>
+  </div>
+
+  <div class="panel">
+    <div class="controls-row">
+      <div>
+        <label for="metric">Hilliness metric</label>
+        <select id="metric">
+          <option value="tri" selected>Terrain Ruggedness Index (primary)</option>
+          <option value="vrm">Vector Ruggedness Measure (alternative)</option>
+        </select>
+      </div>
+      <div>
+        <label for="resolution">Sample resolution</label>
+        <select id="resolution">
+          <option value="6">Coarse (~6&times;6, fastest)</option>
+          <option value="10" selected>Medium (~10&times;10, default)</option>
+          <option value="14">Fine (~14&times;14, slower)</option>
+        </select>
+      </div>
+      <div>
+        <button id="calcBtn">Calculate Hilliness</button>
+      </div>
+    </div>
+
+    <div id="resultBox"></div>
+    <div id="log"></div>
+  </div>
+
+  <footer>
+    Geocoding: OpenStreetMap Nominatim. Elevation: Open-Topo-Data (mapzen dataset), falling back to Open-Elevation if unreachable.
+    Terrain Ruggedness Index follows Riley et&nbsp;al. (1999); Vector Ruggedness Measure here is a region-level simplification of
+    Sappington et&nbsp;al. (2007), not the strict per-window raster version. Coarse sampling is a statistical approximation &mdash;
+    most meaningful at city/county scale, not exhaustive terrain analysis. If the elevation service is unreachable, this tool
+    shows an error instead of ever substituting invented data.
+  </footer>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+  const OPENTOPO_URL = 'https://api.opentopodata.org/v1/mapzen';
+  const OPENELEV_URL = 'https://api.open-elevation.com/api/v1/lookup';
+  const BATCH_SIZE = 50;
+  const BATCH_DELAY_MS = 1100;
+
+  const RILEY_BANDS = [
+    {max: 80, label: 'Level'},
+    {max: 116, label: 'Nearly level'},
+    {max: 161, label: 'Slightly rugged'},
+    {max: 239, label: 'Intermediately rugged'},
+    {max: 497, label: 'Moderately rugged'},
+    {max: 958, label: 'Highly rugged'},
+    {max: Infinity, label: 'Extremely rugged'}
+  ];
+
+  let map, rectLayer, drawing = false, startLatLng = null;
+  let sampleMarkers = [];
+
+  const el = id => document.getElementById(id);
+
+  function initMap(){
+    map = L.map('map', {center:[39.5,-98.35], zoom:4});
+    // OSM's own tile server enforces a strict usage policy (referrer/volume
+    // checks) that a page opened via file:// (double-clicked, no server)
+    // can trip, returning 403s in the map view. Esri's free tile service
+    // doesn't require a key and has been reliable for exactly this kind of
+    // direct/local use.
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom, 2012'
+    }).addTo(map);
+    map.on('mousedown', onMapMouseDown);
+  }
+
+  function onMapMouseDown(e){
+    if (!drawing) return;
+    startLatLng = e.latlng;
+    if (rectLayer) map.removeLayer(rectLayer);
+    rectLayer = L.rectangle(L.latLngBounds(startLatLng, startLatLng), {color:'#2b6cb0', weight:2});
+    rectLayer.addTo(map);
+    map.on('mousemove', onMapMouseMove);
+    map.on('mouseup', onMapMouseUp);
+  }
+
+  function onMapMouseMove(e){
+    if (!startLatLng) return;
+    rectLayer.setBounds(L.latLngBounds(startLatLng, e.latlng));
+  }
+
+  function onMapMouseUp(e){
+    map.off('mousemove', onMapMouseMove);
+    map.off('mouseup', onMapMouseUp);
+    if (!startLatLng) return;
+    const bounds = L.latLngBounds(startLatLng, e.latlng);
+    setBBoxFields({north: bounds.getNorth(), south: bounds.getSouth(), east: bounds.getEast(), west: bounds.getWest()});
+    startLatLng = null;
+    drawing = false;
+    map.dragging.enable();
+    el('drawBtn').textContent = 'Draw bounding box on map';
+    el('drawBtn').classList.remove('active');
+  }
+
+  function setBBoxFields(bounds){
+    el('north').value = bounds.north.toFixed(5);
+    el('south').value = bounds.south.toFixed(5);
+    el('east').value = bounds.east.toFixed(5);
+    el('west').value = bounds.west.toFixed(5);
+  }
+
+  function drawRectFromFields(){
+    const b = readBBoxFields();
+    if (!b) return;
+    if (rectLayer) map.removeLayer(rectLayer);
+    rectLayer = L.rectangle([[b.south,b.west],[b.north,b.east]], {color:'#2b6cb0', weight:2});
+    rectLayer.addTo(map);
+    map.fitBounds(rectLayer.getBounds(), {padding:[20,20]});
+  }
+
+  function readBBoxFields(){
+    const north = parseFloat(el('north').value);
+    const south = parseFloat(el('south').value);
+    const east = parseFloat(el('east').value);
+    const west = parseFloat(el('west').value);
+    if ([north,south,east,west].some(Number.isNaN)) return null;
+    if (south >= north || west >= east) return null;
+    return {north, south, east, west};
+  }
+
+  async function geocode(query){
+    const url = `${NOMINATIM_URL}?format=json&limit=1&q=${encodeURIComponent(query)}`;
+    const res = await fetch(url, {headers: {'Accept':'application/json'}});
+    if (!res.ok) throw new Error(`Nominatim returned ${res.status}`);
+    const data = await res.json();
+    if (!data.length) throw new Error(`No location found for "${query}"`);
+    const [south, north, west, east] = data[0].boundingbox.map(Number);
+    return {north, south, east, west, displayName: data[0].display_name};
+  }
+
+  function linspace(a,b,n){
+    if (n===1) return [(a+b)/2];
+    const step=(b-a)/(n-1);
+    return Array.from({length:n}, (_,i)=>a+step*i);
+  }
+
+  function haversine(lat1,lon1,lat2,lon2){
+    const R=6371000;
+    const toRad = d=>d*Math.PI/180;
+    const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.sqrt(Math.min(1,a)));
+  }
+
+  function buildGrid(bbox, targetRows){
+    const latSpanM = haversine(bbox.south, bbox.west, bbox.north, bbox.west);
+    const lonSpanM = haversine(bbox.south, bbox.west, bbox.south, bbox.east);
+    const rows = targetRows;
+    let cols = Math.max(3, Math.round(rows * (lonSpanM / Math.max(latSpanM,1))));
+    cols = Math.min(cols, 30);
+    const lats = linspace(bbox.south, bbox.north, rows);
+    const lons = linspace(bbox.west, bbox.east, cols);
+    const points = [];
+    for (let r=0;r<rows;r++){
+      for (let c=0;c<cols;c++){
+        points.push({lat: lats[r], lon: lons[c], row:r, col:c});
+      }
+    }
+    return {points, rows, cols};
+  }
+
+  function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+  async function fetchElevationsOpenTopo(points){
+    const results = new Array(points.length);
+    const totalBatches = Math.ceil(points.length/BATCH_SIZE);
+    for (let i=0;i<points.length;i+=BATCH_SIZE){
+      const batch = points.slice(i, i+BATCH_SIZE);
+      const locStr = batch.map(p=>`${p.lat.toFixed(6)},${p.lon.toFixed(6)}`).join('|');
+      log(`Open-Topo-Data: batch ${Math.floor(i/BATCH_SIZE)+1}/${totalBatches}…`);
+      const res = await fetch(`${OPENTOPO_URL}?locations=${locStr}`);
+      if (!res.ok) throw new Error(`Open-Topo-Data HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.status !== 'OK') throw new Error(`Open-Topo-Data status: ${data.status}`);
+      data.results.forEach((r,j)=>{ results[i+j] = r.elevation; });
+      if (i+BATCH_SIZE < points.length) await sleep(BATCH_DELAY_MS);
+    }
+    return results;
+  }
+
+  async function fetchElevationsOpenElevation(points){
+    const results = new Array(points.length);
+    const totalBatches = Math.ceil(points.length/BATCH_SIZE);
+    for (let i=0;i<points.length;i+=BATCH_SIZE){
+      const batch = points.slice(i, i+BATCH_SIZE);
+      log(`Open-Elevation (fallback): batch ${Math.floor(i/BATCH_SIZE)+1}/${totalBatches}…`);
+      const res = await fetch(OPENELEV_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({locations: batch.map(p=>({latitude:p.lat, longitude:p.lon}))})
+      });
+      if (!res.ok) throw new Error(`Open-Elevation HTTP ${res.status}`);
+      const data = await res.json();
+      data.results.forEach((r,j)=>{ results[i+j] = r.elevation; });
+      if (i+BATCH_SIZE < points.length) await sleep(BATCH_DELAY_MS);
+    }
+    return results;
+  }
+
+  async function fetchElevations(points){
+    try {
+      return {elevations: await fetchElevationsOpenTopo(points), source:'Open-Topo-Data (mapzen)'};
+    } catch(err){
+      log(`Open-Topo-Data failed (${err.message}). Falling back to Open-Elevation…`);
+      try {
+        return {elevations: await fetchElevationsOpenElevation(points), source:'Open-Elevation'};
+      } catch(err2){
+        throw new Error(`Both elevation providers failed. Open-Topo-Data: ${err.message}. Open-Elevation: ${err2.message}`);
+      }
+    }
+  }
+
+  function neighborsOf(grid, rows, cols, r, c){
+    const out = [];
+    for (let dr=-1;dr<=1;dr++){
+      for (let dc=-1;dc<=1;dc++){
+        if (dr===0 && dc===0) continue;
+        const rr=r+dr, cc=c+dc;
+        if (rr<0||rr>=rows||cc<0||cc>=cols) continue;
+        out.push(grid[rr*cols+cc]);
+      }
+    }
+    return out;
+  }
+
+  function computeTRI(elev, rows, cols){
+    let sum=0, n=0;
+    for (let r=0;r<rows;r++){
+      for (let c=0;c<cols;c++){
+        const center = elev[r*cols+c];
+        const nbrs = neighborsOf(elev, rows, cols, r, c);
+        if (!nbrs.length) continue;
+        const sq = nbrs.reduce((s,v)=>s+(v-center)*(v-center), 0)/nbrs.length;
+        sum += Math.sqrt(sq);
+        n++;
+      }
+    }
+    return n ? sum/n : 0;
+  }
+
+  function classifyTRI(v){
+    return RILEY_BANDS.find(b=>v<=b.max).label;
+  }
+
+  // Region-level simplification of Sappington et al. (2007) VRM: build a
+  // surface-normal unit vector per interior grid cell from local slope, then
+  // VRM = 1 - |mean unit normal| across the whole sampled grid. This gives one
+  // 0-1 number for the region rather than the strict per-window raster version.
+  function computeVRM(points, elev, rows, cols){
+    const normals = [];
+    for (let r=0;r<rows;r++){
+      for (let c=0;c<cols;c++){
+        const idx = r*cols+c;
+        if (c<=0 || c>=cols-1 || r<=0 || r>=rows-1) continue;
+        const left=idx-1, right=idx+1, up=idx-cols, down=idx+cols;
+        const dx = haversine(points[idx].lat, points[left].lon, points[idx].lat, points[right].lon) || 1;
+        const dy = haversine(points[up].lat, points[idx].lon, points[down].lat, points[idx].lon) || 1;
+        const dzdx = (elev[right]-elev[left])/dx;
+        const dzdy = (elev[down]-elev[up])/dy;
+        const norm = Math.sqrt(dzdx*dzdx + dzdy*dzdy + 1);
+        normals.push([-dzdx/norm, -dzdy/norm, 1/norm]);
+      }
+    }
+    if (!normals.length) return 0;
+    const mean = normals.reduce((s,n)=>[s[0]+n[0],s[1]+n[1],s[2]+n[2]],[0,0,0]).map(v=>v/normals.length);
+    const mag = Math.sqrt(mean[0]*mean[0]+mean[1]*mean[1]+mean[2]*mean[2]);
+    return 1 - mag;
+  }
+
+  // Rough, log-spaced bands for our whole-region vector-average VRM, anchored
+  // empirically against two references (Cleveland lake plain ≈ 0.00003,
+  // Aspen/Rockies ≈ 0.016) rather than a published classification like
+  // Riley's for TRI — treat these as indicative, not a cited standard.
+  function classifyVRM(v){
+    if (v < 0.0002) return 'Flat';
+    if (v < 0.001) return 'Undulating';
+    if (v < 0.004) return 'Hilly';
+    if (v < 0.012) return 'Rugged';
+    return 'Extremely rugged';
+  }
+
+  const METRICS = {
+    tri: {
+      label: 'Terrain Ruggedness Index (Riley, meters)',
+      compute: (points, elev, rows, cols) => computeTRI(elev, rows, cols),
+      classify: classifyTRI,
+      unit: 'm',
+      format: v => v.toFixed(1)
+    },
+    vrm: {
+      label: 'Vector Ruggedness Measure (0–1, regional approx.)',
+      compute: (points, elev, rows, cols) => computeVRM(points, elev, rows, cols),
+      classify: classifyVRM,
+      unit: '',
+      format: v => v.toExponential(2)
+    }
+  };
+
+  function basicStats(elev){
+    const min = Math.min(...elev), max = Math.max(...elev);
+    const mean = elev.reduce((a,b)=>a+b,0)/elev.length;
+    const variance = elev.reduce((a,b)=>a+(b-mean)*(b-mean),0)/elev.length;
+    return {min, max, range:max-min, mean, std: Math.sqrt(variance)};
+  }
+
+  function colorFor(v, min, max){
+    const t = max>min ? (v-min)/(max-min) : 0;
+    const stops = [
+      [0.0,[34,139,34]],
+      [0.35,[189,183,107]],
+      [0.7,[139,90,43]],
+      [1.0,[255,255,255]]
+    ];
+    for (let i=0;i<stops.length-1;i++){
+      const [t0,c0]=stops[i], [t1,c1]=stops[i+1];
+      if (t>=t0 && t<=t1){
+        const f=(t-t0)/(t1-t0);
+        const c=c0.map((v0,idx)=>Math.round(v0+f*(c1[idx]-v0)));
+        return `rgb(${c[0]},${c[1]},${c[2]})`;
+      }
+    }
+    return 'rgb(255,255,255)';
+  }
+
+  function clearSampleMarkers(){
+    sampleMarkers.forEach(m=>map.removeLayer(m));
+    sampleMarkers = [];
+  }
+
+  function drawSamples(points, elev){
+    clearSampleMarkers();
+    const min = Math.min(...elev), max = Math.max(...elev);
+    points.forEach((p,i)=>{
+      const marker = L.circleMarker([p.lat,p.lon], {
+        radius:5, color:'#333', weight:1,
+        fillColor: colorFor(elev[i], min, max), fillOpacity:0.9
+      }).bindTooltip(`${elev[i].toFixed(0)} m`);
+      marker.addTo(map);
+      sampleMarkers.push(marker);
+    });
+  }
+
+  function log(msg){
+    const logEl = el('log');
+    logEl.textContent += msg + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function clearLog(){ el('log').textContent=''; }
+
+  function setBusy(busy){
+    el('calcBtn').disabled = busy;
+    el('calcBtn').textContent = busy ? 'Working…' : 'Calculate Hilliness';
+  }
+
+  function showError(msg){
+    el('resultBox').innerHTML = `<p class="error">${escapeHtml(msg)}</p>`;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  async function handleGeocode(){
+    const q = el('placeName').value.trim();
+    if (!q) return;
+    clearLog();
+    log(`Looking up "${q}"…`);
+    try {
+      const bbox = await geocode(q);
+      setBBoxFields(bbox);
+      drawRectFromFields();
+      log(`Found: ${bbox.displayName}`);
+    } catch(err){
+      log(`Geocoding failed: ${err.message}`);
+      showError(`Could not find "${q}". Try a more specific name, or enter the bounding box manually / draw it on the map.`);
+    }
+  }
+
+  async function handleCalculate(){
+    const bbox = readBBoxFields();
+    if (!bbox){
+      showError('Enter a valid bounding box (North > South, East > West) first — search a place name, type coordinates, or draw a rectangle on the map.');
+      return;
+    }
+    clearLog();
+    setBusy(true);
+    el('resultBox').innerHTML = '';
+    try {
+      const targetRows = parseInt(el('resolution').value, 10);
+      const {points, rows, cols} = buildGrid(bbox, targetRows);
+      log(`Sampling ${points.length} points (${rows}×${cols} grid)…`);
+      const {elevations, source} = await fetchElevations(points);
+      log(`Elevation data from: ${source}`);
+
+      const metricId = el('metric').value;
+      const metric = METRICS[metricId];
+      const value = metric.compute(points, elevations, rows, cols);
+      const stats = basicStats(elevations);
+
+      drawSamples(points, elevations);
+      el('legend').innerHTML = `Sample colors: green (low, ${stats.min.toFixed(0)} m) → white/brown (high, ${stats.max.toFixed(0)} m)`;
+
+      el('resultBox').innerHTML = `
+        <div class="metric-value">${metric.format(value)}${metric.unit ? ' '+metric.unit : ''}</div>
+        <div class="metric-label">${metric.label}</div>
+        <div class="metric-class">${metric.classify(value)}</div>
+        <table class="stats-table">
+          <tr><td>Sampled points</td><td>${points.length}</td></tr>
+          <tr><td>Elevation range</td><td>${stats.min.toFixed(0)} – ${stats.max.toFixed(0)} m</td></tr>
+          <tr><td>Mean elevation</td><td>${stats.mean.toFixed(0)} m</td></tr>
+          <tr><td>Elevation std. dev.</td><td>${stats.std.toFixed(1)} m</td></tr>
+          <tr><td>Data source</td><td>${source}</td></tr>
+        </table>`;
+      log('Done.');
+    } catch(err){
+      log(`Error: ${err.message}`);
+      showError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    initMap();
+    el('geocodeBtn').addEventListener('click', handleGeocode);
+    el('placeName').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); handleGeocode(); }});
+    el('drawBtn').addEventListener('click', ()=>{
+      drawing = !drawing;
+      if (drawing){
+        map.dragging.disable();
+        el('drawBtn').textContent = 'Click + drag on the map… (click to cancel)';
+        el('drawBtn').classList.add('active');
+      } else {
+        map.dragging.enable();
+        el('drawBtn').textContent = 'Draw bounding box on map';
+        el('drawBtn').classList.remove('active');
+      }
+    });
+    ['north','south','east','west'].forEach(id=>{
+      el(id).addEventListener('change', drawRectFromFields);
+    });
+    el('calcBtn').addEventListener('click', handleCalculate);
+  });
+})();
+</script>
+</body>
+</html>
