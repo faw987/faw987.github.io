@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>llms.txt Viewer</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f7f5;
+    --panel: #ffffff;
+    --text: #1b1b18;
+    --muted: #6b6b64;
+    --border: #ddddd6;
+    --accent: #2f6f4f;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --ok-bg: #e4f5ea; --ok-fg: #1f7a45; --ok-border: #b8e0c6;
+    --notfound-bg: #fdf3e1; --notfound-fg: #9a6b0a; --notfound-border: #f0dba9;
+    --error-bg: #fbe9e9; --error-fg: #b23b3b; --error-border: #f0c3c3;
+    --pending-bg: #eeeeec; --pending-fg: #6b6b64; --pending-border: #dcdcd4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16161a;
+      --panel: #1e1e23;
+      --text: #ececea;
+      --muted: #9a9a94;
+      --border: #34343a;
+      --accent: #6fcf9b;
+      --ok-bg: #12281c; --ok-fg: #7ee2ab; --ok-border: #1f4a34;
+      --notfound-bg: #2c2413; --notfound-fg: #e3b95c; --notfound-border: #4a3c1c;
+      --error-bg: #2c1616; --error-fg: #f09a9a; --error-border: #4a2222;
+      --pending-bg: #232328; --pending-fg: #9a9a94; --pending-border: #34343a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding-block: 32px;
+    padding-inline: 20px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+  }
+  main {
+    width: 100%;
+    max-width: 780px;
+  }
+  h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.92rem;
+    margin: 0 0 24px;
+    line-height: 1.5;
+  }
+  .subtitle a { color: var(--accent); }
+  textarea {
+    width: 100%;
+    min-height: 160px;
+    resize: vertical;
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 0.92rem;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  button {
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 9px 16px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+  }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  button:hover { filter: brightness(0.97); }
+  .hint {
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin-top: 8px;
+  }
+  #results-view .actions { margin-bottom: 16px; }
+  #summary {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-inline-start: auto;
+  }
+  #output {
+    max-height: 65vh;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    padding: 4px;
+  }
+  .entry {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 14px 16px;
+  }
+  .entry:last-child { border-bottom: none; }
+  .entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .entry-title {
+    font-weight: 600;
+    font-family: var(--mono);
+    font-size: 0.92rem;
+    word-break: break-all;
+  }
+  .entry-badge {
+    font-size: 0.72rem;
+    font-family: var(--mono);
+    padding: 2px 8px;
+    border-radius: 100px;
+    white-space: nowrap;
+    border: 1px solid var(--border);
+    background: var(--pending-bg);
+    color: var(--pending-fg);
+  }
+  .entry.status-ok .entry-badge { background: var(--ok-bg); color: var(--ok-fg); border-color: var(--ok-border); }
+  .entry.status-not-found .entry-badge { background: var(--notfound-bg); color: var(--notfound-fg); border-color: var(--notfound-border); }
+  .entry.status-error .entry-badge,
+  .entry.status-invalid .entry-badge { background: var(--error-bg); color: var(--error-fg); border-color: var(--error-border); }
+  .entry-url {
+    display: block;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-decoration: none;
+    margin-top: 2px;
+    word-break: break-all;
+  }
+  .entry-url:hover { text-decoration: underline; }
+  .entry-body {
+    margin: 10px 0 0;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 340px;
+    overflow-y: auto;
+    color: var(--text);
+  }
+  .entry.status-error .entry-body,
+  .entry.status-invalid .entry-body,
+  .entry.status-not-found .entry-body {
+    color: var(--muted);
+    font-style: italic;
+  }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>llms.txt Viewer</h1>
+  <p class="subtitle">
+    Paste in one or more site URLs. For each one, this looks for an
+    <code>/llms.txt</code> file at that site's root — per the
+    <a href="https://llmstxt.org/" target="_blank" rel="noopener noreferrer">llms.txt standard</a>
+    — and shows whatever it finds. Everything runs locally in your browser: there's no
+    server component, which also means some sites will fail with a CORS error even when
+    their <code>llms.txt</code> exists, since the browser needs the site's permission to
+    read it cross-origin. Open the failing link directly in a new tab in that case.
+  </p>
+
+  <section id="form-view">
+    <textarea id="urls-input" placeholder="anthropic.com&#10;https://vercel.com&#10;cloudflare.com/llms.txt&#10;...paste as many as you like, in any format"></textarea>
+    <div class="actions">
+      <button id="submit-btn" class="primary" type="button">Check URLs</button>
+      <span class="hint">or press ⌘/Ctrl + Enter</span>
+    </div>
+  </section>
+
+  <section id="results-view" hidden>
+    <div class="actions">
+      <button id="edit-btn" type="button">← Edit URLs</button>
+      <button id="refresh-btn" type="button">Refresh</button>
+      <button id="copy-link-btn" type="button">Copy link</button>
+      <span id="summary"></span>
+    </div>
+    <div id="output"></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/typescript@5.6.3/lib/typescript.js"></script>
+
+<script type="text/typescript" id="app-source">
+type FetchStatus = "pending" | "ok" | "not-found" | "error" | "invalid";
+
+interface LlmsTxtResult {
+  input: string;
+  targetUrl: string | null;
+  status: FetchStatus;
+  httpStatus: number | null;
+  content: string | null;
+  errorMessage: string | null;
+}
+
+function byId<T extends HTMLElement>(id: string): T {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`Missing element #${id}`);
+  return el as T;
+}
+
+const formView = byId<HTMLElement>("form-view");
+const resultsView = byId<HTMLElement>("results-view");
+const urlsInput = byId<HTMLTextAreaElement>("urls-input");
+const submitBtn = byId<HTMLButtonElement>("submit-btn");
+const editBtn = byId<HTMLButtonElement>("edit-btn");
+const refreshBtn = byId<HTMLButtonElement>("refresh-btn");
+const copyLinkBtn = byId<HTMLButtonElement>("copy-link-btn");
+const output = byId<HTMLDivElement>("output");
+const summaryEl = byId<HTMLElement>("summary");
+
+let lastRawInput = "";
+
+function extractTokens(raw: string): string[] {
+  const cleaned = raw.replace(/[<>]/g, " ");
+  const rough = cleaned.split(/[\s,;|]+/);
+  const tokens: string[] = [];
+  for (let piece of rough) {
+    piece = piece.trim().replace(/^["'(]+|["'.,)]+$/g, "");
+    if (piece) tokens.push(piece);
+  }
+  return tokens;
+}
+
+function resolveTarget(token: string): string | null {
+  let candidate = token;
+  if (!/^https?:\/\//i.test(candidate)) {
+    candidate = "https://" + candidate;
+  }
+  let url: URL;
+  try {
+    url = new URL(candidate);
+  } catch {
+    return null;
+  }
+  if (!url.hostname.includes(".")) return null;
+  if (/\.txt$/i.test(url.pathname)) {
+    return url.toString();
+  }
+  url.pathname = "/llms.txt";
+  url.search = "";
+  url.hash = "";
+  return url.toString();
+}
+
+function parseUrlList(raw: string): { input: string; targetUrl: string | null }[] {
+  const tokens = extractTokens(raw);
+  const seen = new Set<string>();
+  const parsed: { input: string; targetUrl: string | null }[] = [];
+  for (const token of tokens) {
+    const target = resolveTarget(token);
+    const key = target ?? `invalid:${token}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    parsed.push({ input: token, targetUrl: target });
+  }
+  return parsed;
+}
+
+async function fetchLlmsTxt(
+  targetUrl: string
+): Promise<Pick<LlmsTxtResult, "status" | "httpStatus" | "content" | "errorMessage">> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const res = await fetch(targetUrl, { signal: controller.signal, redirect: "follow" });
+    clearTimeout(timeout);
+    if (res.status === 404) {
+      return { status: "not-found", httpStatus: res.status, content: null, errorMessage: null };
+    }
+    if (!res.ok) {
+      return {
+        status: "error",
+        httpStatus: res.status,
+        content: null,
+        errorMessage: `HTTP ${res.status} ${res.statusText}`,
+      };
+    }
+    const text = await res.text();
+    return { status: "ok", httpStatus: res.status, content: text, errorMessage: null };
+  } catch (err) {
+    clearTimeout(timeout);
+    const aborted = err instanceof DOMException && err.name === "AbortError";
+    return {
+      status: "error",
+      httpStatus: null,
+      content: null,
+      errorMessage: aborted
+        ? "Timed out after 12s."
+        : "Fetch failed — likely blocked by CORS, or the site is unreachable.",
+    };
+  }
+}
+
+function statusLabel(r: LlmsTxtResult): string {
+  switch (r.status) {
+    case "pending":
+      return "Loading…";
+    case "ok":
+      return `Found (HTTP ${r.httpStatus ?? 200})`;
+    case "not-found":
+      return "Not found (404)";
+    case "invalid":
+      return "Invalid URL";
+    case "error":
+      return r.errorMessage ?? "Error";
+  }
+}
+
+function makeEntryElement(index: number, r: LlmsTxtResult): HTMLDivElement {
+  const entry = document.createElement("div");
+  entry.id = `entry-${index}`;
+  fillEntryElement(entry, r);
+  return entry;
+}
+
+function fillEntryElement(entry: HTMLDivElement, r: LlmsTxtResult): void {
+  entry.className = `entry status-${r.status}`;
+  entry.innerHTML = "";
+
+  const header = document.createElement("div");
+  header.className = "entry-header";
+  const title = document.createElement("span");
+  title.className = "entry-title";
+  title.textContent = r.input;
+  const badge = document.createElement("span");
+  badge.className = "entry-badge";
+  badge.textContent = statusLabel(r);
+  header.appendChild(title);
+  header.appendChild(badge);
+  entry.appendChild(header);
+
+  if (r.targetUrl) {
+    const link = document.createElement("a");
+    link.href = r.targetUrl;
+    link.textContent = r.targetUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.className = "entry-url";
+    entry.appendChild(link);
+  }
+
+  const body = document.createElement("pre");
+  body.className = "entry-body";
+  if (r.status === "ok") {
+    body.textContent = r.content ?? "";
+  } else if (r.status === "invalid") {
+    body.textContent = `Could not parse "${r.input}" as a URL.`;
+  } else if (r.status === "not-found") {
+    body.textContent = `No llms.txt at ${r.targetUrl}`;
+  } else if (r.status === "error") {
+    body.textContent = r.errorMessage ?? "Unknown error";
+  } else {
+    body.textContent = "";
+  }
+  entry.appendChild(body);
+}
+
+function updateQueryParams(urls: string[]): void {
+  const params = new URLSearchParams();
+  if (urls.length) params.set("urls", urls.join(","));
+  const newSearch = params.toString();
+  const newUrl = `${location.pathname}${newSearch ? "?" + newSearch : ""}${location.hash}`;
+  history.pushState({ urls }, "", newUrl);
+}
+
+function showForm(prefill?: string): void {
+  resultsView.hidden = true;
+  formView.hidden = false;
+  if (prefill !== undefined) urlsInput.value = prefill;
+  urlsInput.focus();
+}
+
+function showResults(): void {
+  formView.hidden = true;
+  resultsView.hidden = false;
+}
+
+async function runSearch(raw: string, pushHistory: boolean): Promise<void> {
+  lastRawInput = raw;
+  const parsedTokens = parseUrlList(raw);
+  if (!parsedTokens.length) {
+    showForm(raw);
+    return;
+  }
+
+  const results: LlmsTxtResult[] = parsedTokens.map(({ input, targetUrl }) => ({
+    input,
+    targetUrl,
+    status: targetUrl ? "pending" : "invalid",
+    httpStatus: null,
+    content: null,
+    errorMessage: null,
+  }));
+
+  output.innerHTML = "";
+  results.forEach((r, i) => output.appendChild(makeEntryElement(i, r)));
+  summaryEl.textContent = `Checking ${results.length} URL${results.length === 1 ? "" : "s"}…`;
+  showResults();
+
+  if (pushHistory) {
+    const validInputs = results.filter(r => r.targetUrl).map(r => r.input);
+    updateQueryParams(validInputs);
+  }
+
+  let done = 0;
+  await Promise.all(
+    results.map(async (r, i) => {
+      if (!r.targetUrl) return;
+      const outcome = await fetchLlmsTxt(r.targetUrl);
+      Object.assign(r, outcome);
+      const el = byId<HTMLDivElement>(`entry-${i}`);
+      fillEntryElement(el, r);
+      done++;
+      summaryEl.textContent = `Checked ${done} of ${results.length}.`;
+    })
+  );
+
+  const found = results.filter(r => r.status === "ok").length;
+  summaryEl.textContent = `${found} of ${results.length} had an llms.txt.`;
+}
+
+function urlsFromQuery(): string | null {
+  const params = new URLSearchParams(location.search);
+  const combined: string[] = [];
+  const urlsParam = params.get("urls");
+  if (urlsParam) combined.push(urlsParam);
+  for (const u of params.getAll("url")) combined.push(u);
+  if (!combined.length) return null;
+  return combined.join(",");
+}
+
+submitBtn.addEventListener("click", () => {
+  void runSearch(urlsInput.value, true);
+});
+
+urlsInput.addEventListener("keydown", (e: KeyboardEvent) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    e.preventDefault();
+    void runSearch(urlsInput.value, true);
+  }
+});
+
+editBtn.addEventListener("click", () => {
+  showForm(lastRawInput);
+});
+
+refreshBtn.addEventListener("click", () => {
+  void runSearch(lastRawInput, false);
+});
+
+copyLinkBtn.addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(location.href);
+    const original = copyLinkBtn.textContent;
+    copyLinkBtn.textContent = "Copied!";
+    setTimeout(() => {
+      copyLinkBtn.textContent = original;
+    }, 1500);
+  } catch {
+    window.prompt("Copy this link:", location.href);
+  }
+});
+
+window.addEventListener("popstate", () => {
+  const fromQuery = urlsFromQuery();
+  if (fromQuery) {
+    lastRawInput = fromQuery;
+    void runSearch(fromQuery, false);
+  } else {
+    showForm("");
+  }
+});
+
+const initialQuery = urlsFromQuery();
+if (initialQuery) {
+  void runSearch(initialQuery, false);
+} else {
+  showForm();
+}
+</script>
+
+<script>
+(function () {
+  var sourceEl = document.getElementById("app-source");
+  var source = sourceEl.textContent || "";
+  try {
+    var result = ts.transpileModule(source, {
+      compilerOptions: {
+        target: ts.ScriptTarget.ES2020,
+        module: ts.ModuleKind.None,
+        strict: true,
+      },
+      reportDiagnostics: true,
+    });
+    if (result.diagnostics && result.diagnostics.length) {
+      console.warn(
+        "TypeScript diagnostics:",
+        result.diagnostics.map(function (d) {
+          return ts.flattenDiagnosticMessageText(d.messageText, "\n");
+        })
+      );
+    }
+    var script = document.createElement("script");
+    script.textContent = result.outputText;
+    document.body.appendChild(script);
+  } catch (err) {
+    document.body.innerHTML =
+      '<pre style="color:#b23b3b;padding:16px;white-space:pre-wrap;">TypeScript compile error:\n' +
+      (err && err.message ? err.message : String(err)) +
+      "</pre>";
+  }
+})();
+</script>
+</body>
+</html>
