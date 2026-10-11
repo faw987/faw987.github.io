@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bell Correlation</title>
+<style>
+  :root {
+    --ink: #1b1b1f; --muted: #5d5d66; --line: #d9d9de; --panel: #f6f6f8;
+    --accent: #2a4bd7; --bad: #c62828;
+    --math: 'Latin Modern Math', 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 16px 48px; background: #fff; color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+
+  .predictions { display: grid; grid-template-columns: max-content auto; gap: 10px 28px; align-items: center; margin-bottom: 20px; }
+  .predictions dt { font-weight: 600; }
+  .predictions dd { margin: 0; font-family: var(--math); font-size: 1.6rem; }
+  .frac { vertical-align: middle; margin-left: 0.15em; display: inline-flex; flex-direction: column; align-items: center; font-size: 0.85em; line-height: 1.15; }
+  .frac > span:first-child { border-bottom: 1.5px solid currentColor; padding: 0 0.15em; }
+  i { font-style: italic; }
+
+  figure { margin: 0 0 24px; }
+  #graph { display: block; width: 100%; height: auto; max-width: 100%; }
+
+  fieldset { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 18px 20px 20px; margin: 0; }
+  legend { font-weight: 600; padding: 0 6px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px 18px; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--muted); }
+  .cap { display: block; }
+  label code { color: var(--ink); font-size: 0.95rem; }
+  input {
+    font: inherit; font-size: 0.95rem; padding: 7px 10px; border: 1px solid var(--line);
+    border-radius: 6px; background: #fff; color: var(--ink); width: 100%;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  input.invalid { border-color: var(--bad); background: #fff5f5; }
+  .wide { grid-column: 1 / -1; }
+  .linkrow { display: flex; gap: 8px; }
+  .linkrow input { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.85rem; color: var(--muted); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  button {
+    font: inherit; font-size: 0.9rem; padding: 7px 14px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--line); background: #fff; color: var(--ink); white-space: nowrap;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  .note { color: var(--muted); font-size: 0.85rem; margin: 14px 0 0; }
+  .note code { color: var(--ink); }
+  @media (max-width: 520px) {
+    .predictions { grid-template-columns: 1fr; gap: 2px; }
+    .predictions dd { margin-bottom: 10px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Bell correlation</h1>
+  <p class="sub">Quantum versus classical prediction for the correlation of two measurements whose analyzers differ by angle <i>α</i>.</p>
+
+  <dl class="predictions">
+    <dt>Quantum prediction:</dt>
+    <dd>cos 2<i>α</i></dd>
+    <dt>Classical prediction:</dt>
+    <dd>1 − <span class="frac"><span>4<i>α</i></span><span><i>π</i></span></span></dd>
+  </dl>
+
+  <figure>
+    <svg id="graph" role="img" aria-label="Graph of cos 2α and the classical triangle-wave prediction against 2α in degrees"></svg>
+  </figure>
+
+  <fieldset>
+    <legend>Parameters</legend>
+    <div class="grid">
+      <label class="wide"><span class="cap">Star markers, 2<i>α</i> in degrees (<code>markers</code>, comma-separated or “none”)</span>
+        <input id="in-markers" type="text" inputmode="decimal" spellcheck="false" autocomplete="off">
+      </label>
+      <label><span class="cap">Axis end, degrees (<code>xmax</code>)</span>
+        <input id="in-xmax" type="number" min="90" max="1080" step="90">
+      </label>
+      <label><span class="cap">Width, px (<code>width</code>)</span>
+        <input id="in-width" type="number" min="300" max="2400" step="50">
+      </label>
+      <label><span class="cap">Height, px (<code>height</code>)</span>
+        <input id="in-height" type="number" min="250" max="1800" step="50">
+      </label>
+      <label class="wide"><span class="cap">Link to this graph</span>
+        <span class="linkrow">
+          <input id="link" type="text" readonly>
+          <button id="copy" type="button">Copy link</button>
+        </span>
+      </label>
+    </div>
+    <div class="actions">
+      <button id="dl-png" type="button">Download PNG</button>
+      <button id="dl-svg" type="button">Download SVG</button>
+      <button id="reset" type="button">Reset to defaults</button>
+    </div>
+    <p class="note">The same parameters work in the address bar: <code>?</code> starts the list and <code>&amp;</code> separates entries, e.g. <code>?markers=22.5,67.5&amp;xmax=720</code>. Anything left out keeps its default.</p>
+  </fieldset>
+</main>
+
+<!--
+  The program below is TypeScript, embedded as-is. The browser cannot run TypeScript directly,
+  so the TypeScript compiler (loaded from cdnjs) translates it to JavaScript when the page opens.
+  Edit it right here; no build step. (Types are stripped, not checked, in the browser.)
+-->
+<script type="text/typescript" id="app-ts">
+/**
+ * Bell correlation: quantum vs. classical prediction, plotted against 2α (degrees).
+ *
+ *   Quantum prediction:    E = cos 2α
+ *   Classical prediction:  E = 1 − 4α/π   for 0 ≤ 2α ≤ 180°, mirrored beyond (triangle wave)
+ *
+ * Parameters are read from the URL query string, e.g.
+ *   bell_correlation.html?markers=45,135,225,315&xmax=360&width=800&height=600
+ * ("?" starts the parameter list, "&" separates parameters.)
+ * The same parameters appear as editable fields on the page; editing them redraws
+ * the graph and rewrites the URL so the current view can be bookmarked or shared.
+ *
+ * Two ways to ship it:
+ *   - bell_correlation.html:        run ./build.sh to compile this file and inline the JavaScript.
+ *   - bell_correlation_inline.html: this TypeScript is embedded as-is and compiled in the
+ *                                   browser when the page loads; no build step.
+ */
+
+interface Params {
+  markers: number[]; // 2α values (deg) marked with stars
+  xmax: number;      // right end of the 2α axis (deg)
+  width: number;     // graph width (px)
+  height: number;    // graph height (px)
+}
+
+const DEFAULTS: Readonly<Params> = { markers: [45, 135, 225, 315], xmax: 360, width: 800, height: 600 };
+const LIMITS = {
+  xmax: [90, 1080],
+  width: [300, 2400],
+  height: [250, 1800],
+} as const;
+
+const QUANTUM_COLOR = "#0000ff";
+const CLASSICAL_COLOR = "#ff0000";
+const AXIS_COLOR = "#696969";
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+// ---------------------------------------------------------------- physics
+
+const quantum = (twoAlphaDeg: number): number => Math.cos((twoAlphaDeg * Math.PI) / 180);
+
+function classical(twoAlphaDeg: number): number {
+  const t = ((twoAlphaDeg % 360) + 360) % 360;
+  const folded = Math.min(t, 360 - t); // distance from 0 (mod 360), in [0, 180]
+  return 1 - (2 * folded) / 180;       // = 1 − 4α/π with 2α = folded
+}
+
+// ---------------------------------------------------------------- parameters
+
+/** Returns the parsed marker list, or null if the text is not a valid list. */
+function parseMarkers(text: string): number[] | null {
+  const s = text.trim();
+  if (s === "" || s.toLowerCase() === "none") return [];
+  const values = s.split(/[\s,;]+/).filter((v) => v !== "").map(Number);
+  return values.every(Number.isFinite) ? values : null;
+}
+
+/** Returns the parsed integer if it lies within [lo, hi], else null. */
+function parseInRange(text: string, lo: number, hi: number): number | null {
+  const v = Number(text.trim());
+  return Number.isFinite(v) && text.trim() !== "" && v >= lo && v <= hi ? Math.round(v) : null;
+}
+
+type Field = keyof Params;
+const FIELDS: Field[] = ["markers", "xmax", "width", "height"];
+
+function parseField(field: Field, text: string): number | number[] | null {
+  if (field === "markers") return parseMarkers(text);
+  const [lo, hi] = LIMITS[field];
+  return parseInRange(text, lo, hi);
+}
+
+function formatField(p: Params, field: Field): string {
+  return field === "markers" ? (p.markers.length ? p.markers.join(",") : "none") : String(p[field]);
+}
+
+function paramsFromUrl(): Params {
+  const q = new URLSearchParams(window.location.search);
+  const p: Params = { ...DEFAULTS, markers: [...DEFAULTS.markers] };
+  for (const f of FIELDS) {
+    const raw = q.get(f);
+    if (raw === null) continue;
+    const v = parseField(f, raw);
+    if (v !== null) (p as unknown as Record<Field, unknown>)[f] = v;
+  }
+  return p;
+}
+
+function queryFor(p: Params): string {
+  const q = new URLSearchParams();
+  for (const f of FIELDS) q.set(f, formatField(p, f));
+  // URLSearchParams escapes commas; keep them readable since they are legal in a query string.
+  return "?" + q.toString().replace(/%2C/gi, ",");
+}
+
+// ---------------------------------------------------------------- drawing
+
+function el<K extends keyof SVGElementTagNameMap>(
+  tag: K,
+  attrs: Record<string, string | number>,
+  parent?: Element,
+): SVGElementTagNameMap[K] {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, String(v));
+  parent?.appendChild(node);
+  return node;
+}
+
+function starPath(cx: number, cy: number, rOuter: number, rInner: number): string {
+  const pts: string[] = [];
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 === 0 ? rOuter : rInner;
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    pts.push(`${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`);
+  }
+  return `M${pts.join("L")}Z`;
+}
+
+function render(svg: SVGSVGElement, p: Params): void {
+  const W = p.width, H = p.height;
+  const M = { left: 56, right: 28, top: 18, bottom: 84 };
+  const plotW = W - M.left - M.right, plotH = H - M.top - M.bottom;
+  const xs = (x: number) => M.left + (x / p.xmax) * plotW;
+  const ys = (y: number) => M.top + ((1 - y) / 2) * plotH;
+
+  svg.replaceChildren();
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("width", String(W));
+  svg.setAttribute("height", String(H));
+  svg.setAttribute("font-family", "Helvetica, Arial, sans-serif");
+  el("rect", { x: 0, y: 0, width: W, height: H, fill: "#ffffff" }, svg);
+
+  // Clip curves to the plot box
+  const defs = el("defs", {}, svg);
+  const clip = el("clipPath", { id: "plot-clip" }, defs);
+  el("rect", { x: M.left, y: M.top - 2, width: plotW, height: plotH + 4 }, clip);
+
+  // Frame and zero line
+  el("rect", { x: M.left, y: M.top, width: plotW, height: plotH, fill: "none", stroke: AXIS_COLOR, "stroke-width": 1.2 }, svg);
+  el("line", { x1: M.left, y1: ys(0), x2: M.left + plotW, y2: ys(0), stroke: AXIS_COLOR, "stroke-width": 1.2 }, svg);
+
+  // Curves (0.25° steps hit the classical corners at multiples of 180° exactly)
+  const step = 0.25;
+  const n = Math.round(p.xmax / step);
+  const curve = (f: (x: number) => number) => {
+    let d = "";
+    for (let i = 0; i <= n; i++) {
+      const x = Math.min(i * step, p.xmax);
+      d += `${i === 0 ? "M" : "L"}${xs(x).toFixed(2)},${ys(f(x)).toFixed(2)}`;
+    }
+    return d;
+  };
+  const curves = el("g", { "clip-path": "url(#plot-clip)", fill: "none", "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+  el("path", { d: curve(quantum), stroke: QUANTUM_COLOR }, curves);
+  el("path", { d: curve(classical), stroke: CLASSICAL_COLOR }, curves);
+
+  // Star markers
+  for (const m of p.markers) {
+    if (m < 0 || m > p.xmax) continue;
+    el("path", { d: starPath(xs(m), ys(quantum(m)), 8, 3.4), fill: QUANTUM_COLOR }, svg);
+    el("path", { d: starPath(xs(m), ys(classical(m)), 8, 3.4), fill: CLASSICAL_COLOR }, svg);
+  }
+
+  // Tick labels: x labels sit just under the zero line, with a white halo so curves don't obscure them
+  const label = { fill: AXIS_COLOR, "font-size": 20, stroke: "#ffffff", "stroke-width": 5, "paint-order": "stroke", "stroke-linejoin": "round" };
+  for (let t = 0; t <= p.xmax + 1e-9; t += 90) {
+    el("text", { ...label, x: xs(t), y: ys(0) + 24, "text-anchor": "middle" }, svg).textContent = String(t);
+  }
+  for (const y of [-1, 0, 1]) {
+    el("text", { ...label, x: M.left - 10, y: ys(y) + 7, "text-anchor": "end" }, svg).textContent = y < 0 ? "−1" : String(y);
+  }
+
+  // Axis title: 2α in a LaTeX-like serif
+  const title = el("text", {
+    x: M.left + plotW / 2, y: H - 22, "text-anchor": "middle", "font-size": 34, fill: "#000",
+    "font-family": "'Latin Modern Math', 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif",
+  }, svg);
+  title.appendChild(document.createTextNode("2"));
+  el("tspan", { "font-style": "italic" }, title).textContent = "α";
+
+  // Legend: placed along the top where the curves stay lowest, so it never covers them
+  const lw = 178, lh = 76;
+  const halfSpan = ((lw / 2 + 12) / plotW) * p.xmax;
+  let bestX = p.xmax / 2, bestPeak = Infinity;
+  for (let c = halfSpan; c <= p.xmax - halfSpan; c += p.xmax / 200) {
+    let peak = -Infinity;
+    for (let x = c - halfSpan; x <= c + halfSpan; x += p.xmax / 400) peak = Math.max(peak, quantum(x), classical(x));
+    if (peak < bestPeak - 1e-9) { bestPeak = peak; bestX = c; }
+  }
+  const lx = xs(bestX) - lw / 2, ly = M.top + 16;
+  const legend = el("g", {}, svg);
+  el("rect", { x: lx, y: ly, width: lw, height: lh, fill: "#fff", stroke: AXIS_COLOR, "stroke-width": 1.2 }, legend);
+  ([["Quantum", QUANTUM_COLOR], ["Classical", CLASSICAL_COLOR]] as const).forEach(([name, color], i) => {
+    const y = ly + 26 + i * 28;
+    el("line", { x1: lx + 14, y1: y, x2: lx + 64, y2: y, stroke: color, "stroke-width": 2.4 }, legend);
+    el("text", { x: lx + 78, y: y + 7, "font-size": 20, fill: "#222" }, legend).textContent = name;
+  });
+}
+
+// ---------------------------------------------------------------- downloads
+
+function svgMarkup(svg: SVGSVGElement): string {
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute("xmlns", SVG_NS);
+  return new XMLSerializer().serializeToString(clone);
+}
+
+function saveBlob(blob: Blob, filename: string): void {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function downloadSvg(svg: SVGSVGElement): void {
+  saveBlob(new Blob([svgMarkup(svg)], { type: "image/svg+xml" }), "bell_correlation.svg");
+}
+
+function downloadPng(svg: SVGSVGElement, p: Params, scale = 2): void {
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = p.width * scale;
+    canvas.height = p.height * scale;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((b) => b && saveBlob(b, "bell_correlation.png"), "image/png");
+  };
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgMarkup(svg));
+}
+
+// ---------------------------------------------------------------- page wiring
+
+function byId<T extends HTMLElement>(id: string): T {
+  const node = document.getElementById(id);
+  if (!node) throw new Error(`Missing element #${id}`);
+  return node as T;
+}
+
+function main(): void {
+  const svg = byId<HTMLElement>("graph") as unknown as SVGSVGElement;
+  const linkOut = byId<HTMLInputElement>("link");
+  const inputs = Object.fromEntries(FIELDS.map((f) => [f, byId<HTMLInputElement>(`in-${f}`)])) as Record<Field, HTMLInputElement>;
+
+  let params = paramsFromUrl();
+
+  const fillInputs = () => {
+    for (const f of FIELDS) {
+      inputs[f].value = formatField(params, f);
+      inputs[f].classList.remove("invalid");
+    }
+  };
+
+  const update = (pushUrl: boolean) => {
+    render(svg, params);
+    const query = queryFor(params);
+    linkOut.value = window.location.href.split(/[?#]/)[0] + query;
+    if (pushUrl) {
+      try {
+        history.replaceState(null, "", query);
+      } catch {
+        /* some sandboxed viewers forbid URL changes; the link field still works */
+      }
+    }
+  };
+
+  for (const f of FIELDS) {
+    inputs[f].addEventListener("input", () => {
+      const v = parseField(f, inputs[f].value);
+      inputs[f].classList.toggle("invalid", v === null);
+      if (v === null) return;
+      params = { ...params, [f]: v };
+      update(true);
+    });
+  }
+
+  byId("reset").addEventListener("click", () => {
+    params = { ...DEFAULTS, markers: [...DEFAULTS.markers] };
+    fillInputs();
+    update(true);
+  });
+  byId("copy").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(linkOut.value);
+      byId("copy").textContent = "Copied";
+    } catch {
+      linkOut.select();
+      byId("copy").textContent = "Press ⌘/Ctrl-C";
+    }
+    setTimeout(() => (byId("copy").textContent = "Copy link"), 1500);
+  });
+  byId("dl-svg").addEventListener("click", () => downloadSvg(svg));
+  byId("dl-png").addEventListener("click", () => downloadPng(svg, params));
+
+  // Hints show the allowed ranges
+  for (const f of ["xmax", "width", "height"] as const) {
+    inputs[f].title = `${LIMITS[f][0]} to ${LIMITS[f][1]}`;
+  }
+
+  fillInputs();
+  update(window.location.search !== "");
+}
+
+// Works whether this runs before or after the page has finished loading.
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", main);
+else main();
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/typescript/5.9.3/typescript.min.js"></script>
+<script>
+  // Translate the TypeScript above to JavaScript and run it.
+  (function () {
+    const source = document.getElementById("app-ts").textContent;
+    if (typeof ts === "undefined") {
+      document.querySelector("figure").innerHTML =
+        "<p style='color:#c62828'>Could not load the TypeScript compiler from cdnjs; check the network connection.</p>";
+      return;
+    }
+    const out = ts.transpileModule(source, {
+      compilerOptions: { target: ts.ScriptTarget.ES2020 },
+      reportDiagnostics: true,
+    });
+    for (const d of out.diagnostics || []) {
+      console.error("TypeScript:", ts.flattenDiagnosticMessageText(d.messageText, "\n"));
+    }
+    const script = document.createElement("script");
+    script.textContent = out.outputText + "\n//# sourceURL=bell_correlation.ts";
+    document.body.appendChild(script);
+  })();
+</script>
+</body>
+</html>
