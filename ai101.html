@@ -1,0 +1,278 @@
+<!doctype html>
+<!--
+  ============================================================================
+  AI 101: Understanding AI and How It Will Affect You
+  Resource page for a Yearn to Learn talk by Frank Wallace.
+
+  How this page was made
+  ----------------------
+  This page was written by Claude (an AI model from Anthropic), working inside
+  "pi", an open-source coding-agent harness, at Frank's direction. Frank
+  described what he wanted in plain English; the AI wrote the HTML, CSS and
+  TypeScript you see here. Frank reviewed it and published it on GitHub Pages.
+
+  It is deliberately ONE file with NO build step, so that anyone can use
+  "View Page Source" and read the whole thing top to bottom:
+    1. HTML   - the content (works even if scripts are turned off)
+    2. CSS    - the look, inside <style>
+    3. TypeScript - small enhancements, inside <script type="text/typescript">,
+       translated to JavaScript by the TypeScript compiler right in your browser.
+  ============================================================================
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 101: Understanding AI and How It Will Affect You | Yearn to Learn</title>
+<meta name="description" content="Yearn to Learn presents Artificial Intelligence 101: Understanding AI and how it will affect you. Speaker Frank Wallace, software engineer. Wednesday, November 4, 2026 at noon.">
+<meta name="generator" content="Claude (Anthropic), via the pi coding agent">
+<meta property="og:title" content="AI 101: Understanding AI and How It Will Affect You">
+<meta property="og:description" content="Yearn to Learn presents a talk by Frank Wallace. Wednesday, November 4, 2026 at noon.">
+<style>
+  :root {
+    --ink: #1c1d22; --muted: #5b5d68; --line: #dfe1e6; --panel: #f5f6f9;
+    --accent: #2948c7; --accent-soft: #e8ecfb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: var(--ink); background: #fff;
+    font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 20px 32px; }
+
+  .presents { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.85rem; color: var(--accent); font-weight: 600; margin: 0; }
+  h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.1; margin: 8px 0 4px; letter-spacing: -0.02em; }
+  .subtitle { font-size: 1.25rem; color: var(--muted); margin: 0 0 28px; }
+
+  .event { display: grid; grid-template-columns: max-content 1fr; gap: 6px 20px; padding: 20px 24px;
+           background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin: 0 0 12px; }
+  .event dt { font-weight: 600; color: var(--muted); }
+  .event dd { margin: 0; }
+  .countdown { min-height: 1.6em; color: var(--accent); font-weight: 600; margin: 0 0 8px; }
+  .actions button {
+    font: inherit; font-size: 0.95rem; padding: 6px 14px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--accent); background: #fff; color: var(--accent);
+  }
+  .actions button:hover { background: var(--accent-soft); }
+
+  .notice { margin: 36px 0; padding: 16px 20px; border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; }
+  .notice strong { display: block; font-size: 1.1rem; }
+
+  h2 { font-size: 1.4rem; margin: 40px 0 6px; }
+  .lead { color: var(--muted); margin: 0 0 16px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+  .card { border: 1px dashed var(--line); border-radius: 12px; padding: 18px; }
+  .card .icon { font-size: 1.8rem; line-height: 1; }
+  .card h3 { margin: 10px 0 4px; font-size: 1.1rem; }
+  .card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+  .card .tag { display: inline-block; margin-top: 10px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+
+  footer { max-width: 760px; margin: 0 auto; padding: 24px 20px 48px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.9rem; }
+  footer code { background: var(--panel); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <p class="presents">Yearn to Learn presents</p>
+  <h1>Artificial Intelligence 101</h1>
+  <p class="subtitle">Understanding AI and how it will affect you</p>
+
+  <dl class="event">
+    <dt>Speaker</dt> <dd>Frank Wallace, Software Engineer</dd>
+    <dt>When</dt>    <dd><time datetime="2026-11-04T12:00-05:00">Wednesday, November 4, 2026, at noon</time></dd>
+  </dl>
+  <p class="countdown" id="countdown" aria-live="polite"></p>
+  <p class="actions"><button type="button" id="add-to-calendar" hidden>Add to my calendar</button></p>
+
+  <div class="notice">
+    <strong>This page is under construction. Check back soon!</strong>
+    Before the talk, this page will grow into a resource guide for everyone who attends, and for anyone curious about AI.
+  </div>
+
+  <h2>Coming Attractions</h2>
+  <p class="lead">Here is what will be added over the next few weeks:</p>
+
+  <!-- The TypeScript below fills this in from the COMING_ATTRACTIONS list. The static cards are
+       here so the page still says something useful if JavaScript is off or the compiler can't load. -->
+  <div class="cards" id="cards">
+    <div class="card"><h3>Books worth reading</h3><p>Descriptions of books for every level of interest.</p></div>
+    <div class="card"><h3>Websites to follow</h3><p>Trustworthy places to keep up with AI news.</p></div>
+    <div class="card"><h3>YouTube videos to watch</h3><p>Clear, approachable explanations of how AI works.</p></div>
+  </div>
+</main>
+
+<footer>
+  <p>
+    <strong>About this page:</strong> it was written by <em>Claude</em>, an AI model from Anthropic,
+    working inside <em>pi</em>, an open-source coding agent, at Frank's direction. It is one file with no
+    build step, so you can see exactly how it works: in your browser choose <code>View Page Source</code>
+    (in Chrome or Edge press <code>Ctrl+U</code>, or <code>⌥⌘U</code> on a Mac). It's a small example of the kind of thing this talk is about.
+  </p>
+</footer>
+
+<!--
+  The program below is TypeScript, embedded as-is. Browsers can't run TypeScript directly,
+  so the TypeScript compiler (loaded from cdnjs, further down) translates it to JavaScript
+  when the page opens. Edit it right here; no build step. (Types are stripped, not checked.)
+-->
+<script type="text/typescript" id="app-ts">
+// ---------------------------------------------------------------------------
+// 1. The event, described once, so the countdown and calendar file agree.
+// ---------------------------------------------------------------------------
+interface TalkEvent {
+  title: string;
+  speaker: string;
+  start: Date;          // an exact moment in time
+  durationMinutes: number;
+}
+
+const TALK: TalkEvent = {
+  title: "Yearn to Learn: Artificial Intelligence 101",
+  speaker: "Frank Wallace",
+  start: new Date("2026-11-04T12:00:00-05:00"), // noon US Eastern (standard time)
+  durationMinutes: 60,
+};
+
+// ---------------------------------------------------------------------------
+// 2. Coming attractions. To add a section later, add an entry here.
+//    "status" is a union type: TypeScript only allows these three words.
+// ---------------------------------------------------------------------------
+type Status = "coming soon" | "in progress" | "ready";
+
+interface Attraction {
+  icon: string;
+  title: string;
+  blurb: string;
+  status: Status;
+}
+
+const COMING_ATTRACTIONS: Attraction[] = [
+  { icon: "📚", title: "Books worth reading",     blurb: "Short descriptions of books on AI, from gentle introductions to deeper dives.", status: "coming soon" },
+  { icon: "🌐", title: "Websites to follow",      blurb: "Reliable sites and newsletters for keeping up with AI without the hype.",        status: "coming soon" },
+  { icon: "▶️", title: "YouTube videos to watch", blurb: "Clear, approachable videos that explain how AI works and where it's heading.",   status: "coming soon" },
+];
+
+// ---------------------------------------------------------------------------
+// 3. Draw the cards. Each one is built as DOM elements with textContent
+//    (rather than pasting strings of HTML), which is the safe habit.
+// ---------------------------------------------------------------------------
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text: string): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  node.textContent = text;
+  return node;
+}
+
+function renderCards(container: HTMLElement, items: readonly Attraction[]): void {
+  container.replaceChildren(
+    ...items.map((item) => {
+      const card = el("div", "card", "");
+      card.append(
+        el("div", "icon", item.icon),
+        el("h3", "", item.title),
+        el("p", "", item.blurb),
+        el("span", "tag", item.status),
+      );
+      return card;
+    }),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 4. Countdown: "18 days to go", "Tomorrow at noon!", and so on.
+// ---------------------------------------------------------------------------
+function countdownText(now: Date, event: TalkEvent): string {
+  const end = new Date(event.start.getTime() + event.durationMinutes * 60_000);
+  if (now >= end) return "Thank you to everyone who came! Resources will stay posted here.";
+  if (now >= event.start) return "The talk is happening right now!";
+
+  // Compare calendar days in the visitor's own time zone.
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOfDay(event.start) - startOfDay(now)) / 86_400_000);
+
+  const localTime = event.start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (days === 0) return `Today at ${localTime}!`;
+  if (days === 1) return `Tomorrow at ${localTime}!`;
+  return `${days} days to go.`;
+}
+
+// ---------------------------------------------------------------------------
+// 5. "Add to my calendar": builds a standard .ics file in memory and
+//    downloads it. Works with Apple Calendar, Outlook and Google Calendar.
+// ---------------------------------------------------------------------------
+function icsTimestamp(d: Date): string {
+  // e.g. 20261104T170000Z  (UTC, no dashes or colons)
+  return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+}
+
+function buildIcs(event: TalkEvent, pageUrl: string): string {
+  const end = new Date(event.start.getTime() + event.durationMinutes * 60_000);
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Frank Wallace//AI 101//EN",
+    "BEGIN:VEVENT",
+    `UID:ai101-20261104@faw987.github.io`,
+    `DTSTAMP:${icsTimestamp(new Date())}`,
+    `DTSTART:${icsTimestamp(event.start)}`,
+    `DTEND:${icsTimestamp(end)}`,
+    `SUMMARY:${event.title}`,
+    `DESCRIPTION:Speaker: ${event.speaker}\\nResources: ${pageUrl}`,
+    `URL:${pageUrl}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+}
+
+function downloadIcs(event: TalkEvent): void {
+  const blob = new Blob([buildIcs(event, location.href)], { type: "text/calendar" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "ai-101-talk.ics";
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+// ---------------------------------------------------------------------------
+// 6. Wire it all up.
+// ---------------------------------------------------------------------------
+function main(): void {
+  const cards = document.getElementById("cards");
+  if (cards) renderCards(cards, COMING_ATTRACTIONS);
+
+  const countdown = document.getElementById("countdown");
+  const tick = () => { if (countdown) countdown.textContent = countdownText(new Date(), TALK); };
+  tick();
+  setInterval(tick, 60_000); // refresh once a minute
+
+  const button = document.getElementById("add-to-calendar") as HTMLButtonElement | null;
+  if (button && new Date() < TALK.start) {
+    button.hidden = false;
+    button.addEventListener("click", () => downloadIcs(TALK));
+  }
+}
+
+main();
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/typescript/5.9.3/typescript.min.js"></script>
+<script>
+  // Translate the TypeScript above to JavaScript and run it.
+  // If the compiler can't load, the static HTML above still shows everything important.
+  (function () {
+    if (typeof ts === "undefined") return;
+    const source = document.getElementById("app-ts").textContent;
+    const out = ts.transpileModule(source, {
+      compilerOptions: { target: ts.ScriptTarget.ES2020 },
+      reportDiagnostics: true,
+    });
+    for (const d of out.diagnostics || []) {
+      console.error("TypeScript:", ts.flattenDiagnosticMessageText(d.messageText, "\n"));
+    }
+    const script = document.createElement("script");
+    script.textContent = out.outputText + "\n//# sourceURL=ai101.ts";
+    document.body.appendChild(script);
+  })();
+</script>
+</body>
+</html>
