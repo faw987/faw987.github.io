@@ -58,6 +58,12 @@
   }
   .actions button:hover { background: var(--accent-soft); }
 
+  .important { margin: 32px 0 8px; padding: 18px 22px; border: 3px solid #b45309; border-radius: 12px; background: #fffbeb; }
+  .important h2 { margin: 0 0 6px; font-size: 1.2rem; color: #92400e; text-transform: uppercase; letter-spacing: 0.06em; }
+  .important p { margin: 0 0 10px; font-weight: 600; }
+  .important ul { margin: 0; padding-left: 1.2em; display: grid; gap: 12px; }
+  .important .name, .important a { color: #92400e; font-weight: 700; }
+  .important .desc { display: block; color: var(--muted); font-size: 0.95rem; }
   .materials { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
   .materials li { padding: 14px 18px; border: 1px solid var(--line); border-radius: 10px; }
   .materials a { color: var(--accent); font-weight: 600; }
@@ -91,6 +97,31 @@
   </dl>
   <p class="countdown" id="countdown" aria-live="polite"></p>
   <p class="actions"><button type="button" id="add-to-calendar" hidden>Add to my calendar</button></p>
+
+  <!-- ===================== IMPORTANT INFORMATION =====================
+       To edit this text, open the file in a code editor (VS Code, BBEdit), or ask pi.
+       Don't use TextEdit: it rewrites the whole page in its own format.
+       target="_blank" opens each program's site in a new tab, so this page stays open.
+       ================================================================= -->
+  <section class="important" aria-labelledby="important-heading">
+    <h2 id="important-heading">Important Information</h2>
+    <p>Enjoy learning? Two programs offer more talks and classes like this one:</p>
+    <ul>
+      <li>
+        <a class="name" href="https://olliru.rutgers.edu/" target="_blank" rel="noopener">Osher Lifelong Learning Institute at Rutgers University (OLLI-RU)</a>
+        <span class="desc">OLLI-RU offers an extremely wide variety of courses to pique anyone's interest,
+          from acrylic and mandala art to Hawaiian music, Einstein in America, and many more.
+          Two of my courses there: <em>A Very Short Intro to Artificial Intelligence (AI)</em> and
+          <em>Vibe Coding Workshop (Artificial Intelligence)</em>.</span>
+      </li>
+      <li>
+        <a class="name" href="https://community.rutgers.edu/programs-services/program-directory/senior-citizen-audit-program" target="_blank" rel="noopener">Rutgers University Senior Citizen Audit Program</a>
+        <span class="desc">An extraordinary Garden State opportunity. Choose courses from Rutgers
+          University's extensive offerings, at no cost to New Jersey residents, subject to
+          professor approval.</span>
+      </li>
+    </ul>
+  </section>
 
   <h2>Talk Materials</h2>
   <!-- "View" opens the PDF in a new browser tab; "Download" saves a copy.
