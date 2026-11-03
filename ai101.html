@@ -58,6 +58,10 @@
   }
   .actions button:hover { background: var(--accent-soft); }
 
+  .materials { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+  .materials li { padding: 14px 18px; border: 1px solid var(--line); border-radius: 10px; }
+  .materials a { color: var(--accent); font-weight: 600; }
+  .materials .meta { color: var(--muted); font-size: 0.9rem; }
   .notice { margin: 36px 0; padding: 16px 20px; border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; }
   .notice strong { display: block; font-size: 1.1rem; }
 
@@ -87,6 +91,22 @@
   </dl>
   <p class="countdown" id="countdown" aria-live="polite"></p>
   <p class="actions"><button type="button" id="add-to-calendar" hidden>Add to my calendar</button></p>
+
+  <h2>Talk Materials</h2>
+  <!-- "View" opens the PDF in a new browser tab; "Download" saves a copy.
+       rel="noopener" stops the new tab from being able to control this one. -->
+  <ul class="materials">
+    <li>
+      <strong>Slides</strong> <span class="meta">(PDF, 39 pages, 2 MB)</span><br>
+      <a href="slides/nov4_combined_trial2_nums.pdf" target="_blank" rel="noopener">View</a> |
+      <a href="slides/nov4_combined_trial2_nums.pdf" download>Download</a>
+    </li>
+    <li>
+      <strong>Handout</strong>: the slides with speaker notes <span class="meta">(PDF, 40 pages, 5 MB)</span><br>
+      <a href="handouts/nov4_combined_trial2_nums_notes.pdf" target="_blank" rel="noopener">View</a> |
+      <a href="handouts/nov4_combined_trial2_nums_notes.pdf" download>Download</a>
+    </li>
+  </ul>
 
   <div class="notice">
     <strong>This page is under construction. Check back soon!</strong>
