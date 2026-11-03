@@ -64,6 +64,9 @@
   .important ul { margin: 0; padding-left: 1.2em; display: grid; gap: 12px; }
   .important .name, .important a { color: #92400e; font-weight: 700; }
   .important .desc { display: block; color: var(--muted); font-size: 0.95rem; }
+  .people-link { margin: 20px 0 0; padding: 12px 18px; border: 1px solid var(--line); border-radius: 10px; }
+  .people-link a { color: var(--accent); font-weight: 700; font-size: 1.05rem; }
+  .people-link .meta { color: var(--muted); }
   .materials { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
   .materials li { padding: 14px 18px; border: 1px solid var(--line); border-radius: 10px; }
   .materials a { color: var(--accent); font-weight: 600; }
@@ -122,6 +125,13 @@
       </li>
     </ul>
   </section>
+
+  <!-- AI People: links to the Picture Grid page (built in the pic_grid project), which loads
+       its default list, ai_people_list1.csv. Full address used so it also works when this
+       file is opened from the ORT_America folder. -->
+  <p class="people-link">
+    <a href="https://faw987.github.io/pic_grid.html" target="_blank" rel="noopener">AI People</a><span class="meta">: a picture grid of some of the people shaping artificial intelligence</span>
+  </p>
 
   <h2>Talk Materials</h2>
   <!-- "View" opens the PDF in a new browser tab; "Download" saves a copy.
