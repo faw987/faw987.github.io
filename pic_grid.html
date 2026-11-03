@@ -117,7 +117,7 @@
 <body>
 <header>
   <div id="dropZone">
-    Drop a CSV file here (or click to choose).<br />
+    Drop a CSV file here (or click to choose) to replace the default list.<br />
     Each line: <code>name,url</code>
   </div>
   <input type="file" id="fileInput" accept=".csv,text/csv,text/plain" hidden />
@@ -130,7 +130,7 @@
     <button id="nextBtn" type="button" disabled>Next</button>
     <button id="infoBtn" type="button" disabled>More info</button>
   </div>
-  <div id="status">No file loaded.</div>
+  <div id="status">Loading default list&hellip;</div>
 </header>
 <div id="selected">Click a picture to see who it is.</div>
 <div id="grid"></div>
@@ -154,6 +154,9 @@ const grid = document.getElementById("grid") as HTMLDivElement;
 const infoEl = document.getElementById("info") as HTMLDivElement;
 const nextBtn = document.getElementById("nextBtn") as HTMLButtonElement;
 const infoBtn = document.getElementById("infoBtn") as HTMLButtonElement;
+
+/** Default list loaded at startup. Must sit next to this HTML file on the web server. */
+const DEFAULT_LIST_URL = "ai_people_list1.csv";
 
 let people: Person[] = [];
 let timer: number | undefined;
@@ -433,19 +436,35 @@ infoBtn.addEventListener("click", () => {
 });
 
 // ---------- File handling ----------
+/** Replace the current list with the people in `text` and show a new batch. */
+function loadList(text: string, label: string): void {
+  people = parseCsv(text);
+  statusEl.textContent = `${label}: ${people.length} people.`;
+  showGrid(true);
+  if (!people.length) selectedEl.textContent = "No valid lines found (expected name,url).";
+}
+
 function loadFile(file: File): void {
   const reader = new FileReader();
-  reader.onload = () => {
-    people = parseCsv(String(reader.result ?? ""));
-    statusEl.textContent = `Loaded "${file.name}": ${people.length} people.`;
-    selectedEl.textContent = people.length
-      ? "Click a picture to see who it is."
-      : "No valid lines found (expected name,url).";
-    showGrid(true);
-    if (!people.length) selectedEl.textContent = "No valid lines found (expected name,url).";
-  };
+  reader.onload = () => loadList(String(reader.result ?? ""), `Loaded "${file.name}"`);
   reader.onerror = () => { statusEl.textContent = "Could not read file."; };
   reader.readAsText(file);
+}
+
+/** Load the default list at startup. Skipped if the user drops a file first. */
+async function loadDefaultList(): Promise<void> {
+  try {
+    const res = await fetch(DEFAULT_LIST_URL, { cache: "no-cache" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    if (people.length) return; // user already dropped a file
+    loadList(text, `Default list "${DEFAULT_LIST_URL}"`);
+  } catch (err) {
+    if (people.length) return;
+    // Browsers block fetch() for pages opened directly from disk (file://).
+    statusEl.textContent = `Default list not available (${(err as Error).message}). Drop a CSV file to begin.`;
+    console.warn("Could not load default list:", DEFAULT_LIST_URL, err);
+  }
 }
 
 dropZone.addEventListener("click", () => fileInput.click());
@@ -480,6 +499,7 @@ colsInput.addEventListener("change", () => showGrid(true));
 secondsInput.addEventListener("change", restartTimer);
 
 render();
+loadDefaultList();
 </script>
 
 <!-- Loader: compiles the TypeScript above in the browser -->
