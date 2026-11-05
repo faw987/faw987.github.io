@@ -49,6 +49,12 @@
     border: 1px solid #0284c7; background: #0284c7; color: #fff;
   }
   .buttons button:hover:not(:disabled) { background: #0369a1; }
+  /* Documentation links styled as outline buttons */
+  .buttons a.doc {
+    padding: 8px 14px; font-size: 14px; border-radius: 6px; text-decoration: none;
+    border: 1px solid #0284c7; background: #fff; color: #0284c7;
+  }
+  .buttons a.doc:hover { background: #0284c7; color: #fff; }
   .buttons button:disabled { opacity: 0.45; cursor: not-allowed; }
   #info {
     flex: 1;
@@ -117,8 +123,8 @@
 <body>
 <header>
   <div id="dropZone">
-    Drop a CSV file here (or click to choose) to replace the default list.<br />
-    Each line: <code>name,url</code>
+    <span>Drop a CSV file here (or click to choose) to replace the default list.<br />
+    Each line: <code>name,url</code></span>
   </div>
   <input type="file" id="fileInput" accept=".csv,text/csv,text/plain" hidden />
   <div class="controls">
@@ -131,6 +137,10 @@
     <button id="infoBtn" type="button" disabled>More info</button>
   </div>
   <div id="status">Loading default list&hellip;</div>
+  <div class="buttons">
+    <a class="doc" href="pic_grid_PRD.html" target="_blank" rel="noopener" title="Product Requirements Document (opens in a new tab)">PRD</a>
+    <a class="doc" href="pic_grid_user_guide.html" target="_blank" rel="noopener" title="User guide (opens in a new tab)">User doc</a>
+  </div>
 </header>
 <div id="selected">Click a picture to see who it is.</div>
 <div id="grid"></div>

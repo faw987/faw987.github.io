@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Picture Grid – Product Requirements</title>
+<style>
+:root{--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#0284c7;--accent-dark:#0369a1;--warn-bg:#fef3c7;--warn-line:#f59e0b;--code-bg:#f3f4f6;--bg:#f9fafb}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6}
+.topbar{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);padding:10px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.topbar .brand{font-weight:700;margin-right:auto}
+.topbar a{text-decoration:none;padding:6px 12px;border-radius:6px;border:1px solid var(--accent);color:var(--accent);font-size:14px}
+.topbar a.primary{background:var(--accent);color:#fff}
+.topbar a:hover{background:var(--accent-dark);border-color:var(--accent-dark);color:#fff}
+.layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:32px;max-width:1200px;margin:0 auto;padding:24px}
+nav.toc{position:sticky;top:72px;align-self:start;max-height:calc(100vh - 96px);overflow:auto;font-size:14px}
+nav.toc h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px;border:0;padding:0}
+nav.toc ol{list-style:none;margin:0;padding:0}
+nav.toc li{margin:2px 0}
+nav.toc li.sub{padding-left:14px;font-size:13px}
+nav.toc a{color:var(--ink);text-decoration:none;display:block;padding:3px 8px;border-radius:4px}
+nav.toc a:hover{background:#e0f2fe;color:var(--accent-dark)}
+main{background:#fff;border:1px solid var(--line);border-radius:10px;padding:32px 40px;min-width:0}
+h1{font-size:30px;line-height:1.25;margin:0 0 16px}
+h2{font-size:22px;margin:36px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--line)}
+h3{font-size:17px;margin:24px 0 8px}
+h2,h3{scroll-margin-top:80px}
+p,li{font-size:15.5px}
+a{color:var(--accent)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em;background:var(--code-bg);padding:1px 5px;border-radius:4px;word-break:break-word}
+pre{background:#0f172a;color:#e2e8f0;padding:14px 16px;border-radius:8px;overflow:auto;font-size:13px;line-height:1.5}
+pre code{background:none;padding:0;color:inherit;word-break:normal}
+.table-wrap{overflow-x:auto;margin:12px 0 18px}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#f3f4f6;font-weight:600}
+tbody tr:nth-child(even) td{background:#fafafa}
+table.meta{width:auto;min-width:60%}
+table.meta td:first-child{white-space:nowrap;background:#f3f4f6;font-weight:600}
+blockquote{margin:16px 0;padding:12px 16px;background:var(--warn-bg);border-left:5px solid var(--warn-line);border-radius:6px}
+blockquote p{margin:4px 0}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+footer{color:var(--muted);font-size:13px;text-align:center;padding:8px 0 32px}
+@media (max-width:860px){.layout{grid-template-columns:1fr}nav.toc{position:static;max-height:none}main{padding:20px}}
+@media print{.topbar,nav.toc{display:none}.layout{display:block;padding:0}main{border:0;padding:0}pre{white-space:pre-wrap}a{color:inherit}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">Picture Grid &middot; Product Requirements</span>
+  <a class="primary" href="https://faw987.github.io/pic_grid.html" target="_blank" rel="noopener">Open Picture Grid</a>
+  <a href="pic_grid_user_guide.html">User guide</a>
+</header>
+<div class="layout">
+<nav class="toc" aria-label="Contents"><h2>Contents</h2><ol><li class=""><a href="#1-overview">1. Overview</a></li><li class=""><a href="#2-goals">2. Goals</a></li><li class="sub"><a href="#non-goals-v1">Non-goals (v1)</a></li><li class=""><a href="#3-users-and-use-cases">3. Users and use cases</a></li><li class=""><a href="#4-input-data">4. Input data</a></li><li class="sub"><a href="#41-csv-format">4.1 CSV format</a></li><li class="sub"><a href="#42-naming-requirement-for-wikipedia-lookup-important">4.2 Naming requirement for Wikipedia lookup (important)</a></li><li class="sub"><a href="#43-default-list">4.3 Default list</a></li><li class=""><a href="#5-functional-requirements">5. Functional requirements</a></li><li class="sub"><a href="#50-startup-and-the-default-list">5.0 Startup and the default list</a></li><li class="sub"><a href="#51-header-control-bar">5.1 Header / control bar</a></li><li class="sub"><a href="#52-grid">5.2 Grid</a></li><li class="sub"><a href="#53-automatic-refresh">5.3 Automatic refresh</a></li><li class="sub"><a href="#54-selection">5.4 Selection</a></li><li class="sub"><a href="#55-more-info-wikipedia">5.5 More info (Wikipedia)</a></li><li class="sub"><a href="#56-image-error-handling">5.6 Image error handling</a></li><li class=""><a href="#6-technical-requirements">6. Technical requirements</a></li><li class="sub"><a href="#61-deployment">6.1 Deployment</a></li><li class=""><a href="#7-known-limitations-and-risks">7. Known limitations and risks</a></li><li class=""><a href="#8-future-enhancements-not-in-v1">8. Future enhancements (not in v1)</a></li><li class=""><a href="#9-acceptance-criteria-v12">9. Acceptance criteria (v1.2)</a></li></ol></nav>
+<main>
+<h1 id="product-requirements-document-picture-grid">Product Requirements Document: Picture Grid</h1>
+<div class="table-wrap"><table class="meta">
+<tbody><tr>
+<td><strong>Product</strong></td>
+<td>Picture Grid</td>
+</tr>
+<tr>
+<td><strong>Deliverable</strong></td>
+<td><code>index.html</code> (single file: HTML + CSS + TypeScript), the default list <code>ai_people_list1.csv</code>, and HTML documentation (<code>pic_grid_PRD.html</code>, <code>pic_grid_user_guide.html</code>)</td>
+</tr>
+<tr>
+<td><strong>Live URL</strong></td>
+<td><a href="https://faw987.github.io/pic_grid.html">https://faw987.github.io/pic_grid.html</a></td>
+</tr>
+<tr>
+<td><strong>Status</strong></td>
+<td>v1.2 – implemented (adds PRD / User doc buttons; documentation moved from Markdown to HTML)</td>
+</tr>
+<tr>
+<td><strong>Last updated</strong></td>
+<td>November 5, 2026</td>
+</tr>
+</tbody></table></div>
+
+<h2 id="1-overview">1. Overview</h2>
+<p>Picture Grid is a single-page browser application that displays a rotating grid of
+portraits. It starts with a built-in default list of AI pioneers
+(<code>ai_people_list1.csv</code>), and the user can replace it by dropping their own CSV file. The user can click a portrait to see
+the person&#39;s name, and can open the introductory section of that person&#39;s Wikipedia
+article without leaving the page.</p>
+<h2 id="2-goals">2. Goals</h2>
+<ul>
+<li>Show a random selection of people from an arbitrarily long list in a configurable grid.</li>
+<li>Refresh the selection automatically on a configurable interval.</li>
+<li>Let the user identify any pictured person with a single click.</li>
+<li>Provide quick background on a person via Wikipedia&#39;s article introduction.</li>
+<li>Show a useful set of people as soon as the page opens, with no setup (default list).</li>
+<li>Ship as <strong>one self-contained HTML file</strong>, plus the default CSV, with no build step.</li>
+</ul>
+<h3 id="non-goals-v1">Non-goals (v1)</h3>
+<ul>
+<li>Persisting settings or loaded files between sessions.</li>
+<li>Editing the list of people inside the app.</li>
+<li>Languages other than English Wikipedia.</li>
+<li>Offline operation (the TypeScript compiler, images, and Wikipedia are loaded from the network).</li>
+</ul>
+<h2 id="3-users-and-use-cases">3. Users and use cases</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>User</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Presenter / educator</td>
+<td>Display a wall of notable figures (e.g., pioneers of AI) on a screen during a talk or event.</td>
+</tr>
+<tr>
+<td>Learner</td>
+<td>Browse faces, click one that is unfamiliar, and read a short biography.</td>
+</tr>
+<tr>
+<td>Curator</td>
+<td>Prepare a CSV of names and image URLs and check that every entry shows the right picture and article.</td>
+</tr>
+<tr>
+<td>Website visitor</td>
+<td>Opens the published page and immediately sees the default list, with nothing to load.</td>
+</tr>
+</tbody></table></div>
+<h2 id="4-input-data">4. Input data</h2>
+<h3 id="41-csv-format">4.1 CSV format</h3>
+<p>One person per line:</p>
+<pre><code>name,image_url
+</code></pre>
+<ul>
+<li><strong>name</strong> – the text shown when the picture is clicked <strong>and the term used to look up
+the person on Wikipedia</strong> (see §4.2).</li>
+<li><strong>image_url</strong> – a direct link to an image file (<code>https://…</code>, <code>http://…</code>, <code>file:…</code>, or <code>data:</code>).
+It must point to the image itself, not to a web page that contains the image.</li>
+<li>Blank lines are ignored.</li>
+<li>A header row whose second column is <code>url</code>, <code>image</code>, <code>picture</code>, <code>photo</code>, or <code>link</code> is ignored.</li>
+<li>Fields may be wrapped in double quotes. A name <strong>containing a comma must be quoted</strong>
+(e.g., <code>&quot;John McCarthy, computer scientist&quot;,https://…</code>), because the line is split at
+the first unquoted comma. Commas inside the URL are allowed.</li>
+<li>URLs with no scheme get <code>https://</code> added; URLs starting with <code>//</code> get <code>https:</code> added.</li>
+<li>A UTF-8 byte-order mark (common in Excel exports) is stripped.</li>
+</ul>
+<h3 id="42-naming-requirement-for-wikipedia-lookup-important">4.2 Naming requirement for Wikipedia lookup (important)</h3>
+<p>The <strong>More info</strong> feature searches English Wikipedia using the <code>name</code> field exactly
+as written in the CSV. Many names are shared by several people, and Wikipedia sends
+those names to a <em>disambiguation page</em> (a list of possible matches) rather than to an
+article.</p>
+<blockquote>
+<p><strong>Requirement:</strong> CSV authors must use a name that leads Wikipedia to the intended
+article. The most reliable form is the <strong>exact Wikipedia article title</strong>, including
+any qualifier in parentheses.</p>
+</blockquote>
+<p>Example:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Name in CSV</th>
+<th>Wikipedia result</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>John McCarthy</code></td>
+<td>Disambiguation page (list of many John McCarthys)</td>
+</tr>
+<tr>
+<td><code>John McCarthy (computer scientist)</code></td>
+<td>✅ Exact article title – correct article</td>
+</tr>
+<tr>
+<td><code>&quot;John McCarthy, computer scientist&quot;</code></td>
+<td>✅ Wikipedia redirects to the correct article (must be quoted in the CSV because of the comma)</td>
+</tr>
+</tbody></table></div>
+<p>The app does have a fallback for this (§5.5): if it lands on a disambiguation page, it
+uses Wikipedia&#39;s top search result instead. That works for some names but <strong>cannot be relied
+on</strong>, because the top search result may be a different person. A specific name is the
+only way to be sure.</p>
+<p>The name the user sees on screen is the CSV name, so qualifiers such as
+&quot;(computer scientist)&quot; will also appear in the name banner.</p>
+<p>The default list follows this rule. When it was added, two names were changed to their exact
+Wikipedia titles because the short forms lead to disambiguation pages:
+<code>Stuart Russell</code> → <code>Stuart J. Russell</code> and <code>Richard Sutton</code> → <code>Richard S. Sutton</code>.</p>
+<h3 id="43-default-list">4.3 Default list</h3>
+<ul>
+<li>File: <strong><code>ai_people_list1.csv</code></strong>, in the same folder as the HTML page (on GitHub Pages:
+<a href="https://faw987.github.io/ai_people_list1.csv">https://faw987.github.io/ai_people_list1.csv</a>). It contains 29 AI pioneers and researchers,
+with Wikimedia Commons images.</li>
+<li>The file name is set in one place in the code: the <code>DEFAULT_LIST_URL</code> constant.</li>
+<li>The list is loaded automatically at startup (see §5.0). Updating the CSV on the web server
+updates what every visitor sees; the HTML does not need to change. The file is requested
+with <code>cache: &quot;no-cache&quot;</code> so edits show up without waiting for the browser cache to expire.</li>
+<li>All 29 entries were checked when the list was added: every image URL loaded, and every name
+led to the intended Wikipedia article.</li>
+</ul>
+<h2 id="5-functional-requirements">5. Functional requirements</h2>
+<h3 id="50-startup-and-the-default-list">5.0 Startup and the default list</h3>
+<ul>
+<li>On page load, the app requests <code>ai_people_list1.csv</code> from the same location as the page.</li>
+<li>While loading, the status reads &quot;Loading default list…&quot;.</li>
+<li>On success, the grid fills immediately and the status reads
+<code>Default list &quot;ai_people_list1.csv&quot;: N people.</code></li>
+<li>Dropping or choosing a CSV file <strong>replaces</strong> the current list (default or previous file) for
+the rest of the session; the status changes to <code>Loaded &quot;&lt;file&gt;&quot;: N people.</code> Reloading the
+page brings back the default list.</li>
+<li>If the user drops a file before the default list has finished loading, the dropped file wins
+and the default list is ignored when it arrives.</li>
+<li>If the default list cannot be loaded (missing file, network error, or the page was opened
+directly from disk, where browsers block <code>fetch()</code>), the status reads
+<code>Default list not available (&lt;reason&gt;). Drop a CSV file to begin.</code> and the app works as
+before with a dropped file.</li>
+</ul>
+<h3 id="51-header-control-bar">5.1 Header / control bar</h3>
+<p>The top bar contains, from left to right:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>Control</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><strong>Drop zone</strong></td>
+<td>Accepts a dropped CSV file that replaces the current list; clicking it opens a file picker. Highlights while a file is dragged over it.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Rows</strong></td>
+<td>Number of grid rows (1–50, default 3).</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Columns</strong></td>
+<td>Number of grid columns (1–50, default 4).</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Seconds</strong></td>
+<td>Refresh interval in seconds (1–3600, default 5).</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>Next</strong></td>
+<td>Immediately shows a new random batch. Disabled until a list is loaded.</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>More info / Back to grid</strong></td>
+<td>Opens the Wikipedia intro for the selected person; changes to &quot;Back to grid&quot; while the intro is showing. Disabled until a picture is selected.</td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong>Status</strong></td>
+<td>Shows which list is in use (default or dropped file) and the number of people, or an error.</td>
+</tr>
+<tr>
+<td>8</td>
+<td><strong>PRD</strong></td>
+<td>Opens this document (<code>pic_grid_PRD.html</code>) in a new browser tab.</td>
+</tr>
+<tr>
+<td>9</td>
+<td><strong>User doc</strong></td>
+<td>Opens the user guide (<code>pic_grid_user_guide.html</code>) in a new browser tab.</td>
+</tr>
+</tbody></table></div>
+<p>The PRD and User doc buttons open in a <strong>new tab</strong>, so the grid, the loaded list, and any
+selection stay as they were. They are ordinary links: they work even before a list is loaded,
+and they don&#39;t pause or reset the grid.</p>
+<p>Files dropped anywhere else on the page are ignored (the browser does not navigate away).</p>
+<h3 id="52-grid">5.2 Grid</h3>
+<ul>
+<li>The grid has <em>rows × columns</em> cells that fill the space below the header.</li>
+<li>Each refresh picks people at random from the loaded list:<ul>
+<li>No repeats within a batch when the list has at least as many people as cells.</li>
+<li>When the list is shorter than the number of cells, people are repeated to fill the grid.</li>
+</ul>
+</li>
+<li>Pictures are scaled to fit their cell <strong>without cropping</strong> (letterboxed on a dark background).</li>
+<li>Changing Rows or Columns redraws the grid immediately with a new batch.</li>
+</ul>
+<h3 id="53-automatic-refresh">5.3 Automatic refresh</h3>
+<ul>
+<li>Every <em>Seconds</em> seconds a new batch is shown.</li>
+<li>Changing <em>Seconds</em> restarts the countdown.</li>
+<li>Pressing <strong>Next</strong> shows a new batch and restarts the countdown.</li>
+<li>The refresh is <strong>paused</strong> while the Wikipedia intro is shown and resumes when the user returns to the grid.</li>
+</ul>
+<h3 id="54-selection">5.4 Selection</h3>
+<ul>
+<li>Clicking a picture:<ul>
+<li>Shows the person&#39;s name in the banner below the header.</li>
+<li>Highlights the picture with an 8px red (<code>#dc2626</code>) border and a 2px white inner ring
+for contrast on both light and dark images (meets WCAG 2.2 focus-appearance guidance:
+≥2px thick, ≥3:1 contrast).</li>
+<li>Enables <strong>More info</strong>.</li>
+</ul>
+</li>
+<li>Each new batch clears the selection and resets the banner prompt.</li>
+</ul>
+<h3 id="55-more-info-wikipedia">5.5 More info (Wikipedia)</h3>
+<ul>
+<li>Replaces the grid with an article view containing:<ul>
+<li>The person&#39;s picture (floated right).</li>
+<li>The Wikipedia article title as a heading.</li>
+<li>The article&#39;s introductory section (lead), as HTML.</li>
+<li>A &quot;Read the full article on Wikipedia&quot; link that opens in a new tab.</li>
+</ul>
+</li>
+<li>Lookup logic:<ol>
+<li>Query the MediaWiki API (<code>en.wikipedia.org/w/api.php</code>, <code>prop=extracts&amp;exintro</code>) using the
+CSV name as the exact title, following redirects.</li>
+<li>If no article exists, or the result is a disambiguation page, run a Wikipedia search
+for the name and use the top result.</li>
+<li>If neither produces an article, show &quot;No Wikipedia article found for &quot;<name>&quot;.&quot;</li>
+</ol>
+</li>
+<li>Network or API errors are shown in the article view.</li>
+<li>Returned HTML is sanitized (scripts, styles, embeds, event handlers, and <code>javascript:</code> URLs are removed) before display.</li>
+<li>Results that arrive after the user has moved on are discarded.</li>
+<li><strong>Back to grid</strong> restores the same batch; <strong>Next</strong> returns to the grid with a new batch.</li>
+</ul>
+<h3 id="56-image-error-handling">5.6 Image error handling</h3>
+<ul>
+<li>Requests are sent with <code>referrerPolicy=&quot;no-referrer&quot;</code>, which avoids being blocked by sites that refuse requests from other websites.</li>
+<li>On load failure, the app retries once with a fallback URL:<ul>
+<li>Wikimedia hosts → <code>https://upload.wikimedia.org/&lt;same path&gt;</code> without query parameters.</li>
+<li>Other hosts → same URL without the query string.</li>
+</ul>
+</li>
+<li>If the retry also fails, the cell shows &quot;Image failed to load: <url>&quot; and a warning is logged to the console.</li>
+</ul>
+<h2 id="6-technical-requirements">6. Technical requirements</h2>
+<ul>
+<li>Delivered as a single <code>index.html</code> file (published as <code>pic_grid.html</code>) plus <code>ai_people_list1.csv</code>
+in the same folder.</li>
+<li>Application logic is written in TypeScript inside a <code>&lt;script type=&quot;text/typescript&quot;&gt;</code> block
+and transpiled in the browser by the TypeScript compiler loaded from jsDelivr
+(<code>typescript@5</code>). The source passes <code>tsc --strict</code>.</li>
+<li>Must be served over HTTP(S) for the default list to load (e.g., GitHub Pages, or locally with
+<code>python3 -m http.server</code> in the project folder, then open <code>http://localhost:8000/</code>).
+Opened directly from disk (<code>file://</code>), the app still works with dropped files but
+cannot load the default list.</li>
+<li>Network dependencies: jsDelivr (compiler), image hosts, <code>en.wikipedia.org</code> (More info).</li>
+<li>Documentation is written in HTML: <code>pic_grid_PRD.html</code> and <code>pic_grid_user_guide.html</code>.
+Each is a single self-contained file with its styling built in and no scripts or outside
+dependencies. They must sit in the same folder as the app for the PRD and User doc buttons to work.</li>
+</ul>
+<h3 id="61-deployment">6.1 Deployment</h3>
+<p>The app is published on GitHub Pages from the <code>faw987/faw987.github.io</code> repository:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Project file</th>
+<th>Published as</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>pic_grid/index.html</code></td>
+<td><code>pic_grid.html</code></td>
+</tr>
+<tr>
+<td><code>pic_grid/ai_people_list1.csv</code></td>
+<td><code>ai_people_list1.csv</code></td>
+</tr>
+<tr>
+<td><code>pic_grid/pic_grid_PRD.html</code></td>
+<td><code>pic_grid_PRD.html</code></td>
+</tr>
+<tr>
+<td><code>pic_grid/pic_grid_user_guide.html</code></td>
+<td><code>pic_grid_user_guide.html</code></td>
+</tr>
+</tbody></table></div>
+<p>The documentation files have a <code>pic_grid_</code> prefix because the GitHub Pages site holds many
+projects in one folder, and plain names like <code>PRD.html</code> would clash.</p>
+<p>To publish a change, copy the file(s) into <code>~/Projects/faw987.github.io/</code>, commit with a
+<code>deploy: … from pic_grid project</code> message, and push. GitHub Pages updates within a minute or two.</p>
+<ul>
+<li>Target browsers: current Chrome, Edge, Safari, Firefox. (Verified in Chrome.)</li>
+</ul>
+<h2 id="7-known-limitations-and-risks">7. Known limitations and risks</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Impact</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Ambiguous names</td>
+<td>More info may show the wrong person or rely on the search fallback.</td>
+<td>Use exact Wikipedia titles in the CSV (§4.2).</td>
+</tr>
+<tr>
+<td>Unquoted name containing a comma</td>
+<td>The name is cut off at the comma and the URL is broken.</td>
+<td>Quote such names, or use the parenthesized Wikipedia title instead.</td>
+</tr>
+<tr>
+<td>Article-page URLs instead of image URLs</td>
+<td>Picture fails to load.</td>
+<td>Use the direct image URL (e.g., <code>upload.wikimedia.org/...jpg</code>).</td>
+</tr>
+<tr>
+<td>Default list not loaded when opened from disk</td>
+<td>A local <code>file://</code> copy starts empty.</td>
+<td>Run a local web server, or drop the CSV manually.</td>
+</tr>
+<tr>
+<td>Default list must sit next to the HTML</td>
+<td>Renaming or moving either file breaks the default.</td>
+<td>Keep both together; the file name is in <code>DEFAULT_LIST_URL</code>.</td>
+</tr>
+<tr>
+<td>Documentation must sit next to the HTML</td>
+<td>The PRD / User doc buttons show &quot;page not found&quot; if the files are missing.</td>
+<td>Publish all four files together (§6.1).</td>
+</tr>
+<tr>
+<td>Compiler loaded from CDN</td>
+<td>App will not start offline or if jsDelivr is blocked.</td>
+<td>Future: ship a pre-compiled JavaScript build.</td>
+</tr>
+<tr>
+<td>Wikipedia extract quirks</td>
+<td>Some leads contain artifacts such as &quot;(;&quot; where a pronunciation widget was removed.</td>
+<td>Cosmetic; could be post-processed.</td>
+</tr>
+<tr>
+<td>Hotlinking / rate limits</td>
+<td>Some hosts may block or throttle images.</td>
+<td>No-referrer policy and fallback URL; prefer Wikimedia or self-hosted images.</td>
+</tr>
+</tbody></table></div>
+<h2 id="8-future-enhancements-not-in-v1">8. Future enhancements (not in v1)</h2>
+<ul>
+<li>Optional third CSV column for an explicit Wikipedia title, separate from the display name.</li>
+<li>Pause/resume button for the automatic refresh.</li>
+<li>Keyboard navigation and focus support for grid cells.</li>
+<li>Remember settings (rows, columns, seconds) in local storage.</li>
+<li>Choose the default list from the address bar (e.g., <code>pic_grid.html?list=other.csv</code>).</li>
+<li>&quot;Restore default list&quot; button after a file has been dropped.</li>
+<li>Pre-compiled JavaScript build for offline use.</li>
+<li>Clean up Wikipedia extract artifacts.</li>
+<li>Show the person&#39;s name as a caption on each tile (optional).</li>
+</ul>
+<h2 id="9-acceptance-criteria-v12">9. Acceptance criteria (v1.2)</h2>
+<ol>
+<li>Opening the published page shows <code>Default list &quot;ai_people_list1.csv&quot;: 29 people.</code> and a filled grid, with nothing to load.</li>
+<li>Dropping a valid CSV replaces the default list, shows &quot;Loaded &quot;<file>&quot;: N people.&quot; and fills the grid.</li>
+<li>The grid has exactly Rows × Columns cells; pictures are not cropped.</li>
+<li>The grid changes automatically every <em>Seconds</em> seconds.</li>
+<li><strong>Next</strong> immediately shows a new batch.</li>
+<li>Clicking a picture shows the name and a red highlight; <strong>More info</strong> becomes enabled.</li>
+<li><strong>More info</strong> shows the Wikipedia lead with a source link; auto-refresh is paused.</li>
+<li><strong>Back to grid</strong> restores the grid and resumes refresh.</li>
+<li><code>John McCarthy (computer scientist)</code> displays the computer scientist&#39;s article.</li>
+<li>An unreachable image URL shows an error message in its cell instead of a broken image.</li>
+<li>Opening the page from disk shows the &quot;Default list not available&quot; message, and dropping a file still works.</li>
+<li><strong>PRD</strong> and <strong>User doc</strong> open the HTML PRD and user guide in a new tab, and the grid keeps running in the original tab.</li>
+</ol>
+
+</main>
+</div>
+<footer>Picture Grid documentation &middot; <a href="pic_grid_user_guide.html">User guide</a></footer>
+</body>
+</html>

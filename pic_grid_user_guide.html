@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Picture Grid – User Guide</title>
+<style>
+:root{--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--accent:#0284c7;--accent-dark:#0369a1;--warn-bg:#fef3c7;--warn-line:#f59e0b;--code-bg:#f3f4f6;--bg:#f9fafb}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6}
+.topbar{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--line);padding:10px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.topbar .brand{font-weight:700;margin-right:auto}
+.topbar a{text-decoration:none;padding:6px 12px;border-radius:6px;border:1px solid var(--accent);color:var(--accent);font-size:14px}
+.topbar a.primary{background:var(--accent);color:#fff}
+.topbar a:hover{background:var(--accent-dark);border-color:var(--accent-dark);color:#fff}
+.layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:32px;max-width:1200px;margin:0 auto;padding:24px}
+nav.toc{position:sticky;top:72px;align-self:start;max-height:calc(100vh - 96px);overflow:auto;font-size:14px}
+nav.toc h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 8px;border:0;padding:0}
+nav.toc ol{list-style:none;margin:0;padding:0}
+nav.toc li{margin:2px 0}
+nav.toc li.sub{padding-left:14px;font-size:13px}
+nav.toc a{color:var(--ink);text-decoration:none;display:block;padding:3px 8px;border-radius:4px}
+nav.toc a:hover{background:#e0f2fe;color:var(--accent-dark)}
+main{background:#fff;border:1px solid var(--line);border-radius:10px;padding:32px 40px;min-width:0}
+h1{font-size:30px;line-height:1.25;margin:0 0 16px}
+h2{font-size:22px;margin:36px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--line)}
+h3{font-size:17px;margin:24px 0 8px}
+h2,h3{scroll-margin-top:80px}
+p,li{font-size:15.5px}
+a{color:var(--accent)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em;background:var(--code-bg);padding:1px 5px;border-radius:4px;word-break:break-word}
+pre{background:#0f172a;color:#e2e8f0;padding:14px 16px;border-radius:8px;overflow:auto;font-size:13px;line-height:1.5}
+pre code{background:none;padding:0;color:inherit;word-break:normal}
+.table-wrap{overflow-x:auto;margin:12px 0 18px}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#f3f4f6;font-weight:600}
+tbody tr:nth-child(even) td{background:#fafafa}
+table.meta{width:auto;min-width:60%}
+table.meta td:first-child{white-space:nowrap;background:#f3f4f6;font-weight:600}
+blockquote{margin:16px 0;padding:12px 16px;background:var(--warn-bg);border-left:5px solid var(--warn-line);border-radius:6px}
+blockquote p{margin:4px 0}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+footer{color:var(--muted);font-size:13px;text-align:center;padding:8px 0 32px}
+@media (max-width:860px){.layout{grid-template-columns:1fr}nav.toc{position:static;max-height:none}main{padding:20px}}
+@media print{.topbar,nav.toc{display:none}.layout{display:block;padding:0}main{border:0;padding:0}pre{white-space:pre-wrap}a{color:inherit}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">Picture Grid &middot; User Guide</span>
+  <a class="primary" href="https://faw987.github.io/pic_grid.html" target="_blank" rel="noopener">Open Picture Grid</a>
+  <a href="pic_grid_PRD.html">PRD</a>
+</header>
+<div class="layout">
+<nav class="toc" aria-label="Contents"><h2>Contents</h2><ol><li class=""><a href="#1-getting-started">1. Getting started</a></li><li class="sub"><a href="#11-the-default-list">1.1 The default list</a></li><li class="sub"><a href="#12-using-your-own-list-instead">1.2 Using your own list instead</a></li><li class="sub"><a href="#13-running-it-from-your-own-computer">1.3 Running it from your own computer</a></li><li class=""><a href="#2-preparing-your-csv-file">2. Preparing your CSV file</a></li><li class="sub"><a href="#21-choosing-the-name-important">2.1 Choosing the name – important ⚠️</a></li><li class="sub"><a href="#22-names-that-contain-a-comma">2.2 Names that contain a comma</a></li><li class="sub"><a href="#23-choosing-the-picture-link">2.3 Choosing the picture link</a></li><li class="sub"><a href="#24-other-tips">2.4 Other tips</a></li><li class=""><a href="#3-using-the-controls">3. Using the controls</a></li><li class=""><a href="#4-finding-out-who-someone-is">4. Finding out who someone is</a></li><li class=""><a href="#5-troubleshooting">5. Troubleshooting</a></li><li class=""><a href="#6-quick-reference-a-good-csv">6. Quick reference: a good CSV</a></li></ol></nav>
+<main>
+<h1 id="picture-grid-user-guide">Picture Grid – User Guide</h1>
+<p>Picture Grid shows a changing wall of portraits. It starts with a built-in list of
+AI pioneers, and you can swap in your own list at any time. Click any face to see
+who it is, and click <strong>More info</strong> to read about that person on Wikipedia.</p>
+
+<h2 id="1-getting-started">1. Getting started</h2>
+<ol>
+<li>Open <strong><a href="https://faw987.github.io/pic_grid.html">https://faw987.github.io/pic_grid.html</a></strong> in a web browser (Chrome, Edge,
+Safari, or Firefox). You need an internet connection.</li>
+<li>That&#39;s it. The grid fills with pictures from the <strong>default list</strong> straight away,
+and the status message reads <code>Default list &quot;ai_people_list1.csv&quot;: 29 people.</code></li>
+<li>Need help later? Click <strong>User doc</strong> at the right end of the top bar to open this guide
+in a new tab. The pictures keep running in the original tab.</li>
+</ol>
+<h3 id="11-the-default-list">1.1 The default list</h3>
+<p>The default list, <code>ai_people_list1.csv</code>, contains 29 AI pioneers and researchers,
+from Ada Lovelace, Claude Shannon and John McCarthy to today&#39;s AI leaders. It is
+stored on the website next to the page, and everyone who opens the page sees it.</p>
+<h3 id="12-using-your-own-list-instead">1.2 Using your own list instead</h3>
+<ol>
+<li>Drag your CSV file onto the dashed box at the top of the page,
+or click the box and choose the file.</li>
+<li>Your list <strong>replaces</strong> the default list, and the status message changes to,
+for example, <code>Loaded &quot;my_people.csv&quot;: 24 people.</code></li>
+<li>To go back to the default list, reload the page.</li>
+</ol>
+<p>Your file stays on your computer. It is not uploaded anywhere, and other visitors
+still see the default list.</p>
+<h3 id="13-running-it-from-your-own-computer">1.3 Running it from your own computer</h3>
+<p>If you open a copy of the page directly from a folder on your computer
+(double-clicking the HTML file), the browser does not let it load the default list.
+The status will say <em>Default list not available (Failed to fetch). Drop a CSV file to begin.</em>
+You can still drop a CSV file. To get the default list locally as well, start a
+small web server in the project folder:</p>
+<pre><code>cd ~/Projects/pic_grid
+python3 -m http.server
+</code></pre>
+<p>then open <a href="http://localhost:8000/">http://localhost:8000/</a> in your browser.</p>
+<h2 id="2-preparing-your-csv-file">2. Preparing your CSV file</h2>
+<p>A CSV file is a plain-text list. Each line has a <strong>name</strong>, a <strong>comma</strong>, and a
+<strong>link to a picture</strong>:</p>
+<pre><code>Alan Turing,https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Alan_turing_header.jpg/500px-Alan_turing_header.jpg
+Ada Lovelace,https://upload.wikimedia.org/wikipedia/commons/a/a4/Ada_Lovelace_portrait.jpg
+John McCarthy (computer scientist),https://example.com/john_mccarthy.jpg
+</code></pre>
+<p>You can create the file in any text editor, or in Excel / Numbers / Google Sheets
+(name in column A, link in column B, then <em>Save as / Download as CSV</em>).</p>
+<p><strong>Tip:</strong> the default list is a good template. Download it from
+<a href="https://faw987.github.io/ai_people_list1.csv">https://faw987.github.io/ai_people_list1.csv</a>, then add, remove, or change people
+and drop your edited copy onto the page.</p>
+<h3 id="21-choosing-the-name-important">2.1 Choosing the name – important ⚠️</h3>
+<p>The name does two jobs:</p>
+<ol>
+<li>It is what you see when you click the picture.</li>
+<li><strong>It is what the app looks up on Wikipedia when you click More info.</strong></li>
+</ol>
+<p>Many people share a name. If you enter just a common name, Wikipedia may give you a
+list of different people with that name rather than the article about the person you want.</p>
+<p><strong>Use the name that takes Wikipedia straight to the right article.</strong> The best way
+is to copy the <strong>exact title of the Wikipedia article</strong>, including anything in
+parentheses.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>❌ Ambiguous</th>
+<th>✅ Use this instead</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>John McCarthy</code></td>
+<td><code>John McCarthy (computer scientist)</code></td>
+</tr>
+</tbody></table></div>
+<p><code>John McCarthy</code> on its own leads Wikipedia to a list of many different John
+McCarthys. <code>John McCarthy (computer scientist)</code> goes straight to the right article.</p>
+<p><strong>How to find the exact title:</strong> search for the person on Wikipedia, open their
+article, and copy the title shown at the top of the page (or the end of the web
+address, swapping <code>_</code> for spaces). For example:</p>
+<pre><code>https://en.wikipedia.org/wiki/John_McCarthy_(computer_scientist)
+                              └─────────── title ───────────┘
+</code></pre>
+<p><strong>Check each entry:</strong> after loading your file, click each person and press <strong>More info</strong>.
+If the article is about someone else, change the name in your CSV and load it again.</p>
+<blockquote>
+<p>If the app lands on a list page, it tries Wikipedia&#39;s top search result
+instead. That sometimes picks the right person, but not always, so don&#39;t rely on it.</p>
+</blockquote>
+<h3 id="22-names-that-contain-a-comma">2.2 Names that contain a comma</h3>
+<p>You can also write a description after a comma, for example
+<em>John McCarthy, computer scientist</em>. Wikipedia often finds the right article from
+this (directly or through its search), but not as reliably as the exact title.
+For example, <code>John von Neumann, mathematician</code> ends up on a general &quot;Von Neumann&quot;
+page instead of the person&#39;s article. Always check with <strong>More info</strong>.
+<strong>You must put a name like this in double quotes</strong>, because the comma is also what
+separates the name from the link:</p>
+<pre><code>&quot;John McCarthy, computer scientist&quot;,https://example.com/john_mccarthy.jpg
+</code></pre>
+<p>Without the quotes, the app treats everything after the first comma as the picture
+link, and the picture will not load. (Spreadsheet programs add these quotes
+automatically when they save as CSV.) If you want to avoid quotes, use the parentheses
+form from §2.1.</p>
+<h3 id="23-choosing-the-picture-link">2.3 Choosing the picture link</h3>
+<ul>
+<li>The link must point <strong>to the picture itself</strong>, not to a web page that contains it.<ul>
+<li>✅ <code>https://upload.wikimedia.org/.../Alan_turing_header.jpg</code></li>
+<li>❌ <code>https://en.wikipedia.org/wiki/Alan_Turing</code> (this is an article, not a picture)</li>
+</ul>
+</li>
+<li>On Wikipedia, click the photo, then right-click the large image and choose
+<strong>Copy Image Address</strong>.</li>
+<li>Pictures on your own computer work too, using a <code>file:</code> link, for example
+<code>file:/Users/yourname/Downloads/photo.jpg</code>. (These only work on your computer.)</li>
+<li>Portrait (tall) and landscape (wide) pictures both work. Pictures are fitted
+inside their square without being cropped.</li>
+</ul>
+<h3 id="24-other-tips">2.4 Other tips</h3>
+<ul>
+<li>Any number of lines is fine. A longer list gives more variety.</li>
+<li>Blank lines are ignored.</li>
+<li>A first line such as <code>name,url</code> is treated as a heading and ignored.</li>
+<li>Use only two columns. Extra columns end up inside the picture link and break it.</li>
+</ul>
+<h2 id="3-using-the-controls">3. Using the controls</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Drop box</strong></td>
+<td>Drop a CSV file here, or click it to choose one. It replaces the current list (the default list or a file you loaded earlier).</td>
+</tr>
+<tr>
+<td><strong>Rows</strong></td>
+<td>How many rows of pictures (1–50).</td>
+</tr>
+<tr>
+<td><strong>Columns</strong></td>
+<td>How many columns of pictures (1–50).</td>
+</tr>
+<tr>
+<td><strong>Seconds</strong></td>
+<td>How long each set of pictures stays before a new random set appears.</td>
+</tr>
+<tr>
+<td><strong>Next</strong></td>
+<td>Show a new random set right now (this also restarts the countdown).</td>
+</tr>
+<tr>
+<td><strong>More info</strong></td>
+<td>Read about the selected person on Wikipedia. Changes to <strong>Back to grid</strong> while you&#39;re reading.</td>
+</tr>
+<tr>
+<td><strong>Status</strong></td>
+<td>Shows which list is in use (the default list or your file) and how many people it contains.</td>
+</tr>
+<tr>
+<td><strong>PRD</strong></td>
+<td>Opens the Product Requirements Document (how the app is meant to work) in a new tab.</td>
+</tr>
+<tr>
+<td><strong>User doc</strong></td>
+<td>Opens this user guide in a new tab.</td>
+</tr>
+</tbody></table></div>
+<p>The number of pictures shown is <strong>Rows × Columns</strong> (for example 3 × 4 = 12).
+Each set is chosen at random. Nobody appears twice in the same set unless your list
+has fewer people than there are squares.</p>
+<h2 id="4-finding-out-who-someone-is">4. Finding out who someone is</h2>
+<ol>
+<li><strong>Click a picture.</strong> It gets a thick red border and the person&#39;s name appears
+in the banner above the grid.</li>
+<li><strong>Click More info.</strong> The grid is replaced by:<ul>
+<li>the person&#39;s picture,</li>
+<li>the opening section of their Wikipedia article, and</li>
+<li>a <strong>Read the full article on Wikipedia</strong> link (opens in a new tab).</li>
+</ul>
+</li>
+<li>While you&#39;re reading, the pictures stop changing.</li>
+<li><strong>Click Back to grid</strong> to return to the same pictures, or <strong>Next</strong> to return
+with a new set. The automatic changes resume.</li>
+</ol>
+<p>When a new set of pictures appears, the selection is cleared. Click another picture
+to select it.</p>
+<h2 id="5-troubleshooting">5. Troubleshooting</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Problem</th>
+<th>What to check</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>&quot;Image failed to load: …&quot;</strong> in a square</td>
+<td>The link is wrong, isn&#39;t a direct picture link, or the website blocks it. Open the link in a new browser tab; you should see only the picture.</td>
+</tr>
+<tr>
+<td><strong>More info shows the wrong person, or a list of people</strong></td>
+<td>The name is ambiguous. Use the exact Wikipedia article title (see §2.1).</td>
+</tr>
+<tr>
+<td><strong>&quot;No Wikipedia article found&quot;</strong></td>
+<td>Check the spelling, or copy the exact title from Wikipedia.</td>
+</tr>
+<tr>
+<td><strong>A name is cut short and its picture is broken</strong></td>
+<td>The name contains a comma but isn&#39;t in double quotes (see §2.2).</td>
+</tr>
+<tr>
+<td><strong>Status says &quot;Default list not available&quot;</strong></td>
+<td>The page was opened from a file on your computer, or the website couldn&#39;t supply the list. Drop a CSV file, or see &quot;Running it from your own computer&quot; (§1.3).</td>
+</tr>
+<tr>
+<td><strong>Status says &quot;No valid lines found&quot;</strong></td>
+<td>Each line needs a name, a comma, and a link.</td>
+</tr>
+<tr>
+<td><strong>Nothing happens / page is blank</strong></td>
+<td>You need an internet connection. Also check that your network doesn&#39;t block <code>cdn.jsdelivr.net</code>.</td>
+</tr>
+<tr>
+<td><strong>More info says &quot;Could not load Wikipedia article&quot;</strong></td>
+<td>Check your internet connection and try again.</td>
+</tr>
+<tr>
+<td><strong>Pictures change too quickly</strong></td>
+<td>Increase <strong>Seconds</strong>. Clicking <strong>More info</strong> also stops the changes while you read.</td>
+</tr>
+</tbody></table></div>
+<h2 id="6-quick-reference-a-good-csv">6. Quick reference: a good CSV</h2>
+<pre><code>name,url
+Alan Turing,https://upload.wikimedia.org/wikipedia/commons/thumb/c/ce/Alan_turing_header.jpg/500px-Alan_turing_header.jpg
+John McCarthy (computer scientist),https://upload.wikimedia.org/.../John_McCarthy_Stanford.jpg
+Claude Shannon,https://upload.wikimedia.org/.../ClaudeShannon_MFO3807.jpg
+Geoffrey Hinton,https://upload.wikimedia.org/.../Geoffrey_Hinton.jpg
+Demis Hassabis,https://upload.wikimedia.org/.../Demis_Hassabis.jpg
+</code></pre>
+<p>✔ Exact Wikipedia titles (or quoted names with a description; check them with More info)
+✔ Direct picture links
+✔ Two columns only</p>
+
+</main>
+</div>
+<footer>Picture Grid documentation &middot; <a href="pic_grid_PRD.html">PRD</a></footer>
+</body>
+</html>
